@@ -367,8 +367,6 @@ export default function HomePage(){
         <div className="edit-profile-mobile-banner">
           <div className="profile-brand">RIVYZA</div>
           <p className="step-label">{profile?"EDITAR PERFIL":"PRIMER PASO"}</p>
-          <h2>{profile?"Editar perfil":"Crea tu perfil"}</h2>
-
           <div className="profile-avatar-wrap">
             {avatarUrl
               ? <img className="profile-photo" src={avatarUrl} alt="Foto de perfil"/>

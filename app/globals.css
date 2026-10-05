@@ -645,3 +645,20 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
     padding:20px 16px 22px;
   }
 }
+
+
+/* ===== RIVYZA v10.4 PROFILE TITLE CLEANUP ===== */
+.edit-profile-mobile-banner .profile-brand{
+  margin-bottom:18px;
+}
+
+.edit-profile-mobile-banner .step-label{
+  margin-top:0;
+  margin-bottom:22px;
+  font-size:14px;
+  letter-spacing:1.6px;
+}
+
+.edit-profile-mobile-banner .profile-avatar-wrap{
+  margin-top:0;
+}

@@ -25,3 +25,6 @@ RIVYZA v10.2 NAVFIX: removed secondary automatic redirects that could send authe
 
 
 RIVYZA v10.3 AUTHFIX: removed the login navigation race. Profile loading no longer changes screens. Any authenticated Google user lands and stays on Inicio; auth refresh events cannot send the user to Perfil.
+
+
+RIVYZA v10.4: removed duplicate 'Editar perfil' heading and adjusted spacing in the mobile edit-profile banner.
