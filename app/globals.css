@@ -724,3 +724,75 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
   font-size:18px;
   line-height:1;
 }
+
+
+/* ===== RIVYZA v10.7 MOBILE WIDTH + COUNTRY DISPLAY ===== */
+
+/* Keep the mobile experience visually consistent across screens */
+.app-shell,
+.public-profile-shell,
+.profile-setup-shell,
+.profile-card,
+.feed-shell,
+main{
+  box-sizing:border-box;
+}
+
+@media(max-width:560px){
+  html, body{
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden;
+  }
+
+  .app-shell,
+  .public-profile-shell,
+  .profile-setup-shell,
+  .feed-shell{
+    width:100%;
+    max-width:100%;
+    margin:0;
+  }
+
+  .profile-card{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    border-radius:0;
+    padding-left:16px;
+    padding-right:16px;
+  }
+
+  .edit-profile-mobile-banner{
+    width:100%;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+
+  .profile-editor,
+  .profile-hero,
+  .profile-content-section{
+    width:100%;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+}
+
+/* Country is shown as: 🇩🇴 República Dominicana */
+.profile-country{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:7px;
+  color:#d9d9df;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.2;
+}
+
+.profile-country-flag{
+  font-size:17px;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+}

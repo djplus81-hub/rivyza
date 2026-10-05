@@ -34,3 +34,6 @@ RIVYZA v10.5 SAVED LOGIN: explicit Supabase session persistence, automatic token
 
 
 RIVYZA v10.6 COUNTRY: one country/flag per profile, complete ISO country selector, optional visibility, shown only on the profile underneath @username.
+
+
+RIVYZA v10.7: edit-profile/mobile screens now use the same full mobile width; country display is compact flag + country name (example: 🇩🇴 República Dominicana).
