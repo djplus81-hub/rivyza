@@ -17,9 +17,27 @@ async function getCroppedBlob(src,pixelCrop){
 }
 
 export default function HomePage(){
+  const countryCodes=["AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR","GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR","HT","HU","ID","IE","IL","IM","IN","IO","IQ","IR","IS","IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ","TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE","YT","ZA","ZM","ZW"];
+  const regionNames=useMemo(()=>new Intl.DisplayNames(["es"],{type:"region"}),[]);
+  const flagFromCode=(code)=>{
+    if(!code || code.length!==2) return "";
+    return [...code.toUpperCase()]
+      .map(char=>String.fromCodePoint(127397 + char.charCodeAt()))
+      .join("");
+  };
+  const countryOptions=useMemo(()=>countryCodes
+    .map(code=>({code,name:regionNames.of(code)||code,flag:flagFromCode(code)}))
+    .sort((a,b)=>a.name.localeCompare(b.name,"es")),[regionNames]);
+
   const supabase=useMemo(()=>{
     const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    return u&&k?createClient(u,k):null;
+    return u&&k?createClient(u,k,{
+      auth:{
+        persistSession:true,
+        autoRefreshToken:true,
+        detectSessionInUrl:true
+      }
+    }):null;
   },[]);
 
   const [user,setUser]=useState(null);
@@ -35,6 +53,9 @@ export default function HomePage(){
   const [youtubeUrl,setYoutubeUrl]=useState("");
   const [instagramUrl,setInstagramUrl]=useState("");
   const [facebookUrl,setFacebookUrl]=useState("");
+  const [countryCode,setCountryCode]=useState("");
+  const [countryName,setCountryName]=useState("");
+  const [showCountry,setShowCountry]=useState(true);
   const [message,setMessage]=useState("");
   const [saving,setSaving]=useState(false);
 
@@ -46,7 +67,7 @@ export default function HomePage(){
   const [uploadingAvatar,setUploadingAvatar]=useState(false);
 
   const loadProfile=useCallback(async(currentUser)=>{
-    if(!supabase||!currentUser)return;
+    if(!supabase||!currentUser)return null;
 
     const {data,error}=await supabase
       .from("profiles")
@@ -56,8 +77,7 @@ export default function HomePage(){
 
     if(error){
       console.error("Profile load error:",error);
-      setView("home");
-      return;
+      return null;
     }
 
     if(data){
@@ -70,40 +90,90 @@ export default function HomePage(){
       setYoutubeUrl(data.youtube_url||"");
       setInstagramUrl(data.instagram_url||"");
       setFacebookUrl(data.facebook_url||"");
-
-      // Existing users ALWAYS land on Inicio after Google login / refresh.
-      setView("home");
-    }else{
-      // Only brand-new users without a profile go to profile setup.
-      setProfile(null);
-      setUsername("");
-      setDisplayName(currentUser.user_metadata?.full_name||currentUser.user_metadata?.name||"");
-      setBio("");
-      setAvatarUrl(currentUser.user_metadata?.avatar_url||currentUser.user_metadata?.picture||"");
-      setWebsiteUrl("");
-      setYoutubeUrl("");
-      setInstagramUrl("");
-      setFacebookUrl("");
-      setView("profile");
+      setCountryCode(data.country_code||"");
+      setCountryName(data.country_name||"");
+      setShowCountry(data.show_country!==false);
+      return data;
     }
+
+    setProfile(null);
+    setUsername("");
+    setDisplayName(currentUser.user_metadata?.full_name||currentUser.user_metadata?.name||"");
+    setBio("");
+    setAvatarUrl(currentUser.user_metadata?.avatar_url||currentUser.user_metadata?.picture||"");
+    setWebsiteUrl("");
+    setYoutubeUrl("");
+    setInstagramUrl("");
+    setFacebookUrl("");
+    setCountryCode("");
+    setCountryName("");
+    setShowCountry(true);
+    return null;
   },[supabase]);
 
   useEffect(()=>{
     if(!supabase){setLoading(false);return;}
-    supabase.auth.getUser().then(async({data})=>{
-      const u=data?.user??null;
-      setUser(u);setLoading(false);
-      if(u)await loadProfile(u);
-    });
 
-    const {data:l}=supabase.auth.onAuthStateChange(async(_e,s)=>{
-      const u=s?.user??null;
+    let alive=true;
+    let initialized=false;
+
+    async function routeSignedInUser(u){
+      if(!u || !alive)return;
       setUser(u);
-      if(u)await loadProfile(u);
-      else setProfile(null);
+      const existingProfile=await loadProfile(u);
+      if(!alive)return;
+      setView(existingProfile ? "home" : "profile");
+    }
+
+    async function initialize(){
+      // getSession() restores the saved browser/device session from storage.
+      const {data,error}=await supabase.auth.getSession();
+      if(!alive)return;
+
+      if(error){
+        console.error("Session restore error:",error);
+      }
+
+      const session=data?.session??null;
+
+      if(session?.user){
+        await routeSignedInUser(session.user);
+      }else{
+        setUser(null);
+        setProfile(null);
+      }
+
+      initialized=true;
+      if(alive)setLoading(false);
+    }
+
+    initialize();
+
+    const {data:l}=supabase.auth.onAuthStateChange((event,session)=>{
+      if(!alive)return;
+
+      // Initial session is already handled by getSession() above.
+      if(event==="INITIAL_SESSION" && !initialized)return;
+
+      const u=session?.user??null;
+
+      if(!u){
+        setUser(null);
+        setProfile(null);
+        setView("home");
+        setLoading(false);
+        return;
+      }
+
+      // Google sign-in, token refresh, and restored sessions all reuse the same route.
+      routeSignedInUser(u);
+      setLoading(false);
     });
 
-    return()=>l.subscription.unsubscribe();
+    return()=>{
+      alive=false;
+      l.subscription.unsubscribe();
+    };
   },[supabase,loadProfile]);
 
   async function signInWithGoogle(){
@@ -149,7 +219,10 @@ export default function HomePage(){
      website_url:normalizeExternalUrl(websiteUrl),
      youtube_url:normalizeExternalUrl(youtubeUrl),
      instagram_url:normalizeExternalUrl(instagramUrl),
-     facebook_url:normalizeExternalUrl(facebookUrl)
+     facebook_url:normalizeExternalUrl(facebookUrl),
+     country_code:countryCode||null,
+     country_name:countryName||null,
+     show_country:showCountry
     };
 
     const {data,error}=await supabase.from("profiles").upsert(payload,{onConflict:"id"}).select().single();
@@ -159,6 +232,9 @@ export default function HomePage(){
     }else{
       setProfile(data);
       setUsername(data.username||"");
+      setCountryCode(data.country_code||"");
+      setCountryName(data.country_name||"");
+      setShowCountry(data.show_country!==false);
       setView("home");
     }
     setSaving(false);
@@ -237,6 +313,16 @@ export default function HomePage(){
           <div className="profile-heading-copy">
             <h1>{profile?.display_name||"DJ Plus"}</h1>
             <div className="public-handle">@{profile?.username||"DJPLUS"}</div>
+            {profile?.show_country && profile?.country_code && (
+              <div className="profile-country">
+                <span className="profile-country-flag" aria-hidden="true">
+                  {flagFromCode(profile.country_code)}
+                </span>
+                <span className="profile-country-name">
+                  {profile.country_name || regionNames.of(profile.country_code) || profile.country_code}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="profile-photo-edit-wrap">
@@ -344,8 +430,6 @@ export default function HomePage(){
         <div className="edit-profile-mobile-banner">
           <div className="profile-brand">RIVYZA</div>
           <p className="step-label">{profile?"EDITAR PERFIL":"PRIMER PASO"}</p>
-          <h2>{profile?"Editar perfil":"Crea tu perfil"}</h2>
-
           <div className="profile-avatar-wrap">
             {avatarUrl
               ? <img className="profile-photo" src={avatarUrl} alt="Foto de perfil"/>
@@ -386,6 +470,35 @@ export default function HomePage(){
           </label>
 
           
+        <div className="country-editor">
+          <div className="links-editor-title">País que representas</div>
+
+          <select
+            value={countryCode}
+            onChange={(e)=>{
+              const code=e.target.value;
+              setCountryCode(code);
+              setCountryName(code ? (regionNames.of(code)||code) : "");
+            }}
+          >
+            <option value="">Selecciona un país</option>
+            {countryOptions.map(({code,name,flag})=>(
+              <option key={code} value={code}>{flag} {name}</option>
+            ))}
+          </select>
+
+          <label className="country-toggle">
+            <input
+              type="checkbox"
+              checked={showCountry}
+              onChange={(e)=>setShowCountry(e.target.checked)}
+            />
+            <span>Mostrar mi país en mi perfil</span>
+          </label>
+
+          <small className="country-note">La bandera solo aparecerá cuando alguien visite tu perfil.</small>
+        </div>
+
         <div className="links-editor">
           <div className="links-editor-title">Enlaces</div>
 

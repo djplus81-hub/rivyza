@@ -645,3 +645,179 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
     padding:20px 16px 22px;
   }
 }
+
+
+/* ===== RIVYZA v10.4 PROFILE TITLE CLEANUP ===== */
+.edit-profile-mobile-banner .profile-brand{
+  margin-bottom:18px;
+}
+
+.edit-profile-mobile-banner .step-label{
+  margin-top:0;
+  margin-bottom:22px;
+  font-size:14px;
+  letter-spacing:1.6px;
+}
+
+.edit-profile-mobile-banner .profile-avatar-wrap{
+  margin-top:0;
+}
+
+
+/* ===== RIVYZA v10.6 COUNTRY / FLAG ===== */
+.country-editor{
+  display:grid;
+  gap:12px;
+  margin:4px 0 18px;
+  padding:16px;
+  border-radius:18px;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.country-editor select{
+  width:100%;
+  background:#151820;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  padding:13px 14px;
+  font-size:14px;
+  outline:none;
+}
+
+.country-toggle{
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center;
+  gap:10px;
+  margin:0 !important;
+  color:#d8d8de;
+  font-size:13px;
+}
+
+.country-toggle input{
+  width:18px !important;
+  height:18px !important;
+  min-width:18px;
+  margin:0;
+  accent-color:#7b5cff;
+}
+
+.country-note{
+  color:#858591;
+  font-size:11px;
+  line-height:1.35;
+}
+
+.profile-country{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin-top:7px;
+  color:#d9d9df;
+  font-size:13px;
+  font-weight:700;
+}
+
+.profile-country-flag{
+  font-size:18px;
+  line-height:1;
+}
+
+
+/* ===== RIVYZA v10.7 MOBILE WIDTH + COUNTRY DISPLAY ===== */
+
+/* Keep the mobile experience visually consistent across screens */
+.app-shell,
+.public-profile-shell,
+.profile-setup-shell,
+.profile-card,
+.feed-shell,
+main{
+  box-sizing:border-box;
+}
+
+@media(max-width:560px){
+  html, body{
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden;
+  }
+
+  .app-shell,
+  .public-profile-shell,
+  .profile-setup-shell,
+  .feed-shell{
+    width:100%;
+    max-width:100%;
+    margin:0;
+  }
+
+  .profile-card{
+    width:100% !important;
+    max-width:100% !important;
+    margin:0 !important;
+    border-radius:0;
+    padding-left:16px;
+    padding-right:16px;
+  }
+
+  .edit-profile-mobile-banner{
+    width:100%;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+
+  .profile-editor,
+  .profile-hero,
+  .profile-content-section{
+    width:100%;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+}
+
+/* Country is shown as: 🇩🇴 República Dominicana */
+.profile-country{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:7px;
+  color:#d9d9df;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.2;
+}
+
+.profile-country-flag{
+  font-size:17px;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+}
+
+
+/* ===== RIVYZA v10.8 FLAG FIX ===== */
+.profile-country{
+  display:flex !important;
+  align-items:center;
+  gap:7px;
+  margin-top:7px;
+  color:#d9d9df;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.2;
+}
+
+.profile-country-flag{
+  display:inline-block !important;
+  font-size:20px !important;
+  line-height:1 !important;
+  min-width:22px;
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+}
+
+.profile-country-name{
+  display:inline-block;
+}

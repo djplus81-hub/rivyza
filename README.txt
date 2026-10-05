@@ -37,3 +37,6 @@ RIVYZA v10.6 COUNTRY: one country/flag per profile, complete ISO country selecto
 
 
 RIVYZA v10.7: edit-profile/mobile screens now use the same full mobile width; country display is compact flag + country name (example: 🇩🇴 República Dominicana).
+
+
+RIVYZA v10.8 FLAGFIX: repaired country flag generation and forced visible emoji flag + country name on public profile.
