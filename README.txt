@@ -49,3 +49,6 @@ RIVYZA v11 REAL FIX: country flag now uses a real flag image instead of OS emoji
 
 
 RIVYZA v12 POSTS UPLOAD: functional + button with separate Photo/Video upload, gallery selection, 50MB client limit, caption, privacy, Supabase Storage media upload, and posts table insert.
+
+
+RIVYZA v12.1 PLUSFIX: the main Inicio + button now opens the same working Nueva publicación modal as the Profile + button. Closing it keeps the user on Inicio.
