@@ -43,3 +43,6 @@ RIVYZA v10.8 FLAGFIX: repaired country flag generation and forced visible emoji 
 
 
 RIVYZA v10.9 WIDTHFIX: removes the 24px outer mobile shell padding that was making Edit Profile look narrower than Inicio/Profile. Edit Profile now uses the full phone width while keeping comfortable inner padding.
+
+
+RIVYZA v11 REAL FIX: country flag now uses a real flag image instead of OS emoji, and Edit Profile uses the same 560px profile canvas on desktop while remaining full-width on phones.
