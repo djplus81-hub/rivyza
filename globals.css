@@ -1,0 +1,667 @@
+
+:root{--bg:#000;--text:#fff;--muted:#a6a6ad;--purple:#8b2cff;--pink:#ff2ea6;--blue:#16b9ff}
+*{box-sizing:border-box}html,body{margin:0;background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif}button{font:inherit}
+.center{min-height:100vh;display:grid;place-items:center}
+.auth-shell,.profile-setup-shell{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at top,#17172d 0,#05060a 48%)}
+.auth-card,.profile-card{width:min(440px,100%);padding:32px 24px;border:1px solid #ffffff14;border-radius:28px;background:#08090fdb;box-shadow:0 24px 90px #0007}
+.logo-mark{width:84px;height:84px;border-radius:24px;margin:0 auto 18px;display:grid;place-items:center;font-size:48px;font-weight:900;background:linear-gradient(135deg,var(--pink),var(--purple),var(--blue))}
+h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0}.google-btn,.save-profile-btn{width:100%;border:0;border-radius:14px;padding:15px 18px;font-weight:800}.google-btn{background:#fff;color:#111}
+.profile-brand{text-align:center;font-size:28px;font-weight:950;letter-spacing:5px}.step-label{color:#c9a6ff;font-size:11px;font-weight:900;letter-spacing:2px}
+.profile-avatar-wrap{display:grid;place-items:center;margin-bottom:22px}.profile-photo,.profile-photo-fallback{width:110px;height:110px;border-radius:50%;object-fit:cover;display:grid;place-items:center;font-size:38px;font-weight:900;border:3px solid transparent;background:linear-gradient(#111,#111) padding-box,linear-gradient(135deg,var(--pink),var(--purple),var(--blue)) border-box}
+.change-photo-btn{margin-top:12px;display:inline-flex;align-items:center;gap:7px;padding:10px 13px;border-radius:12px;background:#ffffff14;border:1px solid #ffffff20;font-weight:800;cursor:pointer}
+.profile-form{display:grid;gap:16px}.profile-form label{display:grid;gap:8px}.profile-form input,.profile-form textarea{width:100%;border:1px solid #ffffff20;background:#11141d;color:#fff;border-radius:14px;padding:13px 14px}.profile-form input:disabled{opacity:.65;cursor:not-allowed}.profile-form small{justify-self:end;color:#778093}.locked-note{justify-self:start!important;color:#9aa3b6!important}
+.input-icon-wrap{position:relative}.input-icon-wrap svg{position:absolute;left:13px;top:50%;transform:translateY(-50%)}.input-icon-wrap input{padding-left:40px}
+.form-message{padding:11px;border-radius:12px;background:#8b2cff20;color:#e2d3ff}.save-profile-btn{display:flex;align-items:center;justify-content:center;gap:8px;color:#fff;background:linear-gradient(90deg,var(--pink),var(--purple),var(--blue))}
+.logout-link,.back-home{margin:16px auto 0;background:none;border:0;color:#8f97a8;display:flex;gap:7px;cursor:pointer}.back-home{margin:0 0 14px}
+.crop-modal{position:fixed;inset:0;background:#000e;display:grid;place-items:center;padding:16px;z-index:999}.crop-card{width:min(460px,100%);background:#0b0d14;border-radius:24px;padding:16px}.crop-header{display:flex;justify-content:space-between;align-items:center}.crop-header button{background:none;border:0;color:#fff}.crop-area{height:380px;position:relative;border-radius:20px;overflow:hidden;background:#000}.crop-controls{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;margin:18px 0}
+
+.feed-shell{min-height:100vh;background:#000;padding-bottom:74px}
+.feed-topbar{position:fixed;top:0;left:0;right:0;height:64px;z-index:20;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 14px;background:linear-gradient(#000b,#0000)}
+.top-spacer{width:24px}.feed-tabs{display:flex;gap:22px;align-items:center}.feed-tabs button{border:0;background:none;color:#9a9aa0;font-weight:800;font-size:16px;padding:7px 0}.feed-tabs .active-tab{color:#fff;position:relative}.feed-tabs .active-tab:after{content:"";position:absolute;height:2px;background:#fff;left:7px;right:7px;bottom:0;border-radius:2px}.icon-btn{justify-self:end;border:0;background:none;color:#fff}
+
+.video-feed{min-height:100vh;display:grid;place-items:center;padding:0}
+.video-card{width:min(560px,100vw);height:calc(100vh - 74px);min-height:620px;position:relative;overflow:hidden;background:#090909}
+.video-placeholder{position:absolute;inset:0;background:radial-gradient(circle at 60% 20%,#282828 0,#121212 35%,#060606 72%);display:grid;place-items:center}
+.rivyza-watermark{position:absolute;top:82px;left:18px;font-weight:950;letter-spacing:2px;padding:7px 10px;border-radius:9px;background:#ffffffea;color:#111}
+.video-hint{font-size:14px;color:#777}
+.creator-copy{position:absolute;left:16px;right:90px;bottom:92px;text-shadow:0 1px 4px #000}
+.display-name{font-size:18px;font-weight:900;margin-bottom:3px}.handle{font-size:14px;font-weight:700;margin-bottom:8px}.caption{font-size:14px;line-height:1.35;max-width:390px}.audio-line{display:flex;align-items:center;gap:7px;margin-top:11px;font-size:12px;font-weight:700}
+.side-actions{position:absolute;right:13px;bottom:88px;display:grid;gap:17px;justify-items:center}.side-actions button{background:none;border:0;color:#fff;display:grid;justify-items:center;gap:4px}.side-actions span{font-size:10px;text-shadow:0 1px 4px #000}.avatar-action img,.mini-avatar{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid #fff}.mini-avatar{display:grid;place-items:center;background:#151515;font-weight:900}
+
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;height:74px;background:#000;border-top:1px solid #1c1c1c;display:flex;justify-content:space-around;align-items:center;z-index:30}.bottom-nav button{background:none;border:0;color:#8d8d92;display:grid;place-items:center;gap:4px}.bottom-nav .active{color:#fff}.bottom-nav span{font-size:10px}.plus-btn{width:58px;height:42px!important;border-radius:12px!important;background:linear-gradient(90deg,var(--pink),var(--purple),var(--blue))!important;color:#fff!important}
+@media(min-width:700px){.video-card{border-left:1px solid #181818;border-right:1px solid #181818}}
+
+
+/* ===== RIVYZA MOBILE COMPACT FIX ===== */
+:root{
+  --phone-width: 560px;
+}
+
+.feed-shell{
+  width: min(var(--phone-width), 100vw);
+  margin: 0 auto;
+  position: relative;
+  overflow-x: hidden;
+  background: #000;
+}
+
+/* Keep the top navigation inside the same mobile width */
+.feed-topbar{
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(var(--phone-width), 100vw);
+  grid-template-columns: 42px 1fr 42px;
+  padding: 0 10px;
+}
+
+.feed-tabs{
+  justify-content: center;
+  gap: 18px;
+  white-space: nowrap;
+}
+
+.feed-tabs button{
+  font-size: 15px;
+}
+
+/* Main video stays exactly aligned with navigation */
+.video-feed{
+  width: 100%;
+  margin: 0 auto;
+}
+
+.video-card{
+  width: 100%;
+  max-width: var(--phone-width);
+  margin: 0 auto;
+}
+
+/* Keep bottom navigation compact instead of stretching across desktop */
+.bottom-nav{
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(var(--phone-width), 100vw);
+  padding: 0 8px;
+  justify-content: space-between;
+}
+
+.bottom-nav button{
+  width: 58px;
+}
+
+.bottom-nav .plus-btn{
+  width: 56px !important;
+  flex: 0 0 56px;
+}
+
+/* Tighter side controls for phone proportions */
+.side-actions{
+  right: 12px;
+  bottom: 88px;
+}
+
+.creator-copy{
+  left: 14px;
+  right: 82px;
+  bottom: 90px;
+}
+
+/* On actual phones, use the whole screen cleanly */
+@media (max-width: 560px){
+  .feed-shell,
+  .feed-topbar,
+  .bottom-nav,
+  .video-card{
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  .feed-tabs{
+    gap: 16px;
+  }
+
+  .bottom-nav{
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .bottom-nav button{
+    width: 54px;
+  }
+}
+
+
+/* ===== RIVYZA V6: FIRST-SCREEN LOOK ===== */
+.feed-topbar{
+  grid-template-columns: 120px 1fr 42px !important;
+  padding: 0 12px !important;
+  background: #050505 !important;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+
+.top-brand{
+  justify-self: start;
+  font-size: 24px;
+  font-weight: 950;
+  letter-spacing: 2px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.feed-tabs{
+  justify-self: center;
+  gap: 18px !important;
+}
+
+.video-card{
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,35,181,.92), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(31,131,255,.95), transparent 38%),
+    linear-gradient(180deg, #161525 0%, #0a0c12 48%, #000 100%) !important;
+}
+
+.video-placeholder{
+  background:
+    radial-gradient(circle at 14% 10%, rgba(255,32,183,.85), transparent 34%),
+    radial-gradient(circle at 88% 12%, rgba(24,133,255,.9), transparent 40%),
+    linear-gradient(180deg,#171427 0%,#0b0d13 50%,#000 100%) !important;
+}
+
+.rivyza-watermark{display:none !important;}
+
+@media (max-width: 560px){
+  .feed-topbar{
+    grid-template-columns: 105px 1fr 36px !important;
+    padding: 0 8px !important;
+  }
+
+  .top-brand{
+    font-size: 21px;
+    letter-spacing: 1.5px;
+  }
+
+  .feed-tabs{
+    gap: 12px !important;
+  }
+
+  .feed-tabs button{
+    font-size: 14px !important;
+  }
+}
+
+
+/* ===== RIVYZA V7 PROFILE ===== */
+.public-profile-shell{
+  min-height:100vh;
+  width:min(560px,100vw);
+  margin:0 auto;
+  background:#000;
+  padding-bottom:76px;
+}
+
+.profile-topbar{
+  height:58px;
+  display:grid;
+  grid-template-columns:48px 1fr 48px;
+  align-items:center;
+  border-bottom:1px solid #171717;
+  padding:0 8px;
+  position:sticky;
+  top:0;
+  background:#000;
+  z-index:20;
+}
+
+.profile-top-title{
+  text-align:center;
+  font-size:16px;
+  font-weight:900;
+}
+
+.profile-back,
+.profile-menu{
+  background:none;
+  border:0;
+  color:#fff;
+  font-size:26px;
+}
+
+.profile-menu{
+  justify-self:end;
+}
+
+.profile-hero{
+  padding:22px 18px 18px;
+}
+
+.profile-heading-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+}
+
+.profile-heading-copy h1{
+  margin:2px 0 4px;
+  font-size:30px;
+  line-height:1.05;
+}
+
+.public-handle{
+  color:#9d9da6;
+  font-size:14px;
+  font-weight:700;
+}
+
+.profile-photo-edit-wrap{
+  position:relative;
+  flex:0 0 auto;
+}
+
+.public-profile-photo{
+  width:92px;
+  height:92px;
+  border-radius:50%;
+  object-fit:cover;
+  border:2px solid #242424;
+  background:#111;
+}
+
+.public-profile-photo.fallback{
+  display:grid;
+  place-items:center;
+  font-size:34px;
+  font-weight:900;
+}
+
+.avatar-plus{
+  position:absolute;
+  right:-2px;
+  bottom:2px;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--pink),var(--purple),var(--blue));
+  color:#fff;
+  border:2px solid #000;
+  cursor:pointer;
+}
+
+.profile-stats{
+  display:flex;
+  gap:28px;
+  margin:22px 0 16px;
+}
+
+.profile-stats button{
+  background:none;
+  border:0;
+  color:#fff;
+  display:grid;
+  gap:2px;
+  padding:0;
+  text-align:left;
+}
+
+.profile-stats strong{
+  font-size:17px;
+}
+
+.profile-stats span{
+  color:#9f9fa8;
+  font-size:12px;
+}
+
+.public-bio{
+  margin:0 0 15px;
+  line-height:1.45;
+  font-size:14px;
+}
+
+.social-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:12px 0 16px;
+}
+
+.social-links button{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid #252525;
+  background:#101010;
+  color:#e8e8ec;
+  padding:9px 11px;
+  border-radius:11px;
+  font-size:12px;
+}
+
+.edit-profile-main-btn{
+  width:100%;
+  height:42px;
+  border:1px solid #333;
+  border-radius:10px;
+  background:#161616;
+  color:#fff;
+  font-weight:800;
+}
+
+.profile-content-section{
+  border-top:1px solid #181818;
+}
+
+.profile-content-tabs{
+  height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-bottom:1px solid #181818;
+}
+
+.profile-content-tabs button{
+  background:none;
+  border:0;
+  color:#999;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  height:100%;
+  position:relative;
+}
+
+.profile-content-tabs .active{
+  color:#fff;
+  font-weight:800;
+}
+
+.profile-content-tabs .active:after{
+  content:"";
+  height:2px;
+  position:absolute;
+  left:8px;
+  right:8px;
+  bottom:0;
+  background:#fff;
+}
+
+.posts-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:2px;
+  background:#111;
+}
+
+.empty-grid-card{
+  aspect-ratio:3/4;
+  background:linear-gradient(145deg,#151515,#080808);
+  color:#666;
+  display:grid;
+  place-items:center;
+  text-align:center;
+  padding:10px;
+  font-size:11px;
+}
+
+@media(max-width:560px){
+  .public-profile-shell{
+    width:100vw;
+  }
+}
+
+
+/* ===== RIVYZA V8 PROFILE REFINEMENT ===== */
+.public-profile-shell{
+  background:#000;
+}
+
+.profile-topbar.compact{
+  height:46px;
+  border-bottom:0;
+}
+
+.compact-profile{
+  padding-top:8px;
+}
+
+.profile-heading-row{
+  align-items:center;
+}
+
+.profile-heading-copy h1{
+  font-size:34px;
+  letter-spacing:-.5px;
+  margin:0 0 5px;
+}
+
+.public-handle{
+  font-size:14px;
+  color:#b6b6bf;
+}
+
+.public-profile-photo{
+  width:96px;
+  height:96px;
+}
+
+.compact-stats{
+  margin:16px 0 14px;
+  gap:34px;
+}
+
+.compact-stats button{
+  align-items:start;
+}
+
+.compact-stats strong{
+  font-size:18px;
+  line-height:1;
+}
+
+.compact-stats span{
+  font-size:12px;
+}
+
+.profile-links-stack{
+  display:grid;
+  gap:7px;
+  margin:12px 0 14px;
+}
+
+.profile-links-stack button{
+  width:max-content;
+  max-width:100%;
+  border:0;
+  padding:0;
+  background:none;
+  color:#e9e9ee;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:13px;
+  text-align:left;
+}
+
+.two-tabs{
+  justify-content:space-around;
+}
+
+.two-tabs button{
+  width:50%;
+  justify-content:center;
+}
+
+.two-tabs .active:after{
+  left:30%;
+  right:30%;
+}
+
+.likes-private-panel{
+  min-height:260px;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:8px;
+  padding:34px 22px;
+  color:#8e8e98;
+  text-align:center;
+}
+
+.likes-private-panel h3{
+  color:#fff;
+  margin:4px 0 0;
+  font-size:18px;
+}
+
+.likes-private-panel p{
+  max-width:320px;
+  margin:0;
+  line-height:1.4;
+  font-size:13px;
+}
+
+.empty-grid-card.first{
+  color:#8a8a92;
+}
+
+@media(max-width:560px){
+  .profile-heading-copy h1{
+    font-size:31px;
+  }
+
+  .public-profile-photo{
+    width:90px;
+    height:90px;
+  }
+
+  .compact-stats{
+    gap:28px;
+  }
+}
+
+
+/* ===== RIVYZA V9 PROFILE LINKS ===== */
+.links-editor{
+  display:grid;
+  gap:14px;
+  margin-top:4px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+
+.links-editor-title{
+  font-size:14px;
+  font-weight:900;
+  color:#fff;
+}
+
+.profile-links-stack a{
+  width:max-content;
+  max-width:100%;
+  border:0;
+  padding:0;
+  background:none;
+  color:#e9e9ee;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:13px;
+  text-align:left;
+  text-decoration:none;
+}
+
+.profile-links-stack a:hover{
+  text-decoration:underline;
+}
+
+
+/* ===== RIVYZA V10 EDIT PROFILE COLOR HERO ===== */
+.edit-profile-color-hero{
+  position:relative;
+  overflow:hidden;
+  min-height:168px;
+  margin:10px 0 22px;
+  border-radius:24px;
+  padding:24px 22px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255,52,180,.30), transparent 34%),
+    radial-gradient(circle at 82% 18%, rgba(52,153,255,.32), transparent 36%),
+    linear-gradient(135deg, rgba(106,46,255,.95), rgba(31,37,74,.96) 48%, rgba(9,9,15,.98));
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 18px 40px rgba(71,31,190,.20);
+}
+
+.edit-profile-color-hero:after{
+  content:"";
+  position:absolute;
+  inset:auto -20% -56% 15%;
+  height:150px;
+  background:radial-gradient(circle, rgba(0,201,255,.24), transparent 64%);
+  pointer-events:none;
+}
+
+.edit-profile-glow{
+  position:absolute;
+  width:110px;
+  height:110px;
+  border-radius:50%;
+  filter:blur(20px);
+  opacity:.45;
+  pointer-events:none;
+}
+
+.edit-profile-glow.glow-a{
+  top:-35px;
+  left:-25px;
+  background:#ff2ea6;
+}
+
+.edit-profile-glow.glow-b{
+  right:-20px;
+  bottom:-35px;
+  background:#2d9cff;
+}
+
+.edit-profile-hero-content{
+  position:relative;
+  z-index:2;
+}
+
+.edit-profile-hero-label{
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:1.8px;
+  color:rgba(255,255,255,.80);
+  margin-bottom:9px;
+}
+
+.edit-profile-hero-title{
+  max-width:330px;
+  font-size:24px;
+  line-height:1.08;
+  font-weight:950;
+  color:#fff;
+  margin-bottom:8px;
+}
+
+.edit-profile-hero-subtitle{
+  max-width:360px;
+  font-size:13px;
+  line-height:1.45;
+  color:rgba(255,255,255,.75);
+}
+
+@media(max-width:560px){
+  .edit-profile-color-hero{
+    min-height:150px;
+    border-radius:20px;
+    padding:21px 18px;
+  }
+  .edit-profile-hero-title{
+    font-size:22px;
+  }
+}
