@@ -4,3 +4,6 @@ Mobile compact fix: top and bottom navigation are constrained to the phone/feed 
 
 
 RIVYZA v6: brand fixed top-left, compact top navigation, no in-video logo, pink/blue/black main screen inspired by the earlier preferred layout.
+
+
+RIVYZA v7 Profile: full public profile with name, username, Following/Followers/Likes, social link placeholders, avatar + button, posts grid, and edit-profile flow.

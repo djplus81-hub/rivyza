@@ -4,7 +4,7 @@ import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search,
-  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal
+  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3
 } from "lucide-react";
 
 function createImage(url){return new Promise((resolve,reject)=>{const i=new Image();i.addEventListener("load",()=>resolve(i));i.addEventListener("error",reject);i.setAttribute("crossOrigin","anonymous");i.src=url;});}
@@ -51,7 +51,7 @@ export default function HomePage(){
       setDisplayName(data.display_name||"");
       setBio(data.bio||"");
       setAvatarUrl(data.avatar_url||currentUser.user_metadata?.avatar_url||currentUser.user_metadata?.picture||"");
-      setView("home");
+      setView("publicProfile");
     }else{
       setDisplayName(currentUser.user_metadata?.full_name||currentUser.user_metadata?.name||"");
       setAvatarUrl(currentUser.user_metadata?.avatar_url||currentUser.user_metadata?.picture||"");
@@ -182,7 +182,109 @@ export default function HomePage(){
     </main>;
   }
 
-  if(view==="profile"){
+  
+  if(view==="publicProfile"){
+    return <main className="public-profile-shell">
+      <header className="profile-topbar">
+        <button className="profile-back" onClick={()=>setView("home")}>←</button>
+        <div className="profile-top-title">{profile?.display_name||"Perfil"}</div>
+        <button className="profile-menu"><MoreHorizontal size={24}/></button>
+      </header>
+
+      <section className="profile-hero">
+        <div className="profile-heading-row">
+          <div className="profile-heading-copy">
+            <h1>{profile?.display_name||"DJ Plus"}</h1>
+            <div className="public-handle">@{profile?.username||"djplus"}</div>
+          </div>
+
+          <div className="profile-photo-edit-wrap">
+            {profile?.avatar_url
+              ? <img className="public-profile-photo" src={profile.avatar_url} alt={profile.display_name}/>
+              : <div className="public-profile-photo fallback">{(profile?.display_name?.[0]||"R").toUpperCase()}</div>
+            }
+
+            <label className="avatar-plus">
+              <Plus size={18}/>
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPickPhoto} hidden/>
+            </label>
+          </div>
+        </div>
+
+        <div className="profile-stats">
+          <button><strong>0</strong><span>Following</span></button>
+          <button><strong>0</strong><span>Followers</span></button>
+          <button><strong>0</strong><span>Likes</span></button>
+        </div>
+
+        {profile?.bio && <p className="public-bio">{profile.bio}</p>}
+
+        <div className="social-links">
+          <button><LinkIcon size={17}/><span>Website</span></button>
+          <button><Youtube size={17}/><span>YouTube</span></button>
+          <button><Instagram size={17}/><span>Instagram</span></button>
+          <button><Facebook size={17}/><span>Facebook</span></button>
+        </div>
+
+        <button className="edit-profile-main-btn" onClick={()=>setView("publicProfile")}>Editar perfil</button>
+      </section>
+
+      <section className="profile-content-section">
+        <div className="profile-content-tabs">
+          <button className="active"><Grid3X3 size={18}/><span>Publicaciones</span></button>
+        </div>
+
+        <div className="posts-grid">
+          <div className="empty-grid-card">Tus fotos y videos aparecerán aquí</div>
+          <div className="empty-grid-card"></div>
+          <div className="empty-grid-card"></div>
+          <div className="empty-grid-card"></div>
+          <div className="empty-grid-card"></div>
+          <div className="empty-grid-card"></div>
+        </div>
+      </section>
+
+      <nav className="bottom-nav">
+        <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
+        <button><Radio/><span>Live</span></button>
+        <button className="plus-btn"><Plus/></button>
+        <button><Bell/><span>Alertas</span></button>
+        <button className="active"><User/><span>Perfil</span></button>
+      </nav>
+
+      {cropOpen&&<div className="crop-modal">
+        <div className="crop-card">
+          <div className="crop-header">
+            <strong>Ajusta tu foto</strong>
+            <button onClick={()=>setCropOpen(false)}><X/></button>
+          </div>
+          <div className="crop-area">
+            <Cropper
+              image={cropSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+          </div>
+          <div className="crop-controls">
+            <span>Zoom</span>
+            <input type="range" min={1} max={3} step={0.01} value={zoom} onChange={(e)=>setZoom(Number(e.target.value))}/>
+          </div>
+          <button className="save-profile-btn" onClick={uploadAvatar} disabled={uploadingAvatar}>
+            <Check size={18}/>
+            {uploadingAvatar?"Guardando foto…":"Usar esta foto"}
+          </button>
+        </div>
+      </div>}
+    </main>;
+  }
+
+if(view==="profile"){
     return <main className="profile-setup-shell">
       <section className="profile-card">
         {profile&&<button className="back-home" onClick={()=>setView("home")}>← Volver</button>}
@@ -319,7 +421,7 @@ export default function HomePage(){
       <button><Radio/><span>Live</span></button>
       <button className="plus-btn"><Plus/></button>
       <button><Bell/><span>Alertas</span></button>
-      <button onClick={()=>setView("profile")}><User/><span>Perfil</span></button>
+      <button onClick={()=>setView("publicProfile")}><User/><span>Perfil</span></button>
     </nav>
   </main>;
 }

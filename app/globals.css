@@ -190,3 +190,225 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
     font-size: 14px !important;
   }
 }
+
+
+/* ===== RIVYZA V7 PROFILE ===== */
+.public-profile-shell{
+  min-height:100vh;
+  width:min(560px,100vw);
+  margin:0 auto;
+  background:#000;
+  padding-bottom:76px;
+}
+
+.profile-topbar{
+  height:58px;
+  display:grid;
+  grid-template-columns:48px 1fr 48px;
+  align-items:center;
+  border-bottom:1px solid #171717;
+  padding:0 8px;
+  position:sticky;
+  top:0;
+  background:#000;
+  z-index:20;
+}
+
+.profile-top-title{
+  text-align:center;
+  font-size:16px;
+  font-weight:900;
+}
+
+.profile-back,
+.profile-menu{
+  background:none;
+  border:0;
+  color:#fff;
+  font-size:26px;
+}
+
+.profile-menu{
+  justify-self:end;
+}
+
+.profile-hero{
+  padding:22px 18px 18px;
+}
+
+.profile-heading-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+}
+
+.profile-heading-copy h1{
+  margin:2px 0 4px;
+  font-size:30px;
+  line-height:1.05;
+}
+
+.public-handle{
+  color:#9d9da6;
+  font-size:14px;
+  font-weight:700;
+}
+
+.profile-photo-edit-wrap{
+  position:relative;
+  flex:0 0 auto;
+}
+
+.public-profile-photo{
+  width:92px;
+  height:92px;
+  border-radius:50%;
+  object-fit:cover;
+  border:2px solid #242424;
+  background:#111;
+}
+
+.public-profile-photo.fallback{
+  display:grid;
+  place-items:center;
+  font-size:34px;
+  font-weight:900;
+}
+
+.avatar-plus{
+  position:absolute;
+  right:-2px;
+  bottom:2px;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--pink),var(--purple),var(--blue));
+  color:#fff;
+  border:2px solid #000;
+  cursor:pointer;
+}
+
+.profile-stats{
+  display:flex;
+  gap:28px;
+  margin:22px 0 16px;
+}
+
+.profile-stats button{
+  background:none;
+  border:0;
+  color:#fff;
+  display:grid;
+  gap:2px;
+  padding:0;
+  text-align:left;
+}
+
+.profile-stats strong{
+  font-size:17px;
+}
+
+.profile-stats span{
+  color:#9f9fa8;
+  font-size:12px;
+}
+
+.public-bio{
+  margin:0 0 15px;
+  line-height:1.45;
+  font-size:14px;
+}
+
+.social-links{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:12px 0 16px;
+}
+
+.social-links button{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid #252525;
+  background:#101010;
+  color:#e8e8ec;
+  padding:9px 11px;
+  border-radius:11px;
+  font-size:12px;
+}
+
+.edit-profile-main-btn{
+  width:100%;
+  height:42px;
+  border:1px solid #333;
+  border-radius:10px;
+  background:#161616;
+  color:#fff;
+  font-weight:800;
+}
+
+.profile-content-section{
+  border-top:1px solid #181818;
+}
+
+.profile-content-tabs{
+  height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-bottom:1px solid #181818;
+}
+
+.profile-content-tabs button{
+  background:none;
+  border:0;
+  color:#999;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  height:100%;
+  position:relative;
+}
+
+.profile-content-tabs .active{
+  color:#fff;
+  font-weight:800;
+}
+
+.profile-content-tabs .active:after{
+  content:"";
+  height:2px;
+  position:absolute;
+  left:8px;
+  right:8px;
+  bottom:0;
+  background:#fff;
+}
+
+.posts-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:2px;
+  background:#111;
+}
+
+.empty-grid-card{
+  aspect-ratio:3/4;
+  background:linear-gradient(145deg,#151515,#080808);
+  color:#666;
+  display:grid;
+  place-items:center;
+  text-align:center;
+  padding:10px;
+  font-size:11px;
+}
+
+@media(max-width:560px){
+  .public-profile-shell{
+    width:100vw;
+  }
+}
