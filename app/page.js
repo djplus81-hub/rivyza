@@ -607,7 +607,7 @@ export default function HomePage(){
       setCountryCode(data.country_code||"");
       setCountryName(data.country_name||"");
       setShowCountry(data.show_country!==false);
-      setView("home");
+      setView(profile ? "publicProfile" : "home");
     }
     setSaving(false);
   }
