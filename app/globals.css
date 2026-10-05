@@ -542,3 +542,38 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
     gap:28px;
   }
 }
+
+
+/* ===== RIVYZA V9 PROFILE LINKS ===== */
+.links-editor{
+  display:grid;
+  gap:14px;
+  margin-top:4px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+
+.links-editor-title{
+  font-size:14px;
+  font-weight:900;
+  color:#fff;
+}
+
+.profile-links-stack a{
+  width:max-content;
+  max-width:100%;
+  border:0;
+  padding:0;
+  background:none;
+  color:#e9e9ee;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:13px;
+  text-align:left;
+  text-decoration:none;
+}
+
+.profile-links-stack a:hover{
+  text-decoration:underline;
+}

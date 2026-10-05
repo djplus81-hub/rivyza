@@ -43,7 +43,7 @@ export default function HomePage(){
 
   const loadProfile=useCallback(async(currentUser)=>{
     if(!supabase||!currentUser)return;
-    const {data}=await supabase.from("profiles").select("id,username,display_name,bio,avatar_url").eq("id",currentUser.id).maybeSingle();
+    const {data}=await supabase.from("profiles").select("id,username,display_name,bio,avatar_url,website_url,youtube_url,instagram_url,facebook_url").eq("id",currentUser.id).maybeSingle();
 
     if(data){
       setProfile(data);
@@ -51,6 +51,7 @@ export default function HomePage(){
       setDisplayName(data.display_name||"");
       setBio(data.bio||"");
       setAvatarUrl(data.avatar_url||currentUser.user_metadata?.avatar_url||currentUser.user_metadata?.picture||"");
+      setWebsiteUrl(data.website_url||""); setYoutubeUrl(data.youtube_url||""); setInstagramUrl(data.instagram_url||""); setFacebookUrl(data.facebook_url||"");
       setView("publicProfile");
     }else{
       setDisplayName(currentUser.user_metadata?.full_name||currentUser.user_metadata?.name||"");
@@ -87,7 +88,15 @@ export default function HomePage(){
     return v.toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9._]/g,"").slice(0,24);
   }
 
-  async function saveProfile(e){
+  
+ function normalizeExternalUrl(value){
+   const v=(value||"").trim();
+   if(!v)return null;
+   if(/^https?:\/\//i.test(v))return v;
+   return `https://${v}`;
+ }
+
+ async function saveProfile(e){
     e.preventDefault();
     const clean=profile?.username||norm(username);
 
@@ -108,7 +117,11 @@ export default function HomePage(){
       username:clean,
       display_name:displayName.trim(),
       bio:bio.trim().slice(0,160),
-      avatar_url:avatarUrl||null
+      avatar_url:avatarUrl||null,
+     website_url:normalizeExternalUrl(websiteUrl),
+     youtube_url:normalizeExternalUrl(youtubeUrl),
+     instagram_url:normalizeExternalUrl(instagramUrl),
+     facebook_url:normalizeExternalUrl(facebookUrl)
     };
 
     const {data,error}=await supabase.from("profiles").upsert(payload,{onConflict:"id"}).select().single();
@@ -219,10 +232,10 @@ export default function HomePage(){
         {profile?.bio && <p className="public-bio">{profile.bio}</p>}
 
         <div className="profile-links-stack">
-          <button><LinkIcon size={16}/><span>Agregar website</span></button>
-          <button><Youtube size={16}/><span>Agregar YouTube</span></button>
-          <button><Instagram size={16}/><span>Agregar Instagram</span></button>
-          <button><Facebook size={16}/><span>Agregar Facebook</span></button>
+          {profile?.website_url && <a href={profile.website_url} target="_blank" rel="noreferrer"><LinkIcon size={16}/><span>Website</span></a>}
+          {profile?.youtube_url && <a href={profile.youtube_url} target="_blank" rel="noreferrer"><Youtube size={16}/><span>YouTube</span></a>}
+          {profile?.instagram_url && <a href={profile.instagram_url} target="_blank" rel="noreferrer"><Instagram size={16}/><span>Instagram</span></a>}
+          {profile?.facebook_url && <a href={profile.facebook_url} target="_blank" rel="noreferrer"><Facebook size={16}/><span>Facebook</span></a>}
         </div>
 
         <button className="edit-profile-main-btn" onClick={()=>setView("profile")}>Editar perfil</button>
@@ -342,7 +355,52 @@ export default function HomePage(){
             <small>{bio.length}/160</small>
           </label>
 
-          {message&&<div className="form-message">{message}</div>}
+          
+        <div className="links-editor">
+          <div className="links-editor-title">Enlaces</div>
+
+          <label>
+            <span>Website</span>
+            <input
+              value={websiteUrl}
+              onChange={(e)=>setWebsiteUrl(e.target.value)}
+              placeholder="ejemplo.com"
+              inputMode="url"
+            />
+          </label>
+
+          <label>
+            <span>YouTube</span>
+            <input
+              value={youtubeUrl}
+              onChange={(e)=>setYoutubeUrl(e.target.value)}
+              placeholder="youtube.com/@tuusuario"
+              inputMode="url"
+            />
+          </label>
+
+          <label>
+            <span>Instagram</span>
+            <input
+              value={instagramUrl}
+              onChange={(e)=>setInstagramUrl(e.target.value)}
+              placeholder="instagram.com/tuusuario"
+              inputMode="url"
+            />
+          </label>
+
+          <label>
+            <span>Facebook</span>
+            <input
+              value={facebookUrl}
+              onChange={(e)=>setFacebookUrl(e.target.value)}
+              placeholder="facebook.com/tuusuario"
+              inputMode="url"
+            />
+          </label>
+        </div>
+
+        {message&&<div className="form-message">{message}</div>}
 
           <button className="save-profile-btn" disabled={saving}>
             <Save size={18}/>
