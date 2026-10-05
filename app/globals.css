@@ -247,6 +247,7 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
   margin:2px 0 4px;
   font-size:30px;
   line-height:1.05;
+  transform:translateX(-4px);
 }
 
 .public-handle{
@@ -265,7 +266,7 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
   height:92px;
   border-radius:50%;
   object-fit:cover;
-  border:2px solid #242424;
+  border:3px solid #ff2bd6;
   background:#111;
 }
 
