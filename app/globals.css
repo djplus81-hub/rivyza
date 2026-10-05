@@ -247,7 +247,7 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
   margin:2px 0 4px;
   font-size:30px;
   line-height:1.05;
-  transform:translateX(-4px);
+  transform:translateX(-10px);
 }
 
 .public-handle{
