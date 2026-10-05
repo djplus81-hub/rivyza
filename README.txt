@@ -1,1 +1,1 @@
-RIVYZA Avatar v3: cambia, recorta, centra y guarda foto de perfil en Supabase Storage bucket avatars.
+RIVYZA Profile v4: username permanente, display name visible, guardar vuelve al home, editar perfil desde botón Perfil.
