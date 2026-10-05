@@ -43,6 +43,7 @@ export default function HomePage(){
 
   const [user,setUser]=useState(null);
   const [profile,setProfile]=useState(null);
+  const [profilePosts,setProfilePosts]=useState([]);
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
 
@@ -130,7 +131,36 @@ export default function HomePage(){
     setShowCountry(true);
     return null;
   },[supabase]);
+    async function loadProfilePosts(){
+    if(!supabase || !user?.id)return;
 
+    const {data,error}=await supabase
+      .from("posts")
+      .select("*")
+      .eq("user_id",user.id)
+      .order("created_at",{ascending:false});
+
+    if(error){
+      console.error("Profile posts load error:",error);
+      return;
+    }
+
+    const sorted=[...(data||[])].sort((a,b)=>{
+      const ap=a.pinned_position ?? 99;
+      const bp=b.pinned_position ?? 99;
+
+      if(ap!==bp)return ap-bp;
+
+      return new Date(b.created_at)-new Date(a.created_at);
+    });
+
+    setProfilePosts(sorted);
+  }
+  useEffect(()=>{
+    if(view==="publicProfile" && user?.id){
+      loadProfilePosts();
+    }
+  },[view,user?.id]);
   useEffect(()=>{
     if(!supabase){setLoading(false);return;}
 
@@ -744,14 +774,27 @@ export default function HomePage(){
         </div>
 
         {profileTab==="posts" ? (
-          <div className="posts-grid">
-            <div className="empty-grid-card first">Tus fotos y videos aparecerán aquí</div>
-            <div className="empty-grid-card"></div>
-            <div className="empty-grid-card"></div>
-            <div className="empty-grid-card"></div>
-            <div className="empty-grid-card"></div>
-            <div className="empty-grid-card"></div>
-          </div>
+         <div className="posts-grid">
+  {profilePosts.length > 0 ? (
+    profilePosts.map((post)=>(
+      <div className="profile-post-card" key={post.id}>
+        {post.media_type==="photo" ? (
+          <img src={post.media_path} alt={post.caption||"Publicación"}/>
+        ) : (
+          <video src={post.media_path} muted playsInline preload="metadata"/>
+        )}
+
+        {post.pinned_position && (
+          <span className="post-pin">📌</span>
+        )}
+      </div>
+    ))
+  ) : (
+    <div className="empty-grid-card first">
+      Tus fotos y videos aparecerán aquí
+    </div>
+  )}
+</div> 
         ) : (
           <div className="likes-private-panel">
             <Heart size={38}/>
