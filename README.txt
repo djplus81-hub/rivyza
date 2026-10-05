@@ -52,3 +52,9 @@ RIVYZA v12 POSTS UPLOAD: functional + button with separate Photo/Video upload, g
 
 
 RIVYZA v12.1 PLUSFIX: the main Inicio + button now opens the same working Nueva publicación modal as the Profile + button. Closing it keeps the user on Inicio.
+
+
+RIVYZA v12.2 PLUS PORTAL FIX: Nueva publicación now renders with a React portal attached to document.body, so the + button works from Inicio and Perfil without being clipped by screen containers. Navigation also closes any open composer cleanly.
+
+
+RIVYZA v13 CAMERA CREATOR: + now opens a full-screen camera-first creator. PHOTO and 60s modes, front/back camera flip, gallery selection, photo capture, video recording up to 60 seconds where supported, then caption/privacy/publish editor.
