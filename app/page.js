@@ -71,6 +71,7 @@ export default function HomePage(){
   const [cameraError,setCameraError]=useState("");
   const [recording,setRecording]=useState(false);
   const [recordSeconds,setRecordSeconds]=useState(0);
+  const [recordLimit,setRecordLimit]=useState(60);
   const cameraVideoRef=useRef(null);
   const mediaRecorderRef=useRef(null);
   const recordedChunksRef=useRef([]);
@@ -327,7 +328,7 @@ export default function HomePage(){
      recordTimerRef.current=setInterval(()=>{
        setRecordSeconds(s=>{
          const next=s+1;
-         if(next>=60){
+         if(next>=recordLimit){
            try{mediaRecorderRef.current?.stop();}catch{}
          }
          return next;
@@ -464,18 +465,16 @@ export default function HomePage(){
                <button className="camera-icon-btn" onClick={flipCamera}>↻</button>
              </div>
 
-             <div className="camera-side-tools">
-               <button className="camera-tool" onClick={flipCamera}>
-                 <span>↻</span><small>Girar</small>
-               </button>
-             </div>
+             
 
              {cameraError && <div className="camera-error">{cameraError}</div>}
 
              <div className="camera-bottom">
                <div className="camera-mode-tabs">
                  <button className={cameraMode==="photo"?"active":""} onClick={()=>{setCameraMode("photo");setUploadType("photo");}}>FOTO</button>
-                 <button className={cameraMode==="video"?"active":""} onClick={()=>{setCameraMode("video");setUploadType("video");}}>60s</button>
+                 <button className={cameraMode==="video" && recordLimit===10?"active":""} onClick={()=>{setCameraMode("video");setUploadType("video");setRecordLimit(10);}}>10s</button>
+                  <button className={cameraMode==="video" && recordLimit===30?"active":""} onClick={()=>{setCameraMode("video");setUploadType("video");setRecordLimit(30);}}>30s</button>
+                  <button className={cameraMode==="video" && recordLimit===60?"active":""} onClick={()=>{setCameraMode("video");setUploadType("video");setRecordLimit(60);}}>60s</button>
                </div>
 
                <div className="camera-controls-row">
