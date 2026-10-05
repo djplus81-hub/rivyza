@@ -13,3 +13,6 @@ RIVYZA v8: refined profile layout, case-preserving username display, compact sta
 
 
 RIVYZA v9: editable Website, YouTube, Instagram and Facebook links saved to Supabase and shown as clickable links on the public profile.
+
+
+RIVYZA v9.1 FIX: restores Google login/profile loading by defining social-link state variables; keeps editable profile links; preserves username capitalization for display.

@@ -31,6 +31,10 @@ export default function HomePage(){
   const [displayName,setDisplayName]=useState("");
   const [bio,setBio]=useState("");
   const [avatarUrl,setAvatarUrl]=useState("");
+  const [websiteUrl,setWebsiteUrl]=useState("");
+  const [youtubeUrl,setYoutubeUrl]=useState("");
+  const [instagramUrl,setInstagramUrl]=useState("");
+  const [facebookUrl,setFacebookUrl]=useState("");
   const [message,setMessage]=useState("");
   const [saving,setSaving]=useState(false);
 
@@ -56,6 +60,7 @@ export default function HomePage(){
     }else{
       setDisplayName(currentUser.user_metadata?.full_name||currentUser.user_metadata?.name||"");
       setAvatarUrl(currentUser.user_metadata?.avatar_url||currentUser.user_metadata?.picture||"");
+      setWebsiteUrl(""); setYoutubeUrl(""); setInstagramUrl(""); setFacebookUrl("");
       setView("profile");
     }
   },[supabase]);
@@ -85,7 +90,7 @@ export default function HomePage(){
   async function signOut(){await supabase.auth.signOut();}
 
   function norm(v){
-    return v.toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9._]/g,"").slice(0,24);
+    return v.replace(/\s+/g,"").replace(/[^A-Za-z0-9._]/g,"").slice(0,24);
   }
 
   
