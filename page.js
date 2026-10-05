@@ -1,5 +1,6 @@
 "use client";
-import {useEffect,useMemo,useState,useCallback} from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import {
@@ -64,6 +65,16 @@ export default function HomePage(){
   const [uploadVisibility,setUploadVisibility]=useState("public");
   const [uploadingPost,setUploadingPost]=useState(false);
   const [uploadMessage,setUploadMessage]=useState("");
+  const [cameraMode,setCameraMode]=useState("photo");
+  const [cameraFacing,setCameraFacing]=useState("user");
+  const [cameraStream,setCameraStream]=useState(null);
+  const [cameraError,setCameraError]=useState("");
+  const [recording,setRecording]=useState(false);
+  const [recordSeconds,setRecordSeconds]=useState(0);
+  const cameraVideoRef=useRef(null);
+  const mediaRecorderRef=useRef(null);
+  const recordedChunksRef=useRef([]);
+  const recordTimerRef=useRef(null);
   const [message,setMessage]=useState("");
   const [saving,setSaving]=useState(false);
 
@@ -184,6 +195,14 @@ export default function HomePage(){
     };
   },[supabase,loadProfile]);
 
+  useEffect(()=>{
+    if(!uploadOpen || uploadFile)return;
+    startCamera(cameraFacing);
+    return()=>{ stopCamera(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[uploadOpen,cameraMode]);
+
+
   async function signInWithGoogle(){
     await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}});
   }
@@ -195,6 +214,138 @@ export default function HomePage(){
   }
 
   
+
+
+ async function stopCamera(){
+   if(cameraStream){
+     cameraStream.getTracks().forEach(t=>t.stop());
+   }
+   setCameraStream(null);
+   if(recordTimerRef.current){
+     clearInterval(recordTimerRef.current);
+     recordTimerRef.current=null;
+   }
+   setRecording(false);
+   setRecordSeconds(0);
+ }
+
+ async function startCamera(facing=cameraFacing){
+   setCameraError("");
+   try{
+     await stopCamera();
+     if(!navigator?.mediaDevices?.getUserMedia){
+       setCameraError("La cámara no está disponible en este navegador.");
+       return;
+     }
+
+     const stream=await navigator.mediaDevices.getUserMedia({
+       video:{facingMode:{ideal:facing}},
+       audio:cameraMode==="video"
+     });
+
+     setCameraStream(stream);
+     setTimeout(()=>{
+       if(cameraVideoRef.current){
+         cameraVideoRef.current.srcObject=stream;
+         cameraVideoRef.current.play().catch(()=>{});
+       }
+     },0);
+   }catch(err){
+     console.error(err);
+     setCameraError("No se pudo abrir la cámara. Revisa los permisos.");
+   }
+ }
+
+ async function flipCamera(){
+   const next=cameraFacing==="user"?"environment":"user";
+   setCameraFacing(next);
+   await startCamera(next);
+ }
+
+ async function capturePhoto(){
+   const video=cameraVideoRef.current;
+   if(!video || !video.videoWidth)return;
+
+   const canvas=document.createElement("canvas");
+   canvas.width=video.videoWidth;
+   canvas.height=video.videoHeight;
+   const ctx=canvas.getContext("2d");
+
+   if(cameraFacing==="user"){
+     ctx.translate(canvas.width,0);
+     ctx.scale(-1,1);
+   }
+   ctx.drawImage(video,0,0,canvas.width,canvas.height);
+
+   const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.92));
+   if(!blob)return;
+
+   const file=new File([blob],`rivyza-photo-${Date.now()}.jpg`,{type:"image/jpeg"});
+   setUploadType("photo");
+   setUploadFile(file);
+   if(uploadPreview) URL.revokeObjectURL(uploadPreview);
+   setUploadPreview(URL.createObjectURL(file));
+   await stopCamera();
+ }
+
+ async function startRecording(){
+   if(!cameraStream || recording)return;
+
+   const preferred=[
+     "video/mp4;codecs=h264,aac",
+     "video/mp4",
+     "video/webm;codecs=vp9,opus",
+     "video/webm"
+   ];
+   const mime=preferred.find(t=>window.MediaRecorder && MediaRecorder.isTypeSupported?.(t)) || "";
+
+   try{
+     const rec=new MediaRecorder(cameraStream,mime?{mimeType:mime}:undefined);
+     recordedChunksRef.current=[];
+     mediaRecorderRef.current=rec;
+
+     rec.ondataavailable=(e)=>{
+       if(e.data?.size) recordedChunksRef.current.push(e.data);
+     };
+
+     rec.onstop=async()=>{
+       const type=rec.mimeType || "video/mp4";
+       const blob=new Blob(recordedChunksRef.current,{type});
+       const ext=type.includes("webm")?"webm":"mp4";
+       const file=new File([blob],`rivyza-video-${Date.now()}.${ext}`,{type});
+       setUploadType("video");
+       setUploadFile(file);
+       if(uploadPreview) URL.revokeObjectURL(uploadPreview);
+       setUploadPreview(URL.createObjectURL(file));
+       await stopCamera();
+     };
+
+     rec.start(1000);
+     setRecording(true);
+     setRecordSeconds(0);
+
+     recordTimerRef.current=setInterval(()=>{
+       setRecordSeconds(s=>{
+         const next=s+1;
+         if(next>=60){
+           try{mediaRecorderRef.current?.stop();}catch{}
+         }
+         return next;
+       });
+     },1000);
+   }catch(err){
+     console.error(err);
+     setCameraError("Este navegador no permite grabar video aquí. Puedes elegir un video de la galería.");
+   }
+ }
+
+ function stopRecording(){
+   try{
+     if(mediaRecorderRef.current?.state==="recording"){
+       mediaRecorderRef.current.stop();
+     }
+   }catch{}
+ }
 
  function resetUpload(){
    if(uploadPreview) URL.revokeObjectURL(uploadPreview);
@@ -286,6 +437,127 @@ export default function HomePage(){
    }finally{
      setUploadingPost(false);
    }
+ }
+
+
+ function renderUploadModal(){
+   if(!uploadOpen || typeof document==="undefined") return null;
+
+   const composer=(
+     <div className="camera-composer">
+       {!uploadFile ? (
+         <>
+           <div className="camera-stage">
+             <video
+               ref={cameraVideoRef}
+               className={`camera-live ${cameraFacing==="user"?"mirror":""}`}
+               autoPlay
+               muted
+               playsInline
+             />
+
+             <div className="camera-topbar">
+               <button className="camera-icon-btn" onClick={async()=>{await stopCamera();setUploadOpen(false);}}>
+                 <X size={30}/>
+               </button>
+               <div className="camera-brand-pill">RIVYZA</div>
+               <button className="camera-icon-btn" onClick={flipCamera}>↻</button>
+             </div>
+
+             <div className="camera-side-tools">
+               <button className="camera-tool" onClick={flipCamera}>
+                 <span>↻</span><small>Girar</small>
+               </button>
+             </div>
+
+             {cameraError && <div className="camera-error">{cameraError}</div>}
+
+             <div className="camera-bottom">
+               <div className="camera-mode-tabs">
+                 <button className={cameraMode==="photo"?"active":""} onClick={()=>{setCameraMode("photo");setUploadType("photo");}}>FOTO</button>
+                 <button className={cameraMode==="video"?"active":""} onClick={()=>{setCameraMode("video");setUploadType("video");}}>60s</button>
+               </div>
+
+               <div className="camera-controls-row">
+                 <label className="gallery-button">
+                   <span>▧</span>
+                   <small>Galería</small>
+                   <input
+                     type="file"
+                     accept={cameraMode==="photo" ? "image/jpeg,image/png,image/webp" : "video/mp4,video/quicktime,video/webm"}
+                     onChange={(e)=>{setUploadType(cameraMode==="photo"?"photo":"video");onPickPostFile(e);}}
+                     hidden
+                   />
+                 </label>
+
+                 {cameraMode==="photo" ? (
+                   <button className="shutter-button" onClick={capturePhoto}><span></span></button>
+                 ) : (
+                   <button
+                     className={`record-button ${recording?"recording":""}`}
+                     onClick={recording?stopRecording:startRecording}
+                   >
+                     <span></span>
+                   </button>
+                 )}
+
+                 <div className="camera-timer-slot">
+                   {cameraMode==="video" && <strong>{recordSeconds}s</strong>}
+                 </div>
+               </div>
+             </div>
+           </div>
+         </>
+       ) : (
+         <div className="post-editor-screen">
+           <div className="upload-header">
+             <button onClick={()=>{resetUpload();setTimeout(()=>startCamera(cameraFacing),0);}}>←</button>
+             <strong>Nueva publicación</strong>
+             <button onClick={async()=>{resetUpload();await stopCamera();setUploadOpen(false);}}><X/></button>
+           </div>
+
+           <div className="upload-preview editor-preview">
+             {uploadType==="photo"
+               ? <img src={uploadPreview} alt="Vista previa"/>
+               : <video src={uploadPreview} controls playsInline/>
+             }
+           </div>
+
+           <label className="upload-field">
+             <span>Descripción</span>
+             <textarea
+               value={uploadCaption}
+               onChange={(e)=>setUploadCaption(e.target.value.slice(0,220))}
+               placeholder="Escribe algo sobre tu publicación…"
+               rows={3}
+             />
+             <small>{uploadCaption.length}/220</small>
+           </label>
+
+           <label className="upload-field">
+             <span>Privacidad</span>
+             <select value={uploadVisibility} onChange={(e)=>setUploadVisibility(e.target.value)}>
+               <option value="public">Público</option>
+               <option value="followers">Solo seguidores</option>
+               <option value="private">Solo yo</option>
+             </select>
+           </label>
+
+           {uploadMessage && <div className="upload-message">{uploadMessage}</div>}
+
+           <button
+             className="publish-post-btn"
+             onClick={publishPost}
+             disabled={!uploadFile || uploadingPost}
+           >
+             {uploadingPost ? "Publicando…" : "Publicar"}
+           </button>
+         </div>
+       )}
+     </div>
+   );
+
+   return createPortal(composer,document.body);
  }
 
  function normalizeExternalUrl(value){
@@ -404,7 +676,7 @@ export default function HomePage(){
   if(view==="publicProfile"){
     return <main className="public-profile-shell">
       <header className="profile-topbar compact">
-        <button className="profile-back" onClick={()=>setView("home")}>←</button>
+        <button className="profile-back" onClick={()=>{setUploadOpen(false);setView("home");}}>←</button>
         <div className="profile-top-title"></div>
         <button className="profile-menu"><MoreHorizontal size={24}/></button>
       </header>
@@ -491,78 +763,17 @@ export default function HomePage(){
       </section>
 
       <nav className="bottom-nav">
-        <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
         <button><Radio/><span>Live</span></button>
-        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");resetUpload();}}><Plus/></button>
+        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button className="active"><User/><span>Perfil</span></button>
       </nav>
 
       
-      {uploadOpen&&<div className="upload-modal">
-        <div className="upload-card">
-          <div className="upload-header">
-            <strong>Nueva publicación</strong>
-            <button onClick={()=>{resetUpload();setUploadOpen(false);}}><X/></button>
-          </div>
+      {renderUploadModal()}
 
-          <div className="upload-type-tabs">
-            <button className={uploadType==="photo"?"active":""} onClick={()=>chooseUploadType("photo")}>Foto</button>
-            <button className={uploadType==="video"?"active":""} onClick={()=>chooseUploadType("video")}>Video</button>
-          </div>
-
-          <label className="upload-picker">
-            <span>{uploadFile ? "Cambiar archivo" : (uploadType==="photo" ? "Elegir foto" : "Elegir video")}</span>
-            <input
-              type="file"
-              accept={uploadType==="photo" ? "image/jpeg,image/png,image/webp" : "video/mp4,video/quicktime"}
-              onChange={onPickPostFile}
-              hidden
-            />
-          </label>
-
-          {uploadPreview && (
-            <div className="upload-preview">
-              {uploadType==="photo"
-                ? <img src={uploadPreview} alt="Vista previa"/>
-                : <video src={uploadPreview} controls playsInline/>
-              }
-            </div>
-          )}
-
-          <label className="upload-field">
-            <span>Descripción</span>
-            <textarea
-              value={uploadCaption}
-              onChange={(e)=>setUploadCaption(e.target.value.slice(0,220))}
-              placeholder="Escribe algo sobre tu publicación…"
-              rows={3}
-            />
-            <small>{uploadCaption.length}/220</small>
-          </label>
-
-          <label className="upload-field">
-            <span>Privacidad</span>
-            <select value={uploadVisibility} onChange={(e)=>setUploadVisibility(e.target.value)}>
-              <option value="public">Público</option>
-              <option value="followers">Solo seguidores</option>
-              <option value="private">Solo yo</option>
-            </select>
-          </label>
-
-          {uploadMessage && <div className="upload-message">{uploadMessage}</div>}
-
-          <button
-            className="publish-post-btn"
-            onClick={publishPost}
-            disabled={!uploadFile || uploadingPost}
-          >
-            {uploadingPost ? "Publicando…" : "Publicar"}
-          </button>
-        </div>
-      </div>}
-
-{cropOpen&&<div className="crop-modal">
+      {cropOpen&&<div className="crop-modal">
         <div className="crop-card">
           <div className="crop-header">
             <strong>Ajusta tu foto</strong>
@@ -597,7 +808,7 @@ export default function HomePage(){
   if(view==="profile"){
     return <main className="profile-setup-shell">
       <section className="profile-card">
-        {profile&&<button className="back-home" onClick={()=>setView("home")}>← Volver</button>}
+        {profile&&<button className="back-home" onClick={()=>{setUploadOpen(false);setView("home");}}>← Volver</button>}
         <div className="edit-profile-mobile-banner">
           <div className="profile-brand">RIVYZA</div>
           <p className="step-label">{profile?"EDITAR PERFIL":"PRIMER PASO"}</p>
@@ -803,72 +1014,11 @@ export default function HomePage(){
     <nav className="bottom-nav">
       <button className="active"><Home/><span>Inicio</span></button>
       <button><Radio/><span>Live</span></button>
-      <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");resetUpload();}}><Plus/></button>
+      <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
       <button><Bell/><span>Alertas</span></button>
-      <button onClick={()=>setView("publicProfile")}><User/><span>Perfil</span></button>
+      <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>Perfil</span></button>
     </nav>
 
-    {uploadOpen&&<div className="upload-modal">
-        <div className="upload-card">
-          <div className="upload-header">
-            <strong>Nueva publicación</strong>
-            <button onClick={()=>{resetUpload();setUploadOpen(false);}}><X/></button>
-          </div>
-
-          <div className="upload-type-tabs">
-            <button className={uploadType==="photo"?"active":""} onClick={()=>chooseUploadType("photo")}>Foto</button>
-            <button className={uploadType==="video"?"active":""} onClick={()=>chooseUploadType("video")}>Video</button>
-          </div>
-
-          <label className="upload-picker">
-            <span>{uploadFile ? "Cambiar archivo" : (uploadType==="photo" ? "Elegir foto" : "Elegir video")}</span>
-            <input
-              type="file"
-              accept={uploadType==="photo" ? "image/jpeg,image/png,image/webp" : "video/mp4,video/quicktime"}
-              onChange={onPickPostFile}
-              hidden
-            />
-          </label>
-
-          {uploadPreview && (
-            <div className="upload-preview">
-              {uploadType==="photo"
-                ? <img src={uploadPreview} alt="Vista previa"/>
-                : <video src={uploadPreview} controls playsInline/>
-              }
-            </div>
-          )}
-
-          <label className="upload-field">
-            <span>Descripción</span>
-            <textarea
-              value={uploadCaption}
-              onChange={(e)=>setUploadCaption(e.target.value.slice(0,220))}
-              placeholder="Escribe algo sobre tu publicación…"
-              rows={3}
-            />
-            <small>{uploadCaption.length}/220</small>
-          </label>
-
-          <label className="upload-field">
-            <span>Privacidad</span>
-            <select value={uploadVisibility} onChange={(e)=>setUploadVisibility(e.target.value)}>
-              <option value="public">Público</option>
-              <option value="followers">Solo seguidores</option>
-              <option value="private">Solo yo</option>
-            </select>
-          </label>
-
-          {uploadMessage && <div className="upload-message">{uploadMessage}</div>}
-
-          <button
-            className="publish-post-btn"
-            onClick={publishPost}
-            disabled={!uploadFile || uploadingPost}
-          >
-            {uploadingPost ? "Publicando…" : "Publicar"}
-          </button>
-        </div>
-      </div>}
+    {renderUploadModal()}
   </main>;
 }

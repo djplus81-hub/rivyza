@@ -58,3 +58,6 @@ RIVYZA v12.2 PLUS PORTAL FIX: Nueva publicación now renders with a React portal
 
 
 RIVYZA v13 CAMERA CREATOR: + now opens a full-screen camera-first creator. PHOTO and 60s modes, front/back camera flip, gallery selection, photo capture, video recording up to 60 seconds where supported, then caption/privacy/publish editor.
+
+
+RIVYZA v13.1: fixed Vercel build error by importing useRef from React for camera/video refs.
