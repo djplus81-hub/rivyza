@@ -19,3 +19,9 @@ RIVYZA v9.1 FIX: restores Google login/profile loading by defining social-link s
 
 
 RIVYZA v10.1 MOBILEFIX: existing Google users are forced to Inicio; only new users without a profile go to setup. Edit-profile color is now inside the mobile profile card around title/photo, not on the outer website background.
+
+
+RIVYZA v10.2 NAVFIX: removed secondary automatic redirects that could send authenticated existing users from Inicio to Perfil after Google login. Existing profiles now stay on Inicio; only new accounts without a profile go to profile setup.
+
+
+RIVYZA v10.3 AUTHFIX: removed the login navigation race. Profile loading no longer changes screens. Any authenticated Google user lands and stays on Inicio; auth refresh events cannot send the user to Perfil.
