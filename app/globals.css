@@ -131,3 +131,62 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
     width: 54px;
   }
 }
+
+
+/* ===== RIVYZA V6: FIRST-SCREEN LOOK ===== */
+.feed-topbar{
+  grid-template-columns: 120px 1fr 42px !important;
+  padding: 0 12px !important;
+  background: #050505 !important;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+
+.top-brand{
+  justify-self: start;
+  font-size: 24px;
+  font-weight: 950;
+  letter-spacing: 2px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.feed-tabs{
+  justify-self: center;
+  gap: 18px !important;
+}
+
+.video-card{
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255,35,181,.92), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(31,131,255,.95), transparent 38%),
+    linear-gradient(180deg, #161525 0%, #0a0c12 48%, #000 100%) !important;
+}
+
+.video-placeholder{
+  background:
+    radial-gradient(circle at 14% 10%, rgba(255,32,183,.85), transparent 34%),
+    radial-gradient(circle at 88% 12%, rgba(24,133,255,.9), transparent 40%),
+    linear-gradient(180deg,#171427 0%,#0b0d13 50%,#000 100%) !important;
+}
+
+.rivyza-watermark{display:none !important;}
+
+@media (max-width: 560px){
+  .feed-topbar{
+    grid-template-columns: 105px 1fr 36px !important;
+    padding: 0 8px !important;
+  }
+
+  .top-brand{
+    font-size: 21px;
+    letter-spacing: 1.5px;
+  }
+
+  .feed-tabs{
+    gap: 12px !important;
+  }
+
+  .feed-tabs button{
+    font-size: 14px !important;
+  }
+}

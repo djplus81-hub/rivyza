@@ -276,7 +276,7 @@ export default function HomePage(){
 
   return <main className="feed-shell">
     <header className="feed-topbar">
-      <div className="top-spacer"/>
+      <div className="top-brand">RIVYZA</div>
       <div className="feed-tabs">
         <button>Siguiendo</button>
         <button className="active-tab">Para ti</button>
@@ -288,7 +288,7 @@ export default function HomePage(){
     <section className="video-feed">
       <div className="video-card">
         <div className="video-placeholder">
-          <span className="rivyza-watermark">RIVYZA</span>
+          
           <span className="video-hint">Tu feed de videos aparecerá aquí</span>
         </div>
 
