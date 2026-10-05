@@ -17,6 +17,13 @@ async function getCroppedBlob(src,pixelCrop){
 }
 
 export default function HomePage(){
+  const countryCodes=["AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR","GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR","HT","HU","ID","IE","IL","IM","IN","IO","IQ","IR","IS","IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ","TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE","YT","ZA","ZM","ZW"];
+  const regionNames=useMemo(()=>new Intl.DisplayNames(["es"],{type:"region"}),[]);
+  const flagFromCode=(code)=>code ? code.toUpperCase().replace(/./g,c=>String.fromCodePoint(127397+c.charCodeAt())) : "";
+  const countryOptions=useMemo(()=>countryCodes
+    .map(code=>({code,name:regionNames.of(code)||code,flag:flagFromCode(code)}))
+    .sort((a,b)=>a.name.localeCompare(b.name,"es")),[regionNames]);
+
   const supabase=useMemo(()=>{
     const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     return u&&k?createClient(u,k,{
@@ -41,6 +48,9 @@ export default function HomePage(){
   const [youtubeUrl,setYoutubeUrl]=useState("");
   const [instagramUrl,setInstagramUrl]=useState("");
   const [facebookUrl,setFacebookUrl]=useState("");
+  const [countryCode,setCountryCode]=useState("");
+  const [countryName,setCountryName]=useState("");
+  const [showCountry,setShowCountry]=useState(true);
   const [message,setMessage]=useState("");
   const [saving,setSaving]=useState(false);
 
@@ -75,6 +85,9 @@ export default function HomePage(){
       setYoutubeUrl(data.youtube_url||"");
       setInstagramUrl(data.instagram_url||"");
       setFacebookUrl(data.facebook_url||"");
+      setCountryCode(data.country_code||"");
+      setCountryName(data.country_name||"");
+      setShowCountry(data.show_country!==false);
       return data;
     }
 
@@ -87,6 +100,9 @@ export default function HomePage(){
     setYoutubeUrl("");
     setInstagramUrl("");
     setFacebookUrl("");
+    setCountryCode("");
+    setCountryName("");
+    setShowCountry(true);
     return null;
   },[supabase]);
 
@@ -198,7 +214,10 @@ export default function HomePage(){
      website_url:normalizeExternalUrl(websiteUrl),
      youtube_url:normalizeExternalUrl(youtubeUrl),
      instagram_url:normalizeExternalUrl(instagramUrl),
-     facebook_url:normalizeExternalUrl(facebookUrl)
+     facebook_url:normalizeExternalUrl(facebookUrl),
+     country_code:countryCode||null,
+     country_name:countryName||null,
+     show_country:showCountry
     };
 
     const {data,error}=await supabase.from("profiles").upsert(payload,{onConflict:"id"}).select().single();
@@ -208,6 +227,9 @@ export default function HomePage(){
     }else{
       setProfile(data);
       setUsername(data.username||"");
+      setCountryCode(data.country_code||"");
+      setCountryName(data.country_name||"");
+      setShowCountry(data.show_country!==false);
       setView("home");
     }
     setSaving(false);
@@ -286,6 +308,12 @@ export default function HomePage(){
           <div className="profile-heading-copy">
             <h1>{profile?.display_name||"DJ Plus"}</h1>
             <div className="public-handle">@{profile?.username||"DJPLUS"}</div>
+            {profile?.show_country && profile?.country_code && (
+              <div className="profile-country">
+                <span className="profile-country-flag">{flagFromCode(profile.country_code)}</span>
+                <span>{profile.country_name || regionNames.of(profile.country_code) || profile.country_code}</span>
+              </div>
+            )}
           </div>
 
           <div className="profile-photo-edit-wrap">
@@ -433,6 +461,35 @@ export default function HomePage(){
           </label>
 
           
+        <div className="country-editor">
+          <div className="links-editor-title">País que representas</div>
+
+          <select
+            value={countryCode}
+            onChange={(e)=>{
+              const code=e.target.value;
+              setCountryCode(code);
+              setCountryName(code ? (regionNames.of(code)||code) : "");
+            }}
+          >
+            <option value="">Selecciona un país</option>
+            {countryOptions.map(({code,name,flag})=>(
+              <option key={code} value={code}>{flag} {name}</option>
+            ))}
+          </select>
+
+          <label className="country-toggle">
+            <input
+              type="checkbox"
+              checked={showCountry}
+              onChange={(e)=>setShowCountry(e.target.checked)}
+            />
+            <span>Mostrar mi país en mi perfil</span>
+          </label>
+
+          <small className="country-note">La bandera solo aparecerá cuando alguien visite tu perfil.</small>
+        </div>
+
         <div className="links-editor">
           <div className="links-editor-title">Enlaces</div>
 

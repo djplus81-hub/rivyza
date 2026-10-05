@@ -31,3 +31,6 @@ RIVYZA v10.4: removed duplicate 'Editar perfil' heading and adjusted spacing in 
 
 
 RIVYZA v10.5 SAVED LOGIN: explicit Supabase session persistence, automatic token refresh, URL session detection, and startup hydration from the saved device/browser session using getSession(). Existing registered users return directly to Inicio without pressing Google again unless they sign out or browser storage is cleared.
+
+
+RIVYZA v10.6 COUNTRY: one country/flag per profile, complete ISO country selector, optional visibility, shown only on the profile underneath @username.
