@@ -30,3 +30,104 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
 
 .bottom-nav{position:fixed;left:0;right:0;bottom:0;height:74px;background:#000;border-top:1px solid #1c1c1c;display:flex;justify-content:space-around;align-items:center;z-index:30}.bottom-nav button{background:none;border:0;color:#8d8d92;display:grid;place-items:center;gap:4px}.bottom-nav .active{color:#fff}.bottom-nav span{font-size:10px}.plus-btn{width:58px;height:42px!important;border-radius:12px!important;background:linear-gradient(90deg,var(--pink),var(--purple),var(--blue))!important;color:#fff!important}
 @media(min-width:700px){.video-card{border-left:1px solid #181818;border-right:1px solid #181818}}
+
+
+/* ===== RIVYZA MOBILE COMPACT FIX ===== */
+:root{
+  --phone-width: 560px;
+}
+
+.feed-shell{
+  width: min(var(--phone-width), 100vw);
+  margin: 0 auto;
+  position: relative;
+  overflow-x: hidden;
+  background: #000;
+}
+
+/* Keep the top navigation inside the same mobile width */
+.feed-topbar{
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(var(--phone-width), 100vw);
+  grid-template-columns: 42px 1fr 42px;
+  padding: 0 10px;
+}
+
+.feed-tabs{
+  justify-content: center;
+  gap: 18px;
+  white-space: nowrap;
+}
+
+.feed-tabs button{
+  font-size: 15px;
+}
+
+/* Main video stays exactly aligned with navigation */
+.video-feed{
+  width: 100%;
+  margin: 0 auto;
+}
+
+.video-card{
+  width: 100%;
+  max-width: var(--phone-width);
+  margin: 0 auto;
+}
+
+/* Keep bottom navigation compact instead of stretching across desktop */
+.bottom-nav{
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(var(--phone-width), 100vw);
+  padding: 0 8px;
+  justify-content: space-between;
+}
+
+.bottom-nav button{
+  width: 58px;
+}
+
+.bottom-nav .plus-btn{
+  width: 56px !important;
+  flex: 0 0 56px;
+}
+
+/* Tighter side controls for phone proportions */
+.side-actions{
+  right: 12px;
+  bottom: 88px;
+}
+
+.creator-copy{
+  left: 14px;
+  right: 82px;
+  bottom: 90px;
+}
+
+/* On actual phones, use the whole screen cleanly */
+@media (max-width: 560px){
+  .feed-shell,
+  .feed-topbar,
+  .bottom-nav,
+  .video-card{
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  .feed-tabs{
+    gap: 16px;
+  }
+
+  .bottom-nav{
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .bottom-nav button{
+    width: 54px;
+  }
+}
