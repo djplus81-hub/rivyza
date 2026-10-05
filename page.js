@@ -47,7 +47,18 @@ export default function HomePage(){
 
   const loadProfile=useCallback(async(currentUser)=>{
     if(!supabase||!currentUser)return;
-    const {data}=await supabase.from("profiles").select("id,username,display_name,bio,avatar_url,website_url,youtube_url,instagram_url,facebook_url").eq("id",currentUser.id).maybeSingle();
+
+    const {data,error}=await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id",currentUser.id)
+      .maybeSingle();
+
+    if(error){
+      console.error("Profile load error:",error);
+      setView("home");
+      return;
+    }
 
     if(data){
       setProfile(data);
@@ -55,12 +66,24 @@ export default function HomePage(){
       setDisplayName(data.display_name||"");
       setBio(data.bio||"");
       setAvatarUrl(data.avatar_url||currentUser.user_metadata?.avatar_url||currentUser.user_metadata?.picture||"");
-      setWebsiteUrl(data.website_url||""); setYoutubeUrl(data.youtube_url||""); setInstagramUrl(data.instagram_url||""); setFacebookUrl(data.facebook_url||"");
+      setWebsiteUrl(data.website_url||"");
+      setYoutubeUrl(data.youtube_url||"");
+      setInstagramUrl(data.instagram_url||"");
+      setFacebookUrl(data.facebook_url||"");
+
+      // Existing users ALWAYS land on Inicio after Google login / refresh.
       setView("home");
     }else{
+      // Only brand-new users without a profile go to profile setup.
+      setProfile(null);
+      setUsername("");
       setDisplayName(currentUser.user_metadata?.full_name||currentUser.user_metadata?.name||"");
+      setBio("");
       setAvatarUrl(currentUser.user_metadata?.avatar_url||currentUser.user_metadata?.picture||"");
-      setWebsiteUrl(""); setYoutubeUrl(""); setInstagramUrl(""); setFacebookUrl("");
+      setWebsiteUrl("");
+      setYoutubeUrl("");
+      setInstagramUrl("");
+      setFacebookUrl("");
       setView("profile");
     }
   },[supabase]);
@@ -318,20 +341,22 @@ export default function HomePage(){
     return <main className="profile-setup-shell">
       <section className="profile-card">
         {profile&&<button className="back-home" onClick={()=>setView("home")}>← Volver</button>}
-        <div className="profile-brand">RIVYZA</div>
-        <p className="step-label">{profile?"EDITAR PERFIL":"PRIMER PASO"}</p>
-        <h2>{profile?"Editar perfil":"Crea tu perfil"}</h2>
+        <div className="edit-profile-mobile-banner">
+          <div className="profile-brand">RIVYZA</div>
+          <p className="step-label">{profile?"EDITAR PERFIL":"PRIMER PASO"}</p>
+          <h2>{profile?"Editar perfil":"Crea tu perfil"}</h2>
 
-        <div className="profile-avatar-wrap">
-          {avatarUrl
-            ? <img className="profile-photo" src={avatarUrl} alt="Foto de perfil"/>
-            : <div className="profile-photo-fallback">{(displayName?.[0]||user.email?.[0]||"R").toUpperCase()}</div>
-          }
+          <div className="profile-avatar-wrap">
+            {avatarUrl
+              ? <img className="profile-photo" src={avatarUrl} alt="Foto de perfil"/>
+              : <div className="profile-photo-fallback">{(displayName?.[0]||user.email?.[0]||"R").toUpperCase()}</div>
+            }
 
-          <label className="change-photo-btn">
-            <Camera size={17}/>Cambiar foto
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPickPhoto} hidden/>
-          </label>
+            <label className="change-photo-btn">
+              <Camera size={17}/>Cambiar foto
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPickPhoto} hidden/>
+            </label>
+          </div>
         </div>
 
         <form onSubmit={saveProfile} className="profile-form">
@@ -341,7 +366,7 @@ export default function HomePage(){
               <AtSign size={18}/>
               <input
                 value={username}
-                onChange={(e)=>!profile&&setUsername(cleanUsername(e.target.value))}
+                onChange={(e)=>!profile&&setUsername(norm(e.target.value))}
                 disabled={!!profile}
                 placeholder="ejemplo: djplus"
               />

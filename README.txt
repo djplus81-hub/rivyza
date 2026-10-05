@@ -18,4 +18,4 @@ RIVYZA v9: editable Website, YouTube, Instagram and Facebook links saved to Supa
 RIVYZA v9.1 FIX: restores Google login/profile loading by defining social-link state variables; keeps editable profile links; preserves username capitalization for display.
 
 
-RIVYZA v10: colorful edit-profile header and existing Google users now land on the main home screen. New users without a profile still go to profile setup.
+RIVYZA v10.1 MOBILEFIX: existing Google users are forced to Inicio; only new users without a profile go to setup. Edit-profile color is now inside the mobile profile card around title/photo, not on the outer website background.
