@@ -1,1 +1,1 @@
-RIVYZA Profile v4: username permanente, display name visible, guardar vuelve al home, editar perfil desde botón Perfil.
+RIVYZA v5: home estilo short-video familiar, fondo negro, feed vertical, display name visible, username secundario, perfil separado.
