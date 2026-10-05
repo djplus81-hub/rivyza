@@ -46,3 +46,6 @@ RIVYZA v10.9 WIDTHFIX: removes the 24px outer mobile shell padding that was maki
 
 
 RIVYZA v11 REAL FIX: country flag now uses a real flag image instead of OS emoji, and Edit Profile uses the same 560px profile canvas on desktop while remaining full-width on phones.
+
+
+RIVYZA v12 POSTS UPLOAD: functional + button with separate Photo/Video upload, gallery selection, 50MB client limit, caption, privacy, Supabase Storage media upload, and posts table insert.

@@ -56,6 +56,14 @@ export default function HomePage(){
   const [countryCode,setCountryCode]=useState("");
   const [countryName,setCountryName]=useState("");
   const [showCountry,setShowCountry]=useState(true);
+  const [uploadOpen,setUploadOpen]=useState(false);
+  const [uploadType,setUploadType]=useState("photo");
+  const [uploadFile,setUploadFile]=useState(null);
+  const [uploadPreview,setUploadPreview]=useState("");
+  const [uploadCaption,setUploadCaption]=useState("");
+  const [uploadVisibility,setUploadVisibility]=useState("public");
+  const [uploadingPost,setUploadingPost]=useState(false);
+  const [uploadMessage,setUploadMessage]=useState("");
   const [message,setMessage]=useState("");
   const [saving,setSaving]=useState(false);
 
@@ -187,6 +195,99 @@ export default function HomePage(){
   }
 
   
+
+ function resetUpload(){
+   if(uploadPreview) URL.revokeObjectURL(uploadPreview);
+   setUploadFile(null);
+   setUploadPreview("");
+   setUploadCaption("");
+   setUploadVisibility("public");
+   setUploadMessage("");
+ }
+
+ function chooseUploadType(type){
+   resetUpload();
+   setUploadType(type);
+ }
+
+ function onPickPostFile(e){
+   const file=e.target.files?.[0];
+   if(!file)return;
+
+   const isPhoto=file.type.startsWith("image/");
+   const isVideo=file.type.startsWith("video/");
+
+   if(uploadType==="photo" && !isPhoto){
+     setUploadMessage("Selecciona una imagen.");
+     return;
+   }
+
+   if(uploadType==="video" && !isVideo){
+     setUploadMessage("Selecciona un video.");
+     return;
+   }
+
+   if(file.size > 50*1024*1024){
+     setUploadMessage("El archivo supera el límite de 50 MB.");
+     return;
+   }
+
+   setUploadFile(file);
+   setUploadPreview(URL.createObjectURL(file));
+   setUploadMessage("");
+ }
+
+ async function publishPost(){
+   if(!user || !supabase || !uploadFile)return;
+
+   setUploadingPost(true);
+   setUploadMessage("");
+
+   try{
+     const ext=(uploadFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
+     const path=`${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+     const {error:uploadError}=await supabase.storage
+       .from("media")
+       .upload(path,uploadFile,{
+         cacheControl:"3600",
+         upsert:false,
+         contentType:uploadFile.type
+       });
+
+     if(uploadError)throw uploadError;
+
+     const {data:pub}=supabase.storage.from("media").getPublicUrl(path);
+     const publicUrl=pub?.publicUrl;
+
+     const {error:postError}=await supabase
+       .from("posts")
+       .insert({
+         user_id:user.id,
+         media_type:uploadType,
+         media_path:publicUrl || path,
+         caption:uploadCaption.trim() || null,
+         visibility:uploadVisibility,
+         duration_seconds:null
+       });
+
+     if(postError){
+       await supabase.storage.from("media").remove([path]);
+       throw postError;
+     }
+
+     setUploadMessage("Publicado.");
+     resetUpload();
+     setUploadOpen(false);
+     setView("home");
+   }catch(err){
+     console.error(err);
+     setUploadMessage(err?.message || "No se pudo publicar.");
+   }finally{
+     setUploadingPost(false);
+   }
+ }
+
  function normalizeExternalUrl(value){
    const v=(value||"").trim();
    if(!v)return null;
@@ -392,12 +493,76 @@ export default function HomePage(){
       <nav className="bottom-nav">
         <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
         <button><Radio/><span>Live</span></button>
-        <button className="plus-btn"><Plus/></button>
+        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button className="active"><User/><span>Perfil</span></button>
       </nav>
 
-      {cropOpen&&<div className="crop-modal">
+      
+      {uploadOpen&&<div className="upload-modal">
+        <div className="upload-card">
+          <div className="upload-header">
+            <strong>Nueva publicación</strong>
+            <button onClick={()=>{resetUpload();setUploadOpen(false);}}><X/></button>
+          </div>
+
+          <div className="upload-type-tabs">
+            <button className={uploadType==="photo"?"active":""} onClick={()=>chooseUploadType("photo")}>Foto</button>
+            <button className={uploadType==="video"?"active":""} onClick={()=>chooseUploadType("video")}>Video</button>
+          </div>
+
+          <label className="upload-picker">
+            <span>{uploadFile ? "Cambiar archivo" : (uploadType==="photo" ? "Elegir foto" : "Elegir video")}</span>
+            <input
+              type="file"
+              accept={uploadType==="photo" ? "image/jpeg,image/png,image/webp" : "video/mp4,video/quicktime"}
+              onChange={onPickPostFile}
+              hidden
+            />
+          </label>
+
+          {uploadPreview && (
+            <div className="upload-preview">
+              {uploadType==="photo"
+                ? <img src={uploadPreview} alt="Vista previa"/>
+                : <video src={uploadPreview} controls playsInline/>
+              }
+            </div>
+          )}
+
+          <label className="upload-field">
+            <span>Descripción</span>
+            <textarea
+              value={uploadCaption}
+              onChange={(e)=>setUploadCaption(e.target.value.slice(0,220))}
+              placeholder="Escribe algo sobre tu publicación…"
+              rows={3}
+            />
+            <small>{uploadCaption.length}/220</small>
+          </label>
+
+          <label className="upload-field">
+            <span>Privacidad</span>
+            <select value={uploadVisibility} onChange={(e)=>setUploadVisibility(e.target.value)}>
+              <option value="public">Público</option>
+              <option value="followers">Solo seguidores</option>
+              <option value="private">Solo yo</option>
+            </select>
+          </label>
+
+          {uploadMessage && <div className="upload-message">{uploadMessage}</div>}
+
+          <button
+            className="publish-post-btn"
+            onClick={publishPost}
+            disabled={!uploadFile || uploadingPost}
+          >
+            {uploadingPost ? "Publicando…" : "Publicar"}
+          </button>
+        </div>
+      </div>}
+
+{cropOpen&&<div className="crop-modal">
         <div className="crop-card">
           <div className="crop-header">
             <strong>Ajusta tu foto</strong>
@@ -638,7 +803,7 @@ export default function HomePage(){
     <nav className="bottom-nav">
       <button className="active"><Home/><span>Inicio</span></button>
       <button><Radio/><span>Live</span></button>
-      <button className="plus-btn"><Plus/></button>
+      <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");resetUpload();}}><Plus/></button>
       <button><Bell/><span>Alertas</span></button>
       <button onClick={()=>setView("publicProfile")}><User/><span>Perfil</span></button>
     </nav>
