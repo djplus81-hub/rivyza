@@ -28,3 +28,6 @@ RIVYZA v10.3 AUTHFIX: removed the login navigation race. Profile loading no long
 
 
 RIVYZA v10.4: removed duplicate 'Editar perfil' heading and adjusted spacing in the mobile edit-profile banner.
+
+
+RIVYZA v10.5 SAVED LOGIN: explicit Supabase session persistence, automatic token refresh, URL session detection, and startup hydration from the saved device/browser session using getSession(). Existing registered users return directly to Inicio without pressing Google again unless they sign out or browser storage is cleared.

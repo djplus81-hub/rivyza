@@ -19,7 +19,13 @@ async function getCroppedBlob(src,pixelCrop){
 export default function HomePage(){
   const supabase=useMemo(()=>{
     const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    return u&&k?createClient(u,k):null;
+    return u&&k?createClient(u,k,{
+      auth:{
+        persistSession:true,
+        autoRefreshToken:true,
+        detectSessionInUrl:true
+      }
+    }):null;
   },[]);
 
   const [user,setUser]=useState(null);
@@ -88,39 +94,59 @@ export default function HomePage(){
     if(!supabase){setLoading(false);return;}
 
     let alive=true;
+    let initialized=false;
+
+    async function routeSignedInUser(u){
+      if(!u || !alive)return;
+      setUser(u);
+      const existingProfile=await loadProfile(u);
+      if(!alive)return;
+      setView(existingProfile ? "home" : "profile");
+    }
 
     async function initialize(){
-      const {data}=await supabase.auth.getUser();
+      // getSession() restores the saved browser/device session from storage.
+      const {data,error}=await supabase.auth.getSession();
       if(!alive)return;
 
-      const u=data?.user??null;
-      setUser(u);
-
-      if(u){
-        // Signed-in users ALWAYS land on Inicio.
-        setView("home");
-        await loadProfile(u);
+      if(error){
+        console.error("Session restore error:",error);
       }
 
-      setLoading(false);
+      const session=data?.session??null;
+
+      if(session?.user){
+        await routeSignedInUser(session.user);
+      }else{
+        setUser(null);
+        setProfile(null);
+      }
+
+      initialized=true;
+      if(alive)setLoading(false);
     }
 
     initialize();
 
     const {data:l}=supabase.auth.onAuthStateChange((event,session)=>{
-      const u=session?.user??null;
       if(!alive)return;
 
-      setUser(u);
+      // Initial session is already handled by getSession() above.
+      if(event==="INITIAL_SESSION" && !initialized)return;
 
-      if(u){
-        // Authentication events may refresh/re-fire.
-        // Never allow them to redirect away from Inicio.
-        setView("home");
-        loadProfile(u);
-      }else{
+      const u=session?.user??null;
+
+      if(!u){
+        setUser(null);
         setProfile(null);
+        setView("home");
+        setLoading(false);
+        return;
       }
+
+      // Google sign-in, token refresh, and restored sessions all reuse the same route.
+      routeSignedInUser(u);
+      setLoading(false);
     });
 
     return()=>{
