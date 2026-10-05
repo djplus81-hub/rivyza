@@ -7,3 +7,6 @@ RIVYZA v6: brand fixed top-left, compact top navigation, no in-video logo, pink/
 
 
 RIVYZA v7 Profile: full public profile with name, username, Following/Followers/Likes, social link placeholders, avatar + button, posts grid, and edit-profile flow.
+
+
+RIVYZA v8: refined profile layout, case-preserving username display, compact stats, avatar + edit, social link placeholders, posts tab and private likes tab.

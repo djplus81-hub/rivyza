@@ -25,7 +25,7 @@ export default function HomePage(){
   const [user,setUser]=useState(null);
   const [profile,setProfile]=useState(null);
   const [loading,setLoading]=useState(true);
-  const [view,setView]=useState("home");
+  const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
 
   const [username,setUsername]=useState("");
   const [displayName,setDisplayName]=useState("");
@@ -185,17 +185,17 @@ export default function HomePage(){
   
   if(view==="publicProfile"){
     return <main className="public-profile-shell">
-      <header className="profile-topbar">
+      <header className="profile-topbar compact">
         <button className="profile-back" onClick={()=>setView("home")}>←</button>
-        <div className="profile-top-title">{profile?.display_name||"Perfil"}</div>
+        <div className="profile-top-title"></div>
         <button className="profile-menu"><MoreHorizontal size={24}/></button>
       </header>
 
-      <section className="profile-hero">
+      <section className="profile-hero compact-profile">
         <div className="profile-heading-row">
           <div className="profile-heading-copy">
             <h1>{profile?.display_name||"DJ Plus"}</h1>
-            <div className="public-handle">@{profile?.username||"djplus"}</div>
+            <div className="public-handle">@{profile?.username||"DJPLUS"}</div>
           </div>
 
           <div className="profile-photo-edit-wrap">
@@ -203,15 +203,14 @@ export default function HomePage(){
               ? <img className="public-profile-photo" src={profile.avatar_url} alt={profile.display_name}/>
               : <div className="public-profile-photo fallback">{(profile?.display_name?.[0]||"R").toUpperCase()}</div>
             }
-
             <label className="avatar-plus">
-              <Plus size={18}/>
+              <Plus size={19}/>
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPickPhoto} hidden/>
             </label>
           </div>
         </div>
 
-        <div className="profile-stats">
+        <div className="profile-stats compact-stats">
           <button><strong>0</strong><span>Following</span></button>
           <button><strong>0</strong><span>Followers</span></button>
           <button><strong>0</strong><span>Likes</span></button>
@@ -219,29 +218,42 @@ export default function HomePage(){
 
         {profile?.bio && <p className="public-bio">{profile.bio}</p>}
 
-        <div className="social-links">
-          <button><LinkIcon size={17}/><span>Website</span></button>
-          <button><Youtube size={17}/><span>YouTube</span></button>
-          <button><Instagram size={17}/><span>Instagram</span></button>
-          <button><Facebook size={17}/><span>Facebook</span></button>
+        <div className="profile-links-stack">
+          <button><LinkIcon size={16}/><span>Agregar website</span></button>
+          <button><Youtube size={16}/><span>Agregar YouTube</span></button>
+          <button><Instagram size={16}/><span>Agregar Instagram</span></button>
+          <button><Facebook size={16}/><span>Agregar Facebook</span></button>
         </div>
 
-        <button className="edit-profile-main-btn" onClick={()=>setView("publicProfile")}>Editar perfil</button>
+        <button className="edit-profile-main-btn" onClick={()=>setView("profile")}>Editar perfil</button>
       </section>
 
       <section className="profile-content-section">
-        <div className="profile-content-tabs">
-          <button className="active"><Grid3X3 size={18}/><span>Publicaciones</span></button>
+        <div className="profile-content-tabs two-tabs">
+          <button className={profileTab==="posts"?"active":""} onClick={()=>setProfileTab("posts")}>
+            <Grid3X3 size={20}/>
+          </button>
+          <button className={profileTab==="likes"?"active":""} onClick={()=>setProfileTab("likes")}>
+            <Heart size={20}/>
+          </button>
         </div>
 
-        <div className="posts-grid">
-          <div className="empty-grid-card">Tus fotos y videos aparecerán aquí</div>
-          <div className="empty-grid-card"></div>
-          <div className="empty-grid-card"></div>
-          <div className="empty-grid-card"></div>
-          <div className="empty-grid-card"></div>
-          <div className="empty-grid-card"></div>
-        </div>
+        {profileTab==="posts" ? (
+          <div className="posts-grid">
+            <div className="empty-grid-card first">Tus fotos y videos aparecerán aquí</div>
+            <div className="empty-grid-card"></div>
+            <div className="empty-grid-card"></div>
+            <div className="empty-grid-card"></div>
+            <div className="empty-grid-card"></div>
+            <div className="empty-grid-card"></div>
+          </div>
+        ) : (
+          <div className="likes-private-panel">
+            <Heart size={38}/>
+            <h3>Me gusta</h3>
+            <p>Solo tú puedes ver las publicaciones a las que les has dado like.</p>
+          </div>
+        )}
       </section>
 
       <nav className="bottom-nav">
@@ -284,7 +296,7 @@ export default function HomePage(){
     </main>;
   }
 
-if(view==="profile"){
+  if(view==="profile"){
     return <main className="profile-setup-shell">
       <section className="profile-card">
         {profile&&<button className="back-home" onClick={()=>setView("home")}>← Volver</button>}
@@ -311,12 +323,12 @@ if(view==="profile"){
               <AtSign size={18}/>
               <input
                 value={username}
-                onChange={(e)=>!profile&&setUsername(norm(e.target.value))}
+                onChange={(e)=>!profile&&setUsername(cleanUsername(e.target.value))}
                 disabled={!!profile}
                 placeholder="ejemplo: djplus"
               />
             </div>
-            {profile&&<small className="locked-note">Tu @usuario es permanente.</small>}
+            {profile&&<small className="locked-note">Tu @usuario es permanente. Se mostrará respetando mayúsculas y minúsculas.</small>}
           </label>
 
           <label>

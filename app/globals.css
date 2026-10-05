@@ -412,3 +412,133 @@ h1{text-align:center;letter-spacing:6px}.tagline{text-align:center;color:#d0d4e0
     width:100vw;
   }
 }
+
+
+/* ===== RIVYZA V8 PROFILE REFINEMENT ===== */
+.public-profile-shell{
+  background:#000;
+}
+
+.profile-topbar.compact{
+  height:46px;
+  border-bottom:0;
+}
+
+.compact-profile{
+  padding-top:8px;
+}
+
+.profile-heading-row{
+  align-items:center;
+}
+
+.profile-heading-copy h1{
+  font-size:34px;
+  letter-spacing:-.5px;
+  margin:0 0 5px;
+}
+
+.public-handle{
+  font-size:14px;
+  color:#b6b6bf;
+}
+
+.public-profile-photo{
+  width:96px;
+  height:96px;
+}
+
+.compact-stats{
+  margin:16px 0 14px;
+  gap:34px;
+}
+
+.compact-stats button{
+  align-items:start;
+}
+
+.compact-stats strong{
+  font-size:18px;
+  line-height:1;
+}
+
+.compact-stats span{
+  font-size:12px;
+}
+
+.profile-links-stack{
+  display:grid;
+  gap:7px;
+  margin:12px 0 14px;
+}
+
+.profile-links-stack button{
+  width:max-content;
+  max-width:100%;
+  border:0;
+  padding:0;
+  background:none;
+  color:#e9e9ee;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:13px;
+  text-align:left;
+}
+
+.two-tabs{
+  justify-content:space-around;
+}
+
+.two-tabs button{
+  width:50%;
+  justify-content:center;
+}
+
+.two-tabs .active:after{
+  left:30%;
+  right:30%;
+}
+
+.likes-private-panel{
+  min-height:260px;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:8px;
+  padding:34px 22px;
+  color:#8e8e98;
+  text-align:center;
+}
+
+.likes-private-panel h3{
+  color:#fff;
+  margin:4px 0 0;
+  font-size:18px;
+}
+
+.likes-private-panel p{
+  max-width:320px;
+  margin:0;
+  line-height:1.4;
+  font-size:13px;
+}
+
+.empty-grid-card.first{
+  color:#8a8a92;
+}
+
+@media(max-width:560px){
+  .profile-heading-copy h1{
+    font-size:31px;
+  }
+
+  .public-profile-photo{
+    width:90px;
+    height:90px;
+  }
+
+  .compact-stats{
+    gap:28px;
+  }
+}
