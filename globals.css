@@ -821,3 +821,39 @@ main{
 .profile-country-name{
   display:inline-block;
 }
+
+
+/* ===== RIVYZA v10.9 REAL MOBILE WIDTH FIX ===== */
+/* The outer edit-profile shell had 24px padding, so the inner card could never
+   visually match the full-width feed/profile screens. Remove that padding on phones. */
+@media(max-width:560px){
+  .profile-setup-shell{
+    display:block !important;
+    width:100vw !important;
+    max-width:100vw !important;
+    min-height:100svh !important;
+    padding:0 !important;
+    margin:0 !important;
+    background:#0d0f15 !important;
+  }
+
+  .profile-card{
+    width:100vw !important;
+    max-width:100vw !important;
+    min-height:100svh !important;
+    margin:0 !important;
+    padding:18px 16px 28px !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    background:#0d0f15 !important;
+  }
+
+  .edit-profile-mobile-banner,
+  .country-editor,
+  .links-editor,
+  .profile-card form{
+    width:100% !important;
+    max-width:100% !important;
+  }
+}
