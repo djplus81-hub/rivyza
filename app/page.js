@@ -46,6 +46,9 @@ export default function HomePage(){
   const [profilePosts,setProfilePosts]=useState([]);
   const [selectedPost,setSelectedPost]=useState(null);
   const [postMenuOpen,setPostMenuOpen]=useState(false);
+  const [deleteConfirmOpen,setDeleteConfirmOpen]=useState(false);
+  const postSwipeStartY=useRef(null);
+  const postWheelLock=useRef(false);
   const [postActionMessage,setPostActionMessage]=useState("");
   const [postLikeCount,setPostLikeCount]=useState(0);
   const [postLiked,setPostLiked]=useState(false);
@@ -197,6 +200,36 @@ export default function HomePage(){
     }catch(e){ console.warn("Likes todavía no configurados:",e); }
   }
 
+  function movePost(direction){
+    if(!selectedPost || profilePosts.length<2)return;
+    const currentIndex=profilePosts.findIndex(post=>post.id===selectedPost.id);
+    if(currentIndex<0)return;
+    const nextIndex=currentIndex+direction;
+    if(nextIndex<0 || nextIndex>=profilePosts.length)return;
+    openPost(profilePosts[nextIndex]);
+  }
+
+  function handlePostTouchStart(e){
+    postSwipeStartY.current=e.touches?.[0]?.clientY??null;
+  }
+
+  function handlePostTouchEnd(e){
+    if(postSwipeStartY.current===null)return;
+    const endY=e.changedTouches?.[0]?.clientY;
+    if(typeof endY!=="number"){postSwipeStartY.current=null;return;}
+    const delta=endY-postSwipeStartY.current;
+    postSwipeStartY.current=null;
+    if(Math.abs(delta)<45)return;
+    movePost(delta<0?1:-1);
+  }
+
+  function handlePostWheel(e){
+    if(Math.abs(e.deltaY)<18 || postWheelLock.current)return;
+    postWheelLock.current=true;
+    movePost(e.deltaY>0?1:-1);
+    window.setTimeout(()=>{postWheelLock.current=false;},420);
+  }
+
   async function togglePostLike(){
     if(!selectedPost || !supabase || !user?.id)return;
     try{
@@ -236,7 +269,6 @@ export default function HomePage(){
 
   async function deleteSelectedPost(){
     if(!selectedPost || selectedPost.user_id!==user?.id)return;
-    if(!window.confirm("¿Eliminar esta publicación? Esta acción no se puede deshacer."))return;
     try{
       const {error}=await supabase.from("posts").delete().eq("id",selectedPost.id).eq("user_id",user.id);
       if(error)throw error;
@@ -941,7 +973,12 @@ export default function HomePage(){
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
 
-          <div className="post-detail-media">
+          <div
+            className="post-detail-media post-swipe-viewer"
+            onTouchStart={handlePostTouchStart}
+            onTouchEnd={handlePostTouchEnd}
+            onWheel={handlePostWheel}
+          >
             {selectedPost.media_type==="photo" ? (
               <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
             ) : (
@@ -971,9 +1008,22 @@ export default function HomePage(){
                   <button type="button" onClick={()=>setPostPin(1)}>📌 Fijar en posición 1</button>
                   <button type="button" onClick={()=>setPostPin(2)}>📌 Fijar en posición 2</button>
                   {selectedPost.pinned_position && <button type="button" onClick={()=>setPostPin(null)}>Quitar de fijadas</button>}
-                  <button type="button" className="danger" onClick={deleteSelectedPost}>🗑️ Eliminar publicación</button>
+                  <button type="button" className="danger" onClick={()=>{setPostMenuOpen(false);setDeleteConfirmOpen(true);}}>🗑️ Eliminar publicación</button>
                 </>}
                 <button type="button" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {deleteConfirmOpen && (
+            <div className="post-menu-backdrop delete-confirm-backdrop" onClick={()=>setDeleteConfirmOpen(false)}>
+              <div className="delete-confirm-card" onClick={e=>e.stopPropagation()}>
+                <strong>¿Eliminar esta publicación?</strong>
+                <p>Esta acción no se puede deshacer.</p>
+                <div className="delete-confirm-actions">
+                  <button type="button" onClick={()=>setDeleteConfirmOpen(false)}>Cancelar</button>
+                  <button type="button" className="danger" onClick={async()=>{setDeleteConfirmOpen(false);await deleteSelectedPost();}}>Eliminar</button>
+                </div>
               </div>
             </div>
           )}

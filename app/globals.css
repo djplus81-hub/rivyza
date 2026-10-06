@@ -1420,3 +1420,23 @@ main{
 /* ===== RIVYZA v13.6 VISIBLE PUBLIC STAMP ===== */
 .post-detail-media{position:relative;}
 .post-public-stamp{display:block!important;position:static!important;margin:4px 0 10px!important;padding:0!important;background:transparent!important;color:#a9a9b2!important;font-size:12px!important;font-weight:500!important;line-height:1.35!important;opacity:1!important;visibility:visible!important;}
+
+
+/* ===== RIVYZA v13.6 DELETE CONFIRM FIX ===== */
+.delete-confirm-backdrop{position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.62);display:grid;place-items:center;padding:20px;}
+.delete-confirm-card{width:min(360px,calc(100% - 24px));background:#1b1b1b;border:1px solid #303030;border-radius:18px;padding:20px 18px;color:#fff;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.5);}
+.delete-confirm-card strong{display:block;font-size:17px;margin-bottom:8px;}
+.delete-confirm-card p{margin:0 0 18px;color:#aaa;font-size:13px;line-height:1.4;}
+.delete-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.delete-confirm-actions button{min-height:44px;border:0;border-radius:12px;background:#2b2b2b;color:#fff;font-size:15px;font-weight:600;}
+.delete-confirm-actions button.danger{background:#ff2f55;color:#fff;}
+
+
+/* ===== RIVYZA v13.7 VERTICAL POST VIEWER ===== */
+.post-swipe-viewer{
+  overscroll-behavior-y:contain;
+  touch-action:pan-y;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.post-swipe-viewer::-webkit-scrollbar{display:none;width:0;height:0;}
