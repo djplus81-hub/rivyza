@@ -302,8 +302,12 @@ export default function HomePage(){
         return;
       }
 
-      // Google sign-in, token refresh, and restored sessions all reuse the same route.
-      routeSignedInUser(u);
+      // A token refresh or user update must preserve the current screen.
+      if(event==="SIGNED_IN"){
+        routeSignedInUser(u);
+      }else{
+        setUser(u);
+      }
       setLoading(false);
     });
 
@@ -529,7 +533,7 @@ export default function HomePage(){
      const {data:pub}=supabase.storage.from("media").getPublicUrl(path);
      const publicUrl=pub?.publicUrl;
 
-     const {error:postError}=await supabase
+     const {data:newPost,error:postError}=await supabase
        .from("posts")
        .insert({
          user_id:user.id,
@@ -538,7 +542,9 @@ export default function HomePage(){
          caption:uploadCaption.trim() || null,
          visibility:uploadVisibility,
          duration_seconds:uploadType==="video" ? recordLimit : null
-       });
+       })
+       .select("*")
+       .single();
 
      if(postError){
        await supabase.storage.from("media").remove([path]);
@@ -546,6 +552,19 @@ export default function HomePage(){
      }
 
      setUploadMessage("Publicado.");
+
+     if(newPost){
+       setProfilePosts(prev=>{
+         const next=[newPost,...prev.filter(p=>p.id!==newPost.id)];
+         return next.sort((a,b)=>{
+           const ap=a.pinned_position ?? 99;
+           const bp=b.pinned_position ?? 99;
+           if(ap!==bp)return ap-bp;
+           return new Date(b.created_at)-new Date(a.created_at);
+         });
+       });
+     }
+
      resetUpload();
      setUploadOpen(false);
      setView("publicProfile");
@@ -927,15 +946,15 @@ export default function HomePage(){
             ) : (
               <video src={selectedPost.media_path} controls playsInline autoPlay/>
             )}
-            {selectedPost.created_at && (
-              <div className="post-public-stamp">
-                Publicado · {formatPostDate(selectedPost.created_at)}
-              </div>
-            )}
           </div>
 
           <div className="post-detail-info">
             {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
+           {selectedPost.created_at && (
+             <div className="post-public-stamp">
+               Publicado · {formatPostDate(selectedPost.created_at)}
+             </div>
+           )}
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>

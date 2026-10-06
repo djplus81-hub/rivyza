@@ -1,10 +1,14 @@
-RIVYZA v13.6 - ARCHIVOS PARA LA RAIZ DEL REPOSITORIO
+RIVYZA v13.6 — CORRECCIÓN VERIFICADA
 
-Este ZIP abre directamente con app/ y supabase/.
-NO subas una carpeta RIVYZA_v13.6 dentro del repositorio.
-Debes reemplazar el app/page.js y app/globals.css que están en la raíz actual del proyecto.
+Reemplaza:
+app/page.js
+app/globals.css
 
-Verificado en estos archivos:
-- Después de publicar: setView("publicProfile")
-- Stamp: Publicado · {formatPostDate(selectedPost.created_at)}
-- El stamp usa created_at real de cada publicación.
+Verificado:
+- TOKEN_REFRESHED/USER_UPDATED no devuelven la interfaz a Inicio.
+- Publicar termina en publicProfile.
+- El INSERT devuelve el post real de Supabase con created_at.
+- El nuevo post aparece inmediatamente en el perfil.
+- Al abrirlo, el stamp se muestra debajo de la descripción usando selectedPost.created_at.
+- No hay fecha/hora fija.
+- No se modificó el botón + ni la cámara.
