@@ -1407,6 +1407,36 @@ export default function HomePage(){
         </div>
       )}
 
+      {socialListOpen && (
+        <div className="social-list-overlay">
+          <div className="social-list-panel">
+            <header className="social-list-header">
+              <button type="button" onClick={()=>setSocialListOpen(false)}>←</button>
+              <strong>{socialListTitle}</strong><span></span>
+            </header>
+            <div className="social-list-body">
+              {socialListLoading && <p className="social-list-empty">Cargando...</p>}
+              {!socialListLoading && !socialListRows.length && <p className="social-list-empty">Todavía no hay usuarios aquí.</p>}
+              {socialListRows.map(person=>(
+                <div className="social-person-row" key={person.id}>
+                  <button className="people-result social-person-open" onClick={()=>{setSocialListOpen(false);openUserProfile(person);}}>
+                    {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                    <span className="people-result-copy">
+                      <strong>{person.display_name||person.username||"Usuario"}</strong>
+                      <small>@{person.username||"usuario"}</small>
+                      {person.id!==user?.id && <em className={`follow-back-label ${person.follows_me?"follows-me":""}`}>{person.follows_me?"Te sigue":"No te sigue"}</em>}
+                    </span>
+                  </button>
+                  {person.id!==user?.id && person.i_follow && (
+                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>Siguiendo</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="bottom-nav">
         <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
         <button><Radio/><span>Live</span></button>
