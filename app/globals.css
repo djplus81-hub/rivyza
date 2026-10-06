@@ -1514,3 +1514,20 @@ body::-webkit-scrollbar,
 .people-result-arrow{color:#777;font-size:26px;text-align:right;}
 .other-profile-shell,.other-profile-shell *{scrollbar-width:none!important;-ms-overflow-style:none!important;}
 .other-profile-shell::-webkit-scrollbar,.other-profile-shell *::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;}
+
+
+/* ===== RIVYZA v13.8.2 — OTHER PROFILE NAME ALIGNMENT ===== */
+/* Keep the visitor profile name inside the screen and aligned with its @username. */
+.other-profile-shell .profile-heading-copy{
+  min-width:0;
+  padding-left:0;
+}
+.other-profile-shell .profile-heading-copy h1{
+  transform:none!important;
+  margin-left:0!important;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+.other-profile-shell .public-handle{
+  margin-left:0!important;
+}
