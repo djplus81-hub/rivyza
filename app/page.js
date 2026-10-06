@@ -49,6 +49,7 @@ export default function HomePage(){
   const [deleteConfirmOpen,setDeleteConfirmOpen]=useState(false);
   const postSwipeStartY=useRef(null);
   const postWheelLock=useRef(false);
+  const postViewerVideoRef=useRef(null);
   const [postActionMessage,setPostActionMessage]=useState("");
   const [postLikeCount,setPostLikeCount]=useState(0);
   const [postLiked,setPostLiked]=useState(false);
@@ -199,6 +200,27 @@ export default function HomePage(){
       }
     }catch(e){ console.warn("Likes todavía no configurados:",e); }
   }
+
+  useEffect(()=>{
+    if(!selectedPost)return;
+    const previousOverflow=document.body.style.overflow;
+    const previousHtmlOverflow=document.documentElement.style.overflow;
+    document.body.style.overflow="hidden";
+    document.documentElement.style.overflow="hidden";
+    return ()=>{
+      document.body.style.overflow=previousOverflow;
+      document.documentElement.style.overflow=previousHtmlOverflow;
+    };
+  },[selectedPost]);
+
+  useEffect(()=>{
+    if(selectedPost?.media_type!=="video")return;
+    const video=postViewerVideoRef.current;
+    if(!video)return;
+    video.currentTime=0;
+    const attempt=video.play();
+    if(attempt?.catch)attempt.catch(()=>{});
+  },[selectedPost?.id,selectedPost?.media_type]);
 
   function movePost(direction){
     if(!selectedPost || profilePosts.length<2)return;
@@ -982,7 +1004,7 @@ export default function HomePage(){
             {selectedPost.media_type==="photo" ? (
               <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
             ) : (
-              <video src={selectedPost.media_path} controls playsInline autoPlay/>
+              <video key={selectedPost.id} ref={postViewerVideoRef} src={selectedPost.media_path} controls playsInline autoPlay preload="auto"/>
             )}
           </div>
 

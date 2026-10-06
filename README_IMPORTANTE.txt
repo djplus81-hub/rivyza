@@ -1,19 +1,12 @@
-RIVYZA v13.7 — VISOR VERTICAL DE PUBLICACIONES
+RIVYZA v13.7.1 — VIEWER POLISH
 
-Base: v13.6 estable con DELETE FIX.
+Cambios solamente en el visor vertical de publicaciones:
+- Oculta la barra/indicador de scroll del visor.
+- Bloquea el scroll de la pagina que queda detras mientras el visor esta abierto.
+- Los videos intentan reproducirse automaticamente al abrirse y al pasar a otro video.
+- Conserva swipe arriba/abajo y las funciones estables de v13.7.
 
-NUEVO:
-- Al abrir una foto o video desde el perfil, desliza hacia arriba para ir a la siguiente publicación.
-- Desliza hacia abajo para volver a la publicación anterior.
-- En computadora, la rueda del mouse hace lo mismo.
-- No se muestra barra de scroll en el visor.
-- La publicación que tocas es exactamente donde comienza el visor.
-
-PRESERVADO:
-- Eliminar con confirmación RIVYZA.
-- Stamp de fecha/hora.
-- Fijar posiciones 1 y 2.
-- Cámara/publicación y retorno al perfil.
-- Barra inferior actual.
-
-IMPORTANTE: primero usa Extract all / Extraer todo. Luego sube los archivos de la carpeta extraída a GitHub.
+IMPORTANTE EN WINDOWS:
+1. Extraer el ZIP con "Extract all / Extraer todo".
+2. Abrir la carpeta ya extraida.
+3. Subir/reemplazar app/page.js y app/globals.css en GitHub.

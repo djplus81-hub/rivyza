@@ -1440,3 +1440,21 @@ main{
   -ms-overflow-style:none;
 }
 .post-swipe-viewer::-webkit-scrollbar{display:none;width:0;height:0;}
+
+
+/* ===== RIVYZA v13.7.1 VIEWER POLISH ===== */
+.post-detail-overlay{
+  overflow:hidden!important;
+  overscroll-behavior:none;
+}
+.post-detail-overlay,
+.post-detail-overlay *{
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.post-detail-overlay::-webkit-scrollbar,
+.post-detail-overlay *::-webkit-scrollbar{
+  display:none!important;
+  width:0!important;
+  height:0!important;
+}
