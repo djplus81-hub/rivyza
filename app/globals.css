@@ -1545,3 +1545,18 @@ body::-webkit-scrollbar,
 .social-list-header strong{text-align:center;font-size:16px;}
 .social-list-body{padding:4px 10px 30px;}
 .social-list-empty{text-align:center;color:#8f8f98;padding:34px 12px;font-size:13px;}
+
+
+/* ===== RIVYZA v13.9.1 — FOLLOWING LIST RELATIONSHIP ===== */
+.social-person-row{
+  display:flex;align-items:center;gap:8px;border-bottom:1px solid #171717;padding:2px 0;
+}
+.social-person-open{flex:1;min-width:0;border-bottom:0!important;}
+.follow-back-label{
+  display:block;margin-top:3px;font-size:11px;font-style:normal;font-weight:700;color:#8f8f98;
+}
+.follow-back-label.follows-me{color:#c8c8ce;}
+.list-following-btn{
+  flex:0 0 auto;border:1px solid #3b3b3f;background:#171719;color:#fff;
+  border-radius:8px;padding:8px 11px;font-size:12px;font-weight:800;
+}

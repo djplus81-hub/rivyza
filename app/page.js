@@ -225,6 +225,26 @@ export default function HomePage(){
     }finally{setFollowBusy(false);}
   }
 
+  async function unfollowFromList(person){
+    if(!supabase || !user?.id || !person?.id)return;
+    const ok=window.confirm(`¿Dejar de seguir a ${person.display_name||person.username||"este usuario"}?`);
+    if(!ok)return;
+    try{
+      const {error}=await supabase.from("follows").delete()
+        .eq("follower_id",user.id).eq("following_id",person.id);
+      if(error)throw error;
+      setSocialListRows(rows=>rows.filter(row=>row.id!==person.id));
+      await loadFollowCounts(user.id,{own:true});
+      if(viewedProfile?.id===person.id){
+        setIsFollowingViewed(false);
+        await loadFollowCounts(person.id);
+      }
+    }catch(e){
+      console.error("Unfollow list error:",e);
+      setPostActionMessage("No se pudo dejar de seguir a esta persona.");
+    }
+  }
+
   async function openSocialList(profileId,type){
     if(!supabase || !profileId)return;
     setSocialListOpen(true);
@@ -241,7 +261,23 @@ export default function HomePage(){
         .select("id,username,display_name,bio,avatar_url,website_url,youtube_url,instagram_url,facebook_url,country_code,country_name,show_country")
         .in("id",ids);
       if(pe)throw pe;
-      setSocialListRows(profiles||[]);
+
+      let enriched=profiles||[];
+      if(user?.id && enriched.length){
+        const profileIds=enriched.map(p=>p.id);
+        const [{data:iFollow},{data:followsMe}]=await Promise.all([
+          supabase.from("follows").select("following_id").eq("follower_id",user.id).in("following_id",profileIds),
+          supabase.from("follows").select("follower_id").eq("following_id",user.id).in("follower_id",profileIds)
+        ]);
+        const iFollowSet=new Set((iFollow||[]).map(r=>r.following_id));
+        const followsMeSet=new Set((followsMe||[]).map(r=>r.follower_id));
+        enriched=enriched.map(p=>({
+          ...p,
+          i_follow:iFollowSet.has(p.id),
+          follows_me:followsMeSet.has(p.id)
+        }));
+      }
+      setSocialListRows(enriched);
     }catch(e){console.error("Social list error:",e);setSocialListRows([]);}
     finally{setSocialListLoading(false);}
   }
@@ -1116,11 +1152,19 @@ export default function HomePage(){
               {socialListLoading && <p className="social-list-empty">Cargando...</p>}
               {!socialListLoading && !socialListRows.length && <p className="social-list-empty">Todavía no hay usuarios aquí.</p>}
               {socialListRows.map(person=>(
-                <button className="people-result" key={person.id} onClick={()=>{setSocialListOpen(false);openUserProfile(person);}}>
-                  {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
-                  <span className="people-result-copy"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
-                  <span className="people-result-arrow">›</span>
-                </button>
+                <div className="social-person-row" key={person.id}>
+                  <button className="people-result social-person-open" onClick={()=>{setSocialListOpen(false);openUserProfile(person);}}>
+                    {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                    <span className="people-result-copy">
+                      <strong>{person.display_name||person.username||"Usuario"}</strong>
+                      <small>@{person.username||"usuario"}</small>
+                      {person.id!==user?.id && <em className={`follow-back-label ${person.follows_me?"follows-me":""}`}>{person.follows_me?"Te sigue":"No te sigue"}</em>}
+                    </span>
+                  </button>
+                  {person.id!==user?.id && person.i_follow && (
+                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>Siguiendo</button>
+                  )}
+                </div>
               ))}
             </div>
           </div>
