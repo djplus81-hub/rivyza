@@ -1,10 +1,17 @@
-RIVYZA v13.6
-- Abre foto/video al tocarlo.
-- Fotograma del video como miniatura.
-- Likes con contador.
-- Menú de tres puntos.
-- Copiar enlace.
-- Eliminar solo para el dueño.
-- Compartir dentro de RIVYZA queda preparado para Mensajes.
+RIVYZA v13.6 — actualización real de publicación
 
-IMPORTANTE: ejecuta una sola vez supabase/V13.6_LIKES_SETUP.sql en Supabase > SQL Editor para activar likes reales.
+Partimos de la v13.6 FIXED confirmada: fotos y videos abren correctamente.
+
+Incluye:
+- Fecha/hora real de created_at visible debajo de los controles.
+- Like + contador (requiere ejecutar el SQL una vez).
+- Botón Comentarios + contador visual; bandeja preparada para conectar comentarios.
+- Compartir dentro de RIVYZA preparado para el futuro sistema de Mensajes.
+- Menú •••.
+- Copiar enlace.
+- Fijar publicación en posición 1 o 2; quitar pin.
+- Eliminar publicación con confirmación, solo si eres el dueño.
+
+IMPORTANTE:
+Ejecuta una sola vez: supabase/V13.6_PUBLICATION_FEATURES.sql
+La fecha/hora NO necesita SQL nuevo: usa posts.created_at, que ya existe.
