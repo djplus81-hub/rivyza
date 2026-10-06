@@ -1564,3 +1564,6 @@ body::-webkit-scrollbar,
 /* v13.9.4 likes */
 .who-liked-btn{font-size:12px!important;font-weight:800!important;color:#b8b8c0!important;white-space:nowrap;}
 .liker-person{width:100%;border:0;border-bottom:1px solid #171717;background:transparent;color:#fff;text-align:left;}
+
+/* ===== RIVYZA v13.9.4.1 — LIKERS OVER POST VIEWER FIX ===== */
+.likers-overlay{z-index:7000!important;}

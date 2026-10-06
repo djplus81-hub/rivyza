@@ -1477,7 +1477,7 @@ export default function HomePage(){
       )}
 
       {likersOpen && (
-        <div className="social-list-overlay">
+        <div className="social-list-overlay likers-overlay">
           <div className="social-list-panel">
             <header className="social-list-header">
               <button type="button" onClick={()=>setLikersOpen(false)}>←</button>
