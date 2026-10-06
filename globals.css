@@ -1416,3 +1416,7 @@ main{
   line-height:1.35;
   letter-spacing:.01em;
 }
+
+/* ===== RIVYZA v13.6 VISIBLE PUBLIC STAMP ===== */
+.post-detail-media{position:relative;}
+.post-public-stamp{position:absolute;left:12px;bottom:12px;z-index:4;max-width:calc(100% - 24px);padding:6px 9px;border-radius:8px;background:rgba(0,0,0,.72);color:#fff;font-size:12px;font-weight:600;line-height:1.2;letter-spacing:.01em;pointer-events:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}

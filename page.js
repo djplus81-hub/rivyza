@@ -548,7 +548,8 @@ export default function HomePage(){
      setUploadMessage("Publicado.");
      resetUpload();
      setUploadOpen(false);
-     setView("home");
+     setView("publicProfile");
+     await loadProfilePosts();
    }catch(err){
      console.error(err);
      setUploadMessage(err?.message || "No se pudo publicar.");
@@ -926,6 +927,11 @@ export default function HomePage(){
             ) : (
               <video src={selectedPost.media_path} controls playsInline autoPlay/>
             )}
+            {selectedPost.created_at && (
+              <div className="post-public-stamp">
+                Publicado · {formatPostDate(selectedPost.created_at)}
+              </div>
+            )}
           </div>
 
           <div className="post-detail-info">
@@ -935,11 +941,6 @@ export default function HomePage(){
               <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
             </div>
-            {selectedPost.created_at && (
-              <div className="post-published-stamp">
-                Publicado · {formatPostDate(selectedPost.created_at)}
-              </div>
-            )}
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
 
