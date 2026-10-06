@@ -46,9 +46,11 @@ export default function HomePage(){
   const [profilePosts,setProfilePosts]=useState([]);
   const [selectedPost,setSelectedPost]=useState(null);
   const [postMenuOpen,setPostMenuOpen]=useState(false);
+  const [postActionMessage,setPostActionMessage]=useState("");
   const [postLikeCount,setPostLikeCount]=useState(0);
   const [postLiked,setPostLiked]=useState(false);
-  const [postActionMessage,setPostActionMessage]=useState("");
+  const [postCommentCount,setPostCommentCount]=useState(0);
+  const [commentsOpen,setCommentsOpen]=useState(false);
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
 
@@ -168,11 +170,91 @@ export default function HomePage(){
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,user?.id]);
 
+  function formatPostDate(value){
+    if(!value)return "fecha no disponible";
+    const d=new Date(value);
+    if(Number.isNaN(d.getTime()))return "fecha no disponible";
+    return new Intl.DateTimeFormat("es-US",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit",hour12:true})
+      .format(d).replace(",", " ·").replace("a. m.","AM").replace("p. m.","PM");
+  }
+
+  async function openPost(post){
+    setSelectedPost(post);
+    setPostMenuOpen(false);
+    setCommentsOpen(false);
+    setPostActionMessage("");
+    setPostLikeCount(Number(post.like_count||0));
+    setPostCommentCount(Number(post.comment_count||0));
+    setPostLiked(false);
+    if(!supabase)return;
+    try{
+      const {data:countData}=await supabase.rpc("get_post_like_count",{target_post_id:post.id});
+      if(countData!==null && countData!==undefined)setPostLikeCount(Number(countData)||0);
+      if(user?.id){
+        const {data:mine}=await supabase.from("post_likes").select("post_id").eq("post_id",post.id).eq("user_id",user.id).maybeSingle();
+        setPostLiked(!!mine);
+      }
+    }catch(e){ console.warn("Likes todavía no configurados:",e); }
+  }
+
+  async function togglePostLike(){
+    if(!selectedPost || !supabase || !user?.id)return;
+    try{
+      if(postLiked){
+        const {error}=await supabase.from("post_likes").delete().eq("post_id",selectedPost.id).eq("user_id",user.id);
+        if(error)throw error;
+        setPostLiked(false);setPostLikeCount(v=>Math.max(0,v-1));
+      }else{
+        const {error}=await supabase.from("post_likes").insert({post_id:selectedPost.id,user_id:user.id});
+        if(error)throw error;
+        setPostLiked(true);setPostLikeCount(v=>v+1);
+      }
+    }catch(e){setPostActionMessage("Los likes necesitan activar el SQL incluido en el paquete.");}
+  }
+
+  async function copyPostLink(){
+    const url=`${window.location.origin}/?post=${selectedPost?.id||""}`;
+    try{await navigator.clipboard.writeText(url);setPostActionMessage("Enlace copiado.");}
+    catch{setPostActionMessage("No se pudo copiar el enlace.");}
+    setPostMenuOpen(false);
+  }
+
+  async function setPostPin(position){
+    if(!selectedPost || selectedPost.user_id!==user?.id)return;
+    try{
+      if(position){
+        await supabase.from("posts").update({pinned_position:null}).eq("user_id",user.id).eq("pinned_position",position);
+      }
+      const {error}=await supabase.from("posts").update({pinned_position:position}).eq("id",selectedPost.id).eq("user_id",user.id);
+      if(error)throw error;
+      setSelectedPost(p=>({...p,pinned_position:position}));
+      setPostMenuOpen(false);
+      await loadProfilePosts();
+      setPostActionMessage(position?`Fijada en posición ${position}.`:"Publicación desfijada.");
+    }catch(e){setPostActionMessage("No se pudo cambiar el pin.");}
+  }
+
+  async function deleteSelectedPost(){
+    if(!selectedPost || selectedPost.user_id!==user?.id)return;
+    if(!window.confirm("¿Eliminar esta publicación? Esta acción no se puede deshacer."))return;
+    try{
+      const {error}=await supabase.from("posts").delete().eq("id",selectedPost.id).eq("user_id",user.id);
+      if(error)throw error;
+      const marker="/storage/v1/object/public/media/";
+      if(selectedPost.media_path?.includes(marker)){
+        const path=decodeURIComponent(selectedPost.media_path.split(marker)[1]);
+        await supabase.storage.from("media").remove([path]);
+      }
+      setSelectedPost(null);setPostMenuOpen(false);await loadProfilePosts();
+    }catch(e){setPostActionMessage("No se pudo eliminar la publicación.");}
+  }
+
   useEffect(()=>{
     if(!supabase){setLoading(false);return;}
 
     let alive=true;
     let initialized=false;
+    let initialRouteChosen=false;
 
     async function routeSignedInUser(u){
       if(!u || !alive)return;
@@ -180,6 +262,7 @@ export default function HomePage(){
       const existingProfile=await loadProfile(u);
       if(!alive)return;
       setView(existingProfile ? "home" : "profile");
+      initialRouteChosen=true;
     }
 
     async function initialize(){
@@ -222,8 +305,12 @@ export default function HomePage(){
         return;
       }
 
-      // Google sign-in, token refresh, and restored sessions all reuse the same route.
-      routeSignedInUser(u);
+      // Route only once. Later Supabase session events must preserve the current screen.
+      if(!initialRouteChosen){
+        routeSignedInUser(u);
+      }else{
+        setUser(u);
+      }
       setLoading(false);
     });
 
@@ -449,7 +536,7 @@ export default function HomePage(){
      const {data:pub}=supabase.storage.from("media").getPublicUrl(path);
      const publicUrl=pub?.publicUrl;
 
-     const {error:postError}=await supabase
+     const {data:newPost,error:postError}=await supabase
        .from("posts")
        .insert({
          user_id:user.id,
@@ -458,7 +545,9 @@ export default function HomePage(){
          caption:uploadCaption.trim() || null,
          visibility:uploadVisibility,
          duration_seconds:uploadType==="video" ? recordLimit : null
-       });
+       })
+       .select("*")
+       .single();
 
      if(postError){
        await supabase.storage.from("media").remove([path]);
@@ -466,85 +555,27 @@ export default function HomePage(){
      }
 
      setUploadMessage("Publicado.");
+     if(newPost){
+       setProfilePosts(prev=>{
+         const next=[newPost,...prev.filter(p=>p.id!==newPost.id)];
+         return next.sort((a,b)=>{
+           const ap=a.pinned_position ?? 99, bp=b.pinned_position ?? 99;
+           if(ap!==bp)return ap-bp;
+           return new Date(b.created_at)-new Date(a.created_at);
+         });
+       });
+     }
      resetUpload();
      setUploadOpen(false);
-     setView("home");
+     setSelectedPost(null);
+     setView("publicProfile");
+     await loadProfilePosts();
    }catch(err){
      console.error(err);
      setUploadMessage(err?.message || "No se pudo publicar.");
    }finally{
      setUploadingPost(false);
    }
- }
-
- async function openPost(post){
-   setSelectedPost(post);
-   setPostMenuOpen(false);
-   setPostActionMessage("");
-   setPostLikeCount(0);
-   setPostLiked(false);
-   if(!supabase || !post?.id)return;
-
-   const {data:countData,error:countError}=await supabase
-     .rpc("get_post_like_count",{target_post_id:post.id});
-   if(!countError)setPostLikeCount(Number(countData)||0);
-
-   if(user?.id){
-     const {data,error}=await supabase.from("post_likes")
-       .select("post_id").eq("post_id",post.id).eq("user_id",user.id).maybeSingle();
-     if(!error)setPostLiked(!!data);
-   }
- }
-
- async function togglePostLike(){
-   if(!supabase || !user?.id || !selectedPost?.id)return;
-   if(postLiked){
-     const {error}=await supabase.from("post_likes").delete()
-       .eq("post_id",selectedPost.id).eq("user_id",user.id);
-     if(!error){setPostLiked(false);setPostLikeCount(c=>Math.max(0,c-1));}
-   }else{
-     const {error}=await supabase.from("post_likes")
-       .insert({post_id:selectedPost.id,user_id:user.id});
-     if(!error){setPostLiked(true);setPostLikeCount(c=>c+1);}
-   }
- }
-
- async function copyPostLink(){
-   if(!selectedPost?.id)return;
-   const url=`${window.location.origin}/?post=${selectedPost.id}`;
-   try{await navigator.clipboard.writeText(url);setPostActionMessage("Enlace copiado.");}
-   catch{setPostActionMessage(url);}
-   setPostMenuOpen(false);
- }
-
- async function deleteSelectedPost(){
-   if(!supabase || !user?.id || !selectedPost || selectedPost.user_id!==user.id)return;
-   if(!window.confirm("¿Eliminar esta publicación? Esta acción no se puede deshacer."))return;
-
-   const marker="/storage/v1/object/public/media/";
-   let storagePath=null;
-   if(selectedPost.media_path?.includes(marker)){
-     storagePath=decodeURIComponent(selectedPost.media_path.split(marker)[1].split("?")[0]);
-   }
-
-   const {error}=await supabase.from("posts").delete()
-     .eq("id",selectedPost.id).eq("user_id",user.id);
-   if(error){setPostActionMessage("No se pudo eliminar la publicación.");return;}
-
-   if(storagePath)await supabase.storage.from("media").remove([storagePath]);
-   setSelectedPost(null);
-   setPostMenuOpen(false);
-   await loadProfilePosts();
- }
-
- function VideoGridThumb({src}){
-   return <video className="profile-video-thumb" src={src} muted playsInline preload="metadata"
-     onLoadedMetadata={(e)=>{
-       try{
-         const d=e.currentTarget.duration;
-         e.currentTarget.currentTime=Number.isFinite(d)&&d>0?Math.min(1,d/3):0.1;
-       }catch{}
-     }}/>;
  }
 
 
@@ -871,22 +902,21 @@ export default function HomePage(){
           <div className="posts-grid">
             {profilePosts.length > 0 ? (
               profilePosts.map((post)=>(
-                <button
-                  type="button"
+                <div
                   className="profile-post-card"
                   key={post.id}
                   onClick={()=>openPost(post)}
-                  aria-label="Abrir publicación"
                 >
                   {post.media_type==="photo" ? (
                     <img src={post.media_path} alt={post.caption||"Publicación"}/>
                   ) : (
-                    <VideoGridThumb src={post.media_path}/>
+                    <video src={post.media_path} muted playsInline preload="metadata"/>
                   )}
 
-                  {post.media_type==="video" && <span className="post-video-badge">▶</span>}
-                  {post.pinned_position && <span className="post-pin">📌</span>}
-                </button>
+                  {post.pinned_position && (
+                    <span className="post-pin">📌</span>
+                  )}
+                </div>
               ))
             ) : (
               <div className="empty-grid-card first">
@@ -904,41 +934,57 @@ export default function HomePage(){
       </section>
 
       {selectedPost && (
-        <div className="post-detail-overlay" role="dialog" aria-modal="true">
+        <div className="post-detail-overlay">
           <header className="post-detail-topbar">
-            <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}}>←</button>
+            <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}} aria-label="Volver">←</button>
             <strong>Publicación</strong>
-            <button type="button" onClick={()=>setPostMenuOpen(v=>!v)}><MoreHorizontal size={26}/></button>
+            <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
 
           <div className="post-detail-media">
-            {selectedPost.media_type==="photo"
-              ? <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
-              : <video src={selectedPost.media_path} controls playsInline autoPlay/>}
+            {selectedPost.media_type==="photo" ? (
+              <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
+            ) : (
+              <video src={selectedPost.media_path} controls playsInline autoPlay/>
+            )}
           </div>
 
-          <div className="post-detail-actions">
-            <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}>
-              <Heart size={27} fill={postLiked?"currentColor":"none"}/><strong>{postLikeCount}</strong>
-            </button>
-            <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible cuando activemos Mensajes.")}>
-              <Share2 size={25}/><span>Compartir</span>
-            </button>
+          <div className="post-detail-info">
+            {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
+            <div className="post-public-stamp" data-rivyza-stamp="v13.6">
+              Publicado · {formatPostDate(selectedPost.created_at)}
+            </div>
+            <div className="post-detail-actions">
+              <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
+              <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
+              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
+            </div>
+            {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
-
-          {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
-          {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
 
           {postMenuOpen && (
-            <div className="post-options-sheet">
-              <button type="button" onClick={()=>{setPostMenuOpen(false);setPostActionMessage("Compartir dentro de RIVYZA estará disponible cuando activemos Mensajes.");}}>
-                <Share2 size={21}/> Compartir dentro de RIVYZA
-              </button>
-              <button type="button" onClick={copyPostLink}><LinkIcon size={21}/> Copiar enlace</button>
-              {selectedPost.user_id===user?.id && (
-                <button type="button" className="danger" onClick={deleteSelectedPost}>Eliminar publicación</button>
-              )}
-              <button type="button" className="cancel" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+            <div className="post-menu-backdrop" onClick={()=>setPostMenuOpen(false)}>
+              <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
+                <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={20}/>Compartir en RIVYZA</button>
+                <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
+                {selectedPost.user_id===user?.id && <>
+                  <button type="button" onClick={()=>setPostPin(1)}>📌 Fijar en posición 1</button>
+                  <button type="button" onClick={()=>setPostPin(2)}>📌 Fijar en posición 2</button>
+                  {selectedPost.pinned_position && <button type="button" onClick={()=>setPostPin(null)}>Quitar de fijadas</button>}
+                  <button type="button" className="danger" onClick={deleteSelectedPost}>🗑️ Eliminar publicación</button>
+                </>}
+                <button type="button" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {commentsOpen && (
+            <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
+              <div className="post-menu-sheet comments-sheet" onClick={e=>e.stopPropagation()}>
+                <strong>Comentarios</strong>
+                <p>La sección para escribir y leer comentarios queda preparada para conectarla al sistema de comentarios.</p>
+                <button type="button" onClick={()=>setCommentsOpen(false)}>Cerrar</button>
+              </div>
             </div>
           )}
         </div>
