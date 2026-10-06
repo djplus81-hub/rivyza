@@ -1483,7 +1483,7 @@ export default function HomePage(){
   if(view==="profile"){
     return <main className="profile-setup-shell">
       <section className="profile-card">
-        {profile&&<button className="back-home" onClick={()=>{setUploadOpen(false);setView("home");}}>← Volver</button>}
+        {profile&&<button className="back-home" onClick={()=>{setUploadOpen(false);setView("publicProfile");}}>← Volver</button>}
         <div className="edit-profile-mobile-banner">
           <div className="profile-brand">RIVYZA</div>
           <p className="step-label">{profile?"EDITAR PERFIL":"PRIMER PASO"}</p>
