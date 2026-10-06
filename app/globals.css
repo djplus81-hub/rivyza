@@ -1458,3 +1458,27 @@ main{
   width:0!important;
   height:0!important;
 }
+
+/* ===== RIVYZA v13.7.2 HIDE SOCIAL SCROLLBARS ===== */
+/* Keep touch/mouse scrolling working, but hide the browser scrollbar on Home + Profile. */
+html,
+body,
+.feed-shell,
+.video-feed,
+.public-profile-shell,
+.profile-content-section,
+.profile-post-grid{
+  scrollbar-width:none!important;
+  -ms-overflow-style:none!important;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+.feed-shell::-webkit-scrollbar,
+.video-feed::-webkit-scrollbar,
+.public-profile-shell::-webkit-scrollbar,
+.profile-content-section::-webkit-scrollbar,
+.profile-post-grid::-webkit-scrollbar{
+  display:none!important;
+  width:0!important;
+  height:0!important;
+}

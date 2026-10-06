@@ -1,12 +1,13 @@
-RIVYZA v13.7.1 — VIEWER POLISH
+RIVYZA v13.7.2 — SOCIAL SCROLLBAR CLEANUP
 
-Cambios solamente en el visor vertical de publicaciones:
-- Oculta la barra/indicador de scroll del visor.
-- Bloquea el scroll de la pagina que queda detras mientras el visor esta abierto.
-- Los videos intentan reproducirse automaticamente al abrirse y al pasar a otro video.
-- Conserva swipe arriba/abajo y las funciones estables de v13.7.
+Cambios:
+- Oculta la barra visual de scroll en la página principal/feed.
+- Oculta la barra visual de scroll en el perfil y su cuadrícula de publicaciones.
+- Mantiene completamente activo el desplazamiento con dedo/rueda.
+- Conserva el visor vertical v13.7.1 y autoplay de video.
+- No cambia cámara, publicación, timestamp, fijados, delete ni navegación inferior.
 
-IMPORTANTE EN WINDOWS:
-1. Extraer el ZIP con "Extract all / Extraer todo".
-2. Abrir la carpeta ya extraida.
-3. Subir/reemplazar app/page.js y app/globals.css en GitHub.
+IMPORTANTE:
+1. Extraer el ZIP primero (Extract all / Extraer todo).
+2. Abrir la carpeta extraída.
+3. Reemplazar en GitHub los archivos dentro de app/.
