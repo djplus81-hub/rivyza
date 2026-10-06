@@ -64,6 +64,16 @@ export default function HomePage(){
   const [peopleResults,setPeopleResults]=useState([]);
   const [peopleSearching,setPeopleSearching]=useState(false);
   const [peopleSearchMessage,setPeopleSearchMessage]=useState("");
+  const [isFollowingViewed,setIsFollowingViewed]=useState(false);
+  const [followBusy,setFollowBusy]=useState(false);
+  const [viewedFollowersCount,setViewedFollowersCount]=useState(0);
+  const [viewedFollowingCount,setViewedFollowingCount]=useState(0);
+  const [ownFollowersCount,setOwnFollowersCount]=useState(0);
+  const [ownFollowingCount,setOwnFollowingCount]=useState(0);
+  const [socialListOpen,setSocialListOpen]=useState(false);
+  const [socialListTitle,setSocialListTitle]=useState("");
+  const [socialListRows,setSocialListRows]=useState([]);
+  const [socialListLoading,setSocialListLoading]=useState(false);
 
   const [username,setUsername]=useState("");
   const [displayName,setDisplayName]=useState("");
@@ -174,6 +184,68 @@ export default function HomePage(){
     setProfilePosts(sorted);
   }
 
+  async function loadFollowCounts(profileId,{own=false}={}){
+    if(!supabase || !profileId)return;
+    const [{count:followers,error:fe},{count:following,error:fge}]=await Promise.all([
+      supabase.from("follows").select("*",{count:"exact",head:true}).eq("following_id",profileId),
+      supabase.from("follows").select("*",{count:"exact",head:true}).eq("follower_id",profileId)
+    ]);
+    if(fe||fge){ console.error("Follow count error:",fe||fge); return; }
+    if(own){ setOwnFollowersCount(followers||0); setOwnFollowingCount(following||0); }
+    else { setViewedFollowersCount(followers||0); setViewedFollowingCount(following||0); }
+  }
+
+  async function loadFollowingState(profileId){
+    if(!supabase || !user?.id || !profileId || profileId===user.id){setIsFollowingViewed(false);return;}
+    const {data,error}=await supabase.from("follows").select("follower_id")
+      .eq("follower_id",user.id).eq("following_id",profileId).maybeSingle();
+    if(error){console.error("Follow state error:",error);setIsFollowingViewed(false);return;}
+    setIsFollowingViewed(!!data);
+  }
+
+  async function toggleFollowViewed(){
+    if(!supabase || !user?.id || !viewedProfile?.id || viewedProfile.id===user.id || followBusy)return;
+    setFollowBusy(true);
+    try{
+      if(isFollowingViewed){
+        const {error}=await supabase.from("follows").delete()
+          .eq("follower_id",user.id).eq("following_id",viewedProfile.id);
+        if(error)throw error;
+        setIsFollowingViewed(false);
+      }else{
+        const {error}=await supabase.from("follows")
+          .insert({follower_id:user.id,following_id:viewedProfile.id});
+        if(error)throw error;
+        setIsFollowingViewed(true);
+      }
+      await Promise.all([loadFollowCounts(viewedProfile.id),loadFollowCounts(user.id,{own:true})]);
+    }catch(e){
+      console.error("Follow action error:",e);
+      setPostActionMessage("No se pudo actualizar. Verifica que ejecutaste el SQL v13.9.");
+    }finally{setFollowBusy(false);}
+  }
+
+  async function openSocialList(profileId,type){
+    if(!supabase || !profileId)return;
+    setSocialListOpen(true);
+    setSocialListTitle(type==="followers"?"Seguidores":"Siguiendo");
+    setSocialListRows([]); setSocialListLoading(true);
+    try{
+      const filterColumn=type==="followers"?"following_id":"follower_id";
+      const personColumn=type==="followers"?"follower_id":"following_id";
+      const {data:links,error}=await supabase.from("follows").select(personColumn).eq(filterColumn,profileId);
+      if(error)throw error;
+      const ids=(links||[]).map(r=>r[personColumn]).filter(Boolean);
+      if(!ids.length){setSocialListRows([]);return;}
+      const {data:profiles,error:pe}=await supabase.from("profiles")
+        .select("id,username,display_name,bio,avatar_url,website_url,youtube_url,instagram_url,facebook_url,country_code,country_name,show_country")
+        .in("id",ids);
+      if(pe)throw pe;
+      setSocialListRows(profiles||[]);
+    }catch(e){console.error("Social list error:",e);setSocialListRows([]);}
+    finally{setSocialListLoading(false);}
+  }
+
   async function openUserProfile(targetProfile){
     if(!targetProfile?.id)return;
     if(targetProfile.id===user?.id){
@@ -188,6 +260,9 @@ export default function HomePage(){
     setPeopleSearchOpen(false);
     setSelectedPost(null);
     setView("otherProfile");
+    setPostActionMessage("");
+    loadFollowCounts(targetProfile.id);
+    loadFollowingState(targetProfile.id);
 
     const {data,error}=await supabase
       .from("posts")
@@ -283,6 +358,10 @@ export default function HomePage(){
       document.documentElement.style.overflow=previousHtmlOverflow;
     };
   },[selectedPost]);
+
+  useEffect(()=>{
+    if(user?.id)loadFollowCounts(user.id,{own:true});
+  },[user?.id]);
 
   useEffect(()=>{
     if(selectedPost?.media_type!=="video")return;
@@ -989,9 +1068,15 @@ export default function HomePage(){
         </div>
 
         <div className="profile-stats compact-stats">
-          <button><strong>0</strong><span>Following</span></button>
-          <button><strong>0</strong><span>Followers</span></button>
+          <button onClick={()=>openSocialList(viewedProfile.id,"following")}><strong>{viewedFollowingCount}</strong><span>Following</span></button>
+          <button onClick={()=>openSocialList(viewedProfile.id,"followers")}><strong>{viewedFollowersCount}</strong><span>Followers</span></button>
           <button><strong>0</strong><span>Likes</span></button>
+        </div>
+        <div className="visitor-follow-row">
+          <button type="button" className={`visitor-follow-btn ${isFollowingViewed?"following":""}`}
+            disabled={followBusy} onClick={toggleFollowViewed}>
+            {followBusy?"...":isFollowingViewed?"Siguiendo":"Seguir"}
+          </button>
         </div>
 
         {viewedProfile.bio && <p className="public-bio">{viewedProfile.bio}</p>}
@@ -1019,6 +1104,28 @@ export default function HomePage(){
           )) : <div className="empty-grid-card first">Este usuario todavía no tiene publicaciones públicas.</div>}
         </div>
       </section>
+
+      {socialListOpen && (
+        <div className="social-list-overlay">
+          <div className="social-list-panel">
+            <header className="social-list-header">
+              <button type="button" onClick={()=>setSocialListOpen(false)}>←</button>
+              <strong>{socialListTitle}</strong><span></span>
+            </header>
+            <div className="social-list-body">
+              {socialListLoading && <p className="social-list-empty">Cargando...</p>}
+              {!socialListLoading && !socialListRows.length && <p className="social-list-empty">Todavía no hay usuarios aquí.</p>}
+              {socialListRows.map(person=>(
+                <button className="people-result" key={person.id} onClick={()=>{setSocialListOpen(false);openUserProfile(person);}}>
+                  {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                  <span className="people-result-copy"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
+                  <span className="people-result-arrow">›</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedPost && (
         <div className="post-detail-overlay">
@@ -1119,8 +1226,8 @@ export default function HomePage(){
         </div>
 
         <div className="profile-stats compact-stats">
-          <button><strong>0</strong><span>Following</span></button>
-          <button><strong>0</strong><span>Followers</span></button>
+          <button onClick={()=>openSocialList(user.id,"following")}><strong>{ownFollowingCount}</strong><span>Following</span></button>
+          <button onClick={()=>openSocialList(user.id,"followers")}><strong>{ownFollowersCount}</strong><span>Followers</span></button>
           <button><strong>0</strong><span>Likes</span></button>
         </div>
 
