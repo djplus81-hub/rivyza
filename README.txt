@@ -1,10 +1,8 @@
-RIVYZA B13.4
+RIVYZA v13.5
 
-Update principal:
-- Las publicaciones reales aparecen en el perfil.
-- Al tocar una foto o video del perfil, la publicación se abre en grande.
-- Conserva cámara FOTO / 10s / 30s / 60s, perfil, país, enlaces y subida de publicaciones.
+Update corregido de la vista de publicaciones del perfil.
+- Tocar una foto o video del perfil abre la publicación en grande.
+- Flecha para cerrar y volver al perfil.
+- Mantiene la estructura y funciones existentes de RIVYZA.
 
-Para GitHub:
-Sube el contenido de esta carpeta a la raíz del repositorio, manteniendo la carpeta app.
-Las variables reales de Supabase deben seguir configuradas en Vercel; .env.example solo es una plantilla.
+Sube el contenido de esta carpeta al repositorio, conservando la carpeta app.

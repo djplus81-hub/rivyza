@@ -43,6 +43,8 @@ export default function HomePage(){
 
   const [user,setUser]=useState(null);
   const [profile,setProfile]=useState(null);
+  const [profilePosts,setProfilePosts]=useState([]);
+  const [selectedPost,setSelectedPost]=useState(null);
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
 
