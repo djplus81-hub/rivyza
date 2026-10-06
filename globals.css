@@ -1406,3 +1406,13 @@ main{
 .post-menu-sheet button.danger{color:#ff4d61;}
 .comments-sheet strong{display:block;text-align:center;padding:8px 0 12px;}
 .comments-sheet p{color:#aaa;font-size:13px;line-height:1.45;padding:8px 6px 14px;margin:0;}
+
+/* ===== RIVYZA v13.6 PUBLIC TIMESTAMP STAMP ===== */
+.post-published-stamp{
+  margin-top:8px;
+  color:#a9a9a9;
+  font-size:12px;
+  font-weight:500;
+  line-height:1.35;
+  letter-spacing:.01em;
+}

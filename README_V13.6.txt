@@ -15,3 +15,6 @@ Incluye:
 IMPORTANTE:
 Ejecuta una sola vez: supabase/V13.6_PUBLICATION_FEATURES.sql
 La fecha/hora NO necesita SQL nuevo: usa posts.created_at, que ya existe.
+
+
+FINAL STAMP UPDATE: Public posts now show a permanent server-backed publication stamp: Publicado · date · time. No relative time.

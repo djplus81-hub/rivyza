@@ -177,20 +177,6 @@ export default function HomePage(){
     return new Intl.DateTimeFormat("es-US",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"}).format(d);
   }
 
-  function relativePostDate(value){
-    if(!value)return "";
-    const d=new Date(value);
-    const diff=Math.max(0,Date.now()-d.getTime());
-    const mins=Math.floor(diff/60000);
-    if(mins<1)return "Publicado ahora";
-    if(mins<60)return `Publicado hace ${mins} min`;
-    const hours=Math.floor(mins/60);
-    if(hours<24)return `Publicado hace ${hours} h`;
-    const days=Math.floor(hours/24);
-    if(days<30)return `Publicado hace ${days} d`;
-    return "Publicado";
-  }
-
   async function openPost(post){
     setSelectedPost(post);
     setPostMenuOpen(false);
@@ -949,10 +935,11 @@ export default function HomePage(){
               <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
             </div>
-            <div className="post-published-date">
-              <strong>{relativePostDate(selectedPost.created_at)}</strong>
-              <span>{formatPostDate(selectedPost.created_at)}</span>
-            </div>
+            {selectedPost.created_at && (
+              <div className="post-published-stamp">
+                Publicado · {formatPostDate(selectedPost.created_at)}
+              </div>
+            )}
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
 
