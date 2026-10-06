@@ -57,6 +57,13 @@ export default function HomePage(){
   const [commentsOpen,setCommentsOpen]=useState(false);
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
+  const [viewedProfile,setViewedProfile]=useState(null);
+  const [viewedProfilePosts,setViewedProfilePosts]=useState([]);
+  const [peopleSearchOpen,setPeopleSearchOpen]=useState(false);
+  const [peopleSearch,setPeopleSearch]=useState("");
+  const [peopleResults,setPeopleResults]=useState([]);
+  const [peopleSearching,setPeopleSearching]=useState(false);
+  const [peopleSearchMessage,setPeopleSearchMessage]=useState("");
 
   const [username,setUsername]=useState("");
   const [displayName,setDisplayName]=useState("");
@@ -167,6 +174,70 @@ export default function HomePage(){
     setProfilePosts(sorted);
   }
 
+  async function openUserProfile(targetProfile){
+    if(!targetProfile?.id)return;
+    if(targetProfile.id===user?.id){
+      setViewedProfile(null);
+      setViewedProfilePosts([]);
+      setPeopleSearchOpen(false);
+      setView("publicProfile");
+      return;
+    }
+    setViewedProfile(targetProfile);
+    setViewedProfilePosts([]);
+    setPeopleSearchOpen(false);
+    setSelectedPost(null);
+    setView("otherProfile");
+
+    const {data,error}=await supabase
+      .from("posts")
+      .select("*")
+      .eq("user_id",targetProfile.id)
+      .eq("visibility","public")
+      .order("created_at",{ascending:false});
+
+    if(error){
+      console.error("Public profile posts load error:",error);
+      return;
+    }
+    const sorted=[...(data||[])].sort((a,b)=>{
+      const ap=a.pinned_position ?? 99;
+      const bp=b.pinned_position ?? 99;
+      if(ap!==bp)return ap-bp;
+      return new Date(b.created_at)-new Date(a.created_at);
+    });
+    setViewedProfilePosts(sorted);
+  }
+
+  async function searchPeople(term=peopleSearch){
+    const q=String(term||"").trim().replace(/^@/,"");
+    if(!supabase || q.length<2){
+      setPeopleResults([]);
+      setPeopleSearchMessage(q.length ? "Escribe por lo menos 2 caracteres." : "");
+      return;
+    }
+    setPeopleSearching(true);
+    setPeopleSearchMessage("");
+    try{
+      const safe=q.replace(/[%_,()]/g,"");
+      const {data,error}=await supabase
+        .from("profiles")
+        .select("id,username,display_name,bio,avatar_url,website_url,youtube_url,instagram_url,facebook_url,country_code,country_name,show_country")
+        .or(`username.ilike.%${safe}%,display_name.ilike.%${safe}%`)
+        .limit(20);
+      if(error)throw error;
+      const rows=(data||[]).filter(row=>row.id!==user?.id);
+      setPeopleResults(rows);
+      setPeopleSearchMessage(rows.length ? "" : "No encontramos usuarios con ese nombre.");
+    }catch(e){
+      console.error("People search error:",e);
+      setPeopleResults([]);
+      setPeopleSearchMessage("No se pudo buscar. Si es la primera vez, ejecuta el SQL v13.8 incluido.");
+    }finally{
+      setPeopleSearching(false);
+    }
+  }
+
   useEffect(()=>{
     if(view==="publicProfile" && user?.id){
       loadProfilePosts();
@@ -223,12 +294,13 @@ export default function HomePage(){
   },[selectedPost?.id,selectedPost?.media_type]);
 
   function movePost(direction){
-    if(!selectedPost || profilePosts.length<2)return;
-    const currentIndex=profilePosts.findIndex(post=>post.id===selectedPost.id);
+    const activePosts=view==="otherProfile" ? viewedProfilePosts : profilePosts;
+    if(!selectedPost || activePosts.length<2)return;
+    const currentIndex=activePosts.findIndex(post=>post.id===selectedPost.id);
     if(currentIndex<0)return;
     const nextIndex=currentIndex+direction;
-    if(nextIndex<0 || nextIndex>=profilePosts.length)return;
-    openPost(profilePosts[nextIndex]);
+    if(nextIndex<0 || nextIndex>=activePosts.length)return;
+    openPost(activePosts[nextIndex]);
   }
 
   function handlePostTouchStart(e){
@@ -881,6 +953,128 @@ export default function HomePage(){
   }
 
   
+  if(view==="otherProfile" && viewedProfile){
+    return <main className="public-profile-shell other-profile-shell">
+      <header className="profile-topbar compact">
+        <button className="profile-back" onClick={()=>{setSelectedPost(null);setView("home");}}>←</button>
+        <div className="profile-top-title">@{viewedProfile.username||"usuario"}</div>
+        <button className="profile-menu" aria-label="Opciones"><MoreHorizontal size={24}/></button>
+      </header>
+
+      <section className="profile-hero compact-profile">
+        <div className="profile-heading-row">
+          <div className="profile-heading-copy">
+            <h1>{viewedProfile.display_name||viewedProfile.username||"Usuario"}</h1>
+            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>
+            {viewedProfile.show_country && viewedProfile.country_code && (
+              <div className="profile-country">
+                <img
+                  className="profile-country-flag-img"
+                  src={`https://flagcdn.com/28x21/${viewedProfile.country_code.toLowerCase()}.png`}
+                  srcSet={`https://flagcdn.com/56x42/${viewedProfile.country_code.toLowerCase()}.png 2x`}
+                  width="28" height="21" alt="" loading="lazy"
+                />
+                <span className="profile-country-name">
+                  {viewedProfile.country_name || regionNames.of(viewedProfile.country_code) || viewedProfile.country_code}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="profile-photo-edit-wrap visitor-avatar-wrap">
+            {viewedProfile.avatar_url
+              ? <img className="public-profile-photo" src={viewedProfile.avatar_url} alt={viewedProfile.display_name||viewedProfile.username}/>
+              : <div className="public-profile-photo fallback">{(viewedProfile.display_name?.[0]||viewedProfile.username?.[0]||"R").toUpperCase()}</div>
+            }
+          </div>
+        </div>
+
+        <div className="profile-stats compact-stats">
+          <button><strong>0</strong><span>Following</span></button>
+          <button><strong>0</strong><span>Followers</span></button>
+          <button><strong>0</strong><span>Likes</span></button>
+        </div>
+
+        {viewedProfile.bio && <p className="public-bio">{viewedProfile.bio}</p>}
+        <div className="profile-links-stack">
+          {viewedProfile.website_url && <a href={viewedProfile.website_url} target="_blank" rel="noreferrer"><LinkIcon size={16}/><span>Website</span></a>}
+          {viewedProfile.youtube_url && <a href={viewedProfile.youtube_url} target="_blank" rel="noreferrer"><Youtube size={16}/><span>YouTube</span></a>}
+          {viewedProfile.instagram_url && <a href={viewedProfile.instagram_url} target="_blank" rel="noreferrer"><Instagram size={16}/><span>Instagram</span></a>}
+          {viewedProfile.facebook_url && <a href={viewedProfile.facebook_url} target="_blank" rel="noreferrer"><Facebook size={16}/><span>Facebook</span></a>}
+        </div>
+      </section>
+
+      <section className="profile-content-section">
+        <div className="profile-content-tabs visitor-tabs">
+          <button className="active"><Grid3X3 size={20}/></button>
+        </div>
+        <div className="posts-grid">
+          {viewedProfilePosts.length > 0 ? viewedProfilePosts.map(post=>(
+            <div className="profile-post-card" key={post.id} onClick={()=>openPost(post)}>
+              {post.media_type==="photo"
+                ? <img src={post.media_path} alt={post.caption||"Publicación"}/>
+                : <video src={post.media_path} muted playsInline preload="metadata"/>
+              }
+              {post.pinned_position && <span className="post-pin">📌</span>}
+            </div>
+          )) : <div className="empty-grid-card first">Este usuario todavía no tiene publicaciones públicas.</div>}
+        </div>
+      </section>
+
+      {selectedPost && (
+        <div className="post-detail-overlay">
+          <header className="post-detail-topbar">
+            <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}} aria-label="Volver">←</button>
+            <strong>Publicación</strong>
+            <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
+          </header>
+          <div className="post-detail-media post-swipe-viewer" onTouchStart={handlePostTouchStart} onTouchEnd={handlePostTouchEnd} onWheel={handlePostWheel}>
+            {selectedPost.media_type==="photo"
+              ? <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
+              : <video key={selectedPost.id} ref={postViewerVideoRef} src={selectedPost.media_path} controls playsInline autoPlay preload="auto"/>
+            }
+          </div>
+          <div className="post-detail-info">
+            {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
+            <div className="post-public-stamp">Publicado · {formatPostDate(selectedPost.created_at)}</div>
+            <div className="post-detail-actions">
+              <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
+              <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
+              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
+            </div>
+            {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
+          </div>
+          {postMenuOpen && (
+            <div className="post-menu-backdrop" onClick={()=>setPostMenuOpen(false)}>
+              <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
+                <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={20}/>Compartir en RIVYZA</button>
+                <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
+                <button type="button" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+          {commentsOpen && (
+            <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
+              <div className="post-menu-sheet comments-sheet" onClick={e=>e.stopPropagation()}>
+                <strong>Comentarios</strong>
+                <p>La sección para escribir y leer comentarios queda preparada para conectarla al sistema de comentarios.</p>
+                <button type="button" onClick={()=>setCommentsOpen(false)}>Cerrar</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <nav className="bottom-nav">
+        <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
+        <button><Radio/><span>Live</span></button>
+        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
+        <button><Bell/><span>Alertas</span></button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
+      </nav>
+      {renderUploadModal()}
+    </main>;
+  }
+
   if(view==="publicProfile"){
     return <main className="public-profile-shell">
       <header className="profile-topbar compact">
@@ -1279,7 +1473,7 @@ export default function HomePage(){
         <button className="active-tab">Para ti</button>
         <button>LIVE</button>
       </div>
-      <button className="icon-btn"><Search size={23}/></button>
+      <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label="Buscar usuarios"><Search size={23}/></button>
     </header>
 
     <section className="video-feed">
@@ -1290,14 +1484,14 @@ export default function HomePage(){
         </div>
 
         <div className="creator-copy">
-          <div className="display-name">{profile?.display_name||"DJ Plus"}</div>
+          <button className="creator-profile-link" onClick={()=>setView("publicProfile")}><div className="display-name">{profile?.display_name||"DJ Plus"}</div></button>
           <div className="handle">@{profile?.username||"djplus"}</div>
           {profile?.bio&&<div className="caption">{profile.bio}</div>}
           <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
         </div>
 
         <div className="side-actions">
-          <button className="avatar-action" onClick={()=>setView("profile")}>
+          <button className="avatar-action" onClick={()=>setView("publicProfile")}>
             {profile?.avatar_url
               ? <img src={profile.avatar_url} alt={profile.display_name}/>
               : <div className="mini-avatar">{(profile?.display_name?.[0]||"R").toUpperCase()}</div>}
@@ -1310,6 +1504,46 @@ export default function HomePage(){
         </div>
       </div>
     </section>
+
+    {peopleSearchOpen && (
+      <div className="people-search-overlay">
+        <div className="people-search-panel">
+          <header className="people-search-header">
+            <button type="button" onClick={()=>setPeopleSearchOpen(false)} aria-label="Cerrar">←</button>
+            <strong>Buscar personas</strong>
+            <span></span>
+          </header>
+          <form className="people-search-form" onSubmit={e=>{e.preventDefault();searchPeople();}}>
+            <Search size={19}/>
+            <input
+              autoFocus
+              value={peopleSearch}
+              onChange={e=>setPeopleSearch(e.target.value)}
+              placeholder="Nombre o @usuario"
+              autoCapitalize="none"
+            />
+            <button type="submit" disabled={peopleSearching}>{peopleSearching?"…":"Buscar"}</button>
+          </form>
+          <div className="people-search-results">
+            {peopleSearchMessage && <p className="people-search-message">{peopleSearchMessage}</p>}
+            {peopleResults.map(person=>(
+              <button className="people-result" key={person.id} onClick={()=>openUserProfile(person)}>
+                {person.avatar_url
+                  ? <img src={person.avatar_url} alt={person.display_name||person.username}/>
+                  : <span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>
+                }
+                <span className="people-result-copy">
+                  <strong>{person.display_name||person.username||"Usuario"}</strong>
+                  <small>@{person.username||"usuario"}</small>
+                  {person.bio && <em>{person.bio}</em>}
+                </span>
+                <span className="people-result-arrow">›</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
 
     <nav className="bottom-nav">
       <button className="active"><Home/><span>Inicio</span></button>

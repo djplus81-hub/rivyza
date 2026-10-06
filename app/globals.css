@@ -1482,3 +1482,35 @@ body::-webkit-scrollbar,
   width:0!important;
   height:0!important;
 }
+
+
+/* ===== RIVYZA v13.8 PUBLIC USER PROFILES ===== */
+.profile-top-title{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}
+.visitor-avatar-wrap{pointer-events:none;}
+.visitor-tabs{grid-template-columns:1fr!important;}
+.creator-profile-link{display:block;border:0;background:transparent;color:inherit;padding:0;margin:0;text-align:left;font:inherit;cursor:pointer;}
+
+.people-search-overlay{
+  position:fixed;inset:0;z-index:80;background:#090909;color:#fff;
+  padding-top:env(safe-area-inset-top);padding-bottom:calc(70px + env(safe-area-inset-bottom));
+}
+.people-search-panel{width:min(100%,680px);height:100%;margin:0 auto;background:#090909;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
+.people-search-panel::-webkit-scrollbar{display:none;width:0;height:0;}
+.people-search-header{height:54px;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;border-bottom:1px solid #1e1e1e;padding:0 8px;position:sticky;top:0;background:#090909;z-index:2;}
+.people-search-header button{border:0;background:transparent;color:#fff;font-size:28px;line-height:1;}
+.people-search-header strong{text-align:center;font-size:16px;}
+.people-search-form{margin:14px 14px 8px;min-height:48px;border-radius:14px;background:#1a1a1a;display:grid;grid-template-columns:28px 1fr auto;align-items:center;padding:0 10px;gap:6px;}
+.people-search-form input{min-width:0;border:0;outline:0;background:transparent;color:#fff;font-size:16px;}
+.people-search-form input::placeholder{color:#777;}
+.people-search-form button{border:0;background:transparent;color:#ff3b6b;font-weight:700;font-size:14px;padding:8px;}
+.people-search-results{padding:4px 10px 20px;}
+.people-search-message{color:#8f8f98;text-align:center;font-size:13px;padding:26px 12px;}
+.people-result{width:100%;display:grid;grid-template-columns:52px 1fr 24px;gap:11px;align-items:center;border:0;border-bottom:1px solid #181818;background:transparent;color:#fff;padding:11px 4px;text-align:left;}
+.people-result img,.people-result-fallback{width:52px;height:52px;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:#252525;font-weight:800;font-size:19px;}
+.people-result-copy{min-width:0;display:flex;flex-direction:column;gap:2px;}
+.people-result-copy strong{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.people-result-copy small{color:#999;font-size:13px;}
+.people-result-copy em{color:#aaa;font-style:normal;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.people-result-arrow{color:#777;font-size:26px;text-align:right;}
+.other-profile-shell,.other-profile-shell *{scrollbar-width:none!important;-ms-overflow-style:none!important;}
+.other-profile-shell::-webkit-scrollbar,.other-profile-shell *::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;}
