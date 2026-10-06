@@ -171,10 +171,11 @@ export default function HomePage(){
   },[view,user?.id]);
 
   function formatPostDate(value){
-    if(!value)return "";
+    if(!value)return "fecha no disponible";
     const d=new Date(value);
-    if(Number.isNaN(d.getTime()))return "";
-    return new Intl.DateTimeFormat("es-US",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"}).format(d);
+    if(Number.isNaN(d.getTime()))return "fecha no disponible";
+    return new Intl.DateTimeFormat("es-US",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit",hour12:true})
+      .format(d).replace(",", " ·").replace("a. m.","AM").replace("p. m.","PM");
   }
 
   async function openPost(post){
@@ -253,6 +254,7 @@ export default function HomePage(){
 
     let alive=true;
     let initialized=false;
+    let initialRouteChosen=false;
 
     async function routeSignedInUser(u){
       if(!u || !alive)return;
@@ -260,6 +262,7 @@ export default function HomePage(){
       const existingProfile=await loadProfile(u);
       if(!alive)return;
       setView(existingProfile ? "home" : "profile");
+      initialRouteChosen=true;
     }
 
     async function initialize(){
@@ -302,8 +305,8 @@ export default function HomePage(){
         return;
       }
 
-      // A token refresh or user update must preserve the current screen.
-      if(event==="SIGNED_IN"){
+      // Route only once. Later Supabase session events must preserve the current screen.
+      if(!initialRouteChosen){
         routeSignedInUser(u);
       }else{
         setUser(u);
@@ -552,21 +555,19 @@ export default function HomePage(){
      }
 
      setUploadMessage("Publicado.");
-
      if(newPost){
        setProfilePosts(prev=>{
          const next=[newPost,...prev.filter(p=>p.id!==newPost.id)];
          return next.sort((a,b)=>{
-           const ap=a.pinned_position ?? 99;
-           const bp=b.pinned_position ?? 99;
+           const ap=a.pinned_position ?? 99, bp=b.pinned_position ?? 99;
            if(ap!==bp)return ap-bp;
            return new Date(b.created_at)-new Date(a.created_at);
          });
        });
      }
-
      resetUpload();
      setUploadOpen(false);
+     setSelectedPost(null);
      setView("publicProfile");
      await loadProfilePosts();
    }catch(err){
@@ -950,11 +951,9 @@ export default function HomePage(){
 
           <div className="post-detail-info">
             {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
-           {selectedPost.created_at && (
-             <div className="post-public-stamp">
-               Publicado · {formatPostDate(selectedPost.created_at)}
-             </div>
-           )}
+            <div className="post-public-stamp" data-rivyza-stamp="v13.6">
+              Publicado · {formatPostDate(selectedPost.created_at)}
+            </div>
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>

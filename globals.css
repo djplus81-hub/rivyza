@@ -1419,4 +1419,4 @@ main{
 
 /* ===== RIVYZA v13.6 VISIBLE PUBLIC STAMP ===== */
 .post-detail-media{position:relative;}
-.post-public-stamp{display:block;margin:2px 0 9px;color:#a9a9b2;font-size:12px;font-weight:500;line-height:1.35;letter-spacing:.01em;}
+.post-public-stamp{display:block!important;position:static!important;margin:4px 0 10px!important;padding:0!important;background:transparent!important;color:#a9a9b2!important;font-size:12px!important;font-weight:500!important;line-height:1.35!important;opacity:1!important;visibility:visible!important;}
