@@ -1286,3 +1286,26 @@ main{
     width:min(560px,100vw);
   }
 }
+.profile-post-card{
+  position:relative;
+  width:100%;
+  aspect-ratio:3/4;
+  overflow:hidden;
+  background:#111;
+}
+
+.profile-post-card img,
+.profile-post-card video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.post-pin{
+  position:absolute;
+  top:6px;
+  right:6px;
+  font-size:16px;
+  z-index:2;
+}
