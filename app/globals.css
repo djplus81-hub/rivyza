@@ -1567,3 +1567,64 @@ body::-webkit-scrollbar,
 
 /* ===== RIVYZA v13.9.4.1 — LIKERS OVER POST VIEWER FIX ===== */
 .likers-overlay{z-index:7000!important;}
+
+/* ===== RIVYZA v13.10 — HOME FEED ===== */
+.home-real-feed{
+  display:block!important;
+  height:calc(100dvh - 74px);
+  min-height:0!important;
+  overflow-y:auto;
+  scroll-snap-type:y mandatory;
+  overscroll-behavior-y:contain;
+  scrollbar-width:none!important;
+  -ms-overflow-style:none!important;
+}
+.home-real-feed::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;}
+.feed-post-card{
+  height:calc(100dvh - 74px)!important;
+  min-height:0!important;
+  scroll-snap-align:start;
+  scroll-snap-stop:always;
+}
+.feed-media-wrap{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  background:#000;
+}
+.feed-media{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#000;
+}
+.feed-post-card:after{
+  content:"";
+  pointer-events:none;
+  position:absolute;
+  inset:45% 0 0;
+  background:linear-gradient(transparent,rgba(0,0,0,.22) 38%,rgba(0,0,0,.72));
+}
+.feed-post-card .creator-copy,
+.feed-post-card .side-actions{z-index:2;}
+.feed-post-card .creator-profile-link{
+  border:0;
+  background:none;
+  color:#fff;
+  padding:0;
+  text-align:left;
+}
+.feed-post-card .feed-liked{color:#ff2d72!important;}
+.feed-post-card .side-actions button:disabled{opacity:.65;}
+.feed-empty-state{
+  height:calc(100dvh - 74px);
+  display:grid;
+  place-items:center;
+  text-align:center;
+  padding:90px 34px 100px;
+  color:#b8b8be;
+  font-size:15px;
+  line-height:1.5;
+  background:#070707;
+}

@@ -79,6 +79,11 @@ export default function HomePage(){
   const [socialListTitle,setSocialListTitle]=useState("");
   const [socialListRows,setSocialListRows]=useState([]);
   const [socialListLoading,setSocialListLoading]=useState(false);
+  const [feedTab,setFeedTab]=useState("forYou");
+  const [feedPosts,setFeedPosts]=useState([]);
+  const [feedLoading,setFeedLoading]=useState(false);
+  const [feedMessage,setFeedMessage]=useState("");
+  const [feedLikeBusy,setFeedLikeBusy]=useState(null);
 
   const [username,setUsername]=useState("");
   const [displayName,setDisplayName]=useState("");
@@ -382,6 +387,121 @@ export default function HomePage(){
       setPeopleSearching(false);
     }
   }
+
+  async function loadHomeFeed(tab=feedTab){
+    if(!supabase || !user?.id)return;
+    setFeedLoading(true);
+    setFeedMessage("");
+    try{
+      let allowedIds=null;
+      if(tab==="following"){
+        const {data:links,error:followError}=await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id",user.id);
+        if(followError)throw followError;
+        allowedIds=(links||[]).map(row=>row.following_id).filter(Boolean);
+        if(!allowedIds.length){
+          setFeedPosts([]);
+          setFeedMessage("Todavía no sigues a nadie. Cuando sigas personas, sus publicaciones aparecerán aquí.");
+          return;
+        }
+      }
+
+      let postQuery=supabase
+        .from("posts")
+        .select("*")
+        .eq("visibility","public")
+        .order("created_at",{ascending:false})
+        .limit(60);
+
+      if(allowedIds)postQuery=postQuery.in("user_id",allowedIds);
+
+      const {data:posts,error:postsError}=await postQuery;
+      if(postsError)throw postsError;
+      const rows=posts||[];
+      if(!rows.length){
+        setFeedPosts([]);
+        setFeedMessage(tab==="following"
+          ?"Las personas que sigues todavía no tienen publicaciones públicas."
+          :"Todavía no hay publicaciones públicas.");
+        return;
+      }
+
+      const creatorIds=[...new Set(rows.map(post=>post.user_id).filter(Boolean))];
+      const postIds=rows.map(post=>post.id);
+      const [{data:creators,error:creatorError},{data:likes,error:likesError}]=await Promise.all([
+        supabase.from("profiles")
+          .select("id,username,display_name,bio,avatar_url,website_url,youtube_url,instagram_url,facebook_url,country_code,country_name,show_country")
+          .in("id",creatorIds),
+        supabase.from("post_likes").select("post_id,user_id").in("post_id",postIds)
+      ]);
+      if(creatorError)throw creatorError;
+      if(likesError)throw likesError;
+
+      const creatorMap=new Map((creators||[]).map(person=>[person.id,person]));
+      const likeCountMap=new Map();
+      const likedByMe=new Set();
+      (likes||[]).forEach(like=>{
+        likeCountMap.set(like.post_id,(likeCountMap.get(like.post_id)||0)+1);
+        if(like.user_id===user.id)likedByMe.add(like.post_id);
+      });
+
+      setFeedPosts(rows.map(post=>({
+        ...post,
+        creator:creatorMap.get(post.user_id)||null,
+        like_count:likeCountMap.get(post.id)||0,
+        liked_by_me:likedByMe.has(post.id)
+      })));
+    }catch(e){
+      console.error("Home feed load error:",e);
+      setFeedPosts([]);
+      setFeedMessage("No se pudo cargar el feed. Intenta de nuevo.");
+    }finally{
+      setFeedLoading(false);
+    }
+  }
+
+  function changeFeedTab(tab){
+    setFeedTab(tab);
+    loadHomeFeed(tab);
+  }
+
+  async function openFeedCreator(post){
+    if(!post?.creator)return;
+    await openUserProfile(post.creator);
+  }
+
+  async function toggleFeedLike(post){
+    if(!supabase || !user?.id || !post?.id || feedLikeBusy===post.id)return;
+    setFeedLikeBusy(post.id);
+    const wasLiked=!!post.liked_by_me;
+    setFeedPosts(rows=>rows.map(row=>row.id===post.id
+      ? {...row,liked_by_me:!wasLiked,like_count:Math.max(0,Number(row.like_count||0)+(wasLiked?-1:1))}
+      : row));
+    try{
+      if(wasLiked){
+        const {error}=await supabase.from("post_likes").delete()
+          .eq("post_id",post.id).eq("user_id",user.id);
+        if(error)throw error;
+      }else{
+        const {error}=await supabase.from("post_likes").insert({post_id:post.id,user_id:user.id});
+        if(error)throw error;
+      }
+    }catch(e){
+      console.error("Feed like error:",e);
+      setFeedPosts(rows=>rows.map(row=>row.id===post.id
+        ? {...row,liked_by_me:wasLiked,like_count:Math.max(0,Number(row.like_count||0)+(wasLiked?1:-1))}
+        : row));
+    }finally{
+      setFeedLikeBusy(null);
+    }
+  }
+
+  useEffect(()=>{
+    if(view==="home" && user?.id)loadHomeFeed(feedTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[view,user?.id]);
 
   useEffect(()=>{
     if(view==="publicProfile" && user?.id){
@@ -1710,40 +1830,57 @@ export default function HomePage(){
     <header className="feed-topbar">
       <div className="top-brand">RIVYZA</div>
       <div className="feed-tabs">
-        <button>Siguiendo</button>
-        <button className="active-tab">Para ti</button>
+        <button className={feedTab==="following"?"active-tab":""} onClick={()=>changeFeedTab("following")}>Siguiendo</button>
+        <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>Para ti</button>
         <button>LIVE</button>
       </div>
       <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label="Buscar usuarios"><Search size={23}/></button>
     </header>
 
-    <section className="video-feed">
-      <div className="video-card">
-        <div className="video-placeholder">
-          
-          <span className="video-hint">Tu feed de videos aparecerá aquí</span>
-        </div>
+    <section className="video-feed home-real-feed">
+      {feedLoading && !feedPosts.length && (
+        <div className="feed-empty-state">Cargando publicaciones…</div>
+      )}
 
-        <div className="creator-copy">
-          <button className="creator-profile-link" onClick={()=>setView("publicProfile")}><div className="display-name">{profile?.display_name||"DJ Plus"}</div></button>
-          <div className="handle">@{profile?.username||"djplus"}</div>
-          {profile?.bio&&<div className="caption">{profile.bio}</div>}
-          <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
-        </div>
+      {!feedLoading && !feedPosts.length && (
+        <div className="feed-empty-state">{feedMessage||"Todavía no hay publicaciones."}</div>
+      )}
 
-        <div className="side-actions">
-          <button className="avatar-action" onClick={()=>setView("publicProfile")}>
-            {profile?.avatar_url
-              ? <img src={profile.avatar_url} alt={profile.display_name}/>
-              : <div className="mini-avatar">{(profile?.display_name?.[0]||"R").toUpperCase()}</div>}
-          </button>
+      {feedPosts.map(post=>(
+        <article className="video-card feed-post-card" key={post.id}>
+          <div className="feed-media-wrap">
+            {post.media_type==="video"
+              ? <video className="feed-media" src={post.media_path} controls playsInline preload="metadata"/>
+              : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
+            }
+          </div>
 
-          <button><Heart/><span>125K</span></button>
-          <button><MessageCircle/><span>3.2K</span></button>
-          <button><Share2/><span>Compartir</span></button>
-          <button><MoreHorizontal/><span>Más</span></button>
-        </div>
-      </div>
+          <div className="creator-copy">
+            <button className="creator-profile-link" onClick={()=>openFeedCreator(post)}>
+              <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
+            </button>
+            <div className="handle">@{post.creator?.username||"usuario"}</div>
+            {post.caption&&<div className="caption">{post.caption}</div>}
+            <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
+          </div>
+
+          <div className="side-actions">
+            <button className="avatar-action" onClick={()=>openFeedCreator(post)}>
+              {post.creator?.avatar_url
+                ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
+                : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+            </button>
+
+            <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
+              <Heart fill={post.liked_by_me?"currentColor":"none"}/>
+              <span>{post.like_count||0}</span>
+            </button>
+            <button onClick={()=>openPost(post)}><MessageCircle/><span>Comentarios</span></button>
+            <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
+            <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
+          </div>
+        </article>
+      ))}
     </section>
 
     {peopleSearchOpen && (
