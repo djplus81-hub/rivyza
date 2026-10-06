@@ -45,6 +45,10 @@ export default function HomePage(){
   const [profile,setProfile]=useState(null);
   const [profilePosts,setProfilePosts]=useState([]);
   const [selectedPost,setSelectedPost]=useState(null);
+  const [postMenuOpen,setPostMenuOpen]=useState(false);
+  const [postLikeCount,setPostLikeCount]=useState(0);
+  const [postLiked,setPostLiked]=useState(false);
+  const [postActionMessage,setPostActionMessage]=useState("");
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
 
@@ -473,6 +477,76 @@ export default function HomePage(){
    }
  }
 
+ async function openPost(post){
+   setSelectedPost(post);
+   setPostMenuOpen(false);
+   setPostActionMessage("");
+   setPostLikeCount(0);
+   setPostLiked(false);
+   if(!supabase || !post?.id)return;
+
+   const {data:countData,error:countError}=await supabase
+     .rpc("get_post_like_count",{target_post_id:post.id});
+   if(!countError)setPostLikeCount(Number(countData)||0);
+
+   if(user?.id){
+     const {data,error}=await supabase.from("post_likes")
+       .select("post_id").eq("post_id",post.id).eq("user_id",user.id).maybeSingle();
+     if(!error)setPostLiked(!!data);
+   }
+ }
+
+ async function togglePostLike(){
+   if(!supabase || !user?.id || !selectedPost?.id)return;
+   if(postLiked){
+     const {error}=await supabase.from("post_likes").delete()
+       .eq("post_id",selectedPost.id).eq("user_id",user.id);
+     if(!error){setPostLiked(false);setPostLikeCount(c=>Math.max(0,c-1));}
+   }else{
+     const {error}=await supabase.from("post_likes")
+       .insert({post_id:selectedPost.id,user_id:user.id});
+     if(!error){setPostLiked(true);setPostLikeCount(c=>c+1);}
+   }
+ }
+
+ async function copyPostLink(){
+   if(!selectedPost?.id)return;
+   const url=`${window.location.origin}/?post=${selectedPost.id}`;
+   try{await navigator.clipboard.writeText(url);setPostActionMessage("Enlace copiado.");}
+   catch{setPostActionMessage(url);}
+   setPostMenuOpen(false);
+ }
+
+ async function deleteSelectedPost(){
+   if(!supabase || !user?.id || !selectedPost || selectedPost.user_id!==user.id)return;
+   if(!window.confirm("¿Eliminar esta publicación? Esta acción no se puede deshacer."))return;
+
+   const marker="/storage/v1/object/public/media/";
+   let storagePath=null;
+   if(selectedPost.media_path?.includes(marker)){
+     storagePath=decodeURIComponent(selectedPost.media_path.split(marker)[1].split("?")[0]);
+   }
+
+   const {error}=await supabase.from("posts").delete()
+     .eq("id",selectedPost.id).eq("user_id",user.id);
+   if(error){setPostActionMessage("No se pudo eliminar la publicación.");return;}
+
+   if(storagePath)await supabase.storage.from("media").remove([storagePath]);
+   setSelectedPost(null);
+   setPostMenuOpen(false);
+   await loadProfilePosts();
+ }
+
+ function VideoGridThumb({src}){
+   return <video className="profile-video-thumb" src={src} muted playsInline preload="metadata"
+     onLoadedMetadata={(e)=>{
+       try{
+         const d=e.currentTarget.duration;
+         e.currentTarget.currentTime=Number.isFinite(d)&&d>0?Math.min(1,d/3):0.1;
+       }catch{}
+     }}/>;
+ }
+
 
  function renderUploadModal(){
    if(!uploadOpen || typeof document==="undefined") return null;
@@ -797,21 +871,22 @@ export default function HomePage(){
           <div className="posts-grid">
             {profilePosts.length > 0 ? (
               profilePosts.map((post)=>(
-                <div
+                <button
+                  type="button"
                   className="profile-post-card"
                   key={post.id}
-                  onClick={()=>setSelectedPost(post)}
+                  onClick={()=>openPost(post)}
+                  aria-label="Abrir publicación"
                 >
                   {post.media_type==="photo" ? (
                     <img src={post.media_path} alt={post.caption||"Publicación"}/>
                   ) : (
-                    <video src={post.media_path} muted playsInline preload="metadata"/>
+                    <VideoGridThumb src={post.media_path}/>
                   )}
 
-                  {post.pinned_position && (
-                    <span className="post-pin">📌</span>
-                  )}
-                </div>
+                  {post.media_type==="video" && <span className="post-video-badge">▶</span>}
+                  {post.pinned_position && <span className="post-pin">📌</span>}
+                </button>
               ))
             ) : (
               <div className="empty-grid-card first">
@@ -829,23 +904,42 @@ export default function HomePage(){
       </section>
 
       {selectedPost && (
-        <div className="post-detail-overlay">
+        <div className="post-detail-overlay" role="dialog" aria-modal="true">
           <header className="post-detail-topbar">
-            <button type="button" onClick={()=>setSelectedPost(null)} aria-label="Volver">←</button>
+            <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}}>←</button>
             <strong>Publicación</strong>
-            <span></span>
+            <button type="button" onClick={()=>setPostMenuOpen(v=>!v)}><MoreHorizontal size={26}/></button>
           </header>
 
           <div className="post-detail-media">
-            {selectedPost.media_type==="photo" ? (
-              <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
-            ) : (
-              <video src={selectedPost.media_path} controls playsInline autoPlay/>
-            )}
+            {selectedPost.media_type==="photo"
+              ? <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
+              : <video src={selectedPost.media_path} controls playsInline autoPlay/>}
           </div>
 
-          {selectedPost.caption && (
-            <p className="post-detail-caption">{selectedPost.caption}</p>
+          <div className="post-detail-actions">
+            <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}>
+              <Heart size={27} fill={postLiked?"currentColor":"none"}/><strong>{postLikeCount}</strong>
+            </button>
+            <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible cuando activemos Mensajes.")}>
+              <Share2 size={25}/><span>Compartir</span>
+            </button>
+          </div>
+
+          {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
+          {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
+
+          {postMenuOpen && (
+            <div className="post-options-sheet">
+              <button type="button" onClick={()=>{setPostMenuOpen(false);setPostActionMessage("Compartir dentro de RIVYZA estará disponible cuando activemos Mensajes.");}}>
+                <Share2 size={21}/> Compartir dentro de RIVYZA
+              </button>
+              <button type="button" onClick={copyPostLink}><LinkIcon size={21}/> Copiar enlace</button>
+              {selectedPost.user_id===user?.id && (
+                <button type="button" className="danger" onClick={deleteSelectedPost}>Eliminar publicación</button>
+              )}
+              <button type="button" className="cancel" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+            </div>
           )}
         </div>
       )}
