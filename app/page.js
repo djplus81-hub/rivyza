@@ -53,6 +53,11 @@ export default function HomePage(){
   const [postActionMessage,setPostActionMessage]=useState("");
   const [postLikeCount,setPostLikeCount]=useState(0);
   const [postLiked,setPostLiked]=useState(false);
+  const [ownLikesCount,setOwnLikesCount]=useState(0);
+  const [viewedLikesCount,setViewedLikesCount]=useState(0);
+  const [likersOpen,setLikersOpen]=useState(false);
+  const [likersRows,setLikersRows]=useState([]);
+  const [likersLoading,setLikersLoading]=useState(false);
   const [postCommentCount,setPostCommentCount]=useState(0);
   const [commentsOpen,setCommentsOpen]=useState(false);
   const [loading,setLoading]=useState(true);
@@ -184,6 +189,34 @@ export default function HomePage(){
     setProfilePosts(sorted);
   }
 
+  async function loadProfileLikeCount(profileId,{own=false}={}){
+    if(!supabase || !profileId)return;
+    try{
+      const {data,error}=await supabase.rpc("get_profile_like_count",{target_profile_id:profileId});
+      if(error)throw error;
+      if(own)setOwnLikesCount(Number(data)||0);
+      else setViewedLikesCount(Number(data)||0);
+    }catch(e){console.warn("Profile likes todavía no configurados:",e);}
+  }
+
+  async function openPostLikers(){
+    if(!selectedPost || selectedPost.user_id!==user?.id || !supabase)return;
+    setLikersOpen(true);
+    setLikersLoading(true);
+    setLikersRows([]);
+    try{
+      const {data:likes,error}=await supabase.from("post_likes").select("user_id,created_at").eq("post_id",selectedPost.id).order("created_at",{ascending:false});
+      if(error)throw error;
+      const ids=[...new Set((likes||[]).map(x=>x.user_id))];
+      if(!ids.length){setLikersRows([]);return;}
+      const {data:people,error:pe}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids);
+      if(pe)throw pe;
+      const map=new Map((people||[]).map(x=>[x.id,x]));
+      setLikersRows(ids.map(id=>map.get(id)).filter(Boolean));
+    }catch(e){console.error("Likers load error:",e);setLikersRows([]);}
+    finally{setLikersLoading(false);}
+  }
+
   async function loadFollowCounts(profileId,{own=false}={}){
     if(!supabase || !profileId)return;
     const [{count:followers,error:fe},{count:following,error:fge}]=await Promise.all([
@@ -299,6 +332,7 @@ export default function HomePage(){
     setPostActionMessage("");
     loadFollowCounts(targetProfile.id);
     loadFollowingState(targetProfile.id);
+    loadProfileLikeCount(targetProfile.id);
 
     const {data,error}=await supabase
       .from("posts")
@@ -352,6 +386,7 @@ export default function HomePage(){
   useEffect(()=>{
     if(view==="publicProfile" && user?.id){
       loadProfilePosts();
+      loadProfileLikeCount(user.id,{own:true});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,user?.id]);
@@ -451,6 +486,8 @@ export default function HomePage(){
         if(error)throw error;
         setPostLiked(true);setPostLikeCount(v=>v+1);
       }
+      if(selectedPost.user_id===user.id)loadProfileLikeCount(user.id,{own:true});
+      else if(viewedProfile?.id===selectedPost.user_id)loadProfileLikeCount(viewedProfile.id);
     }catch(e){setPostActionMessage("Los likes necesitan activar el SQL incluido en el paquete.");}
   }
 
@@ -1106,7 +1143,7 @@ export default function HomePage(){
         <div className="profile-stats compact-stats">
           <button onClick={()=>openSocialList(viewedProfile.id,"following")}><strong>{viewedFollowingCount}</strong><span>Following</span></button>
           <button onClick={()=>openSocialList(viewedProfile.id,"followers")}><strong>{viewedFollowersCount}</strong><span>Followers</span></button>
-          <button><strong>0</strong><span>Likes</span></button>
+          <button><strong>{viewedLikesCount}</strong><span>Likes</span></button>
         </div>
         <div className="visitor-follow-row">
           <button type="button" className={`visitor-follow-btn ${isFollowingViewed?"following":""}`}
@@ -1189,6 +1226,7 @@ export default function HomePage(){
             <div className="post-public-stamp">Publicado · {formatPostDate(selectedPost.created_at)}</div>
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
+              {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
             </div>
@@ -1272,7 +1310,7 @@ export default function HomePage(){
         <div className="profile-stats compact-stats">
           <button onClick={()=>openSocialList(user.id,"following")}><strong>{ownFollowingCount}</strong><span>Following</span></button>
           <button onClick={()=>openSocialList(user.id,"followers")}><strong>{ownFollowersCount}</strong><span>Followers</span></button>
-          <button><strong>0</strong><span>Likes</span></button>
+          <button><strong>{ownLikesCount}</strong><span>Likes</span></button>
         </div>
 
         {profile?.bio && <p className="public-bio">{profile.bio}</p>}
@@ -1360,6 +1398,7 @@ export default function HomePage(){
             </div>
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
+              {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
             </div>
@@ -1431,6 +1470,27 @@ export default function HomePage(){
                     <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>Siguiendo</button>
                   )}
                 </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {likersOpen && (
+        <div className="social-list-overlay">
+          <div className="social-list-panel">
+            <header className="social-list-header">
+              <button type="button" onClick={()=>setLikersOpen(false)}>←</button>
+              <strong>Likes de esta publicación</strong><span></span>
+            </header>
+            <div className="social-list-body">
+              {likersLoading && <p className="social-list-empty">Cargando...</p>}
+              {!likersLoading && !likersRows.length && <p className="social-list-empty">Todavía nadie ha dado like.</p>}
+              {likersRows.map(person=>(
+                <button className="people-result liker-person" key={person.id} onClick={()=>{setLikersOpen(false);openUserProfile(person);}}>
+                  {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                  <span className="people-result-copy"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
+                </button>
               ))}
             </div>
           </div>

@@ -1560,3 +1560,7 @@ body::-webkit-scrollbar,
   flex:0 0 auto;border:1px solid #3b3b3f;background:#171719;color:#fff;
   border-radius:8px;padding:8px 11px;font-size:12px;font-weight:800;
 }
+
+/* v13.9.4 likes */
+.who-liked-btn{font-size:12px!important;font-weight:800!important;color:#b8b8c0!important;white-space:nowrap;}
+.liker-person{width:100%;border:0;border-bottom:1px solid #171717;background:transparent;color:#fff;text-align:left;}
