@@ -1,8 +1,13 @@
-RIVYZA v13.5
+RIVYZA v13.6 UPDATE
 
-Update corregido de la vista de publicaciones del perfil.
-- Tocar una foto o video del perfil abre la publicación en grande.
-- Flecha para cerrar y volver al perfil.
-- Mantiene la estructura y funciones existentes de RIVYZA.
+Incluye:
+- Foto/video se abre grande.
+- Fecha y hora exacta de created_at debajo de los controles.
+- Like + contador.
+- Comentarios en bandeja inferior + contador.
+- Compartir dentro de RIVYZA preparado para Mensajes.
+- Menu de tres puntos.
+- Copiar enlace.
+- Dueño: fijar posición 1 o 2, quitar pin y eliminar publicación.
 
-Sube el contenido de esta carpeta al repositorio, conservando la carpeta app.
+IMPORTANTE: Antes de probar Likes/Comentarios, ejecutar una sola vez supabase_v13.6.sql en Supabase > SQL Editor.
