@@ -131,6 +131,37 @@ export default function HomePage(){
     return null;
   },[supabase]);
 
+  async function loadProfilePosts(){
+    if(!supabase || !user?.id)return;
+
+    const {data,error}=await supabase
+      .from("posts")
+      .select("*")
+      .eq("user_id",user.id)
+      .order("created_at",{ascending:false});
+
+    if(error){
+      console.error("Profile posts load error:",error);
+      return;
+    }
+
+    const sorted=[...(data||[])].sort((a,b)=>{
+      const ap=a.pinned_position ?? 99;
+      const bp=b.pinned_position ?? 99;
+      if(ap!==bp)return ap-bp;
+      return new Date(b.created_at)-new Date(a.created_at);
+    });
+
+    setProfilePosts(sorted);
+  }
+
+  useEffect(()=>{
+    if(view==="publicProfile" && user?.id){
+      loadProfilePosts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[view,user?.id]);
+
   useEffect(()=>{
     if(!supabase){setLoading(false);return;}
 
@@ -762,12 +793,29 @@ export default function HomePage(){
 
         {profileTab==="posts" ? (
           <div className="posts-grid">
-            <div className="empty-grid-card first">Tus fotos y videos aparecerán aquí</div>
-            <div className="empty-grid-card"></div>
-            <div className="empty-grid-card"></div>
-            <div className="empty-grid-card"></div>
-            <div className="empty-grid-card"></div>
-            <div className="empty-grid-card"></div>
+            {profilePosts.length > 0 ? (
+              profilePosts.map((post)=>(
+                <div
+                  className="profile-post-card"
+                  key={post.id}
+                  onClick={()=>setSelectedPost(post)}
+                >
+                  {post.media_type==="photo" ? (
+                    <img src={post.media_path} alt={post.caption||"Publicación"}/>
+                  ) : (
+                    <video src={post.media_path} muted playsInline preload="metadata"/>
+                  )}
+
+                  {post.pinned_position && (
+                    <span className="post-pin">📌</span>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="empty-grid-card first">
+                Tus fotos y videos aparecerán aquí
+              </div>
+            )}
           </div>
         ) : (
           <div className="likes-private-panel">
@@ -777,6 +825,28 @@ export default function HomePage(){
           </div>
         )}
       </section>
+
+      {selectedPost && (
+        <div className="post-detail-overlay">
+          <header className="post-detail-topbar">
+            <button type="button" onClick={()=>setSelectedPost(null)} aria-label="Volver">←</button>
+            <strong>Publicación</strong>
+            <span></span>
+          </header>
+
+          <div className="post-detail-media">
+            {selectedPost.media_type==="photo" ? (
+              <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
+            ) : (
+              <video src={selectedPost.media_path} controls playsInline autoPlay/>
+            )}
+          </div>
+
+          {selectedPost.caption && (
+            <p className="post-detail-caption">{selectedPost.caption}</p>
+          )}
+        </div>
+      )}
 
       <nav className="bottom-nav">
         <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
