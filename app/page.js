@@ -8,6 +8,16 @@ import {
   AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3
 } from "lucide-react";
 
+function RivyzaFriendsIcon({size=24}){
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="6" cy="9" r="3.2" stroke="currentColor" strokeWidth="1.9"/>
+      <circle cx="18" cy="9" r="3.2" stroke="currentColor" strokeWidth="1.9"/>
+      <path d="M8.7 11.2C10.1 13.8 13.9 13.8 15.3 11.2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 function createImage(url){return new Promise((resolve,reject)=>{const i=new Image();i.addEventListener("load",()=>resolve(i));i.addEventListener("error",reject);i.setAttribute("crossOrigin","anonymous");i.src=url;});}
 async function getCroppedBlob(src,pixelCrop){
   const image=await createImage(src),canvas=document.createElement("canvas"),size=768;
@@ -1028,6 +1038,13 @@ export default function HomePage(){
                   >
                     60s
                   </button>
+                  <button
+                    className={cameraMode==="live"?"active":""}
+                    onClick={()=>{setCameraMode("live");setUploadType("video");setUploadMessage("LIVE estará disponible próximamente.");}}
+                  >
+                    LIVE
+                  </button>
+
                 </div>
 
                <div className="camera-controls-row">
@@ -1044,6 +1061,10 @@ export default function HomePage(){
 
                  {cameraMode==="photo" ? (
                    <button className="shutter-button" onClick={capturePhoto}><span></span></button>
+                 ) : cameraMode==="live" ? (
+                   <button className="live-coming-button" type="button" onClick={()=>setUploadMessage("LIVE estará disponible próximamente.")}>
+                     LIVE
+                   </button>
                  ) : (
                    <button
                      className={`record-button ${recording?"recording":""}`}
@@ -1375,7 +1396,7 @@ export default function HomePage(){
 
       <nav className="bottom-nav">
         <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
-        <button><Radio/><span>Live</span></button>
+        <button><RivyzaFriendsIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
@@ -1619,7 +1640,7 @@ export default function HomePage(){
 
       <nav className="bottom-nav">
         <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
-        <button><Radio/><span>Live</span></button>
+        <button><RivyzaFriendsIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button className="active"><User/><span>Perfil</span></button>
@@ -1925,7 +1946,7 @@ export default function HomePage(){
 
     <nav className="bottom-nav">
       <button className="active"><Home/><span>Inicio</span></button>
-      <button><Radio/><span>Live</span></button>
+      <button><RivyzaFriendsIcon/><span>Amigos</span></button>
       <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
       <button><Bell/><span>Alertas</span></button>
       <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>Perfil</span></button>

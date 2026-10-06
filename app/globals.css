@@ -1628,3 +1628,41 @@ body::-webkit-scrollbar,
   line-height:1.5;
   background:#070707;
 }
+
+
+/* ===== RIVYZA V13.10 AMIGOS + CAMERA CENTER FIX ===== */
+.shutter-button,
+.record-button{
+  padding:0 !important;
+  position:relative;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  line-height:0;
+}
+
+.shutter-button > span,
+.record-button > span{
+  display:block;
+  flex:0 0 auto;
+  margin:0 !important;
+  position:static !important;
+  transform:none !important;
+}
+
+.live-coming-button{
+  justify-self:center;
+  width:86px;
+  height:86px;
+  padding:0;
+  border-radius:50%;
+  border:5px solid rgba(255,255,255,.95);
+  background:#ff3158;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:13px;
+  font-weight:950;
+  letter-spacing:.7px;
+}
