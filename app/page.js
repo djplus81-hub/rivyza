@@ -112,6 +112,10 @@ export default function HomePage(){
   const [socialListLoading,setSocialListLoading]=useState(false);
   const [feedTab,setFeedTab]=useState("forYou");
   const [feedPosts,setFeedPosts]=useState([]);
+  const [newFeedPostsAvailable,setNewFeedPostsAvailable]=useState(false);
+  const feedNewestIdRef=useRef(null);
+  const feedCheckBusyRef=useRef(false);
+
   const [feedLoading,setFeedLoading]=useState(false);
   const [feedMessage,setFeedMessage]=useState("");
   const [feedLikeBusy,setFeedLikeBusy]=useState(null);
@@ -521,6 +525,8 @@ export default function HomePage(){
         if(like.user_id===user.id)likedByMe.add(like.post_id);
       });
 
+      feedNewestIdRef.current=rows[0]?.id||null;
+      setNewFeedPostsAvailable(false);
       setFeedPosts(rows.map(post=>({
         ...post,
         creator:creatorMap.get(post.user_id)||null,
@@ -576,6 +582,41 @@ export default function HomePage(){
     if(view==="home" && user?.id)loadHomeFeed(feedTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,user?.id]);
+
+  // Check for new public posts every 30 seconds without resetting the scroll position.
+  // A pending refresh is applied only when the user returns to the top of the feed.
+  useEffect(()=>{
+    if(view!=="home" || !user?.id || !supabase)return;
+    let active=true;
+    const feedEl=document.querySelector(".feed-shell > .home-real-feed");
+    const isBusy=()=>recording || uploadingPost || uploadOpen;
+    const atTop=()=>feedEl && feedEl.scrollTop<=12;
+    const refreshAtTop=()=>{
+      if(!active || !newFeedPostsAvailable || !atTop() || isBusy())return;
+      loadHomeFeed(feedTab);
+    };
+    const check=async()=>{
+      if(!active || feedCheckBusyRef.current || isBusy())return;
+      feedCheckBusyRef.current=true;
+      try{
+        const {data,error}=await supabase.from("posts")
+          .select("id,created_at,user_id")
+          .eq("visibility","public")
+          .order("created_at",{ascending:false}).limit(1);
+        if(error || !active || !data?.length || !feedNewestIdRef.current)return;
+        if(data[0].id!==feedNewestIdRef.current){
+          setNewFeedPostsAvailable(true);
+        }
+      }catch(e){console.warn("RIVYZA feed refresh check:",e);}
+      finally{feedCheckBusyRef.current=false;}
+    };
+    refreshAtTop();
+    const timer=setInterval(check,30000);
+    const onScroll=()=>refreshAtTop();
+    feedEl?.addEventListener("scroll",onScroll,{passive:true});
+    return ()=>{active=false;clearInterval(timer);feedEl?.removeEventListener("scroll",onScroll);};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[view,user?.id,feedTab,newFeedPostsAvailable,recording,uploadingPost,uploadOpen]);
 
   useEffect(()=>{
     if(view==="publicProfile" && user?.id){
@@ -2070,6 +2111,7 @@ export default function HomePage(){
     </header>
 
     <section className="video-feed home-real-feed">
+      {newFeedPostsAvailable && <button type="button" className="feed-new-posts-banner" onClick={()=>{loadHomeFeed(feedTab);document.querySelector(".feed-shell > .home-real-feed")?.scrollTo({top:0,behavior:"smooth"});}}>↑ Nuevas publicaciones</button>}
       {feedLoading && !feedPosts.length && (
         <div className="feed-empty-state">Cargando publicaciones…</div>
       )}
