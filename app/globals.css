@@ -2224,3 +2224,35 @@ body::-webkit-scrollbar,
   object-fit:contain !important;
   object-position:50% calc(50% + 35px) !important;
 }
+
+
+/* ===== RIVYZA v13.14.2 — PROFILE GRID SCROLL FIX ONLY =====
+   profilePosts already contains all posts and the grid already maps all of them.
+   The problem is viewport/scroll access to rows after the first two.
+   Make the profile itself the explicit vertical scroller.
+*/
+.public-profile-shell{
+  height:100dvh !important;
+  min-height:100dvh !important;
+  max-height:100dvh !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  padding-bottom:90px !important;
+  -webkit-overflow-scrolling:touch !important;
+  overscroll-behavior-y:contain;
+}
+
+.public-profile-shell .profile-content-section,
+.public-profile-shell .posts-grid{
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  overflow:visible !important;
+}
+
+/* Each grid item stays in normal document flow so row 3, 4, 5... remain reachable. */
+.public-profile-shell .posts-grid{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  align-content:start !important;
+}
