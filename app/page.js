@@ -144,6 +144,8 @@ export default function HomePage(){
   const cameraPanelTouchStartY=useRef(null);
   const [cameraFacing,setCameraFacing]=useState("user");
   const [cameraStream,setCameraStream]=useState(null);
+  const [cameraZoom,setCameraZoom]=useState(1);
+  const [cameraZoomRange,setCameraZoomRange]=useState({min:1,max:1});
   const [cameraError,setCameraError]=useState("");
   const [recording,setRecording]=useState(false);
   const [recordSeconds,setRecordSeconds]=useState(0);
@@ -859,6 +861,8 @@ export default function HomePage(){
      cameraStream.getTracks().forEach(t=>t.stop());
    }
    setCameraStream(null);
+   setCameraZoom(1);
+   setCameraZoomRange({min:1,max:1});
    if(recordTimerRef.current){
      clearInterval(recordTimerRef.current);
      recordTimerRef.current=null;
@@ -881,6 +885,14 @@ export default function HomePage(){
        audio:cameraMode==="video"
      });
 
+     const track=stream.getVideoTracks()[0];
+     const capabilities=typeof track?.getCapabilities==="function"?track.getCapabilities():{};
+     const z=capabilities.zoom;
+     const min=Number.isFinite(z?.min)?z.min:1;
+     const max=Number.isFinite(z?.max)?z.max:1;
+     setCameraZoomRange({min,max});
+     const initial=Math.max(min,Math.min(1,max));
+     setCameraZoom(initial);
      setCameraStream(stream);
      setTimeout(()=>{
        if(cameraVideoRef.current){
@@ -898,6 +910,22 @@ export default function HomePage(){
    const next=cameraFacing==="user"?"environment":"user";
    setCameraFacing(next);
    await startCamera(next);
+ }
+
+ async function changeCameraZoom(direction){
+   if(!cameraStream || recording)return;
+   const track=cameraStream.getVideoTracks()[0];
+   if(!track)return;
+   const {min,max}=cameraZoomRange;
+   const next=Math.max(min,Math.min(max,Math.round((cameraZoom+direction*0.5)*10)/10));
+   if(next===cameraZoom)return;
+   try{
+     await track.applyConstraints({advanced:[{zoom:next}]});
+     setCameraZoom(next);
+   }catch(err){
+     console.warn("Camera zoom unavailable",err);
+     setCameraError("Esta cámara no permite cambiar el zoom desde Safari.");
+   }
  }
 
  async function capturePhoto(){
@@ -1168,6 +1196,11 @@ export default function HomePage(){
                 </div>
 
                <div className="camera-controls-row">
+                 <div className="camera-zoom-controls" aria-label="Zoom de cámara">
+                   <button type="button" aria-label="Alejar cámara" onClick={()=>changeCameraZoom(-1)} disabled={recording || cameraZoom<=cameraZoomRange.min+0.001}>−</button>
+                   <span>{cameraZoom.toFixed(1)}×</span>
+                   <button type="button" aria-label="Acercar cámara" onClick={()=>changeCameraZoom(1)} disabled={recording || cameraZoom>=cameraZoomRange.max-0.001}>+</button>
+                 </div>
                  <label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(displayName||username||"R").charAt(0).toUpperCase()}</span>}
                    <small>Galería</small>

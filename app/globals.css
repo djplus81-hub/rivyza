@@ -2405,3 +2405,11 @@ body::-webkit-scrollbar,
 
 /* v13.15.9: restore vertical full-screen camera framing. */
 .camera-stage .camera-live { object-fit:cover !important; object-position:center center !important; }
+
+/* Camera zoom: beside shutter in expanded and collapsed camera panels. */
+.camera-controls-row{position:relative}
+.camera-zoom-controls{position:absolute;right:0;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:5px;z-index:5;pointer-events:auto}
+.camera-zoom-controls button{border:1px solid rgba(255,255,255,.45);background:rgba(0,0,0,.55);color:white;border-radius:50%;width:31px;height:31px;font-size:21px;line-height:1;display:grid;place-items:center}
+.camera-zoom-controls button:disabled{opacity:.35}
+.camera-zoom-controls span{color:white;font-size:11px;font-weight:700;min-width:26px;text-align:center;text-shadow:0 1px 4px #000}
+.camera-bottom.collapsed .camera-zoom-controls{right:0}
