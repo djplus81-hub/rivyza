@@ -2287,3 +2287,12 @@ body::-webkit-scrollbar,
   padding-bottom:0 !important;
   overscroll-behavior:auto !important;
 }
+
+/* RIVYZA v13.14.7 — real publication date/time */
+.feed-post-card .post-date-time{
+  margin-top:4px;
+  font-size:12px;
+  line-height:1.25;
+  opacity:.72;
+  white-space:nowrap;
+}
