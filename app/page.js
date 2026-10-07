@@ -1286,6 +1286,30 @@ export default function HomePage(){
   }
 
   
+  if(view==="friends"){
+    return <main className="friends-shell">
+      <header className="friends-topbar">
+        <h1>Amigos</h1>
+        <p>Aquí aparecerán las personas que se siguen mutuamente contigo.</p>
+      </header>
+
+      <section className="friends-placeholder">
+        <AmigosIcon/>
+        <strong>Tu espacio de Amigos</strong>
+        <span>En el próximo paso conectaremos aquí solamente los amigos mutuos.</span>
+      </section>
+
+      <nav className="bottom-nav">
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
+        <button className="active"><AmigosIcon/><span>Amigos</span></button>
+        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
+        <button><Bell/><span>Alertas</span></button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
+      </nav>
+      {renderUploadModal()}
+    </main>;
+  }
+
   if(view==="otherProfile" && viewedProfile){
     return <main className="public-profile-shell other-profile-shell">
       <header className="profile-topbar compact">
@@ -1436,7 +1460,7 @@ export default function HomePage(){
 
       <nav className="bottom-nav">
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
-        <button><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("friends");}}><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
@@ -1680,7 +1704,7 @@ export default function HomePage(){
 
       <nav className="bottom-nav">
         <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
-        <button><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("friends");}}><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button className="active"><User/><span>Perfil</span></button>
@@ -1986,7 +2010,7 @@ export default function HomePage(){
 
     <nav className="bottom-nav">
       <button className="active"><Home/><span>Inicio</span></button>
-      <button><AmigosIcon/><span>Amigos</span></button>
+      <button onClick={()=>{setUploadOpen(false);setView("friends");}}><AmigosIcon/><span>Amigos</span></button>
       <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
       <button><Bell/><span>Alertas</span></button>
       <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>Perfil</span></button>

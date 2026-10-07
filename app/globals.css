@@ -1866,3 +1866,30 @@ body::-webkit-scrollbar,
   overflow:visible;
   flex:none;
 }
+
+
+/* ===== RIVYZA v13.12.2 AMIGOS SCREEN ===== */
+.friends-shell{
+  min-height:100dvh;
+  background:#000;
+  color:#fff;
+  padding:calc(env(safe-area-inset-top) + 14px) 18px 96px;
+}
+.friends-topbar{
+  padding:8px 0 16px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+}
+.friends-topbar h1{margin:0;font-size:25px;font-weight:900;}
+.friends-topbar p{margin:6px 0 0;font-size:13px;color:rgba(255,255,255,.62);}
+.friends-placeholder{
+  min-height:58dvh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  gap:10px;
+}
+.friends-placeholder .amigos-icon{width:72px;height:72px;margin-bottom:8px;}
+.friends-placeholder strong{font-size:19px;}
+.friends-placeholder span{max-width:330px;color:rgba(255,255,255,.62);font-size:13px;line-height:1.45;}
