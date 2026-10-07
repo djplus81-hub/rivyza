@@ -2205,3 +2205,14 @@ body::-webkit-scrollbar,
   object-fit:contain !important;
   object-position:50% calc(50% + 22px) !important;
 }
+
+
+/* ===== RIVYZA v13.13.6 — FINAL MEDIA POSITION =====
+   Same size, no zoom, no crop.
+   Only 18px farther down than v13.13.5 (40px total from center).
+   All approved text/actions remain untouched.
+*/
+.feed-shell > .home-real-feed > .feed-post-card .feed-media{
+  object-fit:contain !important;
+  object-position:50% calc(50% + 40px) !important;
+}
