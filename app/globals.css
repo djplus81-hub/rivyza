@@ -2193,3 +2193,17 @@ body::-webkit-scrollbar,
     bottom:54px !important;
   }
 }
+
+
+/* ===== RIVYZA v13.13.4 — MEDIA CENTER / COVER FIX =====
+   Final media-only correction:
+   Fill the entire post viewport and center the photo/video.
+   This removes letterbox black space caused by object-fit: contain.
+   Text and right-side controls are intentionally untouched.
+*/
+.feed-shell > .home-real-feed > .feed-post-card .feed-media{
+  width:100% !important;
+  height:100% !important;
+  object-fit:cover !important;
+  object-position:50% 50% !important;
+}
