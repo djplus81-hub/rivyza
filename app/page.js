@@ -654,15 +654,6 @@ export default function HomePage(){
     if(user?.id)loadFollowCounts(user.id,{own:true});
   },[user?.id]);
 
-  useEffect(()=>{
-    if(selectedPost?.media_type!=="video")return;
-    const video=postViewerVideoRef.current;
-    if(!video)return;
-    video.currentTime=0;
-    const attempt=video.play();
-    if(attempt?.catch)attempt.catch(()=>{});
-  },[selectedPost?.id,selectedPost?.media_type]);
-
   function movePost(direction){
     const activePosts=view==="otherProfile" ? viewedProfilePosts : profilePosts;
     if(!selectedPost || activePosts.length<2)return;
@@ -1402,7 +1393,7 @@ export default function HomePage(){
           <article className="video-card feed-post-card" key={post.id}>
             <div className="feed-media-wrap">
               {post.media_type==="video"
-                ? <FeedAutoVideo src={post.media_path}/>
+                ? <video className="feed-media" src={post.media_path} controls playsInline preload="metadata"/>
                 : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
               }
             </div>
@@ -2070,7 +2061,9 @@ export default function HomePage(){
         <article className="video-card feed-post-card" key={post.id}>
           <div className="feed-media-wrap">
             {post.media_type==="video"
-              ? <FeedAutoVideo src={post.media_path}/>
+              ? (feedTab==="forYou"
+                  ? <FeedAutoVideo src={post.media_path}/>
+                  : <video className="feed-media" src={post.media_path} controls playsInline preload="metadata"/>)
               : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
             }
           </div>
