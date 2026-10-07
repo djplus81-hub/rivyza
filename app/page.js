@@ -105,6 +105,8 @@ export default function HomePage(){
   const [uploadingPost,setUploadingPost]=useState(false);
   const [uploadMessage,setUploadMessage]=useState("");
   const [cameraMode,setCameraMode]=useState("photo");
+  const [cameraPanelCollapsed,setCameraPanelCollapsed]=useState(false);
+  const cameraPanelTouchStartY=useRef(null);
   const [cameraFacing,setCameraFacing]=useState("user");
   const [cameraStream,setCameraStream]=useState(null);
   const [cameraError,setCameraError]=useState("");
@@ -124,6 +126,27 @@ export default function HomePage(){
   const [zoom,setZoom]=useState(1);
   const [croppedPixels,setCroppedPixels]=useState(null);
   const [uploadingAvatar,setUploadingAvatar]=useState(false);
+
+  function chooseCameraMode(mode,limit=null){
+    setCameraMode(mode);
+    setUploadType(mode==="photo"?"photo":"video");
+    if(limit)setRecordLimit(limit);
+    setCameraPanelCollapsed(true);
+  }
+
+  function cameraPanelTouchStart(e){
+    cameraPanelTouchStartY.current=e.touches?.[0]?.clientY ?? null;
+  }
+
+  function cameraPanelTouchEnd(e){
+    const start=cameraPanelTouchStartY.current;
+    const end=e.changedTouches?.[0]?.clientY;
+    cameraPanelTouchStartY.current=null;
+    if(start==null || end==null)return;
+    const dy=end-start;
+    if(dy < -35)setCameraPanelCollapsed(false);
+    if(dy > 35)setCameraPanelCollapsed(true);
+  }
 
   const loadProfile=useCallback(async(currentUser)=>{
     if(!supabase||!currentUser)return null;
@@ -1002,29 +1025,39 @@ export default function HomePage(){
              </div>
 {cameraError && <div className="camera-error">{cameraError}</div>}
 
-             <div className="camera-bottom">
+             <div
+               className={`camera-bottom ${cameraPanelCollapsed?"collapsed":""}`}
+               onTouchStart={cameraPanelTouchStart}
+               onTouchEnd={cameraPanelTouchEnd}
+             >
+               <button
+                 className="camera-panel-handle"
+                 type="button"
+                 aria-label={cameraPanelCollapsed?"Mostrar opciones":"Ocultar opciones"}
+                 onClick={()=>setCameraPanelCollapsed(v=>!v)}
+               ><span></span></button>
                <div className="camera-mode-tabs">
                   <button
                     className={cameraMode==="photo"?"active":""}
-                    onClick={()=>{setCameraMode("photo");setUploadType("photo");}}
+                    onClick={()=>chooseCameraMode("photo")}
                   >
                     FOTO
                   </button>
                   <button
                     className={cameraMode==="video" && recordLimit===10?"active":""}
-                    onClick={()=>{setCameraMode("video");setUploadType("video");setRecordLimit(10);}}
+                    onClick={()=>chooseCameraMode("video",10)}
                   >
                     10s
                   </button>
                   <button
                     className={cameraMode==="video" && recordLimit===30?"active":""}
-                    onClick={()=>{setCameraMode("video");setUploadType("video");setRecordLimit(30);}}
+                    onClick={()=>chooseCameraMode("video",30)}
                   >
                     30s
                   </button>
                   <button
                     className={cameraMode==="video" && recordLimit===60?"active":""}
-                    onClick={()=>{setCameraMode("video");setUploadType("video");setRecordLimit(60);}}
+                    onClick={()=>chooseCameraMode("video",60)}
                   >
                     60s
                   </button>

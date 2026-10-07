@@ -1794,3 +1794,65 @@ body::-webkit-scrollbar,
 .camera-create-tabs button{
   text-shadow:none !important;
 }
+
+
+/* ===== RIVYZA v13.11.3 CAMERA SLIDE PANEL ===== */
+.camera-bottom{
+  transition:transform .28s ease, background .28s ease, padding .28s ease;
+  touch-action:pan-y;
+}
+.camera-panel-handle{
+  width:70px;
+  height:20px;
+  padding:0;
+  border:0;
+  background:transparent;
+  display:grid;
+  place-items:center;
+  margin:-8px auto 5px;
+}
+.camera-panel-handle span{
+  width:38px;
+  height:4px;
+  border-radius:999px;
+  background:rgba(255,255,255,.72);
+}
+
+/* After FOTO/10s/30s/60s is chosen, reveal the full camera preview. */
+.camera-bottom.collapsed{
+  background:transparent !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+  border-radius:0 !important;
+  padding:0 18px max(18px,env(safe-area-inset-bottom)) !important;
+  pointer-events:none;
+}
+.camera-bottom.collapsed .camera-panel-handle{
+  pointer-events:auto;
+  margin:0 auto 6px;
+}
+.camera-bottom.collapsed .camera-panel-handle span{
+  background:rgba(255,255,255,.9);
+  box-shadow:0 1px 4px rgba(0,0,0,.8);
+}
+.camera-bottom.collapsed .camera-mode-tabs,
+.camera-bottom.collapsed .camera-profile-thumb,
+.camera-bottom.collapsed .camera-effects-placeholder,
+.camera-bottom.collapsed .camera-create-tabs{
+  display:none !important;
+}
+.camera-bottom.collapsed .camera-controls-row{
+  display:flex !important;
+  justify-content:center !important;
+  align-items:center !important;
+}
+.camera-bottom.collapsed .shutter-button,
+.camera-bottom.collapsed .record-button{
+  pointer-events:auto;
+  justify-self:auto !important;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.55));
+}
+.camera-bottom.collapsed .camera-timer-slot{
+  display:none !important;
+}
