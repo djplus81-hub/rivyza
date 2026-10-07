@@ -1966,10 +1966,11 @@ body::-webkit-scrollbar,
   filter:drop-shadow(0 2px 3px rgba(0,0,0,.72));
 }
 
-/* Leave room for RIVYZA's fixed bottom navigation. */
+/* Bottom navigation is fixed outside the feed viewport.
+   Do not add scrollable padding here: it creates a false black "extra page". */
 .video-feed,
 .home-real-feed{
-  padding-bottom:74px;
+  padding-bottom:0;
 }
 
 @media(max-width:390px){
@@ -2095,13 +2096,13 @@ body::-webkit-scrollbar,
 .live-preview-bottom-nav{z-index:45;}
 
 
-/* ===== RIVYZA v13.13.1 — FEED VIEWPORT / BLACK GAP FIX =====
-   Fixes the feed card itself being dragged out of position on mobile.
-   The media stays inside a fixed viewport above bottom navigation.
-   Creator text stays safely above the bottom edge.
+/* ===== RIVYZA v13.13.2 — REAL FEED SNAP FIX =====
+   Root cause fixed:
+   v13.12.4 added 74px of padding INSIDE the scrollable feed even though
+   every card was already sized to stop above the fixed 74px bottom nav.
+   That extra padding became a black scrollable gap and let a post stop
+   between snap points on iPhone.
 */
-
-/* The Home shell must not become taller than the phone viewport. */
 .feed-shell{
   height:100dvh !important;
   min-height:100dvh !important;
@@ -2109,54 +2110,289 @@ body::-webkit-scrollbar,
   overflow:hidden !important;
 }
 
-/* Only the feed itself scrolls between posts; no extra 74px scrollable padding. */
-.video-feed.home-real-feed,
-.home-real-feed{
+/* The feed is the only vertical scroller. */
+.feed-shell > .home-real-feed{
   height:calc(100dvh - 74px) !important;
-  min-height:0 !important;
+  min-height:calc(100dvh - 74px) !important;
+  max-height:calc(100dvh - 74px) !important;
   padding:0 !important;
   margin:0 !important;
   overflow-y:auto !important;
   overflow-x:hidden !important;
   scroll-snap-type:y mandatory !important;
+  scroll-padding:0 !important;
   overscroll-behavior-y:none !important;
   -webkit-overflow-scrolling:touch;
 }
 
-/* Every post occupies exactly one feed viewport, with no black spacer after it. */
-.home-real-feed > .feed-post-card{
+/* One post = exactly one snap page. */
+.feed-shell > .home-real-feed > .feed-post-card{
   height:calc(100dvh - 74px) !important;
   min-height:calc(100dvh - 74px) !important;
   max-height:calc(100dvh - 74px) !important;
-  flex:none !important;
   margin:0 !important;
-  padding:0 !important;
+  flex:0 0 calc(100dvh - 74px) !important;
   scroll-snap-align:start !important;
   scroll-snap-stop:always !important;
 }
 
-/* Media remains fixed inside the post instead of moving the whole post layout. */
-.feed-post-card .feed-media-wrap{
+/* Keep the creator information safely above the nav edge. */
+.feed-shell > .home-real-feed > .feed-post-card .creator-copy{
+  bottom:48px !important;
+}
+@media(max-width:390px){
+  .feed-shell > .home-real-feed > .feed-post-card .creator-copy{
+    bottom:44px !important;
+  }
+}
+
+
+/* ===== RIVYZA v13.13.3 — RIGHT ACTIONS + STRICT SNAP =====
+   Keep the approved left creator-copy position from v13.13.2.
+   Raise the complete right action rail and strengthen one-post-at-a-time snapping.
+*/
+
+/* Right-side profile / like / comments / share / more move together. */
+.feed-shell > .home-real-feed > .feed-post-card .side-actions{
+  top:auto !important;
+  bottom:58px !important;
+  right:10px !important;
+}
+
+/* Force each card to be a full snap page and prevent intermediate resting positions. */
+.feed-shell > .home-real-feed{
+  scroll-snap-type:y mandatory !important;
+  scroll-snap-stop:always !important;
+}
+.feed-shell > .home-real-feed > .feed-post-card{
+  scroll-snap-align:start !important;
+  scroll-snap-stop:always !important;
+  overflow:hidden !important;
+}
+
+/* Media always fills its post frame; the post, text and actions stay anchored. */
+.feed-shell > .home-real-feed > .feed-post-card .feed-media-wrap{
   position:absolute !important;
   inset:0 !important;
+  width:100% !important;
+  height:100% !important;
   overflow:hidden !important;
   background:#000 !important;
 }
-.feed-post-card .feed-media{
-  display:block !important;
+.feed-shell > .home-real-feed > .feed-post-card .feed-media{
   width:100% !important;
   height:100% !important;
-  object-fit:contain !important;
+  display:block !important;
   object-position:center center !important;
 }
 
-/* Raise only the creator information; right-side controls keep their approved position. */
-.feed-post-card .creator-copy{
-  bottom:62px !important;
+/* iPhone narrow viewport */
+@media(max-width:390px){
+  .feed-shell > .home-real-feed > .feed-post-card .side-actions{
+    right:8px !important;
+    bottom:54px !important;
+  }
 }
 
-@media(max-width:390px){
-  .feed-post-card .creator-copy{
-    bottom:58px !important;
+
+/* ===== RIVYZA v13.13.5 — MEDIA VERTICAL POSITION ONLY =====
+   Based on v13.13.3.
+   Do NOT zoom/crop the media.
+   Keep its approved size and move only its vertical alignment downward.
+   Creator copy and right-side actions remain untouched.
+*/
+.feed-shell > .home-real-feed > .feed-post-card .feed-media{
+  object-fit:contain !important;
+  object-position:50% calc(50% + 22px) !important;
+}
+
+
+/* ===== RIVYZA v13.13.7 — MEDIA POSITION 30PX =====
+   Final midpoint between +22px and +40px.
+   No zoom, no crop. Text/actions untouched.
+*/
+.feed-shell > .home-real-feed > .feed-post-card .feed-media{
+  object-fit:contain !important;
+  object-position:50% calc(50% + 30px) !important;
+}
+
+
+/* ===== RIVYZA v13.13.8 — MEDIA POSITION 35PX =====
+   Tiny final adjustment only. No zoom/crop; text/actions untouched.
+*/
+.feed-shell > .home-real-feed > .feed-post-card .feed-media{
+  object-fit:contain !important;
+  object-position:50% calc(50% + 35px) !important;
+}
+
+
+/* ===== RIVYZA v13.14.3 — PROFILE GRID INTERNAL SCROLL =====
+   profilePosts.map() already renders every post.
+   Make the thumbnail grid itself scrollable so rows 3+ cannot be clipped
+   by any outer profile/body viewport behavior on iPhone.
+*/
+.public-profile-shell .posts-grid{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  grid-auto-flow:row !important;
+  height:auto !important;
+  max-height:calc(100dvh - 330px) !important;
+  min-height:260px !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  -webkit-overflow-scrolling:touch !important;
+  overscroll-behavior-y:contain !important;
+  align-content:start !important;
+  padding-bottom:90px !important;
+  scrollbar-width:none !important;
+}
+.public-profile-shell .posts-grid::-webkit-scrollbar{
+  display:none !important;
+}
+.public-profile-shell .profile-post-card{
+  display:block !important;
+  position:relative !important;
+  visibility:visible !important;
+  opacity:1 !important;
+}
+
+
+/* ===== RIVYZA v13.14.6 — ONE SCROLL FOR THE WHOLE PROFILE =====
+   Remove the internal thumbnail-grid scrollbar introduced in v13.14.3.
+   The entire profile remains the only vertical scroller.
+*/
+.public-profile-shell{
+  height:100dvh !important;
+  min-height:100dvh !important;
+  max-height:100dvh !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  -webkit-overflow-scrolling:touch !important;
+  padding-bottom:90px !important;
+}
+
+.public-profile-shell .profile-content-section,
+.public-profile-shell .posts-grid{
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  overflow:visible !important;
+}
+
+.public-profile-shell .posts-grid{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  grid-auto-flow:row !important;
+  align-content:start !important;
+  padding-bottom:0 !important;
+  overscroll-behavior:auto !important;
+}
+
+/* RIVYZA v13.14.7 — real publication date/time */
+.feed-post-card .post-date-time{
+  margin-top:4px;
+  font-size:12px;
+  line-height:1.25;
+  opacity:.72;
+  white-space:nowrap;
+}
+
+
+/* ===== RIVYZA v13.14.8 — RECORDING PROGRESS RING =====
+   Same pink -> blue RIVYZA identity used around profile photos.
+   The ring makes one complete lap in the selected 10s / 30s / 60s duration.
+*/
+.record-button{
+  overflow:visible !important;
+}
+
+.record-progress-ring{
+  position:absolute;
+  inset:-7px;
+  width:calc(100% + 14px);
+  height:calc(100% + 14px);
+  transform:rotate(-90deg);
+  pointer-events:none;
+  z-index:3;
+  overflow:visible;
+}
+
+.record-progress-track,
+.record-progress-value{
+  fill:none;
+  stroke-width:5;
+}
+
+.record-progress-track{
+  stroke:rgba(255,255,255,.20);
+}
+
+.record-progress-value{
+  stroke:url(#rivyzaRecordGradient);
+  stroke-linecap:round;
+  stroke-dasharray:100;
+  stroke-dashoffset:100;
+  animation:rivyza-record-progress var(--record-duration) linear forwards;
+  filter:drop-shadow(0 0 3px rgba(255,43,214,.32));
+}
+
+@keyframes rivyza-record-progress{
+  from{stroke-dashoffset:100;}
+  to{stroke-dashoffset:0;}
+}
+
+.record-button.recording{
+  border-color:rgba(255,255,255,.28);
+}
+
+
+/* ===== RIVYZA v13.14.9 — BRIGHTER RECORDING RING =====
+   Visual-only enhancement: brighter RIVYZA ring with a soft glow.
+*/
+.record-progress-track{
+  stroke:rgba(255,255,255,.30) !important;
+}
+
+.record-progress-value{
+  stroke-width:5.8 !important;
+  opacity:1 !important;
+  filter:
+    drop-shadow(0 0 3px rgba(255,255,255,.55))
+    drop-shadow(0 0 6px rgba(255,43,214,.58))
+    drop-shadow(0 0 9px rgba(0,168,255,.46)) !important;
+}
+
+
+/* ===== RIVYZA v13.15.0 — iPHONE INSTALLED APP / PWA FEED FIX =====
+   Safari browser stays untouched.
+   In standalone mode the viewport is taller because Safari chrome is gone.
+   With object-fit:contain, that extra height was being centered above/below
+   the 2:3 media, creating the large black band under the RIVYZA header.
+   In installed-app mode only, give media its visible area below the 64px
+   header and anchor contained media at the top of that area.
+*/
+@media (display-mode: standalone) and (max-width:560px){
+  .feed-shell > .home-real-feed > .feed-post-card .feed-media-wrap{
+    top:64px !important;
+    bottom:0 !important;
+    height:calc(100% - 64px) !important;
+  }
+
+  .feed-shell > .home-real-feed > .feed-post-card .feed-media{
+    object-fit:contain !important;
+    object-position:50% 0 !important;
+  }
+}
+
+/* iOS Home Screen web-app fallback */
+@supports (-webkit-touch-callout:none){
+  @media (display-mode: standalone) and (max-width:560px){
+    .feed-shell > .home-real-feed > .feed-post-card .feed-media-wrap{
+      top:64px !important;
+      height:calc(100% - 64px) !important;
+    }
+    .feed-shell > .home-real-feed > .feed-post-card .feed-media{
+      object-position:50% 0 !important;
+    }
   }
 }
