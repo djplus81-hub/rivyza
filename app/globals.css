@@ -2372,3 +2372,11 @@ body::-webkit-scrollbar,
   object-fit:cover !important;
   object-position:center center !important;
 }
+
+
+/* v13.15.3: Para ti photos only — remove the legacy +35px downward offset.
+   Keep contain (no zoom/crop), and leave videos/profile/camera unchanged. */
+.feed-shell > .home-real-feed > .feed-post-card img.feed-media {
+  object-fit:contain !important;
+  object-position:50% 50% !important;
+}
