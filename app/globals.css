@@ -2344,3 +2344,20 @@ body::-webkit-scrollbar,
 .record-button.recording{
   border-color:rgba(255,255,255,.28);
 }
+
+
+/* ===== RIVYZA v13.14.9 — BRIGHTER RECORDING RING =====
+   Visual-only enhancement: brighter RIVYZA ring with a soft glow.
+*/
+.record-progress-track{
+  stroke:rgba(255,255,255,.30) !important;
+}
+
+.record-progress-value{
+  stroke-width:5.8 !important;
+  opacity:1 !important;
+  filter:
+    drop-shadow(0 0 3px rgba(255,255,255,.55))
+    drop-shadow(0 0 6px rgba(255,43,214,.58))
+    drop-shadow(0 0 9px rgba(0,168,255,.46)) !important;
+}
