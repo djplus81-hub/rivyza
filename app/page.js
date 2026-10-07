@@ -911,7 +911,7 @@ export default function HomePage(){
    const displayH=bounds.height || 16;
    const sourceW=video.videoWidth;
    const sourceH=video.videoHeight;
-   const targetRatio=sourceW/sourceH;
+   const targetRatio=displayW/displayH;
    let cropW=sourceW, cropH=sourceH;
    if(sourceW/sourceH>targetRatio) cropW=sourceH*targetRatio;
    else cropH=sourceW/targetRatio;
