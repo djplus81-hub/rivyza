@@ -2391,3 +2391,11 @@ body::-webkit-scrollbar,
   object-fit:cover !important;
   object-position:center center !important;
 }
+
+/* v13.15.5: Para ti video only. Portrait frame fill; no image changes. */
+.feed-shell > .home-real-feed > .feed-post-card video.feed-media {
+ width:100% !important;
+ height:100% !important;
+ object-fit:cover !important;
+ object-position:center center !important;
+}
