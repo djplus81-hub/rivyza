@@ -1966,10 +1966,11 @@ body::-webkit-scrollbar,
   filter:drop-shadow(0 2px 3px rgba(0,0,0,.72));
 }
 
-/* Leave room for RIVYZA's fixed bottom navigation. */
+/* Bottom navigation is fixed outside the feed viewport.
+   Do not add scrollable padding here: it creates a false black "extra page". */
 .video-feed,
 .home-real-feed{
-  padding-bottom:74px;
+  padding-bottom:0;
 }
 
 @media(max-width:390px){
@@ -2095,13 +2096,13 @@ body::-webkit-scrollbar,
 .live-preview-bottom-nav{z-index:45;}
 
 
-/* ===== RIVYZA v13.13.1 — FEED VIEWPORT / BLACK GAP FIX =====
-   Fixes the feed card itself being dragged out of position on mobile.
-   The media stays inside a fixed viewport above bottom navigation.
-   Creator text stays safely above the bottom edge.
+/* ===== RIVYZA v13.13.2 — REAL FEED SNAP FIX =====
+   Root cause fixed:
+   v13.12.4 added 74px of padding INSIDE the scrollable feed even though
+   every card was already sized to stop above the fixed 74px bottom nav.
+   That extra padding became a black scrollable gap and let a post stop
+   between snap points on iPhone.
 */
-
-/* The Home shell must not become taller than the phone viewport. */
 .feed-shell{
   height:100dvh !important;
   min-height:100dvh !important;
@@ -2109,54 +2110,38 @@ body::-webkit-scrollbar,
   overflow:hidden !important;
 }
 
-/* Only the feed itself scrolls between posts; no extra 74px scrollable padding. */
-.video-feed.home-real-feed,
-.home-real-feed{
+/* The feed is the only vertical scroller. */
+.feed-shell > .home-real-feed{
   height:calc(100dvh - 74px) !important;
-  min-height:0 !important;
+  min-height:calc(100dvh - 74px) !important;
+  max-height:calc(100dvh - 74px) !important;
   padding:0 !important;
   margin:0 !important;
   overflow-y:auto !important;
   overflow-x:hidden !important;
   scroll-snap-type:y mandatory !important;
+  scroll-padding:0 !important;
   overscroll-behavior-y:none !important;
   -webkit-overflow-scrolling:touch;
 }
 
-/* Every post occupies exactly one feed viewport, with no black spacer after it. */
-.home-real-feed > .feed-post-card{
+/* One post = exactly one snap page. */
+.feed-shell > .home-real-feed > .feed-post-card{
   height:calc(100dvh - 74px) !important;
   min-height:calc(100dvh - 74px) !important;
   max-height:calc(100dvh - 74px) !important;
-  flex:none !important;
   margin:0 !important;
-  padding:0 !important;
+  flex:0 0 calc(100dvh - 74px) !important;
   scroll-snap-align:start !important;
   scroll-snap-stop:always !important;
 }
 
-/* Media remains fixed inside the post instead of moving the whole post layout. */
-.feed-post-card .feed-media-wrap{
-  position:absolute !important;
-  inset:0 !important;
-  overflow:hidden !important;
-  background:#000 !important;
+/* Keep the creator information safely above the nav edge. */
+.feed-shell > .home-real-feed > .feed-post-card .creator-copy{
+  bottom:48px !important;
 }
-.feed-post-card .feed-media{
-  display:block !important;
-  width:100% !important;
-  height:100% !important;
-  object-fit:contain !important;
-  object-position:center center !important;
-}
-
-/* Raise only the creator information; right-side controls keep their approved position. */
-.feed-post-card .creator-copy{
-  bottom:62px !important;
-}
-
 @media(max-width:390px){
-  .feed-post-card .creator-copy{
-    bottom:58px !important;
+  .feed-shell > .home-real-feed > .feed-post-card .creator-copy{
+    bottom:44px !important;
   }
 }
