@@ -17,6 +17,27 @@ async function getCroppedBlob(src,pixelCrop){
   return new Promise(resolve=>canvas.toBlob(blob=>resolve(blob),"image/jpeg",0.88));
 }
 
+
+function AmigosIcon(){
+  return (
+    <svg className="amigos-icon" viewBox="0 0 32 32" aria-hidden="true">
+      <defs>
+        <linearGradient id="amigosArc" x1="4" y1="0" x2="28" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#16d9ff"/>
+          <stop offset="48%" stopColor="#a93cff"/>
+          <stop offset="76%" stopColor="#ff3ca6"/>
+          <stop offset="100%" stopColor="#ffd84a"/>
+        </linearGradient>
+      </defs>
+      <path d="M7 14.2C9.4 5.8 22.6 5.8 25 14.2" fill="none" stroke="url(#amigosArc)" strokeWidth="3.2" strokeLinecap="round"/>
+      <circle cx="7" cy="16" r="3.25" fill="#20d7ff"/>
+      <circle cx="25" cy="16" r="3.25" fill="#ff45c5"/>
+      <path d="M2.8 27c.2-4.1 2-6.2 4.2-6.2s4 2.1 4.2 6.2" fill="#20d7ff"/>
+      <path d="M20.8 27c.2-4.1 2-6.2 4.2-6.2s4 2.1 4.2 6.2" fill="#ff45c5"/>
+    </svg>
+  );
+}
+
 export default function HomePage(){
   const countryCodes=["AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR","GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR","HT","HU","ID","IE","IL","IM","IN","IO","IQ","IR","IS","IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ","TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE","YT","ZA","ZM","ZW"];
   const regionNames=useMemo(()=>new Intl.DisplayNames(["es"],{type:"region"}),[]);
@@ -46,13 +67,44 @@ export default function HomePage(){
   const [profilePosts,setProfilePosts]=useState([]);
   const [selectedPost,setSelectedPost]=useState(null);
   const [postMenuOpen,setPostMenuOpen]=useState(false);
+  const [deleteConfirmOpen,setDeleteConfirmOpen]=useState(false);
+  const postSwipeStartY=useRef(null);
+  const postWheelLock=useRef(false);
+  const postViewerVideoRef=useRef(null);
   const [postActionMessage,setPostActionMessage]=useState("");
   const [postLikeCount,setPostLikeCount]=useState(0);
   const [postLiked,setPostLiked]=useState(false);
+  const [ownLikesCount,setOwnLikesCount]=useState(0);
+  const [viewedLikesCount,setViewedLikesCount]=useState(0);
+  const [likersOpen,setLikersOpen]=useState(false);
+  const [likersRows,setLikersRows]=useState([]);
+  const [likersLoading,setLikersLoading]=useState(false);
   const [postCommentCount,setPostCommentCount]=useState(0);
   const [commentsOpen,setCommentsOpen]=useState(false);
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
+  const [viewedProfile,setViewedProfile]=useState(null);
+  const [viewedProfilePosts,setViewedProfilePosts]=useState([]);
+  const [peopleSearchOpen,setPeopleSearchOpen]=useState(false);
+  const [peopleSearch,setPeopleSearch]=useState("");
+  const [peopleResults,setPeopleResults]=useState([]);
+  const [peopleSearching,setPeopleSearching]=useState(false);
+  const [peopleSearchMessage,setPeopleSearchMessage]=useState("");
+  const [isFollowingViewed,setIsFollowingViewed]=useState(false);
+  const [followBusy,setFollowBusy]=useState(false);
+  const [viewedFollowersCount,setViewedFollowersCount]=useState(0);
+  const [viewedFollowingCount,setViewedFollowingCount]=useState(0);
+  const [ownFollowersCount,setOwnFollowersCount]=useState(0);
+  const [ownFollowingCount,setOwnFollowingCount]=useState(0);
+  const [socialListOpen,setSocialListOpen]=useState(false);
+  const [socialListTitle,setSocialListTitle]=useState("");
+  const [socialListRows,setSocialListRows]=useState([]);
+  const [socialListLoading,setSocialListLoading]=useState(false);
+  const [feedTab,setFeedTab]=useState("forYou");
+  const [feedPosts,setFeedPosts]=useState([]);
+  const [feedLoading,setFeedLoading]=useState(false);
+  const [feedMessage,setFeedMessage]=useState("");
+  const [feedLikeBusy,setFeedLikeBusy]=useState(null);
 
   const [username,setUsername]=useState("");
   const [displayName,setDisplayName]=useState("");
@@ -74,6 +126,8 @@ export default function HomePage(){
   const [uploadingPost,setUploadingPost]=useState(false);
   const [uploadMessage,setUploadMessage]=useState("");
   const [cameraMode,setCameraMode]=useState("photo");
+  const [cameraPanelCollapsed,setCameraPanelCollapsed]=useState(false);
+  const cameraPanelTouchStartY=useRef(null);
   const [cameraFacing,setCameraFacing]=useState("user");
   const [cameraStream,setCameraStream]=useState(null);
   const [cameraError,setCameraError]=useState("");
@@ -93,6 +147,27 @@ export default function HomePage(){
   const [zoom,setZoom]=useState(1);
   const [croppedPixels,setCroppedPixels]=useState(null);
   const [uploadingAvatar,setUploadingAvatar]=useState(false);
+
+  function chooseCameraMode(mode,limit=null){
+    setCameraMode(mode);
+    setUploadType(mode==="photo"?"photo":"video");
+    if(limit)setRecordLimit(limit);
+    setCameraPanelCollapsed(true);
+  }
+
+  function cameraPanelTouchStart(e){
+    cameraPanelTouchStartY.current=e.touches?.[0]?.clientY ?? null;
+  }
+
+  function cameraPanelTouchEnd(e){
+    const start=cameraPanelTouchStartY.current;
+    const end=e.changedTouches?.[0]?.clientY;
+    cameraPanelTouchStartY.current=null;
+    if(start==null || end==null)return;
+    const dy=end-start;
+    if(dy < -35)setCameraPanelCollapsed(false);
+    if(dy > 35)setCameraPanelCollapsed(true);
+  }
 
   const loadProfile=useCallback(async(currentUser)=>{
     if(!supabase||!currentUser)return null;
@@ -163,9 +238,319 @@ export default function HomePage(){
     setProfilePosts(sorted);
   }
 
+  async function loadProfileLikeCount(profileId,{own=false}={}){
+    if(!supabase || !profileId)return;
+    try{
+      const {data,error}=await supabase.rpc("get_profile_like_count",{target_profile_id:profileId});
+      if(error)throw error;
+      if(own)setOwnLikesCount(Number(data)||0);
+      else setViewedLikesCount(Number(data)||0);
+    }catch(e){console.warn("Profile likes todavía no configurados:",e);}
+  }
+
+  async function openPostLikers(){
+    if(!selectedPost || selectedPost.user_id!==user?.id || !supabase)return;
+    setLikersOpen(true);
+    setLikersLoading(true);
+    setLikersRows([]);
+    try{
+      const {data:likes,error}=await supabase.from("post_likes").select("user_id,created_at").eq("post_id",selectedPost.id).order("created_at",{ascending:false});
+      if(error)throw error;
+      const ids=[...new Set((likes||[]).map(x=>x.user_id))];
+      if(!ids.length){setLikersRows([]);return;}
+      const {data:people,error:pe}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids);
+      if(pe)throw pe;
+      const map=new Map((people||[]).map(x=>[x.id,x]));
+      setLikersRows(ids.map(id=>map.get(id)).filter(Boolean));
+    }catch(e){console.error("Likers load error:",e);setLikersRows([]);}
+    finally{setLikersLoading(false);}
+  }
+
+  async function loadFollowCounts(profileId,{own=false}={}){
+    if(!supabase || !profileId)return;
+    const [{count:followers,error:fe},{count:following,error:fge}]=await Promise.all([
+      supabase.from("follows").select("*",{count:"exact",head:true}).eq("following_id",profileId),
+      supabase.from("follows").select("*",{count:"exact",head:true}).eq("follower_id",profileId)
+    ]);
+    if(fe||fge){ console.error("Follow count error:",fe||fge); return; }
+    if(own){ setOwnFollowersCount(followers||0); setOwnFollowingCount(following||0); }
+    else { setViewedFollowersCount(followers||0); setViewedFollowingCount(following||0); }
+  }
+
+  async function loadFollowingState(profileId){
+    if(!supabase || !user?.id || !profileId || profileId===user.id){setIsFollowingViewed(false);return;}
+    const {data,error}=await supabase.from("follows").select("follower_id")
+      .eq("follower_id",user.id).eq("following_id",profileId).maybeSingle();
+    if(error){console.error("Follow state error:",error);setIsFollowingViewed(false);return;}
+    setIsFollowingViewed(!!data);
+  }
+
+  async function toggleFollowViewed(){
+    if(!supabase || !user?.id || !viewedProfile?.id || viewedProfile.id===user.id || followBusy)return;
+    setFollowBusy(true);
+    try{
+      if(isFollowingViewed){
+        const {error}=await supabase.from("follows").delete()
+          .eq("follower_id",user.id).eq("following_id",viewedProfile.id);
+        if(error)throw error;
+        setIsFollowingViewed(false);
+      }else{
+        const {error}=await supabase.from("follows")
+          .insert({follower_id:user.id,following_id:viewedProfile.id});
+        if(error)throw error;
+        setIsFollowingViewed(true);
+      }
+      await Promise.all([loadFollowCounts(viewedProfile.id),loadFollowCounts(user.id,{own:true})]);
+    }catch(e){
+      console.error("Follow action error:",e);
+      setPostActionMessage("No se pudo actualizar. Verifica que ejecutaste el SQL v13.9.");
+    }finally{setFollowBusy(false);}
+  }
+
+  async function unfollowFromList(person){
+    if(!supabase || !user?.id || !person?.id)return;
+    const ok=window.confirm(`¿Dejar de seguir a ${person.display_name||person.username||"este usuario"}?`);
+    if(!ok)return;
+    try{
+      const {error}=await supabase.from("follows").delete()
+        .eq("follower_id",user.id).eq("following_id",person.id);
+      if(error)throw error;
+      setSocialListRows(rows=>rows.filter(row=>row.id!==person.id));
+      await loadFollowCounts(user.id,{own:true});
+      if(viewedProfile?.id===person.id){
+        setIsFollowingViewed(false);
+        await loadFollowCounts(person.id);
+      }
+    }catch(e){
+      console.error("Unfollow list error:",e);
+      setPostActionMessage("No se pudo dejar de seguir a esta persona.");
+    }
+  }
+
+  async function openSocialList(profileId,type){
+    if(!supabase || !profileId)return;
+    setSocialListOpen(true);
+    setSocialListTitle(type==="followers"?"Seguidores":"Siguiendo");
+    setSocialListRows([]); setSocialListLoading(true);
+    try{
+      const filterColumn=type==="followers"?"following_id":"follower_id";
+      const personColumn=type==="followers"?"follower_id":"following_id";
+      const {data:links,error}=await supabase.from("follows").select(personColumn).eq(filterColumn,profileId);
+      if(error)throw error;
+      const ids=(links||[]).map(r=>r[personColumn]).filter(Boolean);
+      if(!ids.length){setSocialListRows([]);return;}
+      const {data:profiles,error:pe}=await supabase.from("profiles")
+        .select("id,username,display_name,bio,avatar_url,website_url,youtube_url,instagram_url,facebook_url,country_code,country_name,show_country")
+        .in("id",ids);
+      if(pe)throw pe;
+
+      let enriched=profiles||[];
+      if(user?.id && enriched.length){
+        const profileIds=enriched.map(p=>p.id);
+        const [{data:iFollow},{data:followsMe}]=await Promise.all([
+          supabase.from("follows").select("following_id").eq("follower_id",user.id).in("following_id",profileIds),
+          supabase.from("follows").select("follower_id").eq("following_id",user.id).in("follower_id",profileIds)
+        ]);
+        const iFollowSet=new Set((iFollow||[]).map(r=>r.following_id));
+        const followsMeSet=new Set((followsMe||[]).map(r=>r.follower_id));
+        enriched=enriched.map(p=>({
+          ...p,
+          i_follow:iFollowSet.has(p.id),
+          follows_me:followsMeSet.has(p.id)
+        }));
+      }
+      setSocialListRows(enriched);
+    }catch(e){console.error("Social list error:",e);setSocialListRows([]);}
+    finally{setSocialListLoading(false);}
+  }
+
+  async function openUserProfile(targetProfile){
+    if(!targetProfile?.id)return;
+    if(targetProfile.id===user?.id){
+      setViewedProfile(null);
+      setViewedProfilePosts([]);
+      setPeopleSearchOpen(false);
+      setView("publicProfile");
+      return;
+    }
+    setViewedProfile(targetProfile);
+    setViewedProfilePosts([]);
+    setPeopleSearchOpen(false);
+    setSelectedPost(null);
+    setView("otherProfile");
+    setPostActionMessage("");
+    loadFollowCounts(targetProfile.id);
+    loadFollowingState(targetProfile.id);
+    loadProfileLikeCount(targetProfile.id);
+
+    const {data,error}=await supabase
+      .from("posts")
+      .select("*")
+      .eq("user_id",targetProfile.id)
+      .eq("visibility","public")
+      .order("created_at",{ascending:false});
+
+    if(error){
+      console.error("Public profile posts load error:",error);
+      return;
+    }
+    const sorted=[...(data||[])].sort((a,b)=>{
+      const ap=a.pinned_position ?? 99;
+      const bp=b.pinned_position ?? 99;
+      if(ap!==bp)return ap-bp;
+      return new Date(b.created_at)-new Date(a.created_at);
+    });
+    setViewedProfilePosts(sorted);
+  }
+
+  async function searchPeople(term=peopleSearch){
+    const q=String(term||"").trim().replace(/^@/,"");
+    if(!supabase || q.length<2){
+      setPeopleResults([]);
+      setPeopleSearchMessage(q.length ? "Escribe por lo menos 2 caracteres." : "");
+      return;
+    }
+    setPeopleSearching(true);
+    setPeopleSearchMessage("");
+    try{
+      const safe=q.replace(/[%_,()]/g,"");
+      const {data,error}=await supabase
+        .from("profiles")
+        .select("id,username,display_name,bio,avatar_url,website_url,youtube_url,instagram_url,facebook_url,country_code,country_name,show_country")
+        .or(`username.ilike.%${safe}%,display_name.ilike.%${safe}%`)
+        .limit(20);
+      if(error)throw error;
+      const rows=(data||[]).filter(row=>row.id!==user?.id);
+      setPeopleResults(rows);
+      setPeopleSearchMessage(rows.length ? "" : "No encontramos usuarios con ese nombre.");
+    }catch(e){
+      console.error("People search error:",e);
+      setPeopleResults([]);
+      setPeopleSearchMessage("No se pudo buscar. Si es la primera vez, ejecuta el SQL v13.8 incluido.");
+    }finally{
+      setPeopleSearching(false);
+    }
+  }
+
+  async function loadHomeFeed(tab=feedTab){
+    if(!supabase || !user?.id)return;
+    setFeedLoading(true);
+    setFeedMessage("");
+    try{
+      let allowedIds=null;
+      if(tab==="following"){
+        const {data:links,error:followError}=await supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id",user.id);
+        if(followError)throw followError;
+        allowedIds=(links||[]).map(row=>row.following_id).filter(Boolean);
+        if(!allowedIds.length){
+          setFeedPosts([]);
+          setFeedMessage("Todavía no sigues a nadie. Cuando sigas personas, sus publicaciones aparecerán aquí.");
+          return;
+        }
+      }
+
+      let postQuery=supabase
+        .from("posts")
+        .select("*")
+        .eq("visibility","public")
+        .order("created_at",{ascending:false})
+        .limit(60);
+
+      if(allowedIds)postQuery=postQuery.in("user_id",allowedIds);
+
+      const {data:posts,error:postsError}=await postQuery;
+      if(postsError)throw postsError;
+      const rows=posts||[];
+      if(!rows.length){
+        setFeedPosts([]);
+        setFeedMessage(tab==="following"
+          ?"Las personas que sigues todavía no tienen publicaciones públicas."
+          :"Todavía no hay publicaciones públicas.");
+        return;
+      }
+
+      const creatorIds=[...new Set(rows.map(post=>post.user_id).filter(Boolean))];
+      const postIds=rows.map(post=>post.id);
+      const [{data:creators,error:creatorError},{data:likes,error:likesError}]=await Promise.all([
+        supabase.from("profiles")
+          .select("id,username,display_name,bio,avatar_url,website_url,youtube_url,instagram_url,facebook_url,country_code,country_name,show_country")
+          .in("id",creatorIds),
+        supabase.from("post_likes").select("post_id,user_id").in("post_id",postIds)
+      ]);
+      if(creatorError)throw creatorError;
+      if(likesError)throw likesError;
+
+      const creatorMap=new Map((creators||[]).map(person=>[person.id,person]));
+      const likeCountMap=new Map();
+      const likedByMe=new Set();
+      (likes||[]).forEach(like=>{
+        likeCountMap.set(like.post_id,(likeCountMap.get(like.post_id)||0)+1);
+        if(like.user_id===user.id)likedByMe.add(like.post_id);
+      });
+
+      setFeedPosts(rows.map(post=>({
+        ...post,
+        creator:creatorMap.get(post.user_id)||null,
+        like_count:likeCountMap.get(post.id)||0,
+        liked_by_me:likedByMe.has(post.id)
+      })));
+    }catch(e){
+      console.error("Home feed load error:",e);
+      setFeedPosts([]);
+      setFeedMessage("No se pudo cargar el feed. Intenta de nuevo.");
+    }finally{
+      setFeedLoading(false);
+    }
+  }
+
+  function changeFeedTab(tab){
+    setFeedTab(tab);
+    loadHomeFeed(tab);
+  }
+
+  async function openFeedCreator(post){
+    if(!post?.creator)return;
+    await openUserProfile(post.creator);
+  }
+
+  async function toggleFeedLike(post){
+    if(!supabase || !user?.id || !post?.id || feedLikeBusy===post.id)return;
+    setFeedLikeBusy(post.id);
+    const wasLiked=!!post.liked_by_me;
+    setFeedPosts(rows=>rows.map(row=>row.id===post.id
+      ? {...row,liked_by_me:!wasLiked,like_count:Math.max(0,Number(row.like_count||0)+(wasLiked?-1:1))}
+      : row));
+    try{
+      if(wasLiked){
+        const {error}=await supabase.from("post_likes").delete()
+          .eq("post_id",post.id).eq("user_id",user.id);
+        if(error)throw error;
+      }else{
+        const {error}=await supabase.from("post_likes").insert({post_id:post.id,user_id:user.id});
+        if(error)throw error;
+      }
+    }catch(e){
+      console.error("Feed like error:",e);
+      setFeedPosts(rows=>rows.map(row=>row.id===post.id
+        ? {...row,liked_by_me:wasLiked,like_count:Math.max(0,Number(row.like_count||0)+(wasLiked?1:-1))}
+        : row));
+    }finally{
+      setFeedLikeBusy(null);
+    }
+  }
+
+  useEffect(()=>{
+    if(view==="home" && user?.id)loadHomeFeed(feedTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[view,user?.id]);
+
   useEffect(()=>{
     if(view==="publicProfile" && user?.id){
       loadProfilePosts();
+      loadProfileLikeCount(user.id,{own:true});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,user?.id]);
@@ -197,6 +582,62 @@ export default function HomePage(){
     }catch(e){ console.warn("Likes todavía no configurados:",e); }
   }
 
+  useEffect(()=>{
+    if(!selectedPost)return;
+    const previousOverflow=document.body.style.overflow;
+    const previousHtmlOverflow=document.documentElement.style.overflow;
+    document.body.style.overflow="hidden";
+    document.documentElement.style.overflow="hidden";
+    return ()=>{
+      document.body.style.overflow=previousOverflow;
+      document.documentElement.style.overflow=previousHtmlOverflow;
+    };
+  },[selectedPost]);
+
+  useEffect(()=>{
+    if(user?.id)loadFollowCounts(user.id,{own:true});
+  },[user?.id]);
+
+  useEffect(()=>{
+    if(selectedPost?.media_type!=="video")return;
+    const video=postViewerVideoRef.current;
+    if(!video)return;
+    video.currentTime=0;
+    const attempt=video.play();
+    if(attempt?.catch)attempt.catch(()=>{});
+  },[selectedPost?.id,selectedPost?.media_type]);
+
+  function movePost(direction){
+    const activePosts=view==="otherProfile" ? viewedProfilePosts : profilePosts;
+    if(!selectedPost || activePosts.length<2)return;
+    const currentIndex=activePosts.findIndex(post=>post.id===selectedPost.id);
+    if(currentIndex<0)return;
+    const nextIndex=currentIndex+direction;
+    if(nextIndex<0 || nextIndex>=activePosts.length)return;
+    openPost(activePosts[nextIndex]);
+  }
+
+  function handlePostTouchStart(e){
+    postSwipeStartY.current=e.touches?.[0]?.clientY??null;
+  }
+
+  function handlePostTouchEnd(e){
+    if(postSwipeStartY.current===null)return;
+    const endY=e.changedTouches?.[0]?.clientY;
+    if(typeof endY!=="number"){postSwipeStartY.current=null;return;}
+    const delta=endY-postSwipeStartY.current;
+    postSwipeStartY.current=null;
+    if(Math.abs(delta)<45)return;
+    movePost(delta<0?1:-1);
+  }
+
+  function handlePostWheel(e){
+    if(Math.abs(e.deltaY)<18 || postWheelLock.current)return;
+    postWheelLock.current=true;
+    movePost(e.deltaY>0?1:-1);
+    window.setTimeout(()=>{postWheelLock.current=false;},420);
+  }
+
   async function togglePostLike(){
     if(!selectedPost || !supabase || !user?.id)return;
     try{
@@ -209,6 +650,8 @@ export default function HomePage(){
         if(error)throw error;
         setPostLiked(true);setPostLikeCount(v=>v+1);
       }
+      if(selectedPost.user_id===user.id)loadProfileLikeCount(user.id,{own:true});
+      else if(viewedProfile?.id===selectedPost.user_id)loadProfileLikeCount(viewedProfile.id);
     }catch(e){setPostActionMessage("Los likes necesitan activar el SQL incluido en el paquete.");}
   }
 
@@ -236,7 +679,6 @@ export default function HomePage(){
 
   async function deleteSelectedPost(){
     if(!selectedPost || selectedPost.user_id!==user?.id)return;
-    if(!window.confirm("¿Eliminar esta publicación? Esta acción no se puede deshacer."))return;
     try{
       const {error}=await supabase.from("posts").delete().eq("id",selectedPost.id).eq("user_id",user.id);
       if(error)throw error;
@@ -604,37 +1046,47 @@ export default function HomePage(){
              </div>
 {cameraError && <div className="camera-error">{cameraError}</div>}
 
-             <div className="camera-bottom">
+             <div
+               className={`camera-bottom ${cameraPanelCollapsed?"collapsed":""}`}
+               onTouchStart={cameraPanelTouchStart}
+               onTouchEnd={cameraPanelTouchEnd}
+             >
+               <button
+                 className="camera-panel-handle"
+                 type="button"
+                 aria-label={cameraPanelCollapsed?"Mostrar opciones":"Ocultar opciones"}
+                 onClick={()=>setCameraPanelCollapsed(v=>!v)}
+               ><span></span></button>
                <div className="camera-mode-tabs">
                   <button
                     className={cameraMode==="photo"?"active":""}
-                    onClick={()=>{setCameraMode("photo");setUploadType("photo");}}
+                    onClick={()=>chooseCameraMode("photo")}
                   >
                     FOTO
                   </button>
                   <button
                     className={cameraMode==="video" && recordLimit===10?"active":""}
-                    onClick={()=>{setCameraMode("video");setUploadType("video");setRecordLimit(10);}}
+                    onClick={()=>chooseCameraMode("video",10)}
                   >
                     10s
                   </button>
                   <button
                     className={cameraMode==="video" && recordLimit===30?"active":""}
-                    onClick={()=>{setCameraMode("video");setUploadType("video");setRecordLimit(30);}}
+                    onClick={()=>chooseCameraMode("video",30)}
                   >
                     30s
                   </button>
                   <button
                     className={cameraMode==="video" && recordLimit===60?"active":""}
-                    onClick={()=>{setCameraMode("video");setUploadType("video");setRecordLimit(60);}}
+                    onClick={()=>chooseCameraMode("video",60)}
                   >
                     60s
                   </button>
                 </div>
 
                <div className="camera-controls-row">
-                 <label className="gallery-button">
-                   <span>▧</span>
+                 <label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
+                   {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(displayName||username||"R").charAt(0).toUpperCase()}</span>}
                    <small>Galería</small>
                    <input
                      type="file"
@@ -655,9 +1107,16 @@ export default function HomePage(){
                    </button>
                  )}
 
-                 <div className="camera-timer-slot">
-                   {cameraMode==="video" && <strong>{recordSeconds}s</strong>}
-                 </div>
+                 <button className="camera-effects-placeholder" type="button" onClick={()=>setUploadMessage("Efectos estarán disponibles próximamente.")}>
+                   <span>✦</span>
+                   <small>Efectos</small>
+                 </button>
+               </div>
+
+               <div className="camera-create-tabs">
+                 <button className="active" type="button">POST</button>
+                 <button type="button" onClick={()=>setUploadMessage("Crear estará disponible próximamente.")}>CREAR</button>
+                 <button type="button" onClick={()=>setUploadMessage("LIVE estará disponible próximamente.")}>LIVE</button>
                </div>
              </div>
            </div>
@@ -827,6 +1286,165 @@ export default function HomePage(){
   }
 
   
+  if(view==="otherProfile" && viewedProfile){
+    return <main className="public-profile-shell other-profile-shell">
+      <header className="profile-topbar compact">
+        <button className="profile-back" onClick={()=>{setSelectedPost(null);setView("home");}}>←</button>
+        <div className="profile-top-title">@{viewedProfile.username||"usuario"}</div>
+        <button className="profile-menu" aria-label="Opciones"><MoreHorizontal size={24}/></button>
+      </header>
+
+      <section className="profile-hero compact-profile">
+        <div className="profile-heading-row">
+          <div className="profile-heading-copy">
+            <h1>{viewedProfile.display_name||viewedProfile.username||"Usuario"}</h1>
+            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>
+            {viewedProfile.show_country && viewedProfile.country_code && (
+              <div className="profile-country">
+                <img
+                  className="profile-country-flag-img"
+                  src={`https://flagcdn.com/28x21/${viewedProfile.country_code.toLowerCase()}.png`}
+                  srcSet={`https://flagcdn.com/56x42/${viewedProfile.country_code.toLowerCase()}.png 2x`}
+                  width="28" height="21" alt="" loading="lazy"
+                />
+                <span className="profile-country-name">
+                  {viewedProfile.country_name || regionNames.of(viewedProfile.country_code) || viewedProfile.country_code}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="profile-photo-edit-wrap visitor-avatar-wrap">
+            {viewedProfile.avatar_url
+              ? <img className="public-profile-photo" src={viewedProfile.avatar_url} alt={viewedProfile.display_name||viewedProfile.username}/>
+              : <div className="public-profile-photo fallback">{(viewedProfile.display_name?.[0]||viewedProfile.username?.[0]||"R").toUpperCase()}</div>
+            }
+          </div>
+        </div>
+
+        <div className="profile-stats compact-stats">
+          <button onClick={()=>openSocialList(viewedProfile.id,"following")}><strong>{viewedFollowingCount}</strong><span>Following</span></button>
+          <button onClick={()=>openSocialList(viewedProfile.id,"followers")}><strong>{viewedFollowersCount}</strong><span>Followers</span></button>
+          <button><strong>{viewedLikesCount}</strong><span>Likes</span></button>
+        </div>
+        <div className="visitor-follow-row">
+          <button type="button" className={`visitor-follow-btn ${isFollowingViewed?"following":""}`}
+            disabled={followBusy} onClick={toggleFollowViewed}>
+            {followBusy?"...":isFollowingViewed?"Siguiendo":"Seguir"}
+          </button>
+        </div>
+
+        {viewedProfile.bio && <p className="public-bio">{viewedProfile.bio}</p>}
+        <div className="profile-links-stack">
+          {viewedProfile.website_url && <a href={viewedProfile.website_url} target="_blank" rel="noreferrer"><LinkIcon size={16}/><span>Website</span></a>}
+          {viewedProfile.youtube_url && <a href={viewedProfile.youtube_url} target="_blank" rel="noreferrer"><Youtube size={16}/><span>YouTube</span></a>}
+          {viewedProfile.instagram_url && <a href={viewedProfile.instagram_url} target="_blank" rel="noreferrer"><Instagram size={16}/><span>Instagram</span></a>}
+          {viewedProfile.facebook_url && <a href={viewedProfile.facebook_url} target="_blank" rel="noreferrer"><Facebook size={16}/><span>Facebook</span></a>}
+        </div>
+      </section>
+
+      <section className="profile-content-section">
+        <div className="profile-content-tabs visitor-tabs">
+          <button className="active"><Grid3X3 size={20}/></button>
+        </div>
+        <div className="posts-grid">
+          {viewedProfilePosts.length > 0 ? viewedProfilePosts.map(post=>(
+            <div className="profile-post-card" key={post.id} onClick={()=>openPost(post)}>
+              {post.media_type==="photo"
+                ? <img src={post.media_path} alt={post.caption||"Publicación"}/>
+                : <video src={post.media_path} muted playsInline preload="metadata"/>
+              }
+              {post.pinned_position && <span className="post-pin">📌</span>}
+            </div>
+          )) : <div className="empty-grid-card first">Este usuario todavía no tiene publicaciones públicas.</div>}
+        </div>
+      </section>
+
+      {socialListOpen && (
+        <div className="social-list-overlay">
+          <div className="social-list-panel">
+            <header className="social-list-header">
+              <button type="button" onClick={()=>setSocialListOpen(false)}>←</button>
+              <strong>{socialListTitle}</strong><span></span>
+            </header>
+            <div className="social-list-body">
+              {socialListLoading && <p className="social-list-empty">Cargando...</p>}
+              {!socialListLoading && !socialListRows.length && <p className="social-list-empty">Todavía no hay usuarios aquí.</p>}
+              {socialListRows.map(person=>(
+                <div className="social-person-row" key={person.id}>
+                  <button className="people-result social-person-open" onClick={()=>{setSocialListOpen(false);openUserProfile(person);}}>
+                    {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                    <span className="people-result-copy">
+                      <strong>{person.display_name||person.username||"Usuario"}</strong>
+                      <small>@{person.username||"usuario"}</small>
+                      {person.id!==user?.id && <em className={`follow-back-label ${person.follows_me?"follows-me":""}`}>{person.follows_me?"Te sigue":"No te sigue"}</em>}
+                    </span>
+                  </button>
+                  {person.id!==user?.id && person.i_follow && (
+                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>Siguiendo</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedPost && (
+        <div className="post-detail-overlay">
+          <header className="post-detail-topbar">
+            <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}} aria-label="Volver">←</button>
+            <strong>Publicación</strong>
+            <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
+          </header>
+          <div className="post-detail-media post-swipe-viewer" onTouchStart={handlePostTouchStart} onTouchEnd={handlePostTouchEnd} onWheel={handlePostWheel}>
+            {selectedPost.media_type==="photo"
+              ? <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
+              : <video key={selectedPost.id} ref={postViewerVideoRef} src={selectedPost.media_path} controls playsInline autoPlay preload="auto"/>
+            }
+          </div>
+          <div className="post-detail-info">
+            {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
+            <div className="post-public-stamp">Publicado · {formatPostDate(selectedPost.created_at)}</div>
+            <div className="post-detail-actions">
+              <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
+              {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
+              <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
+              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
+            </div>
+            {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
+          </div>
+          {postMenuOpen && (
+            <div className="post-menu-backdrop" onClick={()=>setPostMenuOpen(false)}>
+              <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
+                <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={20}/>Compartir en RIVYZA</button>
+                <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
+                <button type="button" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+          {commentsOpen && (
+            <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
+              <div className="post-menu-sheet comments-sheet" onClick={e=>e.stopPropagation()}>
+                <strong>Comentarios</strong>
+                <p>La sección para escribir y leer comentarios queda preparada para conectarla al sistema de comentarios.</p>
+                <button type="button" onClick={()=>setCommentsOpen(false)}>Cerrar</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <nav className="bottom-nav">
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
+        <button><AmigosIcon/><span>Amigos</span></button>
+        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
+        <button><Bell/><span>Alertas</span></button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
+      </nav>
+      {renderUploadModal()}
+    </main>;
+  }
+
   if(view==="publicProfile"){
     return <main className="public-profile-shell">
       <header className="profile-topbar compact">
@@ -871,9 +1489,9 @@ export default function HomePage(){
         </div>
 
         <div className="profile-stats compact-stats">
-          <button><strong>0</strong><span>Following</span></button>
-          <button><strong>0</strong><span>Followers</span></button>
-          <button><strong>0</strong><span>Likes</span></button>
+          <button onClick={()=>openSocialList(user.id,"following")}><strong>{ownFollowingCount}</strong><span>Following</span></button>
+          <button onClick={()=>openSocialList(user.id,"followers")}><strong>{ownFollowersCount}</strong><span>Followers</span></button>
+          <button><strong>{ownLikesCount}</strong><span>Likes</span></button>
         </div>
 
         {profile?.bio && <p className="public-bio">{profile.bio}</p>}
@@ -941,11 +1559,16 @@ export default function HomePage(){
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
 
-          <div className="post-detail-media">
+          <div
+            className="post-detail-media post-swipe-viewer"
+            onTouchStart={handlePostTouchStart}
+            onTouchEnd={handlePostTouchEnd}
+            onWheel={handlePostWheel}
+          >
             {selectedPost.media_type==="photo" ? (
               <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
             ) : (
-              <video src={selectedPost.media_path} controls playsInline autoPlay/>
+              <video key={selectedPost.id} ref={postViewerVideoRef} src={selectedPost.media_path} controls playsInline autoPlay preload="auto"/>
             )}
           </div>
 
@@ -956,6 +1579,7 @@ export default function HomePage(){
             </div>
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
+              {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
             </div>
@@ -971,9 +1595,22 @@ export default function HomePage(){
                   <button type="button" onClick={()=>setPostPin(1)}>📌 Fijar en posición 1</button>
                   <button type="button" onClick={()=>setPostPin(2)}>📌 Fijar en posición 2</button>
                   {selectedPost.pinned_position && <button type="button" onClick={()=>setPostPin(null)}>Quitar de fijadas</button>}
-                  <button type="button" className="danger" onClick={deleteSelectedPost}>🗑️ Eliminar publicación</button>
+                  <button type="button" className="danger" onClick={()=>{setPostMenuOpen(false);setDeleteConfirmOpen(true);}}>🗑️ Eliminar publicación</button>
                 </>}
                 <button type="button" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {deleteConfirmOpen && (
+            <div className="post-menu-backdrop delete-confirm-backdrop" onClick={()=>setDeleteConfirmOpen(false)}>
+              <div className="delete-confirm-card" onClick={e=>e.stopPropagation()}>
+                <strong>¿Eliminar esta publicación?</strong>
+                <p>Esta acción no se puede deshacer.</p>
+                <div className="delete-confirm-actions">
+                  <button type="button" onClick={()=>setDeleteConfirmOpen(false)}>Cancelar</button>
+                  <button type="button" className="danger" onClick={async()=>{setDeleteConfirmOpen(false);await deleteSelectedPost();}}>Eliminar</button>
+                </div>
               </div>
             </div>
           )}
@@ -990,9 +1627,60 @@ export default function HomePage(){
         </div>
       )}
 
+      {socialListOpen && (
+        <div className="social-list-overlay">
+          <div className="social-list-panel">
+            <header className="social-list-header">
+              <button type="button" onClick={()=>setSocialListOpen(false)}>←</button>
+              <strong>{socialListTitle}</strong><span></span>
+            </header>
+            <div className="social-list-body">
+              {socialListLoading && <p className="social-list-empty">Cargando...</p>}
+              {!socialListLoading && !socialListRows.length && <p className="social-list-empty">Todavía no hay usuarios aquí.</p>}
+              {socialListRows.map(person=>(
+                <div className="social-person-row" key={person.id}>
+                  <button className="people-result social-person-open" onClick={()=>{setSocialListOpen(false);openUserProfile(person);}}>
+                    {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                    <span className="people-result-copy">
+                      <strong>{person.display_name||person.username||"Usuario"}</strong>
+                      <small>@{person.username||"usuario"}</small>
+                      {person.id!==user?.id && <em className={`follow-back-label ${person.follows_me?"follows-me":""}`}>{person.follows_me?"Te sigue":"No te sigue"}</em>}
+                    </span>
+                  </button>
+                  {person.id!==user?.id && person.i_follow && (
+                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>Siguiendo</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {likersOpen && (
+        <div className="social-list-overlay likers-overlay">
+          <div className="social-list-panel">
+            <header className="social-list-header">
+              <button type="button" onClick={()=>setLikersOpen(false)}>←</button>
+              <strong>Likes de esta publicación</strong><span></span>
+            </header>
+            <div className="social-list-body">
+              {likersLoading && <p className="social-list-empty">Cargando...</p>}
+              {!likersLoading && !likersRows.length && <p className="social-list-empty">Todavía nadie ha dado like.</p>}
+              {likersRows.map(person=>(
+                <button className="people-result liker-person" key={person.id} onClick={()=>{setLikersOpen(false);openUserProfile(person);}}>
+                  {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                  <span className="people-result-copy"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="bottom-nav">
         <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
-        <button><Radio/><span>Live</span></button>
+        <button><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button className="active"><User/><span>Perfil</span></button>
@@ -1036,7 +1724,7 @@ export default function HomePage(){
   if(view==="profile"){
     return <main className="profile-setup-shell">
       <section className="profile-card">
-        {profile&&<button className="back-home" onClick={()=>{setUploadOpen(false);setView("home");}}>← Volver</button>}
+        {profile&&<button className="back-home" onClick={()=>{setUploadOpen(false);setView("publicProfile");}}>← Volver</button>}
         <div className="edit-profile-mobile-banner">
           <div className="profile-brand">RIVYZA</div>
           <p className="step-label">{profile?"EDITAR PERFIL":"PRIMER PASO"}</p>
@@ -1203,45 +1891,102 @@ export default function HomePage(){
     <header className="feed-topbar">
       <div className="top-brand">RIVYZA</div>
       <div className="feed-tabs">
-        <button>Siguiendo</button>
-        <button className="active-tab">Para ti</button>
+        <button className={feedTab==="following"?"active-tab":""} onClick={()=>changeFeedTab("following")}>Siguiendo</button>
+        <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>Para ti</button>
         <button>LIVE</button>
       </div>
-      <button className="icon-btn"><Search size={23}/></button>
+      <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label="Buscar usuarios"><Search size={23}/></button>
     </header>
 
-    <section className="video-feed">
-      <div className="video-card">
-        <div className="video-placeholder">
-          
-          <span className="video-hint">Tu feed de videos aparecerá aquí</span>
-        </div>
+    <section className="video-feed home-real-feed">
+      {feedLoading && !feedPosts.length && (
+        <div className="feed-empty-state">Cargando publicaciones…</div>
+      )}
 
-        <div className="creator-copy">
-          <div className="display-name">{profile?.display_name||"DJ Plus"}</div>
-          <div className="handle">@{profile?.username||"djplus"}</div>
-          {profile?.bio&&<div className="caption">{profile.bio}</div>}
-          <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
-        </div>
+      {!feedLoading && !feedPosts.length && (
+        <div className="feed-empty-state">{feedMessage||"Todavía no hay publicaciones."}</div>
+      )}
 
-        <div className="side-actions">
-          <button className="avatar-action" onClick={()=>setView("profile")}>
-            {profile?.avatar_url
-              ? <img src={profile.avatar_url} alt={profile.display_name}/>
-              : <div className="mini-avatar">{(profile?.display_name?.[0]||"R").toUpperCase()}</div>}
-          </button>
+      {feedPosts.map(post=>(
+        <article className="video-card feed-post-card" key={post.id}>
+          <div className="feed-media-wrap">
+            {post.media_type==="video"
+              ? <video className="feed-media" src={post.media_path} controls playsInline preload="metadata"/>
+              : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
+            }
+          </div>
 
-          <button><Heart/><span>125K</span></button>
-          <button><MessageCircle/><span>3.2K</span></button>
-          <button><Share2/><span>Compartir</span></button>
-          <button><MoreHorizontal/><span>Más</span></button>
+          <div className="creator-copy">
+            <button className="creator-profile-link" onClick={()=>openFeedCreator(post)}>
+              <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
+            </button>
+            <div className="handle">@{post.creator?.username||"usuario"}</div>
+            {post.caption&&<div className="caption">{post.caption}</div>}
+            <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
+          </div>
+
+          <div className="side-actions">
+            <button className="avatar-action" onClick={()=>openFeedCreator(post)}>
+              {post.creator?.avatar_url
+                ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
+                : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+            </button>
+
+            <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
+              <Heart fill={post.liked_by_me?"currentColor":"none"}/>
+              <span>{post.like_count||0}</span>
+            </button>
+            <button onClick={()=>openPost(post)}><MessageCircle/><span>Comentarios</span></button>
+            <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
+            <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
+          </div>
+        </article>
+      ))}
+    </section>
+
+    {peopleSearchOpen && (
+      <div className="people-search-overlay">
+        <div className="people-search-panel">
+          <header className="people-search-header">
+            <button type="button" onClick={()=>setPeopleSearchOpen(false)} aria-label="Cerrar">←</button>
+            <strong>Buscar personas</strong>
+            <span></span>
+          </header>
+          <form className="people-search-form" onSubmit={e=>{e.preventDefault();searchPeople();}}>
+            <Search size={19}/>
+            <input
+              autoFocus
+              value={peopleSearch}
+              onChange={e=>setPeopleSearch(e.target.value)}
+              placeholder="Nombre o @usuario"
+              autoCapitalize="none"
+            />
+            <button type="submit" disabled={peopleSearching}>{peopleSearching?"…":"Buscar"}</button>
+          </form>
+          <div className="people-search-results">
+            {peopleSearchMessage && <p className="people-search-message">{peopleSearchMessage}</p>}
+            {peopleResults.map(person=>(
+              <button className="people-result" key={person.id} onClick={()=>openUserProfile(person)}>
+                {person.avatar_url
+                  ? <img src={person.avatar_url} alt={person.display_name||person.username}/>
+                  : <span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>
+                }
+                <span className="people-result-copy">
+                  <strong>{person.display_name||person.username||"Usuario"}</strong>
+                  <small>@{person.username||"usuario"}</small>
+                  {person.bio && <em>{person.bio}</em>}
+                </span>
+                <span className="people-result-arrow">›</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-    </section>
+    )}
 
     <nav className="bottom-nav">
       <button className="active"><Home/><span>Inicio</span></button>
-      <button><Radio/><span>Live</span></button>
+      <button><AmigosIcon/><span>Amigos</span></button>
       <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
       <button><Bell/><span>Alertas</span></button>
       <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>Perfil</span></button>

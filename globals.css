@@ -1420,3 +1420,449 @@ main{
 /* ===== RIVYZA v13.6 VISIBLE PUBLIC STAMP ===== */
 .post-detail-media{position:relative;}
 .post-public-stamp{display:block!important;position:static!important;margin:4px 0 10px!important;padding:0!important;background:transparent!important;color:#a9a9b2!important;font-size:12px!important;font-weight:500!important;line-height:1.35!important;opacity:1!important;visibility:visible!important;}
+
+
+/* ===== RIVYZA v13.6 DELETE CONFIRM FIX ===== */
+.delete-confirm-backdrop{position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.62);display:grid;place-items:center;padding:20px;}
+.delete-confirm-card{width:min(360px,calc(100% - 24px));background:#1b1b1b;border:1px solid #303030;border-radius:18px;padding:20px 18px;color:#fff;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.5);}
+.delete-confirm-card strong{display:block;font-size:17px;margin-bottom:8px;}
+.delete-confirm-card p{margin:0 0 18px;color:#aaa;font-size:13px;line-height:1.4;}
+.delete-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.delete-confirm-actions button{min-height:44px;border:0;border-radius:12px;background:#2b2b2b;color:#fff;font-size:15px;font-weight:600;}
+.delete-confirm-actions button.danger{background:#ff2f55;color:#fff;}
+
+
+/* ===== RIVYZA v13.7 VERTICAL POST VIEWER ===== */
+.post-swipe-viewer{
+  overscroll-behavior-y:contain;
+  touch-action:pan-y;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.post-swipe-viewer::-webkit-scrollbar{display:none;width:0;height:0;}
+
+
+/* ===== RIVYZA v13.7.1 VIEWER POLISH ===== */
+.post-detail-overlay{
+  overflow:hidden!important;
+  overscroll-behavior:none;
+}
+.post-detail-overlay,
+.post-detail-overlay *{
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.post-detail-overlay::-webkit-scrollbar,
+.post-detail-overlay *::-webkit-scrollbar{
+  display:none!important;
+  width:0!important;
+  height:0!important;
+}
+
+/* ===== RIVYZA v13.7.2 HIDE SOCIAL SCROLLBARS ===== */
+/* Keep touch/mouse scrolling working, but hide the browser scrollbar on Home + Profile. */
+html,
+body,
+.feed-shell,
+.video-feed,
+.public-profile-shell,
+.profile-content-section,
+.profile-post-grid{
+  scrollbar-width:none!important;
+  -ms-overflow-style:none!important;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+.feed-shell::-webkit-scrollbar,
+.video-feed::-webkit-scrollbar,
+.public-profile-shell::-webkit-scrollbar,
+.profile-content-section::-webkit-scrollbar,
+.profile-post-grid::-webkit-scrollbar{
+  display:none!important;
+  width:0!important;
+  height:0!important;
+}
+
+
+/* ===== RIVYZA v13.8 PUBLIC USER PROFILES ===== */
+.profile-top-title{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}
+.visitor-avatar-wrap{pointer-events:none;}
+.visitor-tabs{grid-template-columns:1fr!important;}
+.creator-profile-link{display:block;border:0;background:transparent;color:inherit;padding:0;margin:0;text-align:left;font:inherit;cursor:pointer;}
+
+.people-search-overlay{
+  position:fixed;inset:0;z-index:80;background:#090909;color:#fff;
+  padding-top:env(safe-area-inset-top);padding-bottom:calc(70px + env(safe-area-inset-bottom));
+}
+.people-search-panel{width:min(100%,680px);height:100%;margin:0 auto;background:#090909;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
+.people-search-panel::-webkit-scrollbar{display:none;width:0;height:0;}
+.people-search-header{height:54px;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;border-bottom:1px solid #1e1e1e;padding:0 8px;position:sticky;top:0;background:#090909;z-index:2;}
+.people-search-header button{border:0;background:transparent;color:#fff;font-size:28px;line-height:1;}
+.people-search-header strong{text-align:center;font-size:16px;}
+.people-search-form{margin:14px 14px 8px;min-height:48px;border-radius:14px;background:#1a1a1a;display:grid;grid-template-columns:28px 1fr auto;align-items:center;padding:0 10px;gap:6px;}
+.people-search-form input{min-width:0;border:0;outline:0;background:transparent;color:#fff;font-size:16px;}
+.people-search-form input::placeholder{color:#777;}
+.people-search-form button{border:0;background:transparent;color:#ff3b6b;font-weight:700;font-size:14px;padding:8px;}
+.people-search-results{padding:4px 10px 20px;}
+.people-search-message{color:#8f8f98;text-align:center;font-size:13px;padding:26px 12px;}
+.people-result{width:100%;display:grid;grid-template-columns:52px 1fr 24px;gap:11px;align-items:center;border:0;border-bottom:1px solid #181818;background:transparent;color:#fff;padding:11px 4px;text-align:left;}
+.people-result img,.people-result-fallback{width:52px;height:52px;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:#252525;font-weight:800;font-size:19px;}
+.people-result-copy{min-width:0;display:flex;flex-direction:column;gap:2px;}
+.people-result-copy strong{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.people-result-copy small{color:#999;font-size:13px;}
+.people-result-copy em{color:#aaa;font-style:normal;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.people-result-arrow{color:#777;font-size:26px;text-align:right;}
+.other-profile-shell,.other-profile-shell *{scrollbar-width:none!important;-ms-overflow-style:none!important;}
+.other-profile-shell::-webkit-scrollbar,.other-profile-shell *::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;}
+
+
+/* ===== RIVYZA v13.8.2 — OTHER PROFILE NAME ALIGNMENT ===== */
+/* Keep the visitor profile name inside the screen and aligned with its @username. */
+.other-profile-shell .profile-heading-copy{
+  min-width:0;
+  padding-left:0;
+}
+.other-profile-shell .profile-heading-copy h1{
+  transform:none!important;
+  margin-left:0!important;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+.other-profile-shell .public-handle{
+  margin-left:0!important;
+}
+
+/* ===== RIVYZA v13.9 — FOLLOW SYSTEM ===== */
+.visitor-follow-row{padding:4px 0 12px;}
+.visitor-follow-btn{width:100%;min-height:42px;border:0;border-radius:10px;background:linear-gradient(90deg,#f21bb5,#2aa8ff);color:#fff;font-size:15px;font-weight:800;}
+.visitor-follow-btn.following{background:#171717;color:#fff;border:1px solid #383838;}
+.visitor-follow-btn:disabled{opacity:.65;}
+.social-list-overlay{position:fixed;inset:0;z-index:120;background:#090909;color:#fff;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
+.social-list-panel{width:min(100%,680px);height:100%;margin:0 auto;background:#090909;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
+.social-list-panel::-webkit-scrollbar{display:none;width:0;height:0;}
+.social-list-header{height:56px;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;position:sticky;top:0;z-index:2;background:#090909;border-bottom:1px solid #1c1c1c;padding:0 8px;}
+.social-list-header button{border:0;background:transparent;color:#fff;font-size:28px;}
+.social-list-header strong{text-align:center;font-size:16px;}
+.social-list-body{padding:4px 10px 30px;}
+.social-list-empty{text-align:center;color:#8f8f98;padding:34px 12px;font-size:13px;}
+
+
+/* ===== RIVYZA v13.9.1 — FOLLOWING LIST RELATIONSHIP ===== */
+.social-person-row{
+  display:flex;align-items:center;gap:8px;border-bottom:1px solid #171717;padding:2px 0;
+}
+.social-person-open{flex:1;min-width:0;border-bottom:0!important;}
+.follow-back-label{
+  display:block;margin-top:3px;font-size:11px;font-style:normal;font-weight:700;color:#8f8f98;
+}
+.follow-back-label.follows-me{color:#c8c8ce;}
+.list-following-btn{
+  flex:0 0 auto;border:1px solid #3b3b3f;background:#171719;color:#fff;
+  border-radius:8px;padding:8px 11px;font-size:12px;font-weight:800;
+}
+
+/* v13.9.4 likes */
+.who-liked-btn{font-size:12px!important;font-weight:800!important;color:#b8b8c0!important;white-space:nowrap;}
+.liker-person{width:100%;border:0;border-bottom:1px solid #171717;background:transparent;color:#fff;text-align:left;}
+
+/* ===== RIVYZA v13.9.4.1 — LIKERS OVER POST VIEWER FIX ===== */
+.likers-overlay{z-index:7000!important;}
+
+/* ===== RIVYZA v13.10 — HOME FEED ===== */
+.home-real-feed{
+  display:block!important;
+  height:calc(100dvh - 74px);
+  min-height:0!important;
+  overflow-y:auto;
+  scroll-snap-type:y mandatory;
+  overscroll-behavior-y:contain;
+  scrollbar-width:none!important;
+  -ms-overflow-style:none!important;
+}
+.home-real-feed::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;}
+.feed-post-card{
+  height:calc(100dvh - 74px)!important;
+  min-height:0!important;
+  scroll-snap-align:start;
+  scroll-snap-stop:always;
+}
+.feed-media-wrap{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  background:#000;
+}
+.feed-media{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#000;
+}
+.feed-post-card:after{
+  content:"";
+  pointer-events:none;
+  position:absolute;
+  inset:45% 0 0;
+  background:linear-gradient(transparent,rgba(0,0,0,.22) 38%,rgba(0,0,0,.72));
+}
+.feed-post-card .creator-copy,
+.feed-post-card .side-actions{z-index:2;}
+.feed-post-card .creator-profile-link{
+  border:0;
+  background:none;
+  color:#fff;
+  padding:0;
+  text-align:left;
+}
+.feed-post-card .feed-liked{color:#ff2d72!important;}
+.feed-post-card .side-actions button:disabled{opacity:.65;}
+.feed-empty-state{
+  height:calc(100dvh - 74px);
+  display:grid;
+  place-items:center;
+  text-align:center;
+  padding:90px 34px 100px;
+  color:#b8b8be;
+  font-size:15px;
+  line-height:1.5;
+  background:#070707;
+}
+
+
+/* ===== RIVYZA v13.11 CREATE CAMERA ===== */
+.camera-bottom{
+  bottom:max(18px,env(safe-area-inset-bottom));
+}
+.camera-mode-tabs{
+  margin-bottom:16px;
+}
+.camera-controls-row{
+  grid-template-columns:1fr 110px 1fr;
+}
+.camera-profile-thumb{
+  justify-self:center;
+  cursor:pointer;
+}
+.camera-profile-thumb img,
+.camera-profile-thumb > span{
+  width:52px;
+  height:52px;
+  border-radius:14px;
+  object-fit:cover;
+  display:grid;
+  place-items:center;
+  border:2px solid rgba(255,255,255,.92);
+  background:#151515;
+  color:#fff;
+  font-size:20px;
+  font-weight:900;
+}
+.camera-effects-placeholder{
+  justify-self:center;
+  border:0;
+  background:none;
+  color:#fff;
+  display:grid;
+  justify-items:center;
+  gap:5px;
+  padding:0;
+}
+.camera-effects-placeholder span{
+  width:52px;
+  height:52px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.5);
+  background:rgba(0,0,0,.32);
+  font-size:24px;
+}
+.camera-effects-placeholder small,
+.camera-profile-thumb small{
+  font-size:10px;
+  color:#fff;
+}
+.camera-create-tabs{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:34px;
+  margin-top:26px;
+  padding-bottom:2px;
+}
+.camera-create-tabs button{
+  border:0;
+  background:none;
+  color:rgba(255,255,255,.65);
+  font-size:15px;
+  font-weight:900;
+  padding:7px 3px;
+}
+.camera-create-tabs button.active{
+  color:#fff;
+  position:relative;
+}
+.camera-create-tabs button.active:after{
+  content:"";
+  position:absolute;
+  left:22%;
+  right:22%;
+  bottom:0;
+  height:2px;
+  border-radius:2px;
+  background:#fff;
+}
+
+/* Keep the shutter's inner circle perfectly centered on different iPhones. */
+.shutter-button,
+.record-button{
+  padding:0 !important;
+  position:relative;
+}
+.shutter-button > span,
+.record-button > span{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  margin:0 !important;
+}
+
+@media(max-width:390px){
+  .camera-mode-tabs{gap:20px;}
+  .camera-create-tabs{gap:27px;}
+}
+
+
+/* ===== RIVYZA v13.11.1 CAMERA UI FIX ===== */
+
+/* Stable top controls: keep each symbol exactly centered in its circle. */
+.camera-topbar{
+  top:max(18px,env(safe-area-inset-top)) !important;
+  grid-template-columns:56px 1fr 56px !important;
+  align-items:center !important;
+  padding:0 18px !important;
+}
+.camera-icon-btn{
+  width:46px !important;
+  height:46px !important;
+  min-width:46px !important;
+  min-height:46px !important;
+  padding:0 !important;
+  margin:0 !important;
+  border-radius:50% !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  line-height:1 !important;
+  overflow:hidden;
+}
+.camera-icon-btn svg{
+  display:block !important;
+  flex:none;
+  margin:0 !important;
+}
+.camera-icon-btn:last-child{
+  font-size:27px !important;
+  padding-bottom:2px !important;
+}
+
+/* Black control deck at the bottom so all camera controls remain readable. */
+.camera-bottom{
+  left:0 !important;
+  right:0 !important;
+  bottom:0 !important;
+  padding:16px 18px max(18px,env(safe-area-inset-bottom)) !important;
+  background:rgba(0,0,0,.92);
+  border-radius:24px 24px 0 0;
+  box-shadow:0 -14px 34px rgba(0,0,0,.28);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+.camera-mode-tabs{
+  margin-bottom:16px !important;
+}
+.camera-create-tabs{
+  margin-top:22px !important;
+}
+
+/* Prevent the camera image from making bottom labels hard to read. */
+.camera-profile-thumb small,
+.camera-effects-placeholder small,
+.camera-mode-tabs button,
+.camera-create-tabs button{
+  text-shadow:none !important;
+}
+
+
+/* ===== RIVYZA v13.11.3 CAMERA SLIDE PANEL ===== */
+.camera-bottom{
+  transition:transform .28s ease, background .28s ease, padding .28s ease;
+  touch-action:pan-y;
+}
+.camera-panel-handle{
+  width:70px;
+  height:20px;
+  padding:0;
+  border:0;
+  background:transparent;
+  display:grid;
+  place-items:center;
+  margin:-8px auto 5px;
+}
+.camera-panel-handle span{
+  width:38px;
+  height:4px;
+  border-radius:999px;
+  background:rgba(255,255,255,.72);
+}
+
+/* After FOTO/10s/30s/60s is chosen, reveal the full camera preview. */
+.camera-bottom.collapsed{
+  background:transparent !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+  border-radius:0 !important;
+  padding:0 18px max(18px,env(safe-area-inset-bottom)) !important;
+  pointer-events:none;
+}
+.camera-bottom.collapsed .camera-panel-handle{
+  pointer-events:auto;
+  margin:0 auto 6px;
+}
+.camera-bottom.collapsed .camera-panel-handle span{
+  background:rgba(255,255,255,.9);
+  box-shadow:0 1px 4px rgba(0,0,0,.8);
+}
+.camera-bottom.collapsed .camera-mode-tabs,
+.camera-bottom.collapsed .camera-profile-thumb,
+.camera-bottom.collapsed .camera-effects-placeholder,
+.camera-bottom.collapsed .camera-create-tabs{
+  display:none !important;
+}
+.camera-bottom.collapsed .camera-controls-row{
+  display:flex !important;
+  justify-content:center !important;
+  align-items:center !important;
+}
+.camera-bottom.collapsed .shutter-button,
+.camera-bottom.collapsed .record-button{
+  pointer-events:auto;
+  justify-self:auto !important;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.55));
+}
+.camera-bottom.collapsed .camera-timer-slot{
+  display:none !important;
+}
+
+
+/* ===== RIVYZA v13.11.4 AMIGOS ICON ===== */
+.bottom-nav .amigos-icon{
+  width:27px;
+  height:27px;
+  display:block;
+  overflow:visible;
+  flex:none;
+}
