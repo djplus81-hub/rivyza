@@ -1,0 +1,1 @@
+RIVYZA v13.15.1: FOTO captura el mismo recorte que la vista previa object-fit:cover. VIDEO solicita sensor vertical 9:16 (ideal, sujeto a compatibilidad del dispositivo); MediaRecorder conserva las dimensiones realmente entregadas por la cámara. CSS intacto. Basado en page(4).js y globals(3).css proporcionados.
