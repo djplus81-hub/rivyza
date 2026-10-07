@@ -1133,6 +1133,31 @@ export default function HomePage(){
                      className={`record-button ${recording?"recording":""}`}
                      onClick={recording?stopRecording:startRecording}
                    >
+                     {recording && (
+                       <svg
+                         className="record-progress-ring"
+                         viewBox="0 0 100 100"
+                         aria-hidden="true"
+                         style={{"--record-duration":`${recordLimit}s`}}
+                       >
+                         <defs>
+                           <linearGradient id="rivyzaRecordGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                             <stop offset="0%" stopColor="#ff2bd6"/>
+                             <stop offset="100%" stopColor="#00a8ff"/>
+                           </linearGradient>
+                         </defs>
+                         <circle
+                           className="record-progress-track"
+                           cx="50" cy="50" r="46"
+                           pathLength="100"
+                         />
+                         <circle
+                           className="record-progress-value"
+                           cx="50" cy="50" r="46"
+                           pathLength="100"
+                         />
+                       </svg>
+                     )}
                      <span></span>
                    </button>
                  )}

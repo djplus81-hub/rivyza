@@ -2296,3 +2296,51 @@ body::-webkit-scrollbar,
   opacity:.72;
   white-space:nowrap;
 }
+
+
+/* ===== RIVYZA v13.14.8 — RECORDING PROGRESS RING =====
+   Same pink -> blue RIVYZA identity used around profile photos.
+   The ring makes one complete lap in the selected 10s / 30s / 60s duration.
+*/
+.record-button{
+  overflow:visible !important;
+}
+
+.record-progress-ring{
+  position:absolute;
+  inset:-7px;
+  width:calc(100% + 14px);
+  height:calc(100% + 14px);
+  transform:rotate(-90deg);
+  pointer-events:none;
+  z-index:3;
+  overflow:visible;
+}
+
+.record-progress-track,
+.record-progress-value{
+  fill:none;
+  stroke-width:5;
+}
+
+.record-progress-track{
+  stroke:rgba(255,255,255,.20);
+}
+
+.record-progress-value{
+  stroke:url(#rivyzaRecordGradient);
+  stroke-linecap:round;
+  stroke-dasharray:100;
+  stroke-dashoffset:100;
+  animation:rivyza-record-progress var(--record-duration) linear forwards;
+  filter:drop-shadow(0 0 3px rgba(255,43,214,.32));
+}
+
+@keyframes rivyza-record-progress{
+  from{stroke-dashoffset:100;}
+  to{stroke-dashoffset:0;}
+}
+
+.record-button.recording{
+  border-color:rgba(255,255,255,.28);
+}
