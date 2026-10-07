@@ -2361,3 +2361,14 @@ body::-webkit-scrollbar,
     drop-shadow(0 0 6px rgba(255,43,214,.58))
     drop-shadow(0 0 9px rgba(0,168,255,.46)) !important;
 }
+
+/* v13.15.2: Expand only photos in profile publication viewer.
+   Fill the viewer horizontally without distortion; slight vertical crop may occur.
+   Videos, feed, camera and gallery remain unchanged. */
+.post-detail-overlay .post-detail-media img {
+  width:100% !important;
+  height:100% !important;
+  max-width:none !important;
+  object-fit:cover !important;
+  object-position:center center !important;
+}
