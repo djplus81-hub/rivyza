@@ -836,7 +836,7 @@ export default function HomePage(){
      }
 
      const stream=await navigator.mediaDevices.getUserMedia({
-       video:{facingMode:{ideal:facing}},
+       video:{facingMode:{ideal:facing},width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:9/16}},
        audio:cameraMode==="video"
      });
 
@@ -864,15 +864,27 @@ export default function HomePage(){
    if(!video || !video.videoWidth)return;
 
    const canvas=document.createElement("canvas");
-   canvas.width=video.videoWidth;
-   canvas.height=video.videoHeight;
+   // Match the visible full-screen object-fit:cover preview, without stretching.
+   const bounds=video.getBoundingClientRect();
+   const displayW=bounds.width || 9;
+   const displayH=bounds.height || 16;
+   const targetRatio=displayW/displayH;
+   const sourceW=video.videoWidth;
+   const sourceH=video.videoHeight;
+   let cropW=sourceW, cropH=sourceH;
+   if(sourceW/sourceH>targetRatio) cropW=sourceH*targetRatio;
+   else cropH=sourceW/targetRatio;
+   const cropX=(sourceW-cropW)/2;
+   const cropY=(sourceH-cropH)/2;
+   canvas.width=Math.round(cropW);
+   canvas.height=Math.round(cropH);
    const ctx=canvas.getContext("2d");
 
    if(cameraFacing==="user"){
      ctx.translate(canvas.width,0);
      ctx.scale(-1,1);
    }
-   ctx.drawImage(video,0,0,canvas.width,canvas.height);
+   ctx.drawImage(video,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
 
    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.92));
    if(!blob)return;

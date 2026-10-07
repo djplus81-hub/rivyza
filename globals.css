@@ -2361,38 +2361,3 @@ body::-webkit-scrollbar,
     drop-shadow(0 0 6px rgba(255,43,214,.58))
     drop-shadow(0 0 9px rgba(0,168,255,.46)) !important;
 }
-
-
-/* ===== RIVYZA v13.15.0 — iPHONE INSTALLED APP / PWA FEED FIX =====
-   Safari browser stays untouched.
-   In standalone mode the viewport is taller because Safari chrome is gone.
-   With object-fit:contain, that extra height was being centered above/below
-   the 2:3 media, creating the large black band under the RIVYZA header.
-   In installed-app mode only, give media its visible area below the 64px
-   header and anchor contained media at the top of that area.
-*/
-@media (display-mode: standalone) and (max-width:560px){
-  .feed-shell > .home-real-feed > .feed-post-card .feed-media-wrap{
-    top:64px !important;
-    bottom:0 !important;
-    height:calc(100% - 64px) !important;
-  }
-
-  .feed-shell > .home-real-feed > .feed-post-card .feed-media{
-    object-fit:contain !important;
-    object-position:50% 0 !important;
-  }
-}
-
-/* iOS Home Screen web-app fallback */
-@supports (-webkit-touch-callout:none){
-  @media (display-mode: standalone) and (max-width:560px){
-    .feed-shell > .home-real-feed > .feed-post-card .feed-media-wrap{
-      top:64px !important;
-      height:calc(100% - 64px) !important;
-    }
-    .feed-shell > .home-real-feed > .feed-post-card .feed-media{
-      object-position:50% 0 !important;
-    }
-  }
-}

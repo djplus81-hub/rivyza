@@ -1,13 +1,1 @@
-RIVYZA v13.6 UPDATE
-
-Incluye:
-- Foto/video se abre grande.
-- Fecha y hora exacta de created_at debajo de los controles.
-- Like + contador.
-- Comentarios en bandeja inferior + contador.
-- Compartir dentro de RIVYZA preparado para Mensajes.
-- Menu de tres puntos.
-- Copiar enlace.
-- Dueño: fijar posición 1 o 2, quitar pin y eliminar publicación.
-
-IMPORTANTE: Antes de probar Likes/Comentarios, ejecutar una sola vez supabase_v13.6.sql en Supabase > SQL Editor.
+RIVYZA v13.15.1: FOTO captura el mismo recorte que la vista previa object-fit:cover. VIDEO solicita sensor vertical 9:16 (ideal, sujeto a compatibilidad del dispositivo); MediaRecorder conserva las dimensiones realmente entregadas por la cámara. CSS intacto. Basado en page(4).js y globals(3).css proporcionados.
