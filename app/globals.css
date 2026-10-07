@@ -2380,3 +2380,14 @@ body::-webkit-scrollbar,
   object-fit:contain !important;
   object-position:50% 50% !important;
 }
+
+/* v13.15.4 — Videos in opened Publication viewer only.
+   Fill portrait viewer without stretching. Landscape footage is cropped at sides. */
+.post-detail-overlay .post-detail-media video {
+  width:100% !important;
+  height:100% !important;
+  max-width:none !important;
+  max-height:none !important;
+  object-fit:cover !important;
+  object-position:center center !important;
+}
