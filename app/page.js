@@ -17,6 +17,27 @@ async function getCroppedBlob(src,pixelCrop){
   return new Promise(resolve=>canvas.toBlob(blob=>resolve(blob),"image/jpeg",0.88));
 }
 
+
+function AmigosIcon(){
+  return (
+    <svg className="amigos-icon" viewBox="0 0 32 32" aria-hidden="true">
+      <defs>
+        <linearGradient id="amigosArc" x1="4" y1="0" x2="28" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#16d9ff"/>
+          <stop offset="48%" stopColor="#a93cff"/>
+          <stop offset="76%" stopColor="#ff3ca6"/>
+          <stop offset="100%" stopColor="#ffd84a"/>
+        </linearGradient>
+      </defs>
+      <path d="M7 14.2C9.4 5.8 22.6 5.8 25 14.2" fill="none" stroke="url(#amigosArc)" strokeWidth="3.2" strokeLinecap="round"/>
+      <circle cx="7" cy="16" r="3.25" fill="#20d7ff"/>
+      <circle cx="25" cy="16" r="3.25" fill="#ff45c5"/>
+      <path d="M2.8 27c.2-4.1 2-6.2 4.2-6.2s4 2.1 4.2 6.2" fill="#20d7ff"/>
+      <path d="M20.8 27c.2-4.1 2-6.2 4.2-6.2s4 2.1 4.2 6.2" fill="#ff45c5"/>
+    </svg>
+  );
+}
+
 export default function HomePage(){
   const countryCodes=["AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR","GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR","HT","HU","ID","IE","IL","IM","IN","IO","IQ","IR","IS","IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ","TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE","YT","ZA","ZM","ZW"];
   const regionNames=useMemo(()=>new Intl.DisplayNames(["es"],{type:"region"}),[]);
@@ -1415,7 +1436,7 @@ export default function HomePage(){
 
       <nav className="bottom-nav">
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
-        <button><Radio/><span>Live</span></button>
+        <button><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
@@ -1659,7 +1680,7 @@ export default function HomePage(){
 
       <nav className="bottom-nav">
         <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
-        <button><Radio/><span>Live</span></button>
+        <button><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button className="active"><User/><span>Perfil</span></button>
@@ -1965,7 +1986,7 @@ export default function HomePage(){
 
     <nav className="bottom-nav">
       <button className="active"><Home/><span>Inicio</span></button>
-      <button><Radio/><span>Live</span></button>
+      <button><AmigosIcon/><span>Amigos</span></button>
       <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
       <button><Bell/><span>Alertas</span></button>
       <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>Perfil</span></button>
