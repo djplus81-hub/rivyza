@@ -1630,39 +1630,106 @@ body::-webkit-scrollbar,
 }
 
 
-/* ===== RIVYZA V13.10 AMIGOS + CAMERA CENTER FIX ===== */
+/* ===== RIVYZA v13.11 CREATE CAMERA ===== */
+.camera-bottom{
+  bottom:max(18px,env(safe-area-inset-bottom));
+}
+.camera-mode-tabs{
+  margin-bottom:16px;
+}
+.camera-controls-row{
+  grid-template-columns:1fr 110px 1fr;
+}
+.camera-profile-thumb{
+  justify-self:center;
+  cursor:pointer;
+}
+.camera-profile-thumb img,
+.camera-profile-thumb > span{
+  width:52px;
+  height:52px;
+  border-radius:14px;
+  object-fit:cover;
+  display:grid;
+  place-items:center;
+  border:2px solid rgba(255,255,255,.92);
+  background:#151515;
+  color:#fff;
+  font-size:20px;
+  font-weight:900;
+}
+.camera-effects-placeholder{
+  justify-self:center;
+  border:0;
+  background:none;
+  color:#fff;
+  display:grid;
+  justify-items:center;
+  gap:5px;
+  padding:0;
+}
+.camera-effects-placeholder span{
+  width:52px;
+  height:52px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.5);
+  background:rgba(0,0,0,.32);
+  font-size:24px;
+}
+.camera-effects-placeholder small,
+.camera-profile-thumb small{
+  font-size:10px;
+  color:#fff;
+}
+.camera-create-tabs{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:34px;
+  margin-top:26px;
+  padding-bottom:2px;
+}
+.camera-create-tabs button{
+  border:0;
+  background:none;
+  color:rgba(255,255,255,.65);
+  font-size:15px;
+  font-weight:900;
+  padding:7px 3px;
+}
+.camera-create-tabs button.active{
+  color:#fff;
+  position:relative;
+}
+.camera-create-tabs button.active:after{
+  content:"";
+  position:absolute;
+  left:22%;
+  right:22%;
+  bottom:0;
+  height:2px;
+  border-radius:2px;
+  background:#fff;
+}
+
+/* Keep the shutter's inner circle perfectly centered on different iPhones. */
 .shutter-button,
 .record-button{
   padding:0 !important;
   position:relative;
-  display:flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-  line-height:0;
 }
-
 .shutter-button > span,
 .record-button > span{
-  display:block;
-  flex:0 0 auto;
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
   margin:0 !important;
-  position:static !important;
-  transform:none !important;
 }
 
-.live-coming-button{
-  justify-self:center;
-  width:86px;
-  height:86px;
-  padding:0;
-  border-radius:50%;
-  border:5px solid rgba(255,255,255,.95);
-  background:#ff3158;
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:13px;
-  font-weight:950;
-  letter-spacing:.7px;
+@media(max-width:390px){
+  .camera-mode-tabs{gap:20px;}
+  .camera-create-tabs{gap:27px;}
 }
