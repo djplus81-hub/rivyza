@@ -2224,21 +2224,3 @@ body::-webkit-scrollbar,
   object-fit:contain !important;
   object-position:50% calc(50% + 35px) !important;
 }
-
-
-/* ===== RIVYZA v13.14.3 — PROFILE ALL POSTS / FOR YOU AUTOPLAY ===== */
-.public-profile-shell{
-  height:auto !important;
-  min-height:100dvh !important;
-  max-height:none !important;
-  overflow-y:auto !important;
-  overflow-x:hidden !important;
-  -webkit-overflow-scrolling:touch;
-}
-.public-profile-shell .profile-content-section,
-.public-profile-shell .posts-grid{
-  height:auto !important;
-  min-height:0 !important;
-  max-height:none !important;
-  overflow:visible !important;
-}
