@@ -1928,3 +1928,58 @@ body::-webkit-scrollbar,
   max-width:340px;
   line-height:1.4;
 }
+
+
+/* ===== RIVYZA v13.12.4 FEED POSITION FIX =====
+   Lower creator copy + right actions on every vertical feed.
+   Keeps the center of the photo/video cleaner, using the reference layout
+   while preserving RIVYZA's own styling.
+*/
+.feed-post-card{
+  position:relative;
+}
+
+/* Creator/name/caption/audio: lower-left, just above bottom navigation. */
+.feed-post-card .creator-copy{
+  position:absolute !important;
+  left:18px !important;
+  right:96px !important;
+  bottom:22px !important;
+  z-index:8 !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+
+/* Profile/like/comment/share/more: lower and slightly closer to right edge. */
+.feed-post-card .side-actions{
+  position:absolute !important;
+  right:10px !important;
+  bottom:20px !important;
+  top:auto !important;
+  z-index:9 !important;
+  margin:0 !important;
+}
+
+/* Keep text readable over bright photos/videos without adding a big panel. */
+.feed-post-card .creator-copy,
+.feed-post-card .side-actions{
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.72));
+}
+
+/* Leave room for RIVYZA's fixed bottom navigation. */
+.video-feed,
+.home-real-feed{
+  padding-bottom:74px;
+}
+
+@media(max-width:390px){
+  .feed-post-card .creator-copy{
+    left:14px !important;
+    right:88px !important;
+    bottom:18px !important;
+  }
+  .feed-post-card .side-actions{
+    right:8px !important;
+    bottom:18px !important;
+  }
+}
