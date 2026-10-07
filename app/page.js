@@ -1306,6 +1306,47 @@ export default function HomePage(){
   }
 
   
+  // RIVYZA feed video autoplay:
+  // Only the video in the post that is actually on screen may play.
+  // iPhone/Safari requires muted autoplay until the viewer explicitly enables sound.
+  useEffect(()=>{
+    if(view!=="home" && view!=="friends") return;
+
+    const videos=[...document.querySelectorAll(".home-real-feed .feed-autoplay-video")];
+    if(!videos.length) return;
+
+    const stopVideo=(video)=>{
+      try{ video.pause(); }catch(e){}
+    };
+
+    videos.forEach(video=>{
+      video.muted=true;
+      video.playsInline=true;
+      stopVideo(video);
+    });
+
+    const observer=new IntersectionObserver((entries)=>{
+      entries.forEach(entry=>{
+        const video=entry.target;
+        if(entry.isIntersecting && entry.intersectionRatio>=0.72){
+          // Guarantee that no previous/off-screen feed video keeps sounding.
+          videos.forEach(other=>{ if(other!==video) stopVideo(other); });
+          const playPromise=video.play();
+          if(playPromise?.catch) playPromise.catch(()=>{});
+        }else{
+          stopVideo(video);
+        }
+      });
+    },{threshold:[0,0.25,0.5,0.72,0.9,1]});
+
+    videos.forEach(video=>observer.observe(video));
+
+    return ()=>{
+      observer.disconnect();
+      videos.forEach(stopVideo);
+    };
+  },[view,feedTab,feedPosts]);
+
   if(view==="livePreview"){
     return <main className="live-preview-shell">
       <header className="live-preview-header">
@@ -1366,7 +1407,7 @@ export default function HomePage(){
           <article className="video-card feed-post-card" key={post.id}>
             <div className="feed-media-wrap">
               {post.media_type==="video"
-                ? <video className="feed-media" src={post.media_path} controls playsInline preload="metadata"/>
+                ? <video className="feed-media feed-autoplay-video" src={post.media_path} controls muted playsInline preload="auto"/>
                 : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
               }
             </div>
@@ -2034,7 +2075,7 @@ export default function HomePage(){
         <article className="video-card feed-post-card" key={post.id}>
           <div className="feed-media-wrap">
             {post.media_type==="video"
-              ? <video className="feed-media" src={post.media_path} controls playsInline preload="metadata"/>
+              ? <video className="feed-media feed-autoplay-video" src={post.media_path} controls muted playsInline preload="auto"/>
               : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
             }
           </div>
