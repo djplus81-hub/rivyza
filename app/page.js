@@ -1381,7 +1381,7 @@ export default function HomePage(){
       )}
 
       <nav className="bottom-nav">
-        <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
         <button><Radio/><span>Live</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
