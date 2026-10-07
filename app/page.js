@@ -1366,7 +1366,7 @@ export default function HomePage(){
           <article className="video-card feed-post-card" key={post.id}>
             <div className="feed-media-wrap">
               {post.media_type==="video"
-                ? <video className="feed-media" src={post.media_path} controls playsInline preload="metadata"/>
+                ? <video className="feed-media" src={`${post.media_path}#t=0.1`} controls playsInline preload="metadata"/>
                 : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
               }
             </div>
@@ -2034,7 +2034,7 @@ export default function HomePage(){
         <article className="video-card feed-post-card" key={post.id}>
           <div className="feed-media-wrap">
             {post.media_type==="video"
-              ? <video className="feed-media" src={post.media_path} controls playsInline preload="metadata"/>
+              ? <video className="feed-media" src={`${post.media_path}#t=0.1`} controls playsInline preload="metadata"/>
               : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
             }
           </div>
