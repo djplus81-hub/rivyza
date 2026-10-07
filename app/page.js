@@ -1306,6 +1306,43 @@ export default function HomePage(){
   }
 
   
+  if(view==="livePreview"){
+    return <main className="live-preview-shell">
+      <header className="live-preview-header">
+        <button className="live-preview-back" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">‹</button>
+        <strong>LIVE</strong>
+        <span className="live-preview-spacer"></span>
+      </header>
+
+      <div className="live-following-strip" aria-label="Personas que sigues en vivo">
+        <div className="live-following-empty">
+          <span className="live-dot"></span>
+          <span>Aquí aparecerán las personas que sigues cuando estén EN VIVO</span>
+        </div>
+      </div>
+
+      <section className="live-discovery-feed">
+        <article className="live-preview-card live-preview-empty-card">
+          <div className="live-preview-empty-copy">
+            <span className="live-preview-badge">EN VIVO</span>
+            <h2>RIVYZA LIVE</h2>
+            <p>Cuando haya transmisiones activas, podrás deslizar hacia arriba o hacia abajo para recorrerlas.</p>
+            <small>Los LIVE más recientes aparecerán primero.</small>
+          </div>
+        </article>
+      </section>
+
+      <nav className="bottom-nav live-preview-bottom-nav">
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
+        <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
+        <button><Bell/><span>Alertas</span></button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
+      </nav>
+      {renderUploadModal()}
+    </main>;
+  }
+
   if(view==="friends"){
     return <main className="feed-shell friends-feed-shell">
       <header className="friends-topbar friends-feed-topbar">
@@ -1979,7 +2016,7 @@ export default function HomePage(){
       <div className="feed-tabs">
         <button className={feedTab==="following"?"active-tab":""} onClick={()=>changeFeedTab("following")}>Siguiendo</button>
         <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>Para ti</button>
-        <button>LIVE</button>
+        <button onClick={()=>setView("livePreview")}>LIVE</button>
       </div>
       <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label="Buscar usuarios"><Search size={23}/></button>
     </header>
