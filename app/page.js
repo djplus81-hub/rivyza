@@ -611,7 +611,7 @@ export default function HomePage(){
       finally{feedCheckBusyRef.current=false;}
     };
     refreshAtTop();
-    const timer=setInterval(check,30000);
+    const timer=setInterval(check,10000);
     const onScroll=()=>refreshAtTop();
     feedEl?.addEventListener("scroll",onScroll,{passive:true});
     return ()=>{active=false;clearInterval(timer);feedEl?.removeEventListener("scroll",onScroll);};
@@ -909,9 +909,9 @@ export default function HomePage(){
    const bounds=video.getBoundingClientRect();
    const displayW=bounds.width || 9;
    const displayH=bounds.height || 16;
-   const targetRatio=displayW/displayH;
    const sourceW=video.videoWidth;
    const sourceH=video.videoHeight;
+   const targetRatio=sourceW/sourceH;
    let cropW=sourceW, cropH=sourceH;
    if(sourceW/sourceH>targetRatio) cropW=sourceH*targetRatio;
    else cropH=sourceW/targetRatio;
