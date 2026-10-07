@@ -1893,3 +1893,38 @@ body::-webkit-scrollbar,
 .friends-placeholder .amigos-icon{width:72px;height:72px;margin-bottom:8px;}
 .friends-placeholder strong{font-size:19px;}
 .friends-placeholder span{max-width:330px;color:rgba(255,255,255,.62);font-size:13px;line-height:1.45;}
+
+
+/* ===== RIVYZA v13.12.3 MUTUAL FRIENDS FEED ===== */
+.friends-feed-shell .friends-feed-topbar{
+  position:fixed;
+  z-index:25;
+  top:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(100%,560px);
+  background:rgba(0,0,0,.94);
+  padding:calc(env(safe-area-inset-top) + 12px) 18px 12px;
+}
+.friends-feed-shell .home-real-feed{
+  padding-top:94px;
+}
+.friends-empty-state{
+  min-height:65dvh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  gap:14px;
+  padding:30px;
+  color:#fff;
+}
+.friends-empty-state .amigos-icon{
+  width:70px;
+  height:70px;
+}
+.friends-empty-state strong{
+  max-width:340px;
+  line-height:1.4;
+}

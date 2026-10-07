@@ -450,6 +450,24 @@ export default function HomePage(){
           setFeedMessage("Todavía no sigues a nadie. Cuando sigas personas, sus publicaciones aparecerán aquí.");
           return;
         }
+      }else if(tab==="friends"){
+        const [{data:iFollow,error:iFollowError},{data:followsMe,error:followsMeError}]=await Promise.all([
+          supabase.from("follows").select("following_id").eq("follower_id",user.id),
+          supabase.from("follows").select("follower_id").eq("following_id",user.id)
+        ]);
+        if(iFollowError)throw iFollowError;
+        if(followsMeError)throw followsMeError;
+
+        const followsMeSet=new Set((followsMe||[]).map(row=>row.follower_id).filter(Boolean));
+        allowedIds=(iFollow||[])
+          .map(row=>row.following_id)
+          .filter(id=>id && followsMeSet.has(id));
+
+        if(!allowedIds.length){
+          setFeedPosts([]);
+          setFeedMessage("Todavía no tienes amigos mutuos. Cuando ambos se sigan, su contenido aparecerá aquí.");
+          return;
+        }
       }
 
       let postQuery=supabase
@@ -468,7 +486,9 @@ export default function HomePage(){
         setFeedPosts([]);
         setFeedMessage(tab==="following"
           ?"Las personas que sigues todavía no tienen publicaciones públicas."
-          :"Todavía no hay publicaciones públicas.");
+          :tab==="friends"
+            ?"Tus amigos mutuos todavía no tienen publicaciones públicas."
+            :"Todavía no hay publicaciones públicas.");
         return;
       }
 
@@ -1287,16 +1307,58 @@ export default function HomePage(){
 
   
   if(view==="friends"){
-    return <main className="friends-shell">
-      <header className="friends-topbar">
+    return <main className="feed-shell friends-feed-shell">
+      <header className="friends-topbar friends-feed-topbar">
         <h1>Amigos</h1>
-        <p>Aquí aparecerán las personas que se siguen mutuamente contigo.</p>
+        <p>Solo personas que tú sigues y que también te siguen.</p>
       </header>
 
-      <section className="friends-placeholder">
-        <AmigosIcon/>
-        <strong>Tu espacio de Amigos</strong>
-        <span>En el próximo paso conectaremos aquí solamente los amigos mutuos.</span>
+      <section className="video-feed home-real-feed">
+        {feedLoading && !feedPosts.length && (
+          <div className="feed-empty-state">Cargando amigos…</div>
+        )}
+
+        {!feedLoading && !feedPosts.length && (
+          <div className="friends-empty-state">
+            <AmigosIcon/>
+            <strong>{feedMessage||"Todavía no hay publicaciones de amigos."}</strong>
+          </div>
+        )}
+
+        {feedPosts.map(post=>(
+          <article className="video-card feed-post-card" key={post.id}>
+            <div className="feed-media-wrap">
+              {post.media_type==="video"
+                ? <video className="feed-media" src={post.media_path} controls playsInline preload="metadata"/>
+                : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
+              }
+            </div>
+
+            <div className="creator-copy">
+              <button className="creator-profile-link" onClick={()=>openFeedCreator(post)}>
+                <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
+              </button>
+              <div className="handle">@{post.creator?.username||"usuario"}</div>
+              {post.caption&&<div className="caption">{post.caption}</div>}
+              <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
+            </div>
+
+            <div className="side-actions">
+              <button className="avatar-action" onClick={()=>openFeedCreator(post)}>
+                {post.creator?.avatar_url
+                  ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
+                  : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+              </button>
+              <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
+                <Heart fill={post.liked_by_me?"currentColor":"none"}/>
+                <span>{post.like_count||0}</span>
+              </button>
+              <button onClick={()=>openPost(post)}><MessageCircle/><span>Comentarios</span></button>
+              <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
+              <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
+            </div>
+          </article>
+        ))}
       </section>
 
       <nav className="bottom-nav">
@@ -1460,7 +1522,7 @@ export default function HomePage(){
 
       <nav className="bottom-nav">
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
-        <button onClick={()=>{setUploadOpen(false);setView("friends");}}><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
@@ -1704,7 +1766,7 @@ export default function HomePage(){
 
       <nav className="bottom-nav">
         <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
-        <button onClick={()=>{setUploadOpen(false);setView("friends");}}><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
         <button><Bell/><span>Alertas</span></button>
         <button className="active"><User/><span>Perfil</span></button>
@@ -2010,7 +2072,7 @@ export default function HomePage(){
 
     <nav className="bottom-nav">
       <button className="active"><Home/><span>Inicio</span></button>
-      <button onClick={()=>{setUploadOpen(false);setView("friends");}}><AmigosIcon/><span>Amigos</span></button>
+      <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
       <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
       <button><Bell/><span>Alertas</span></button>
       <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>Perfil</span></button>
