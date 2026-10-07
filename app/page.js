@@ -1474,7 +1474,7 @@ export default function HomePage(){
             <div className="profile-post-card" key={post.id} onClick={()=>openPost(post)}>
               {post.media_type==="photo"
                 ? <img src={post.media_path} alt={post.caption||"Publicación"}/>
-                : <video src={post.media_path} muted playsInline preload="metadata"/>
+                : <video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>
               }
               {post.pinned_position && <span className="post-pin">📌</span>}
             </div>
@@ -1651,7 +1651,7 @@ export default function HomePage(){
                   {post.media_type==="photo" ? (
                     <img src={post.media_path} alt={post.caption||"Publicación"}/>
                   ) : (
-                    <video src={post.media_path} muted playsInline preload="metadata"/>
+                    <video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>
                   )}
 
                   {post.pinned_position && (
