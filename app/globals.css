@@ -2413,3 +2413,7 @@ body::-webkit-scrollbar,
 .camera-zoom-controls button:disabled{opacity:.35}
 .camera-zoom-controls span{color:white;font-size:11px;font-weight:700;min-width:26px;text-align:center;text-shadow:0 1px 4px #000}
 .camera-bottom.collapsed .camera-zoom-controls{right:0}
+
+/* v13.16.1: Zoom controls only appear when the lower camera panel is transparent/collapsed. */
+.camera-bottom:not(.collapsed) .camera-zoom-controls{display:none !important;}
+.camera-bottom.collapsed .camera-zoom-controls{display:flex !important;pointer-events:auto;}
