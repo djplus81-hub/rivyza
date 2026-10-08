@@ -661,13 +661,13 @@ export default function HomePage(){
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,user?.id]);
 
-  async function loadComments(postId){
+  async function loadComments(postId,{silent=false}={}){
     if(!supabase||!postId)return;
-    setCommentsLoading(true);setCommentError("");
+    if(!silent){setCommentsLoading(true);setCommentError("");}
     const {data,error}=await supabase.from("post_comments")
       .select("id,post_id,user_id,body,created_at").eq("post_id",postId)
       .order("created_at",{ascending:false}).limit(200);
-    if(error){setCommentError("No se pudieron cargar los comentarios. Comprueba la configuración de Supabase.");setCommentsLoading(false);return;}
+    if(error){if(!silent){setCommentError("No se pudieron cargar los comentarios. Comprueba la configuración de Supabase.");setCommentsLoading(false);}return;}
     const ids=[...new Set((data||[]).map(c=>c.user_id))];
     let people=[];
     if(ids.length){const {data:rows}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids);people=rows||[];}
@@ -677,6 +677,50 @@ export default function HomePage(){
     syncCommentCount(postId,(data||[]).length);
     setCommentsLoading(false);
   }
+  // Sincronización de datos entre dispositivos: no recarga la página ni mueve el feed.
+  // Las referencias evitan reiniciar el temporizador cada vez que cambian los contadores.
+  const liveDataRef=useRef({});
+  liveDataRef.current={feedPosts,profilePosts,viewedProfilePosts,selectedPost,commentsOpen,commentSending,view,viewedProfile};
+  useEffect(()=>{
+    if(!supabase || !user?.id)return;
+    let active=true;
+    let running=false;
+    const update=async()=>{
+      if(!active || running || (typeof document!=="undefined" && document.hidden))return;
+      running=true;
+      try{
+        const current=liveDataRef.current;
+        const ids=[...new Set([
+          ...(current.feedPosts||[]).map(p=>p.id),
+          ...(current.profilePosts||[]).map(p=>p.id),
+          ...(current.viewedProfilePosts||[]).map(p=>p.id),
+          current.selectedPost?.id
+        ].filter(Boolean))];
+        if(ids.length){
+          const counts=await getCommentCounts(ids);
+          if(active && counts!==null){
+            const apply=rows=>rows.map(p=>p.comment_count===(counts[p.id]||0)?p:{...p,comment_count:counts[p.id]||0});
+            setFeedPosts(apply);
+            setProfilePosts(apply);
+            setViewedProfilePosts(apply);
+            setSelectedPost(p=>p && p.comment_count!==(counts[p.id]||0)?{...p,comment_count:counts[p.id]||0}:p);
+            if(current.selectedPost?.id)setPostCommentCount(counts[current.selectedPost.id]||0);
+          }
+        }
+        if(active && current.commentsOpen && current.selectedPost?.id && !current.commentSending){
+          await loadComments(current.selectedPost.id,{silent:true});
+        }
+      }catch(err){console.warn("RIVYZA live comment sync:",err);}
+      finally{running=false;}
+    };
+    const timer=setInterval(update,10000);
+    const onReturn=()=>{if(!document.hidden)update();};
+    document.addEventListener("visibilitychange",onReturn);
+    window.addEventListener("focus",onReturn);
+    return ()=>{active=false;clearInterval(timer);document.removeEventListener("visibilitychange",onReturn);window.removeEventListener("focus",onReturn);};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[supabase,user?.id]);
+
   function openComments(post){
     setSelectedPost(post);setPostMenuOpen(false);setCommentsOpen(true);
     setCommentDraft("");setCommentRows([]);setCommentError("");
