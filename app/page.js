@@ -85,6 +85,7 @@ export default function HomePage(){
   const [profile,setProfile]=useState(null);
   const [profilePosts,setProfilePosts]=useState([]);
   const [selectedPost,setSelectedPost]=useState(null);
+  const [postOpenedFromAlert,setPostOpenedFromAlert]=useState(false);
   const [postMenuOpen,setPostMenuOpen]=useState(false);
   const [deleteConfirmOpen,setDeleteConfirmOpen]=useState(false);
   const postSwipeStartY=useRef(null);
@@ -1615,6 +1616,23 @@ export default function HomePage(){
     else{setSocialDraft("");await loadSocial();}
     setSocialBusy(false);
   }
+  async function openNotificationPost(notice){
+    if(!notice?.post_id || !supabase)return;
+    setSocialError("");
+    const {data:post,error}=await supabase.from("posts").select("*").eq("id",notice.post_id).maybeSingle();
+    if(error || !post){setSocialError("Esta publicación ya no está disponible.");return;}
+    // Las notificaciones de likes y comentarios pertenecen al dueño de la publicación.
+    // Usamos su vista de perfil, que ya tiene el visor y el panel de comentarios.
+    setPostOpenedFromAlert(true);
+    setProfileTab("posts");
+    setView("publicProfile");
+    await openPost(post);
+    if(notice.kind==="comment")openComments(post);
+  }
+  function closeNotificationPost(){
+    setCommentsOpen(false);setSelectedPost(null);setPostMenuOpen(false);
+    setPostOpenedFromAlert(false);setView("alerts");
+  }
   async function openSocialAlerts(){
     setView("alerts");await loadSocial();
     await supabase.from("rivyza_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",user.id).is("read_at",null);
@@ -1670,7 +1688,7 @@ export default function HomePage(){
       {view==="alerts"&&<div className="social-list">
         <button className="social-quick" onClick={()=>setView("inbox")}><MessageCircle size={19}/> Abrir mensajes privados ›</button>
         {groupedAlerts.length===0&&<p className="social-empty">Todavía no tienes notificaciones.</p>}
-        {groupedAlerts.map(n=><button key={n.kind==="message"?`message-${n.actor_id||n.id}`:n.id} className="social-item" onClick={()=>n.kind==="message"?openSocialPeer(n.actor):n.actor?.id&&openUserProfile(n.actor)}>
+        {groupedAlerts.map(n=><button key={n.kind==="message"?`message-${n.actor_id||n.id}`:n.id} className="social-item" onClick={()=>n.kind==="message"?openSocialPeer(n.actor):((n.kind==="comment"||n.kind==="like")&&n.post_id?openNotificationPost(n):setSocialError("Esta publicación ya no está disponible."))}>
           <span className="social-icon">{n.kind==="like"?"❤️":n.kind==="comment"?"💬":"✉️"}</span>
           <span><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong> {n.kind==="like"?"le dio me gusta a tu publicación":n.kind==="comment"?"comentó tu publicación":"te envió mensajes"}<small>{formatPostDateTime(n.created_at)}</small></span>
           {n.unreadGroup&&<i className="social-unread"/>}
@@ -2055,7 +2073,7 @@ export default function HomePage(){
       {selectedPost && (
         <div className="post-detail-overlay">
           <header className="post-detail-topbar">
-            <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}} aria-label="Volver">←</button>
+            <button type="button" onClick={()=>{if(postOpenedFromAlert)closeNotificationPost();else{setSelectedPost(null);setPostMenuOpen(false);}}} aria-label="Volver">←</button>
             <strong>Publicación</strong>
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
