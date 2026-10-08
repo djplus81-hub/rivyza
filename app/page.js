@@ -1670,33 +1670,43 @@ export default function HomePage(){
   if(["alerts","inbox","messages","socialSettings"].includes(view)){
     const conversations=new Map();
     socialMessages.forEach(m=>{const peer=m.sender_id===user.id?m.recipient:m.sender;if(peer?.id&&!conversations.has(peer.id))conversations.set(peer.id,{peer,last:m});});
-    // Una sola entrada por persona para alertas de mensajes; el historial permanece completo.
-    const groupedAlerts=[];
-    const seenMessageSenders=new Set();
+    // Mensajes y actividad son dos bandejas independientes.
+    // Cada remitente ocupa una sola fila; el último mensaje decide su posición.
+    const recentConversations=[...conversations.values()].sort((a,b)=>new Date(b.last.created_at)-new Date(a.last.created_at));
+    const unreadBySender=new Map();
     socialNotices.forEach(n=>{
-      if(n.kind==="message" && n.actor_id){
-        if(seenMessageSenders.has(n.actor_id))return;
-        seenMessageSenders.add(n.actor_id);
-        const fromSame=socialNotices.filter(x=>x.kind==="message" && x.actor_id===n.actor_id);
-        groupedAlerts.push({...n,unreadGroup:fromSame.some(x=>!x.read_at),messageTotal:fromSame.length});
-      }else groupedAlerts.push({...n,unreadGroup:!n.read_at});
+      if(n.kind==="message" && n.actor_id && !n.read_at){
+        unreadBySender.set(n.actor_id,(unreadBySender.get(n.actor_id)||0)+1);
+      }
     });
+    const unreadMessages=[...unreadBySender.values()].reduce((sum,count)=>sum+count,0);
+    const activityAlerts=socialNotices.filter(n=>n.kind!=="message");
     const thread=socialMessages.filter(m=>socialPeer && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id));
     return <main className="social-screen">
       <header className="social-top"><button onClick={()=>setView(view==="messages"?"inbox":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):"Configuración y privacidad"}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
       {socialError&&<p className="social-error">{socialError}</p>}
-      {view==="alerts"&&<div className="social-list">
-        <button className="social-quick" onClick={()=>setView("inbox")}><MessageCircle size={19}/> Abrir mensajes privados ›</button>
-        {groupedAlerts.length===0&&<p className="social-empty">Todavía no tienes notificaciones.</p>}
-        {groupedAlerts.map(n=><button key={n.kind==="message"?`message-${n.actor_id||n.id}`:n.id} className="social-item" onClick={()=>n.kind==="message"?openSocialPeer(n.actor):((n.kind==="comment"||n.kind==="like")&&n.post_id?openNotificationPost(n):setSocialError("Esta publicación ya no está disponible."))}>
-          <span className="social-icon">{n.kind==="like"?"❤️":n.kind==="comment"?"💬":"✉️"}</span>
-          <span><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong> {n.kind==="like"?"le dio me gusta a tu publicación":n.kind==="comment"?"comentó tu publicación":"te envió mensajes"}<small>{formatPostDateTime(n.created_at)}</small></span>
-          {n.unreadGroup&&<i className="social-unread"/>}
-        </button>)}
+      {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
+        <section className="rivyza-alert-messages" aria-label="Mensajes privados">
+          <div className="rivyza-alert-section-heading"><span><MessageCircle size={20}/> <strong>Mensajes</strong></span>{unreadMessages>0&&<b className="rivyza-message-count">{unreadMessages>99?"99+":unreadMessages} nuevos</b>}<button type="button" onClick={()=>setView("inbox")}>Ver todos ›</button></div>
+          {recentConversations.length===0?<button className="rivyza-alert-empty-chat" onClick={()=>setView("inbox")}>Todavía no tienes mensajes. Abrir bandeja ›</button>:recentConversations.map(({peer,last})=><button className="rivyza-alert-conversation" key={peer.id} onClick={()=>openSocialPeer(peer)}>
+            <span className="rivyza-alert-avatar">{peer.avatar_url?<img src={peer.avatar_url} alt=""/>:<span>{(peer.display_name||peer.username||"U").slice(0,1).toUpperCase()}</span>}</span>
+            <span className="rivyza-alert-chat-copy"><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.sender_id===user.id?"Tú: ":""}{last.body}</small></span>
+            <span className="rivyza-alert-chat-meta"><small>{formatPostDateTime(last.created_at)}</small>{unreadBySender.get(peer.id)>0&&<b>{unreadBySender.get(peer.id)>99?"99+":unreadBySender.get(peer.id)}</b>}</span>
+          </button>)}
+        </section>
+        <section className="rivyza-alert-activity" aria-label="Otras notificaciones">
+          <div className="rivyza-alert-section-heading"><span><Bell size={19}/><strong>Otras notificaciones</strong></span></div>
+          {activityAlerts.length===0&&<p className="social-empty">Todavía no tienes otras notificaciones.</p>}
+          {activityAlerts.map(n=><button key={n.id} className="social-item" onClick={()=>((n.kind==="comment"||n.kind==="like")&&n.post_id?openNotificationPost(n):setSocialError("Esta publicación ya no está disponible."))}>
+            <span className="social-icon">{n.kind==="like"?"❤️":n.kind==="comment"?"💬":"🔔"}</span>
+            <span><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong> {n.kind==="like"?"le dio me gusta a tu publicación":n.kind==="comment"?"comentó tu publicación":"generó una notificación"}<small>{formatPostDateTime(n.created_at)}</small></span>
+            {!n.read_at&&<i className="social-unread"/>}
+          </button>)}
+        </section>
       </div>}
       {view==="inbox"&&<div className="social-list">
         <button className="social-quick" onClick={()=>{setView("home");setPeopleSearchOpen(true);}}>+ Buscar personas para enviar un mensaje</button>
-        {[...conversations.values()].map(({peer,last})=><button className="social-item" key={peer.id} onClick={()=>openSocialPeer(peer)}><span className="social-icon">✉️</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.body}</small></span></button>)}
+        {recentConversations.map(({peer,last})=><button className="social-item" key={peer.id} onClick={()=>openSocialPeer(peer)}><span className="social-icon">✉️</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.body}</small></span></button>)}
         {conversations.size===0&&<p className="social-empty">Aún no tienes conversaciones. Visita el perfil de una persona y toca «Enviar mensaje».</p>}
       </div>}
       {view==="messages"&&<section className="social-chat-layout"><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder="Escribe un mensaje…" maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>Enviar</button></form><div className="social-thread">
