@@ -75,6 +75,7 @@ export default function HomePage(){
   const [socialNotices,setSocialNotices]=useState([]);
   const [socialMessages,setSocialMessages]=useState([]);
   const [socialPeer,setSocialPeer]=useState(null);
+  const [socialChatReturnView,setSocialChatReturnView]=useState("alerts");
   const [socialDraft,setSocialDraft]=useState("");
   const [socialBusy,setSocialBusy]=useState(false);
   const [socialError,setSocialError]=useState("");
@@ -1617,6 +1618,7 @@ export default function HomePage(){
   }
   async function openSocialPeer(person){
     if(!person?.id || person.id===user?.id)return;
+    setSocialChatReturnView(view==="alerts"?"alerts":view==="inbox"?"inbox":view==="messages"?socialChatReturnView:view==="otherProfile"?"otherProfile":view==="publicProfile"?"publicProfile":"alerts");
     setSocialPeer(person);setSocialDraft("");setSocialError("");setView("messages");
     await markSocialRead(socialNotices.filter(n=>n.kind==="message" && n.actor_id===person.id && !n.read_at).map(n=>n.id));
     await loadSocial();
@@ -1702,7 +1704,7 @@ export default function HomePage(){
     }
     const thread=socialMessages.filter(m=>socialPeer && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     return <main className="social-screen">
-      <header className="social-top"><button onClick={()=>setView(view==="messages"?"inbox":view==="activity"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):"Configuración y privacidad"}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
+      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):"Configuración y privacidad"}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
       {socialError&&<p className="social-error">{socialError}</p>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
         <section className="rivyza-alert-messages" aria-label="Mensajes privados">
