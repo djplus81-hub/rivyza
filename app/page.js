@@ -91,6 +91,11 @@ export default function HomePage(){
   const [likersLoading,setLikersLoading]=useState(false);
   const [postCommentCount,setPostCommentCount]=useState(0);
   const [commentsOpen,setCommentsOpen]=useState(false);
+  const [commentRows,setCommentRows]=useState([]);
+  const [commentDraft,setCommentDraft]=useState("");
+  const [commentsLoading,setCommentsLoading]=useState(false);
+  const [commentSending,setCommentSending]=useState(false);
+  const [commentError,setCommentError]=useState("");
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
   const [viewedProfile,setViewedProfile]=useState(null);
@@ -625,6 +630,66 @@ export default function HomePage(){
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,user?.id]);
+
+  async function loadComments(postId){
+    if(!supabase||!postId)return;
+    setCommentsLoading(true);setCommentError("");
+    const {data,error}=await supabase.from("post_comments")
+      .select("id,post_id,user_id,body,created_at").eq("post_id",postId)
+      .order("created_at",{ascending:true}).limit(200);
+    if(error){setCommentError("No se pudieron cargar los comentarios. Comprueba la configuración de Supabase.");setCommentsLoading(false);return;}
+    const ids=[...new Set((data||[]).map(c=>c.user_id))];
+    let people=[];
+    if(ids.length){const {data:rows}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids);people=rows||[];}
+    const byId=Object.fromEntries(people.map(person=>[person.id,person]));
+    setCommentRows((data||[]).map(c=>({...c,author:byId[c.user_id]||null})));
+    setPostCommentCount((data||[]).length);
+    setCommentsLoading(false);
+  }
+  function openComments(post){
+    setSelectedPost(post);setPostMenuOpen(false);setCommentsOpen(true);
+    setCommentDraft("");setCommentRows([]);setCommentError("");
+    setPostCommentCount(Number(post.comment_count||0));
+    loadComments(post.id);
+  }
+  async function sendComment(e){
+    e?.preventDefault?.();
+    const body=commentDraft.trim();
+    if(!supabase||!user?.id||!selectedPost?.id||!body||commentSending)return;
+    setCommentSending(true);setCommentError("");
+    const postId=selectedPost.id;
+    const {error}=await supabase.from("post_comments").insert({post_id:postId,user_id:user.id,body});
+    if(error){setCommentError("No se pudo enviar. Verifica que la tabla post_comments esté creada.");}
+    else{setCommentDraft("");await loadComments(postId);}
+    setCommentSending(false);
+  }
+  async function deleteComment(id){
+    if(!supabase||!user?.id||!selectedPost?.id)return;
+    const {error}=await supabase.from("post_comments").delete().eq("id",id).eq("user_id",user.id);
+    if(error)setCommentError("No se pudo eliminar el comentario.");
+    else await loadComments(selectedPost.id);
+  }
+  function renderCommentsSheet(){return (
+    <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
+      <div className="post-menu-sheet comments-sheet rivyza-comments" onClick={e=>e.stopPropagation()}>
+        <div className="rivyza-comments-heading"><strong>Comentarios</strong><button type="button" onClick={()=>setCommentsOpen(false)} aria-label="Cerrar comentarios">×</button></div>
+        <div className="rivyza-comments-list">
+          {commentsLoading&&<p>Cargando comentarios…</p>}
+          {!commentsLoading&&!commentRows.length&&!commentError&&<p>Sé la primera persona en comentar.</p>}
+          {commentRows.map(c=><div className="rivyza-comment" key={c.id}>
+            <div className="rivyza-comment-avatar">{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}</div>
+            <div className="rivyza-comment-content"><b>{c.author?.display_name||c.author?.username||"Usuario"}</b><span>{c.body}</span><small>{formatPostDate(c.created_at)}</small></div>
+            {c.user_id===user?.id&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">Eliminar</button>}
+          </div>)}
+        </div>
+        {commentError&&<p className="rivyza-comment-error">{commentError}</p>}
+        <form className="rivyza-comment-compose" onSubmit={sendComment}>
+          <input aria-label="Escribir comentario" placeholder="Escribe un comentario…" value={commentDraft} maxLength={1000} onChange={e=>setCommentDraft(e.target.value)}/>
+          <button type="submit" disabled={!commentDraft.trim()||commentSending}>{commentSending?"Enviando…":"Enviar"}</button>
+        </form>
+      </div>
+    </div>
+  );}
 
   function formatPostDate(value){
     if(!value)return "fecha no disponible";
@@ -1479,7 +1544,7 @@ export default function HomePage(){
                 <Heart fill={post.liked_by_me?"currentColor":"none"}/>
                 <span>{post.like_count||0}</span>
               </button>
-              <button onClick={()=>openPost(post)}><MessageCircle/><span>Comentarios</span></button>
+              <button onClick={()=>openComments(post)}><MessageCircle/><span>Comentarios</span></button>
               <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
               <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
             </div>
@@ -1620,7 +1685,7 @@ export default function HomePage(){
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
-              <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
+              <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
@@ -1634,15 +1699,7 @@ export default function HomePage(){
               </div>
             </div>
           )}
-          {commentsOpen && (
-            <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
-              <div className="post-menu-sheet comments-sheet" onClick={e=>e.stopPropagation()}>
-                <strong>Comentarios</strong>
-                <p>La sección para escribir y leer comentarios queda preparada para conectarla al sistema de comentarios.</p>
-                <button type="button" onClick={()=>setCommentsOpen(false)}>Cerrar</button>
-              </div>
-            </div>
-          )}
+          {commentsOpen && renderCommentsSheet()}
         </div>
       )}
 
@@ -1792,7 +1849,7 @@ export default function HomePage(){
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
-              <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
+              <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
@@ -1827,15 +1884,7 @@ export default function HomePage(){
             </div>
           )}
 
-          {commentsOpen && (
-            <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
-              <div className="post-menu-sheet comments-sheet" onClick={e=>e.stopPropagation()}>
-                <strong>Comentarios</strong>
-                <p>La sección para escribir y leer comentarios queda preparada para conectarla al sistema de comentarios.</p>
-                <button type="button" onClick={()=>setCommentsOpen(false)}>Cerrar</button>
-              </div>
-            </div>
-          )}
+          {commentsOpen && renderCommentsSheet()}
         </div>
       )}
 
@@ -2150,7 +2199,7 @@ export default function HomePage(){
               <Heart fill={post.liked_by_me?"currentColor":"none"}/>
               <span>{post.like_count||0}</span>
             </button>
-            <button onClick={()=>openPost(post)}><MessageCircle/><span>Comentarios</span></button>
+            <button onClick={()=>openComments(post)}><MessageCircle/><span>Comentarios</span></button>
             <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
             <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
           </div>
