@@ -2461,7 +2461,7 @@ body::-webkit-scrollbar,
 .rivyza-comment-content b{font-size:13px;}.rivyza-comment-content small{font-size:11px;color:#a7a7b1;}
 .rivyza-comment-delete{border:0;background:transparent;color:#b6b6c4;font-size:11px;padding:5px;}
 .rivyza-comment-compose{display:flex;gap:8px;flex:none;padding-top:10px;border-top:1px solid #303038;}
-.rivyza-comment-compose input{flex:1;min-width:0;border-radius:22px;border:1px solid #484850;background:#26262d;color:#fff;padding:11px 13px;font-size:14px;}
+.rivyza-comment-compose input{flex:1;min-width:0;border-radius:22px;border:1px solid #484850;background:#26262d;color:#fff;padding:11px 13px;font-size:16px;}
 .rivyza-comment-compose button{background:#df347c;color:white;border:0;border-radius:22px;padding:0 15px;font-weight:700;}
 .rivyza-comment-compose button:disabled{opacity:.5;}
 .rivyza-comments .rivyza-comment-error{color:#ffb1b1;padding:4px 0;font-size:12px;}

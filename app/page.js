@@ -636,7 +636,7 @@ export default function HomePage(){
     setCommentsLoading(true);setCommentError("");
     const {data,error}=await supabase.from("post_comments")
       .select("id,post_id,user_id,body,created_at").eq("post_id",postId)
-      .order("created_at",{ascending:true}).limit(200);
+      .order("created_at",{ascending:false}).limit(200);
     if(error){setCommentError("No se pudieron cargar los comentarios. Comprueba la configuración de Supabase.");setCommentsLoading(false);return;}
     const ids=[...new Set((data||[]).map(c=>c.user_id))];
     let people=[];
@@ -665,8 +665,11 @@ export default function HomePage(){
   }
   async function deleteComment(id){
     if(!supabase||!user?.id||!selectedPost?.id)return;
-    const {error}=await supabase.from("post_comments").delete().eq("id",id).eq("user_id",user.id);
-    if(error)setCommentError("No se pudo eliminar el comentario.");
+    const isPostOwner=selectedPost.user_id===user.id;
+    const request=supabase.from("post_comments").delete().eq("id",id);
+    const {data,error}=await (isPostOwner?request:request.eq("user_id",user.id)).select("id");
+    if(error)setCommentError("No se pudo eliminar el comentario. Verifica el permiso de moderación en Supabase.");
+    else if(!data?.length)setCommentError("No se eliminó. Comprueba que ejecutaste el nuevo SQL de permisos.");
     else await loadComments(selectedPost.id);
   }
   function renderCommentsSheet(){return (
@@ -679,7 +682,7 @@ export default function HomePage(){
           {commentRows.map(c=><div className="rivyza-comment" key={c.id}>
             <div className="rivyza-comment-avatar">{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}</div>
             <div className="rivyza-comment-content"><b>{c.author?.display_name||c.author?.username||"Usuario"}</b><span>{c.body}</span><small>{formatPostDate(c.created_at)}</small></div>
-            {c.user_id===user?.id&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">Eliminar</button>}
+            {(c.user_id===user?.id||selectedPost?.user_id===user?.id)&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">Eliminar</button>}
           </div>)}
         </div>
         {commentError&&<p className="rivyza-comment-error">{commentError}</p>}
