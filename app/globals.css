@@ -2417,3 +2417,20 @@ body::-webkit-scrollbar,
 /* v13.16.1: Zoom controls only appear when the lower camera panel is transparent/collapsed. */
 .camera-bottom:not(.collapsed) .camera-zoom-controls{display:none !important;}
 .camera-bottom.collapsed .camera-zoom-controls{display:flex !important;pointer-events:auto;}
+
+/* v13.16.2: Vertical 9:16 preview for videos on the publish screen only. */
+.post-editor-screen .editor-preview-video {
+  width: min(100%, 270px, 29svh);
+  aspect-ratio: 9 / 16;
+  max-height: none;
+  margin: 0 auto 16px;
+  overflow: hidden;
+  background: #000;
+}
+.post-editor-screen .editor-preview-video video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  object-position: center center;
+}

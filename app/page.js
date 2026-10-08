@@ -1270,7 +1270,7 @@ export default function HomePage(){
              <button onClick={async()=>{resetUpload();await stopCamera();setUploadOpen(false);}}><X/></button>
            </div>
 
-           <div className="upload-preview editor-preview">
+           <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
              {uploadType==="photo"
                ? <img src={uploadPreview} alt="Vista previa"/>
                : <video src={uploadPreview} controls playsInline/>
