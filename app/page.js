@@ -1652,17 +1652,28 @@ export default function HomePage(){
   if(["alerts","inbox","messages","socialSettings"].includes(view)){
     const conversations=new Map();
     socialMessages.forEach(m=>{const peer=m.sender_id===user.id?m.recipient:m.sender;if(peer?.id&&!conversations.has(peer.id))conversations.set(peer.id,{peer,last:m});});
+    // Una sola entrada por persona para alertas de mensajes; el historial permanece completo.
+    const groupedAlerts=[];
+    const seenMessageSenders=new Set();
+    socialNotices.forEach(n=>{
+      if(n.kind==="message" && n.actor_id){
+        if(seenMessageSenders.has(n.actor_id))return;
+        seenMessageSenders.add(n.actor_id);
+        const fromSame=socialNotices.filter(x=>x.kind==="message" && x.actor_id===n.actor_id);
+        groupedAlerts.push({...n,unreadGroup:fromSame.some(x=>!x.read_at),messageTotal:fromSame.length});
+      }else groupedAlerts.push({...n,unreadGroup:!n.read_at});
+    });
     const thread=socialMessages.filter(m=>socialPeer && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).slice().reverse();
     return <main className="social-screen">
-      <header className="social-top"><button onClick={()=>setView("publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):"Configuración y privacidad"}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
+      <header className="social-top"><button onClick={()=>setView(view==="messages"?"inbox":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):"Configuración y privacidad"}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
       {socialError&&<p className="social-error">{socialError}</p>}
       {view==="alerts"&&<div className="social-list">
         <button className="social-quick" onClick={()=>setView("inbox")}><MessageCircle size={19}/> Abrir mensajes privados ›</button>
-        {socialNotices.length===0&&<p className="social-empty">Todavía no tienes notificaciones.</p>}
-        {socialNotices.map(n=><button key={n.id} className="social-item" onClick={()=>n.kind==="message"?openSocialPeer(n.actor):n.actor?.id&&openUserProfile(n.actor)}>
+        {groupedAlerts.length===0&&<p className="social-empty">Todavía no tienes notificaciones.</p>}
+        {groupedAlerts.map(n=><button key={n.kind==="message"?`message-${n.actor_id||n.id}`:n.id} className="social-item" onClick={()=>n.kind==="message"?openSocialPeer(n.actor):n.actor?.id&&openUserProfile(n.actor)}>
           <span className="social-icon">{n.kind==="like"?"❤️":n.kind==="comment"?"💬":"✉️"}</span>
-          <span><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong> {n.kind==="like"?"le dio me gusta a tu publicación":n.kind==="comment"?"comentó tu publicación":"te envió un mensaje"}<small>{formatPostDateTime(n.created_at)}</small></span>
-          {!n.read_at&&<i className="social-unread"/>}
+          <span><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong> {n.kind==="like"?"le dio me gusta a tu publicación":n.kind==="comment"?"comentó tu publicación":"te envió mensajes"}<small>{formatPostDateTime(n.created_at)}</small></span>
+          {n.unreadGroup&&<i className="social-unread"/>}
         </button>)}
       </div>}
       {view==="inbox"&&<div className="social-list">
