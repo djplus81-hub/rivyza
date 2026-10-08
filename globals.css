@@ -2372,3 +2372,87 @@ body::-webkit-scrollbar,
   object-fit:cover !important;
   object-position:center center !important;
 }
+
+
+/* v13.15.3: Para ti photos only — remove the legacy +35px downward offset.
+   Keep contain (no zoom/crop), and leave videos/profile/camera unchanged. */
+.feed-shell > .home-real-feed > .feed-post-card img.feed-media {
+  object-fit:contain !important;
+  object-position:50% 50% !important;
+}
+
+/* v13.15.4 — Videos in opened Publication viewer only.
+   Fill portrait viewer without stretching. Landscape footage is cropped at sides. */
+.post-detail-overlay .post-detail-media video {
+  width:100% !important;
+  height:100% !important;
+  max-width:none !important;
+  max-height:none !important;
+  object-fit:cover !important;
+  object-position:center center !important;
+}
+
+/* v13.15.5: Para ti video only. Portrait frame fill; no image changes. */
+.feed-shell > .home-real-feed > .feed-post-card video.feed-media {
+ width:100% !important;
+ height:100% !important;
+ object-fit:cover !important;
+ object-position:center center !important;
+}
+
+/* RIVYZA 13.15.7: unobtrusive new-posts notice */
+.feed-new-posts-banner{position:sticky;top:12px;z-index:30;display:block;margin:8px auto -48px;padding:10px 18px;border:1px solid rgba(255,255,255,.3);border-radius:24px;background:#16161b;color:white;font-weight:700;box-shadow:0 3px 16px #0009;cursor:pointer;}
+
+/* v13.15.9: restore vertical full-screen camera framing. */
+.camera-stage .camera-live { object-fit:cover !important; object-position:center center !important; }
+
+/* Camera zoom: beside shutter in expanded and collapsed camera panels. */
+.camera-controls-row{position:relative}
+.camera-zoom-controls{position:absolute;right:0;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:5px;z-index:5;pointer-events:auto}
+.camera-zoom-controls button{border:1px solid rgba(255,255,255,.45);background:rgba(0,0,0,.55);color:white;border-radius:50%;width:31px;height:31px;font-size:21px;line-height:1;display:grid;place-items:center}
+.camera-zoom-controls button:disabled{opacity:.35}
+.camera-zoom-controls span{color:white;font-size:11px;font-weight:700;min-width:26px;text-align:center;text-shadow:0 1px 4px #000}
+.camera-bottom.collapsed .camera-zoom-controls{right:0}
+
+/* v13.16.1: Zoom controls only appear when the lower camera panel is transparent/collapsed. */
+.camera-bottom:not(.collapsed) .camera-zoom-controls{display:none !important;}
+.camera-bottom.collapsed .camera-zoom-controls{display:flex !important;pointer-events:auto;}
+
+/* v13.16.2: Vertical 9:16 preview for videos on the publish screen only. */
+.post-editor-screen .editor-preview-video {
+  width: min(100%, 270px, 29svh);
+  aspect-ratio: 9 / 16;
+  max-height: none;
+  margin: 0 auto 16px;
+  overflow: hidden;
+  background: #000;
+}
+.post-editor-screen .editor-preview-video video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  object-position: center center;
+}
+
+/* v13.16.3: true portrait card on publishing screen; no black horizontal container. */
+.post-editor-screen .upload-preview.editor-preview-video {
+  position:relative !important;
+  width:min(100%, 310px) !important;
+  height:auto !important;
+  aspect-ratio:9/16 !important;
+  max-height:none !important;
+  margin:0 auto 16px !important;
+  border-radius:18px !important;
+  background:transparent !important;
+  overflow:hidden !important;
+}
+.post-editor-screen .upload-preview.editor-preview-video video {
+  position:absolute !important;
+  inset:0 !important;
+  width:100% !important;
+  height:100% !important;
+  max-height:none !important;
+  object-fit:cover !important;
+  object-position:center !important;
+}

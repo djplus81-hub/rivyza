@@ -112,6 +112,10 @@ export default function HomePage(){
   const [socialListLoading,setSocialListLoading]=useState(false);
   const [feedTab,setFeedTab]=useState("forYou");
   const [feedPosts,setFeedPosts]=useState([]);
+  const [newFeedPostsAvailable,setNewFeedPostsAvailable]=useState(false);
+  const feedNewestIdRef=useRef(null);
+  const feedCheckBusyRef=useRef(false);
+
   const [feedLoading,setFeedLoading]=useState(false);
   const [feedMessage,setFeedMessage]=useState("");
   const [feedLikeBusy,setFeedLikeBusy]=useState(null);
@@ -140,6 +144,8 @@ export default function HomePage(){
   const cameraPanelTouchStartY=useRef(null);
   const [cameraFacing,setCameraFacing]=useState("user");
   const [cameraStream,setCameraStream]=useState(null);
+  const [cameraZoom,setCameraZoom]=useState(1);
+  const [cameraZoomRange,setCameraZoomRange]=useState({min:1,max:1});
   const [cameraError,setCameraError]=useState("");
   const [recording,setRecording]=useState(false);
   const [recordSeconds,setRecordSeconds]=useState(0);
@@ -521,6 +527,8 @@ export default function HomePage(){
         if(like.user_id===user.id)likedByMe.add(like.post_id);
       });
 
+      feedNewestIdRef.current=rows[0]?.id||null;
+      setNewFeedPostsAvailable(false);
       setFeedPosts(rows.map(post=>({
         ...post,
         creator:creatorMap.get(post.user_id)||null,
@@ -576,6 +584,41 @@ export default function HomePage(){
     if(view==="home" && user?.id)loadHomeFeed(feedTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,user?.id]);
+
+  // Check for new public posts every 30 seconds without resetting the scroll position.
+  // A pending refresh is applied only when the user returns to the top of the feed.
+  useEffect(()=>{
+    if(view!=="home" || !user?.id || !supabase)return;
+    let active=true;
+    const feedEl=document.querySelector(".feed-shell > .home-real-feed");
+    const isBusy=()=>recording || uploadingPost || uploadOpen;
+    const atTop=()=>feedEl && feedEl.scrollTop<=12;
+    const refreshAtTop=()=>{
+      if(!active || !newFeedPostsAvailable || !atTop() || isBusy())return;
+      loadHomeFeed(feedTab);
+    };
+    const check=async()=>{
+      if(!active || feedCheckBusyRef.current || isBusy())return;
+      feedCheckBusyRef.current=true;
+      try{
+        const {data,error}=await supabase.from("posts")
+          .select("id,created_at,user_id")
+          .eq("visibility","public")
+          .order("created_at",{ascending:false}).limit(1);
+        if(error || !active || !data?.length || !feedNewestIdRef.current)return;
+        if(data[0].id!==feedNewestIdRef.current){
+          setNewFeedPostsAvailable(true);
+        }
+      }catch(e){console.warn("RIVYZA feed refresh check:",e);}
+      finally{feedCheckBusyRef.current=false;}
+    };
+    refreshAtTop();
+    const timer=setInterval(check,10000);
+    const onScroll=()=>refreshAtTop();
+    feedEl?.addEventListener("scroll",onScroll,{passive:true});
+    return ()=>{active=false;clearInterval(timer);feedEl?.removeEventListener("scroll",onScroll);};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[view,user?.id,feedTab,newFeedPostsAvailable,recording,uploadingPost,uploadOpen]);
 
   useEffect(()=>{
     if(view==="publicProfile" && user?.id){
@@ -818,6 +861,8 @@ export default function HomePage(){
      cameraStream.getTracks().forEach(t=>t.stop());
    }
    setCameraStream(null);
+   setCameraZoom(1);
+   setCameraZoomRange({min:1,max:1});
    if(recordTimerRef.current){
      clearInterval(recordTimerRef.current);
      recordTimerRef.current=null;
@@ -840,6 +885,17 @@ export default function HomePage(){
        audio:cameraMode==="video"
      });
 
+     const track=stream.getVideoTracks()[0];
+     const capabilities=typeof track?.getCapabilities==="function"?track.getCapabilities():{};
+     const z=capabilities.zoom;
+     const min=Number.isFinite(z?.min)?z.min:1;
+     const max=Number.isFinite(z?.max)?z.max:1;
+     setCameraZoomRange({min,max});
+     const initial=Math.max(min,Math.min(min<1?min:1,max));
+     if(z && min<1){
+       try{await track.applyConstraints({advanced:[{zoom:initial}]});}catch(e){console.warn("Wide camera zoom unavailable",e);}
+     }
+     setCameraZoom(initial);
      setCameraStream(stream);
      setTimeout(()=>{
        if(cameraVideoRef.current){
@@ -859,6 +915,22 @@ export default function HomePage(){
    await startCamera(next);
  }
 
+ async function changeCameraZoom(direction){
+   if(!cameraStream || recording)return;
+   const track=cameraStream.getVideoTracks()[0];
+   if(!track)return;
+   const {min,max}=cameraZoomRange;
+   const next=Math.max(min,Math.min(max,Math.round((cameraZoom+direction*0.5)*10)/10));
+   if(next===cameraZoom)return;
+   try{
+     await track.applyConstraints({advanced:[{zoom:next}]});
+     setCameraZoom(next);
+   }catch(err){
+     console.warn("Camera zoom unavailable",err);
+     setCameraError("Esta cámara no permite cambiar el zoom desde Safari.");
+   }
+ }
+
  async function capturePhoto(){
    const video=cameraVideoRef.current;
    if(!video || !video.videoWidth)return;
@@ -868,9 +940,9 @@ export default function HomePage(){
    const bounds=video.getBoundingClientRect();
    const displayW=bounds.width || 9;
    const displayH=bounds.height || 16;
-   const targetRatio=displayW/displayH;
    const sourceW=video.videoWidth;
    const sourceH=video.videoHeight;
+   const targetRatio=displayW/displayH;
    let cropW=sourceW, cropH=sourceH;
    if(sourceW/sourceH>targetRatio) cropW=sourceH*targetRatio;
    else cropH=sourceW/targetRatio;
@@ -1127,6 +1199,11 @@ export default function HomePage(){
                 </div>
 
                <div className="camera-controls-row">
+                 <div className="camera-zoom-controls" aria-label="Zoom de cámara">
+                   <button type="button" aria-label="Alejar cámara" onClick={()=>changeCameraZoom(-1)} disabled={recording || cameraZoom<=cameraZoomRange.min+0.001}>−</button>
+                   <span>{cameraZoom.toFixed(1)}×</span>
+                   <button type="button" aria-label="Acercar cámara" onClick={()=>changeCameraZoom(1)} disabled={recording || cameraZoom>=cameraZoomRange.max-0.001}>+</button>
+                 </div>
                  <label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(displayName||username||"R").charAt(0).toUpperCase()}</span>}
                    <small>Galería</small>
@@ -1196,7 +1273,7 @@ export default function HomePage(){
              <button onClick={async()=>{resetUpload();await stopCamera();setUploadOpen(false);}}><X/></button>
            </div>
 
-           <div className="upload-preview editor-preview">
+           <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
              {uploadType==="photo"
                ? <img src={uploadPreview} alt="Vista previa"/>
                : <video src={uploadPreview} controls playsInline/>
@@ -2070,6 +2147,7 @@ export default function HomePage(){
     </header>
 
     <section className="video-feed home-real-feed">
+      {newFeedPostsAvailable && <button type="button" className="feed-new-posts-banner" onClick={()=>{loadHomeFeed(feedTab);document.querySelector(".feed-shell > .home-real-feed")?.scrollTo({top:0,behavior:"smooth"});}}>↑ Nuevas publicaciones</button>}
       {feedLoading && !feedPosts.length && (
         <div className="feed-empty-state">Cargando publicaciones…</div>
       )}
