@@ -1579,7 +1579,7 @@ export default function HomePage(){
                 <Heart fill={post.liked_by_me?"currentColor":"none"}/>
                 <span>{post.like_count||0}</span>
               </button>
-              <button onClick={()=>openComments(post)}><MessageCircle/><span>Comentarios</span></button>
+              <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
               <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
               <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
             </div>
@@ -1595,6 +1595,7 @@ export default function HomePage(){
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
       </nav>
       {renderUploadModal()}
+      {commentsOpen && renderCommentsSheet()}
     </main>;
   }
 
@@ -2234,7 +2235,7 @@ export default function HomePage(){
               <Heart fill={post.liked_by_me?"currentColor":"none"}/>
               <span>{post.like_count||0}</span>
             </button>
-            <button onClick={()=>openComments(post)}><MessageCircle/><span>Comentarios</span></button>
+            <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
             <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
             <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
           </div>
@@ -2291,5 +2292,6 @@ export default function HomePage(){
     </nav>
 
     {renderUploadModal()}
+    {commentsOpen && renderCommentsSheet()}
   </main>;
 }
