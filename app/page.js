@@ -124,6 +124,8 @@ export default function HomePage(){
   const [feedLoading,setFeedLoading]=useState(false);
   const [feedMessage,setFeedMessage]=useState("");
   const [feedLikeBusy,setFeedLikeBusy]=useState(null);
+  const feedLikeBusyRef=useRef(null);
+  const postLikeBusyRef=useRef(false);
 
   const [username,setUsername]=useState("");
   const [displayName,setDisplayName]=useState("");
@@ -589,6 +591,7 @@ export default function HomePage(){
 
   async function toggleFeedLike(post){
     if(!supabase || !user?.id || !post?.id || feedLikeBusy===post.id)return;
+    feedLikeBusyRef.current=post.id;
     setFeedLikeBusy(post.id);
     const wasLiked=!!post.liked_by_me;
     setFeedPosts(rows=>rows.map(row=>row.id===post.id
@@ -609,6 +612,7 @@ export default function HomePage(){
         ? {...row,liked_by_me:wasLiked,like_count:Math.max(0,Number(row.like_count||0)+(wasLiked?1:-1))}
         : row));
     }finally{
+      feedLikeBusyRef.current=null;
       setFeedLikeBusy(null);
     }
   }
@@ -707,6 +711,42 @@ export default function HomePage(){
             if(current.selectedPost?.id)setPostCommentCount(counts[current.selectedPost.id]||0);
           }
         }
+        // Sincronizar likes en las mismas publicaciones, sin recargar ni mover el feed.
+        if(ids.length){
+          const likeCounts={};
+          const likedByMe=new Set();
+          let likesOk=true;
+          // Evitar consultas demasiado largas si hay muchas publicaciones visibles.
+          for(let i=0;i<ids.length;i+=80){
+            const batch=ids.slice(i,i+80);
+            const {data,error}=await supabase.from("post_likes")
+              .select("post_id,user_id").in("post_id",batch);
+            if(error){likesOk=false;console.warn("RIVYZA live like sync:",error);break;}
+            for(const like of data||[]){
+              likeCounts[like.post_id]=(likeCounts[like.post_id]||0)+1;
+              if(like.user_id===user.id)likedByMe.add(like.post_id);
+            }
+          }
+          if(active && likesOk){
+            const applyLikes=rows=>rows.map(p=>{
+              if(feedLikeBusyRef.current===p.id || (postLikeBusyRef.current && current.selectedPost?.id===p.id))return p;
+              const n=likeCounts[p.id]||0;
+              const mine=likedByMe.has(p.id);
+              return p.like_count===n && p.liked_by_me===mine?p:{...p,like_count:n,liked_by_me:mine};
+            });
+            setFeedPosts(applyLikes);
+            setProfilePosts(applyLikes);
+            setViewedProfilePosts(applyLikes);
+            if(current.selectedPost?.id && !postLikeBusyRef.current){
+              const id=current.selectedPost.id;
+              setPostLikeCount(likeCounts[id]||0);
+              setPostLiked(likedByMe.has(id));
+            }
+          }
+        }
+        if(active && current.view==="profile")await loadProfileLikeCount(user.id,{own:true});
+        if(active && current.view==="viewProfile" && current.viewedProfile?.id)
+          await loadProfileLikeCount(current.viewedProfile.id);
         if(active && current.commentsOpen && current.selectedPost?.id && !current.commentSending){
           await loadComments(current.selectedPost.id,{silent:true});
         }
@@ -854,7 +894,8 @@ export default function HomePage(){
   }
 
   async function togglePostLike(){
-    if(!selectedPost || !supabase || !user?.id)return;
+    if(!selectedPost || !supabase || !user?.id || postLikeBusyRef.current)return;
+    postLikeBusyRef.current=true;
     try{
       if(postLiked){
         const {error}=await supabase.from("post_likes").delete().eq("post_id",selectedPost.id).eq("user_id",user.id);
@@ -868,6 +909,7 @@ export default function HomePage(){
       if(selectedPost.user_id===user.id)loadProfileLikeCount(user.id,{own:true});
       else if(viewedProfile?.id===selectedPost.user_id)loadProfileLikeCount(viewedProfile.id);
     }catch(e){setPostActionMessage("Los likes necesitan activar el SQL incluido en el paquete.");}
+    finally{postLikeBusyRef.current=false;}
   }
 
   async function copyPostLink(){
