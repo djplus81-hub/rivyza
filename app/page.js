@@ -4,7 +4,7 @@ import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import {
-  Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search,
+  Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
   AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3
 } from "lucide-react";
 
@@ -1590,7 +1590,10 @@ export default function HomePage(){
       const ids=[...new Set([...(notices.data||[]).map(n=>n.actor_id),...(messages.data||[]).flatMap(m=>[m.sender_id,m.recipient_id])])];
       const {data:people}=ids.length?await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids):{data:[]};
       const byId=Object.fromEntries((people||[]).map(x=>[x.id,x]));
-      setSocialNotices((notices.data||[]).map(n=>({...n,actor:byId[n.actor_id]})));
+      const postIds=[...new Set((notices.data||[]).filter(n=>(n.kind==="like"||n.kind==="comment")&&n.post_id).map(n=>n.post_id))];
+      const {data:noticePosts}=postIds.length?await supabase.from("posts").select("id,media_path,media_type").in("id",postIds):{data:[]};
+      const postsById=Object.fromEntries((noticePosts||[]).map(post=>[post.id,post]));
+      setSocialNotices((notices.data||[]).map(n=>({...n,actor:byId[n.actor_id],relatedPost:postsById[n.post_id]||null})));
       setSocialMessages((messages.data||[]).map(m=>({...m,sender:byId[m.sender_id],recipient:byId[m.recipient_id]})));
       setSocialError("");
     }catch(e){console.warn("RIVYZA social:",e);}finally{socialPollBusy.current=false;}
@@ -1724,10 +1727,10 @@ export default function HomePage(){
       </div>}
       {view==="activity"&&<div className="social-list rivyza-activity-list">
         {activityAlerts.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
-        {activityAlerts.map(n=><button key={n.id} className="social-item" onClick={()=>openActivityNotice(n)}>
-          <span className="social-icon">{n.kind==="like"?"❤️":n.kind==="comment"?"💬":n.kind==="follow"?"👤":"↗️"}</span>
-          <span><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong> {n.kind==="like"?"le dio me gusta a tu publicación":n.kind==="comment"?"comentó tu publicación":n.kind==="follow"?"comenzó a seguirte":n.kind==="unfollow"?"dejó de seguirte":"generó una notificación"}<small>{formatPostDateTime(n.created_at)}</small></span>
-          {!n.read_at&&<i className="social-unread"/>}
+        {activityAlerts.map(n=><button key={n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openActivityNotice(n)}>
+          <span className="rivyza-notice-avatar">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt="" loading="lazy"/>:<User size={24}/>}</span>
+          <span className="rivyza-notice-copy"><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong><span>{n.kind==="like"?"Le dio like a tu publicación.":n.kind==="comment"?"Comentó tu publicación.":n.kind==="follow"?"Comenzó a seguirte.":n.kind==="unfollow"?"Dejó de seguirte.":"Nueva actividad."}</span><small>{formatPostDateTime(n.created_at)}</small></span>
+          <span className="rivyza-notice-end">{(n.kind==="like"||n.kind==="comment")&&n.relatedPost?.media_path?<span className="rivyza-notice-thumb">{n.relatedPost.media_type==="photo"?<img src={n.relatedPost.media_path} alt="Publicación" loading="lazy"/>:<video src={`${n.relatedPost.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</span>:null}<span className={"rivyza-notice-type rivyza-notice-type-"+n.kind}>{n.kind==="like"?<Heart size={20}/>:n.kind==="comment"?<MessageCircle size={20}/>:n.kind==="follow"?<UserRoundPlus size={21}/>:n.kind==="unfollow"?<UserRoundMinus size={21}/>:<Bell size={20}/>}</span>{!n.read_at&&<i className="rivyza-notice-unread"/>}</span>
         </button>)}
       </div>}
       {view==="inbox"&&<div className="social-list">
