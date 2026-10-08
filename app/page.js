@@ -1709,10 +1709,10 @@ export default function HomePage(){
         {recentConversations.map(({peer,last})=><button className="social-item" key={peer.id} onClick={()=>openSocialPeer(peer)}><span className="social-icon">✉️</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.body}</small></span></button>)}
         {conversations.size===0&&<p className="social-empty">Aún no tienes conversaciones. Visita el perfil de una persona y toca «Enviar mensaje».</p>}
       </div>}
-      {view==="messages"&&<section className="social-chat-layout"><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder="Escribe un mensaje…" maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>Enviar</button></form><div className="social-thread">
+      {view==="messages"&&<section className="social-chat-layout"><div className="social-thread">
         {thread.map(m=><div key={m.id} className={"social-bubble "+(m.sender_id===user.id?"mine":"theirs")}><p>{m.body}</p>{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
-      </div></section>}
+      </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder="Escribe un mensaje…" maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>Enviar</button></form></section>}
       {view==="socialSettings"&&<section className="social-settings"><h3>Privacidad</h3><label><span><strong>Mostrar cuando estoy en línea</strong><small>Cuando esté desactivado, nadie verá tu punto verde.</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label><p>Esta opción guarda tu preferencia. El indicador verde de presencia en tiempo real se activará en una actualización posterior.</p></section>}
       {socialNav()}
     </main>;
