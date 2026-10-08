@@ -72,6 +72,15 @@ export default function HomePage(){
     }):null;
   },[]);
 
+  const [socialNotices,setSocialNotices]=useState([]);
+  const [socialMessages,setSocialMessages]=useState([]);
+  const [socialPeer,setSocialPeer]=useState(null);
+  const [socialDraft,setSocialDraft]=useState("");
+  const [socialBusy,setSocialBusy]=useState(false);
+  const [socialError,setSocialError]=useState("");
+  const [onlinePreference,setOnlinePreference]=useState(false);
+  const socialPollBusy=useRef(false);
+  const unreadSocial=socialNotices.filter(n=>!n.read_at).length;
   const [user,setUser]=useState(null);
   const [profile,setProfile]=useState(null);
   const [profilePosts,setProfilePosts]=useState([]);
@@ -1566,6 +1575,66 @@ export default function HomePage(){
     }
   }
 
+  async function loadSocial(){
+    if(!supabase || !user?.id || socialPollBusy.current)return;
+    socialPollBusy.current=true;
+    try{
+      const [notices,messages]=await Promise.all([
+        supabase.from("rivyza_notifications").select("*").eq("recipient_id",user.id).order("created_at",{ascending:false}).limit(80),
+        supabase.from("rivyza_messages").select("*").or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`).order("created_at",{ascending:false}).limit(150)
+      ]);
+      if(notices.error || messages.error){setSocialError("Primero configura RIVYZA_SOCIAL_V1.sql en Supabase.");return;}
+      const ids=[...new Set([...(notices.data||[]).map(n=>n.actor_id),...(messages.data||[]).flatMap(m=>[m.sender_id,m.recipient_id])])];
+      const {data:people}=ids.length?await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids):{data:[]};
+      const byId=Object.fromEntries((people||[]).map(x=>[x.id,x]));
+      setSocialNotices((notices.data||[]).map(n=>({...n,actor:byId[n.actor_id]})));
+      setSocialMessages((messages.data||[]).map(m=>({...m,sender:byId[m.sender_id],recipient:byId[m.recipient_id]})));
+      setSocialError("");
+    }catch(e){console.warn("RIVYZA social:",e);}finally{socialPollBusy.current=false;}
+  }
+  useEffect(()=>{
+    if(!user?.id || !supabase)return;
+    loadSocial();
+    const t=setInterval(()=>{if(document.visibilityState==="visible")loadSocial();},10000);
+    const focus=()=>loadSocial();
+    document.addEventListener("visibilitychange",focus);
+    return()=>{clearInterval(t);document.removeEventListener("visibilitychange",focus);};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[user?.id,supabase]);
+  async function openSocialPeer(person){
+    if(!person?.id || person.id===user?.id)return;
+    setSocialPeer(person);setSocialDraft("");setSocialError("");setView("messages");
+    await loadSocial();
+  }
+  async function sendSocialMessage(sharedPostId=null){
+    const body=socialDraft.trim();
+    if(!socialPeer?.id || (!body && !sharedPostId) || socialBusy)return;
+    setSocialBusy(true);
+    const {error}=await supabase.from("rivyza_messages").insert({sender_id:user.id,recipient_id:socialPeer.id,body:body||(sharedPostId?"Te compartió una publicación":""),shared_post_id:sharedPostId});
+    if(error)setSocialError("No se pudo enviar el mensaje: "+error.message);
+    else{setSocialDraft("");await loadSocial();}
+    setSocialBusy(false);
+  }
+  async function openSocialAlerts(){
+    setView("alerts");await loadSocial();
+    await supabase.from("rivyza_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",user.id).is("read_at",null);
+    await loadSocial();
+  }
+  async function saveOnlinePreference(value){
+    const {error}=await supabase.from("rivyza_presence_preferences").upsert({user_id:user.id,show_online:value,updated_at:new Date().toISOString()});
+    if(!error)setOnlinePreference(value);else setSocialError(error.message);
+  }
+  useEffect(()=>{
+    if(!user?.id || !supabase)return;
+    supabase.from("rivyza_presence_preferences").select("show_online").eq("user_id",user.id).maybeSingle().then(({data})=>setOnlinePreference(Boolean(data?.show_online)));
+  },[user?.id,supabase]);
+  function socialNav(){return <nav className="bottom-nav">
+    <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
+    <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+    <button onClick={()=>setView("inbox")}><MessageCircle/><span>Mensajes</span></button>
+    <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+    <button onClick={()=>setView("publicProfile")}><User/><span>Perfil</span></button>
+  </nav>;}
   if(loading)return <div className="center">Cargando RIVYZA…</div>;
 
   if(!user){
@@ -1580,6 +1649,35 @@ export default function HomePage(){
   }
 
   
+  if(["alerts","inbox","messages","socialSettings"].includes(view)){
+    const conversations=new Map();
+    socialMessages.forEach(m=>{const peer=m.sender_id===user.id?m.recipient:m.sender;if(peer?.id&&!conversations.has(peer.id))conversations.set(peer.id,{peer,last:m});});
+    const thread=socialMessages.filter(m=>socialPeer && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).slice().reverse();
+    return <main className="social-screen">
+      <header className="social-top"><button onClick={()=>setView("publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):"Configuración y privacidad"}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
+      {socialError&&<p className="social-error">{socialError}</p>}
+      {view==="alerts"&&<div className="social-list">
+        <button className="social-quick" onClick={()=>setView("inbox")}><MessageCircle size={19}/> Abrir mensajes privados ›</button>
+        {socialNotices.length===0&&<p className="social-empty">Todavía no tienes notificaciones.</p>}
+        {socialNotices.map(n=><button key={n.id} className="social-item" onClick={()=>n.kind==="message"?openSocialPeer(n.actor):n.actor?.id&&openUserProfile(n.actor)}>
+          <span className="social-icon">{n.kind==="like"?"❤️":n.kind==="comment"?"💬":"✉️"}</span>
+          <span><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong> {n.kind==="like"?"le dio me gusta a tu publicación":n.kind==="comment"?"comentó tu publicación":"te envió un mensaje"}<small>{formatPostDateTime(n.created_at)}</small></span>
+          {!n.read_at&&<i className="social-unread"/>}
+        </button>)}
+      </div>}
+      {view==="inbox"&&<div className="social-list">
+        <button className="social-quick" onClick={()=>{setView("home");setPeopleSearchOpen(true);}}>+ Buscar personas para enviar un mensaje</button>
+        {[...conversations.values()].map(({peer,last})=><button className="social-item" key={peer.id} onClick={()=>openSocialPeer(peer)}><span className="social-icon">✉️</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.body}</small></span></button>)}
+        {conversations.size===0&&<p className="social-empty">Aún no tienes conversaciones. Visita el perfil de una persona y toca «Enviar mensaje».</p>}
+      </div>}
+      {view==="messages"&&<><div className="social-thread">
+        {thread.map(m=><div key={m.id} className={"social-bubble "+(m.sender_id===user.id?"mine":"theirs")}><p>{m.body}</p>{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>)}
+        {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
+      </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder="Escribe un mensaje…" maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>Enviar</button></form></>}
+      {view==="socialSettings"&&<section className="social-settings"><h3>Privacidad</h3><label><span><strong>Mostrar cuando estoy en línea</strong><small>Cuando esté desactivado, nadie verá tu punto verde.</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label><p>Esta opción guarda tu preferencia. El indicador verde de presencia en tiempo real se activará en una actualización posterior.</p></section>}
+      {socialNav()}
+    </main>;
+  }
   if(view==="livePreview"){
     return <main className="live-preview-shell">
       <header className="live-preview-header">
@@ -1610,7 +1708,7 @@ export default function HomePage(){
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
         <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button><Bell/><span>Alertas</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
       </nav>
       {renderUploadModal()}
@@ -1677,7 +1775,7 @@ export default function HomePage(){
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
         <button className="active"><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button><Bell/><span>Alertas</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
       </nav>
       {renderUploadModal()}
@@ -1693,6 +1791,7 @@ export default function HomePage(){
         <button className="profile-menu" aria-label="Opciones"><MoreHorizontal size={24}/></button>
       </header>
 
+      <div className="social-profile-message"><button onClick={()=>openSocialPeer(viewedProfile)}><MessageCircle size={18}/> Enviar mensaje</button></div>
       <section className="profile-hero compact-profile">
         <div className="profile-heading-row">
           <div className="profile-heading-copy">
@@ -1829,7 +1928,7 @@ export default function HomePage(){
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
         <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button><Bell/><span>Alertas</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
       </nav>
       {renderUploadModal()}
@@ -1841,7 +1940,7 @@ export default function HomePage(){
       <header className="profile-topbar compact">
         <button className="profile-back" onClick={()=>{setUploadOpen(false);setView("home");}}>←</button>
         <div className="profile-top-title"></div>
-        <button className="profile-menu"><MoreHorizontal size={24}/></button>
+        <button className="profile-menu" onClick={()=>setView("socialSettings")} aria-label="Configuración"><MoreHorizontal size={24}/></button>
       </header>
 
       <section className="profile-hero compact-profile">
@@ -2065,7 +2164,7 @@ export default function HomePage(){
         <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
         <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button><Bell/><span>Alertas</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
         <button className="active"><User/><span>Perfil</span></button>
       </nav>
 
@@ -2373,7 +2472,7 @@ export default function HomePage(){
       <button className="active"><Home/><span>Inicio</span></button>
       <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
       <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-      <button><Bell/><span>Alertas</span></button>
+      <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
       <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>Perfil</span></button>
     </nav>
 
