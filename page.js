@@ -4,7 +4,7 @@ import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import {
-  Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search,
+  Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
   AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3
 } from "lucide-react";
 
@@ -72,10 +72,22 @@ export default function HomePage(){
     }):null;
   },[]);
 
+  const [socialNotices,setSocialNotices]=useState([]);
+  const [socialMessages,setSocialMessages]=useState([]);
+  const [socialPeer,setSocialPeer]=useState(null);
+  const [socialChatReturnView,setSocialChatReturnView]=useState("alerts");
+  const [socialDraft,setSocialDraft]=useState("");
+  const [socialBusy,setSocialBusy]=useState(false);
+  const [socialError,setSocialError]=useState("");
+  const [onlinePreference,setOnlinePreference]=useState(false);
+  const socialPollBusy=useRef(false);
+  const socialThreadRef=useRef(null);
+  const unreadSocial=socialNotices.filter(n=>!n.read_at).length;
   const [user,setUser]=useState(null);
   const [profile,setProfile]=useState(null);
   const [profilePosts,setProfilePosts]=useState([]);
   const [selectedPost,setSelectedPost]=useState(null);
+  const [postOpenedFromAlert,setPostOpenedFromAlert]=useState(false);
   const [postMenuOpen,setPostMenuOpen]=useState(false);
   const [deleteConfirmOpen,setDeleteConfirmOpen]=useState(false);
   const postSwipeStartY=useRef(null);
@@ -91,6 +103,11 @@ export default function HomePage(){
   const [likersLoading,setLikersLoading]=useState(false);
   const [postCommentCount,setPostCommentCount]=useState(0);
   const [commentsOpen,setCommentsOpen]=useState(false);
+  const [commentRows,setCommentRows]=useState([]);
+  const [commentDraft,setCommentDraft]=useState("");
+  const [commentsLoading,setCommentsLoading]=useState(false);
+  const [commentSending,setCommentSending]=useState(false);
+  const [commentError,setCommentError]=useState("");
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
   const [viewedProfile,setViewedProfile]=useState(null);
@@ -108,6 +125,9 @@ export default function HomePage(){
   const [ownFollowingCount,setOwnFollowingCount]=useState(0);
   const [socialListOpen,setSocialListOpen]=useState(false);
   const [socialListTitle,setSocialListTitle]=useState("");
+  const [connectionsRows,setConnectionsRows]=useState([]);
+  const [connectionsLoading,setConnectionsLoading]=useState(false);
+  const [connectionsSearch,setConnectionsSearch]=useState("");
   const [socialListRows,setSocialListRows]=useState([]);
   const [socialListLoading,setSocialListLoading]=useState(false);
   const [feedTab,setFeedTab]=useState("forYou");
@@ -119,6 +139,8 @@ export default function HomePage(){
   const [feedLoading,setFeedLoading]=useState(false);
   const [feedMessage,setFeedMessage]=useState("");
   const [feedLikeBusy,setFeedLikeBusy]=useState(null);
+  const feedLikeBusyRef=useRef(null);
+  const postLikeBusyRef=useRef(false);
 
   const [username,setUsername]=useState("");
   const [displayName,setDisplayName]=useState("");
@@ -144,8 +166,6 @@ export default function HomePage(){
   const cameraPanelTouchStartY=useRef(null);
   const [cameraFacing,setCameraFacing]=useState("user");
   const [cameraStream,setCameraStream]=useState(null);
-  const [cameraZoom,setCameraZoom]=useState(1);
-  const [cameraZoomRange,setCameraZoomRange]=useState({min:1,max:1});
   const [cameraError,setCameraError]=useState("");
   const [recording,setRecording]=useState(false);
   const [recordSeconds,setRecordSeconds]=useState(0);
@@ -230,6 +250,32 @@ export default function HomePage(){
     return null;
   },[supabase]);
 
+  // Contadores reales desde Supabase, sin depender de abrir la hoja de comentarios.
+  async function getCommentCounts(postIds){
+    const ids=[...new Set((postIds||[]).filter(Boolean))];
+    if(!supabase||!ids.length)return {};
+    const counts={};
+    // Procesar por lotes para evitar solicitudes demasiado grandes.
+    for(let i=0;i<ids.length;i+=80){
+      const {data,error}=await supabase.from("post_comments").select("post_id").in("post_id",ids.slice(i,i+80));
+      if(error){console.warn("Comment counts:",error);return null;}
+      (data||[]).forEach(row=>{counts[row.post_id]=(counts[row.post_id]||0)+1;});
+    }
+    return counts;
+  }
+  function syncCommentCount(postId,count){
+    setFeedPosts(rows=>rows.map(row=>row.id===postId?{...row,comment_count:count}:row));
+    setProfilePosts(rows=>rows.map(row=>row.id===postId?{...row,comment_count:count}:row));
+    setViewedProfilePosts(rows=>rows.map(row=>row.id===postId?{...row,comment_count:count}:row));
+    setSelectedPost(row=>row?.id===postId?{...row,comment_count:count}:row);
+  }
+  async function openCommentAuthor(author){
+    if(!author?.id)return;
+    setCommentsOpen(false);
+    setSelectedPost(null);
+    await openUserProfile(author);
+  }
+
   async function loadProfilePosts(){
     if(!supabase || !user?.id)return;
 
@@ -251,7 +297,8 @@ export default function HomePage(){
       return new Date(b.created_at)-new Date(a.created_at);
     });
 
-    setProfilePosts(sorted);
+    const counts=await getCommentCounts(sorted.map(p=>p.id));
+    setProfilePosts(sorted.map(p=>({...p,comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
   async function loadProfileLikeCount(profileId,{own=false}={}){
@@ -343,6 +390,34 @@ export default function HomePage(){
     }
   }
 
+  async function loadConnections(){
+    if(!supabase || !user?.id)return;
+    setConnectionsLoading(true);
+    try{
+      const [{data:out,error:oe},{data:incoming,error:ie}]=await Promise.all([
+        supabase.from("follows").select("following_id").eq("follower_id",user.id),
+        supabase.from("follows").select("follower_id").eq("following_id",user.id)
+      ]);
+      if(oe||ie)throw oe||ie;
+      const outIds=new Set((out||[]).map(x=>x.following_id));
+      const inIds=new Set((incoming||[]).map(x=>x.follower_id));
+      const ids=[...new Set([...outIds,...inIds])].filter(id=>id&&id!==user.id);
+      if(!ids.length){setConnectionsRows([]);return;}
+      const {data,error}=await supabase.from("profiles").select("id,username,display_name,avatar_url,bio").in("id",ids);
+      if(error)throw error;
+      setConnectionsRows((data||[]).map(p=>({...p,i_follow:outIds.has(p.id),follows_me:inIds.has(p.id)})).sort((a,b)=>Number(b.i_follow&&b.follows_me)-Number(a.i_follow&&a.follows_me)));
+    }catch(e){console.error("Connections error:",e);}
+    finally{setConnectionsLoading(false);}
+  }
+  async function followFromConnections(person){
+    if(!supabase||!user?.id||!person?.id)return;
+    const {error}=await supabase.from("follows").insert({follower_id:user.id,following_id:person.id});
+    if(error){console.error("Follow connection error:",error);return;}
+    setConnectionsRows(rows=>rows.map(p=>p.id===person.id?{...p,i_follow:true}:p));
+    loadFollowCounts(user.id,{own:true});
+  }
+  function openConnections(){setConnectionsSearch("");setView("connections");loadConnections();}
+
   async function openSocialList(profileId,type){
     if(!supabase || !profileId)return;
     setSocialListOpen(true);
@@ -416,7 +491,8 @@ export default function HomePage(){
       if(ap!==bp)return ap-bp;
       return new Date(b.created_at)-new Date(a.created_at);
     });
-    setViewedProfilePosts(sorted);
+    const counts=await getCommentCounts(sorted.map(p=>p.id));
+    setViewedProfilePosts(sorted.map(p=>({...p,comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
   async function searchPeople(term=peopleSearch){
@@ -527,13 +603,15 @@ export default function HomePage(){
         if(like.user_id===user.id)likedByMe.add(like.post_id);
       });
 
+      const commentCounts=await getCommentCounts(postIds);
       feedNewestIdRef.current=rows[0]?.id||null;
       setNewFeedPostsAvailable(false);
       setFeedPosts(rows.map(post=>({
         ...post,
         creator:creatorMap.get(post.user_id)||null,
         like_count:likeCountMap.get(post.id)||0,
-        liked_by_me:likedByMe.has(post.id)
+        liked_by_me:likedByMe.has(post.id),
+        comment_count:commentCounts===null?Number(post.comment_count||0):(commentCounts[post.id]||0)
       })));
     }catch(e){
       console.error("Home feed load error:",e);
@@ -556,6 +634,7 @@ export default function HomePage(){
 
   async function toggleFeedLike(post){
     if(!supabase || !user?.id || !post?.id || feedLikeBusy===post.id)return;
+    feedLikeBusyRef.current=post.id;
     setFeedLikeBusy(post.id);
     const wasLiked=!!post.liked_by_me;
     setFeedPosts(rows=>rows.map(row=>row.id===post.id
@@ -576,6 +655,7 @@ export default function HomePage(){
         ? {...row,liked_by_me:wasLiked,like_count:Math.max(0,Number(row.like_count||0)+(wasLiked?1:-1))}
         : row));
     }finally{
+      feedLikeBusyRef.current=null;
       setFeedLikeBusy(null);
     }
   }
@@ -628,6 +708,150 @@ export default function HomePage(){
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,user?.id]);
 
+  async function loadComments(postId,{silent=false}={}){
+    if(!supabase||!postId)return;
+    if(!silent){setCommentsLoading(true);setCommentError("");}
+    const {data,error}=await supabase.from("post_comments")
+      .select("id,post_id,user_id,body,created_at").eq("post_id",postId)
+      .order("created_at",{ascending:false}).limit(200);
+    if(error){if(!silent){setCommentError("No se pudieron cargar los comentarios. Comprueba la configuración de Supabase.");setCommentsLoading(false);}return;}
+    const ids=[...new Set((data||[]).map(c=>c.user_id))];
+    let people=[];
+    if(ids.length){const {data:rows}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids);people=rows||[];}
+    const byId=Object.fromEntries(people.map(person=>[person.id,person]));
+    setCommentRows((data||[]).map(c=>({...c,author:byId[c.user_id]||null})));
+    setPostCommentCount((data||[]).length);
+    syncCommentCount(postId,(data||[]).length);
+    setCommentsLoading(false);
+  }
+  // Sincronización de datos entre dispositivos: no recarga la página ni mueve el feed.
+  // Las referencias evitan reiniciar el temporizador cada vez que cambian los contadores.
+  const liveDataRef=useRef({});
+  liveDataRef.current={feedPosts,profilePosts,viewedProfilePosts,selectedPost,commentsOpen,commentSending,view,viewedProfile};
+  useEffect(()=>{
+    if(!supabase || !user?.id)return;
+    let active=true;
+    let running=false;
+    const update=async()=>{
+      if(!active || running || (typeof document!=="undefined" && document.hidden))return;
+      running=true;
+      try{
+        const current=liveDataRef.current;
+        const ids=[...new Set([
+          ...(current.feedPosts||[]).map(p=>p.id),
+          ...(current.profilePosts||[]).map(p=>p.id),
+          ...(current.viewedProfilePosts||[]).map(p=>p.id),
+          current.selectedPost?.id
+        ].filter(Boolean))];
+        if(ids.length){
+          const counts=await getCommentCounts(ids);
+          if(active && counts!==null){
+            const apply=rows=>rows.map(p=>p.comment_count===(counts[p.id]||0)?p:{...p,comment_count:counts[p.id]||0});
+            setFeedPosts(apply);
+            setProfilePosts(apply);
+            setViewedProfilePosts(apply);
+            setSelectedPost(p=>p && p.comment_count!==(counts[p.id]||0)?{...p,comment_count:counts[p.id]||0}:p);
+            if(current.selectedPost?.id)setPostCommentCount(counts[current.selectedPost.id]||0);
+          }
+        }
+        // Sincronizar likes en las mismas publicaciones, sin recargar ni mover el feed.
+        if(ids.length){
+          const likeCounts={};
+          const likedByMe=new Set();
+          let likesOk=true;
+          // Evitar consultas demasiado largas si hay muchas publicaciones visibles.
+          for(let i=0;i<ids.length;i+=80){
+            const batch=ids.slice(i,i+80);
+            const {data,error}=await supabase.from("post_likes")
+              .select("post_id,user_id").in("post_id",batch);
+            if(error){likesOk=false;console.warn("RIVYZA live like sync:",error);break;}
+            for(const like of data||[]){
+              likeCounts[like.post_id]=(likeCounts[like.post_id]||0)+1;
+              if(like.user_id===user.id)likedByMe.add(like.post_id);
+            }
+          }
+          if(active && likesOk){
+            const applyLikes=rows=>rows.map(p=>{
+              if(feedLikeBusyRef.current===p.id || (postLikeBusyRef.current && current.selectedPost?.id===p.id))return p;
+              const n=likeCounts[p.id]||0;
+              const mine=likedByMe.has(p.id);
+              return p.like_count===n && p.liked_by_me===mine?p:{...p,like_count:n,liked_by_me:mine};
+            });
+            setFeedPosts(applyLikes);
+            setProfilePosts(applyLikes);
+            setViewedProfilePosts(applyLikes);
+            if(current.selectedPost?.id && !postLikeBusyRef.current){
+              const id=current.selectedPost.id;
+              setPostLikeCount(likeCounts[id]||0);
+              setPostLiked(likedByMe.has(id));
+            }
+          }
+        }
+        if(active && current.view==="profile")await loadProfileLikeCount(user.id,{own:true});
+        if(active && current.view==="viewProfile" && current.viewedProfile?.id)
+          await loadProfileLikeCount(current.viewedProfile.id);
+        if(active && current.commentsOpen && current.selectedPost?.id && !current.commentSending){
+          await loadComments(current.selectedPost.id,{silent:true});
+        }
+      }catch(err){console.warn("RIVYZA live comment sync:",err);}
+      finally{running=false;}
+    };
+    const timer=setInterval(update,10000);
+    const onReturn=()=>{if(!document.hidden)update();};
+    document.addEventListener("visibilitychange",onReturn);
+    window.addEventListener("focus",onReturn);
+    return ()=>{active=false;clearInterval(timer);document.removeEventListener("visibilitychange",onReturn);window.removeEventListener("focus",onReturn);};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[supabase,user?.id]);
+
+  function openComments(post){
+    setSelectedPost(post);setPostMenuOpen(false);setCommentsOpen(true);
+    setCommentDraft("");setCommentRows([]);setCommentError("");
+    setPostCommentCount(Number(post.comment_count||0));
+    loadComments(post.id);
+  }
+  async function sendComment(e){
+    e?.preventDefault?.();
+    const body=commentDraft.trim();
+    if(!supabase||!user?.id||!selectedPost?.id||!body||commentSending)return;
+    setCommentSending(true);setCommentError("");
+    const postId=selectedPost.id;
+    const {error}=await supabase.from("post_comments").insert({post_id:postId,user_id:user.id,body});
+    if(error){setCommentError("No se pudo enviar. Verifica que la tabla post_comments esté creada.");}
+    else{setCommentDraft("");await loadComments(postId);}
+    setCommentSending(false);
+  }
+  async function deleteComment(id){
+    if(!supabase||!user?.id||!selectedPost?.id)return;
+    const isPostOwner=selectedPost.user_id===user.id;
+    const request=supabase.from("post_comments").delete().eq("id",id);
+    const {data,error}=await (isPostOwner?request:request.eq("user_id",user.id)).select("id");
+    if(error)setCommentError("No se pudo eliminar el comentario. Verifica el permiso de moderación en Supabase.");
+    else if(!data?.length)setCommentError("No se eliminó. Comprueba que ejecutaste el nuevo SQL de permisos.");
+    else await loadComments(selectedPost.id);
+  }
+  function renderCommentsSheet(){return (
+    <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
+      <div className="post-menu-sheet comments-sheet rivyza-comments" onClick={e=>e.stopPropagation()}>
+        <div className="rivyza-comments-heading"><strong>Comentarios</strong><button type="button" onClick={()=>setCommentsOpen(false)} aria-label="Cerrar comentarios">×</button></div>
+        <div className="rivyza-comments-list">
+          {commentsLoading&&<p>Cargando comentarios…</p>}
+          {!commentsLoading&&!commentRows.length&&!commentError&&<p>Sé la primera persona en comentar.</p>}
+          {commentRows.map(c=><div className="rivyza-comment" key={c.id}>
+            <button type="button" className="rivyza-comment-avatar rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id} aria-label={`Ver perfil de ${c.author?.display_name||c.author?.username||"usuario"}`}>{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}</button>
+            <div className="rivyza-comment-content"><button type="button" className="rivyza-comment-name rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id}>{c.author?.display_name||c.author?.username||"Usuario"}</button><span>{c.body}</span><small>{formatPostDate(c.created_at)}</small></div>
+            {(c.user_id===user?.id||selectedPost?.user_id===user?.id)&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">Eliminar</button>}
+          </div>)}
+        </div>
+        {commentError&&<p className="rivyza-comment-error">{commentError}</p>}
+        <form className="rivyza-comment-compose" onSubmit={sendComment}>
+          <input aria-label="Escribir comentario" placeholder="Escribe un comentario…" value={commentDraft} maxLength={1000} onChange={e=>setCommentDraft(e.target.value)}/>
+          <button type="submit" disabled={!commentDraft.trim()||commentSending}>{commentSending?"Enviando…":"Enviar"}</button>
+        </form>
+      </div>
+    </div>
+  );}
+
   function formatPostDate(value){
     if(!value)return "fecha no disponible";
     const d=new Date(value);
@@ -645,6 +869,7 @@ export default function HomePage(){
     setPostCommentCount(Number(post.comment_count||0));
     setPostLiked(false);
     if(!supabase)return;
+    getCommentCounts([post.id]).then(counts=>{if(counts!==null){const n=counts[post.id]||0;setPostCommentCount(n);syncCommentCount(post.id,n);}});
     try{
       const {data:countData}=await supabase.rpc("get_post_like_count",{target_post_id:post.id});
       if(countData!==null && countData!==undefined)setPostLikeCount(Number(countData)||0);
@@ -712,7 +937,8 @@ export default function HomePage(){
   }
 
   async function togglePostLike(){
-    if(!selectedPost || !supabase || !user?.id)return;
+    if(!selectedPost || !supabase || !user?.id || postLikeBusyRef.current)return;
+    postLikeBusyRef.current=true;
     try{
       if(postLiked){
         const {error}=await supabase.from("post_likes").delete().eq("post_id",selectedPost.id).eq("user_id",user.id);
@@ -726,6 +952,7 @@ export default function HomePage(){
       if(selectedPost.user_id===user.id)loadProfileLikeCount(user.id,{own:true});
       else if(viewedProfile?.id===selectedPost.user_id)loadProfileLikeCount(viewedProfile.id);
     }catch(e){setPostActionMessage("Los likes necesitan activar el SQL incluido en el paquete.");}
+    finally{postLikeBusyRef.current=false;}
   }
 
   async function copyPostLink(){
@@ -861,8 +1088,6 @@ export default function HomePage(){
      cameraStream.getTracks().forEach(t=>t.stop());
    }
    setCameraStream(null);
-   setCameraZoom(1);
-   setCameraZoomRange({min:1,max:1});
    if(recordTimerRef.current){
      clearInterval(recordTimerRef.current);
      recordTimerRef.current=null;
@@ -885,17 +1110,6 @@ export default function HomePage(){
        audio:cameraMode==="video"
      });
 
-     const track=stream.getVideoTracks()[0];
-     const capabilities=typeof track?.getCapabilities==="function"?track.getCapabilities():{};
-     const z=capabilities.zoom;
-     const min=Number.isFinite(z?.min)?z.min:1;
-     const max=Number.isFinite(z?.max)?z.max:1;
-     setCameraZoomRange({min,max});
-     const initial=Math.max(min,Math.min(min<1?min:1,max));
-     if(z && min<1){
-       try{await track.applyConstraints({advanced:[{zoom:initial}]});}catch(e){console.warn("Wide camera zoom unavailable",e);}
-     }
-     setCameraZoom(initial);
      setCameraStream(stream);
      setTimeout(()=>{
        if(cameraVideoRef.current){
@@ -913,22 +1127,6 @@ export default function HomePage(){
    const next=cameraFacing==="user"?"environment":"user";
    setCameraFacing(next);
    await startCamera(next);
- }
-
- async function changeCameraZoom(direction){
-   if(!cameraStream || recording)return;
-   const track=cameraStream.getVideoTracks()[0];
-   if(!track)return;
-   const {min,max}=cameraZoomRange;
-   const next=Math.max(min,Math.min(max,Math.round((cameraZoom+direction*0.5)*10)/10));
-   if(next===cameraZoom)return;
-   try{
-     await track.applyConstraints({advanced:[{zoom:next}]});
-     setCameraZoom(next);
-   }catch(err){
-     console.warn("Camera zoom unavailable",err);
-     setCameraError("Esta cámara no permite cambiar el zoom desde Safari.");
-   }
  }
 
  async function capturePhoto(){
@@ -1199,11 +1397,6 @@ export default function HomePage(){
                 </div>
 
                <div className="camera-controls-row">
-                 <div className="camera-zoom-controls" aria-label="Zoom de cámara">
-                   <button type="button" aria-label="Alejar cámara" onClick={()=>changeCameraZoom(-1)} disabled={recording || cameraZoom<=cameraZoomRange.min+0.001}>−</button>
-                   <span>{cameraZoom.toFixed(1)}×</span>
-                   <button type="button" aria-label="Acercar cámara" onClick={()=>changeCameraZoom(1)} disabled={recording || cameraZoom>=cameraZoomRange.max-0.001}>+</button>
-                 </div>
                  <label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(displayName||username||"R").charAt(0).toUpperCase()}</span>}
                    <small>Galería</small>
@@ -1416,6 +1609,99 @@ export default function HomePage(){
     }
   }
 
+  async function loadSocial(){
+    if(!supabase || !user?.id || socialPollBusy.current)return;
+    socialPollBusy.current=true;
+    try{
+      const [notices,messages]=await Promise.all([
+        supabase.from("rivyza_notifications").select("*").eq("recipient_id",user.id).order("created_at",{ascending:false}).limit(80),
+        supabase.from("rivyza_messages").select("*").or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`).order("created_at",{ascending:false}).limit(150)
+      ]);
+      if(notices.error || messages.error){setSocialError("Primero configura RIVYZA_SOCIAL_V1.sql en Supabase.");return;}
+      const ids=[...new Set([...(notices.data||[]).map(n=>n.actor_id),...(messages.data||[]).flatMap(m=>[m.sender_id,m.recipient_id])])];
+      const {data:people}=ids.length?await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids):{data:[]};
+      const byId=Object.fromEntries((people||[]).map(x=>[x.id,x]));
+      const postIds=[...new Set((notices.data||[]).filter(n=>(n.kind==="like"||n.kind==="comment")&&n.post_id).map(n=>n.post_id))];
+      const {data:noticePosts}=postIds.length?await supabase.from("posts").select("id,media_path,media_type").in("id",postIds):{data:[]};
+      const postsById=Object.fromEntries((noticePosts||[]).map(post=>[post.id,post]));
+      setSocialNotices((notices.data||[]).map(n=>({...n,actor:byId[n.actor_id],relatedPost:postsById[n.post_id]||null})));
+      setSocialMessages((messages.data||[]).map(m=>({...m,sender:byId[m.sender_id],recipient:byId[m.recipient_id]})));
+      setSocialError("");
+    }catch(e){console.warn("RIVYZA social:",e);}finally{socialPollBusy.current=false;}
+  }
+  useEffect(()=>{
+    if(!user?.id || !supabase)return;
+    loadSocial();
+    const t=setInterval(()=>{if(document.visibilityState==="visible")loadSocial();},10000);
+    const focus=()=>loadSocial();
+    document.addEventListener("visibilitychange",focus);
+    return()=>{clearInterval(t);document.removeEventListener("visibilitychange",focus);};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[user?.id,supabase]);
+  // Mantener el chat abajo cuando se abre y cuando llegan mensajes nuevos.
+  const activeThreadLastId=socialMessages.find(m=>socialPeer && ((m.sender_id===socialPeer.id && m.recipient_id===user?.id)||(m.recipient_id===socialPeer.id && m.sender_id===user?.id)))?.id;
+  useEffect(()=>{
+    if(view!=="messages" || !socialPeer?.id)return;
+    const el=socialThreadRef.current;
+    if(el)el.scrollTop=el.scrollHeight;
+  },[view,socialPeer?.id,activeThreadLastId]);
+  async function markSocialRead(ids){
+    if(!ids?.length)return;
+    const {error}=await supabase.from("rivyza_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",user.id).in("id",ids);
+    if(!error)setSocialNotices(rows=>rows.map(n=>ids.includes(n.id)?{...n,read_at:new Date().toISOString()}:n));
+  }
+  async function openSocialPeer(person){
+    if(!person?.id || person.id===user?.id)return;
+    setSocialChatReturnView(view==="alerts"?"alerts":view==="inbox"?"inbox":view==="messages"?socialChatReturnView:view==="otherProfile"?"otherProfile":view==="publicProfile"?"publicProfile":"alerts");
+    setSocialPeer(person);setSocialDraft("");setSocialError("");setView("messages");
+    await markSocialRead(socialNotices.filter(n=>n.kind==="message" && n.actor_id===person.id && !n.read_at).map(n=>n.id));
+    await loadSocial();
+  }
+  async function sendSocialMessage(sharedPostId=null){
+    const body=socialDraft.trim();
+    if(!socialPeer?.id || (!body && !sharedPostId) || socialBusy)return;
+    setSocialBusy(true);
+    const {error}=await supabase.from("rivyza_messages").insert({sender_id:user.id,recipient_id:socialPeer.id,body:body||(sharedPostId?"Te compartió una publicación":""),shared_post_id:sharedPostId});
+    if(error)setSocialError("No se pudo enviar el mensaje: "+error.message);
+    else{setSocialDraft("");await loadSocial();}
+    setSocialBusy(false);
+  }
+  async function openNotificationPost(notice){
+    if(!notice?.post_id || !supabase)return;
+    setSocialError("");
+    const {data:post,error}=await supabase.from("posts").select("*").eq("id",notice.post_id).maybeSingle();
+    if(error || !post){setSocialError("Esta publicación ya no está disponible.");return;}
+    // Las notificaciones de likes y comentarios pertenecen al dueño de la publicación.
+    // Usamos su vista de perfil, que ya tiene el visor y el panel de comentarios.
+    await markSocialRead([notice.id]);
+    setPostOpenedFromAlert(true);
+    setProfileTab("posts");
+    setView("publicProfile");
+    await openPost(post);
+    if(notice.kind==="comment")openComments(post);
+  }
+  function closeNotificationPost(){
+    setCommentsOpen(false);setSelectedPost(null);setPostMenuOpen(false);
+    setPostOpenedFromAlert(false);setView("alerts");
+  }
+  async function openSocialAlerts(){
+    setView("alerts");await loadSocial();
+  }
+  async function saveOnlinePreference(value){
+    const {error}=await supabase.from("rivyza_presence_preferences").upsert({user_id:user.id,show_online:value,updated_at:new Date().toISOString()});
+    if(!error)setOnlinePreference(value);else setSocialError(error.message);
+  }
+  useEffect(()=>{
+    if(!user?.id || !supabase)return;
+    supabase.from("rivyza_presence_preferences").select("show_online").eq("user_id",user.id).maybeSingle().then(({data})=>setOnlinePreference(Boolean(data?.show_online)));
+  },[user?.id,supabase]);
+  function socialNav(){return <nav className="bottom-nav">
+    <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
+    <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+    <button onClick={()=>setView("inbox")}><MessageCircle/><span>Mensajes</span></button>
+    <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+    <button onClick={()=>setView("publicProfile")}><User/><span>Perfil</span></button>
+  </nav>;}
   if(loading)return <div className="center">Cargando RIVYZA…</div>;
 
   if(!user){
@@ -1430,6 +1716,67 @@ export default function HomePage(){
   }
 
   
+  if(["alerts","activity","inbox","messages","socialSettings"].includes(view)){
+    const conversations=new Map();
+    socialMessages.forEach(m=>{const peer=m.sender_id===user.id?m.recipient:m.sender;if(peer?.id&&!conversations.has(peer.id))conversations.set(peer.id,{peer,last:m});});
+    // Mensajes y actividad son dos bandejas independientes.
+    // Cada remitente ocupa una sola fila; el último mensaje decide su posición.
+    const recentConversations=[...conversations.values()].sort((a,b)=>new Date(b.last.created_at)-new Date(a.last.created_at));
+    const unreadBySender=new Map();
+    socialNotices.forEach(n=>{
+      if(n.kind==="message" && n.actor_id && !n.read_at){
+        unreadBySender.set(n.actor_id,(unreadBySender.get(n.actor_id)||0)+1);
+      }
+    });
+    const unreadMessages=[...unreadBySender.values()].reduce((sum,count)=>sum+count,0);
+    const activityAlerts=socialNotices.filter(n=>n.kind!=="message");
+    const activityUnread=activityAlerts.filter(n=>!n.read_at).length;
+    async function openActivityNotice(n){
+      if(n.kind==="like"||n.kind==="comment"){await openNotificationPost(n);return;}
+      await markSocialRead([n.id]);
+      if(n.actor){openUserProfile(n.actor);}else setSocialError("Este perfil no está disponible.");
+    }
+    const thread=socialMessages.filter(m=>socialPeer && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    return <main className="social-screen">
+      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):"Configuración y privacidad"}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
+      {socialError&&<p className="social-error">{socialError}</p>}
+      {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
+        <section className="rivyza-alert-messages" aria-label="Mensajes privados">
+          <div className="rivyza-alert-section-heading"><span><MessageCircle size={20}/> <strong>Mensajes</strong></span>{unreadMessages>0&&<b className="rivyza-message-count">{unreadMessages>99?"99+":unreadMessages} nuevos</b>}<button type="button" onClick={()=>setView("inbox")}>Ver todos ›</button></div>
+          {recentConversations.length===0?<button className="rivyza-alert-empty-chat" onClick={()=>setView("inbox")}>Todavía no tienes mensajes. Abrir bandeja ›</button>:recentConversations.map(({peer,last})=><button className="rivyza-alert-conversation" key={peer.id} onClick={()=>openSocialPeer(peer)}>
+            <span className="rivyza-alert-avatar">{peer.avatar_url?<img src={peer.avatar_url} alt=""/>:<span>{(peer.display_name||peer.username||"U").slice(0,1).toUpperCase()}</span>}</span>
+            <span className="rivyza-alert-chat-copy"><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.sender_id===user.id?"Tú: ":""}{last.body}</small></span>
+            <span className="rivyza-alert-chat-meta"><small>{formatPostDateTime(last.created_at)}</small>{unreadBySender.get(peer.id)>0&&<b>{unreadBySender.get(peer.id)>99?"99+":unreadBySender.get(peer.id)}</b>}</span>
+          </button>)}
+        </section>
+        <button type="button" className="rivyza-activity-entry" onClick={()=>setView("activity")}>
+          <span className="rivyza-activity-logo"><Heart size={20}/><User size={16}/></span>
+          <span className="rivyza-activity-copy"><strong>Actividad y seguidores</strong><small>Likes, comentarios y seguidores</small></span>
+          {activityUnread>0&&<b className="rivyza-message-count">{activityUnread>99?"99+":activityUnread}</b>}
+          <span aria-hidden="true">›</span>
+        </button>
+      </div>}
+      {view==="activity"&&<div className="social-list rivyza-activity-list">
+        {activityAlerts.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
+        {activityAlerts.map(n=><button key={n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openActivityNotice(n)}>
+          <span className="rivyza-notice-avatar">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt="" loading="lazy"/>:<User size={24}/>}</span>
+          <span className="rivyza-notice-copy"><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong><span>{n.kind==="like"?"Le dio like a tu publicación.":n.kind==="comment"?"Comentó tu publicación.":n.kind==="follow"?"Comenzó a seguirte.":n.kind==="unfollow"?"Dejó de seguirte.":"Nueva actividad."}</span><small>{formatPostDateTime(n.created_at)}</small></span>
+          <span className="rivyza-notice-end">{(n.kind==="like"||n.kind==="comment")&&n.relatedPost?.media_path?<span className="rivyza-notice-thumb">{n.relatedPost.media_type==="photo"?<img src={n.relatedPost.media_path} alt="Publicación" loading="lazy"/>:<video src={`${n.relatedPost.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</span>:null}<span className={"rivyza-notice-type rivyza-notice-type-"+n.kind}>{n.kind==="like"?<Heart size={20}/>:n.kind==="comment"?<MessageCircle size={20}/>:n.kind==="follow"?<UserRoundPlus size={21}/>:n.kind==="unfollow"?<UserRoundMinus size={21}/>:<Bell size={20}/>}</span>{!n.read_at&&<i className="rivyza-notice-unread"/>}</span>
+        </button>)}
+      </div>}
+      {view==="inbox"&&<div className="social-list">
+        <button className="social-quick" onClick={()=>{setView("home");setPeopleSearchOpen(true);}}>+ Buscar personas para enviar un mensaje</button>
+        {recentConversations.map(({peer,last})=><button className="social-item" key={peer.id} onClick={()=>openSocialPeer(peer)}><span className="social-icon">✉️</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.body}</small></span></button>)}
+        {conversations.size===0&&<p className="social-empty">Aún no tienes conversaciones. Visita el perfil de una persona y toca «Enviar mensaje».</p>}
+      </div>}
+      {view==="messages"&&<section className="social-chat-layout"><div className="social-thread" ref={socialThreadRef}>
+        {thread.map(m=><div key={m.id} className={"social-bubble "+(m.sender_id===user.id?"mine":"theirs")}><p>{m.body}</p>{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>)}
+        {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
+      </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder="Escribe un mensaje…" maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>Enviar</button></form></section>}
+      {view==="socialSettings"&&<section className="social-settings"><h3>Privacidad</h3><label><span><strong>Mostrar cuando estoy en línea</strong><small>Cuando esté desactivado, nadie verá tu punto verde.</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label><p>Esta opción guarda tu preferencia. El indicador verde de presencia en tiempo real se activará en una actualización posterior.</p></section>}
+      {socialNav()}
+    </main>;
+  }
   if(view==="livePreview"){
     return <main className="live-preview-shell">
       <header className="live-preview-header">
@@ -1460,10 +1807,31 @@ export default function HomePage(){
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
         <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button><Bell/><span>Alertas</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
       </nav>
       {renderUploadModal()}
+    </main>;
+  }
+
+  if(view==="connections"){
+    const matches=connectionsRows.filter(p=>(`${p.display_name||""} ${p.username||""}`).toLowerCase().includes(connectionsSearch.toLowerCase()));
+    return <main className="feed-shell connections-screen">
+      <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>Conexiones</h1><span></span></header>
+      <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder="Buscar entre tus conexiones" aria-label="Buscar conexiones"/></div>
+      <p className="connections-hint">Amigos, personas que sigues y personas que te siguen.</p>
+      <section className="connections-list">
+        {connectionsLoading&&<p className="connections-empty">Cargando conexiones…</p>}
+        {!connectionsLoading&&!matches.length&&<p className="connections-empty">No hay conexiones para mostrar.</p>}
+        {matches.map(person=><div className="connections-person" key={person.id}>
+          <button type="button" className="connections-identity" onClick={()=>openUserProfile(person)}>
+            {person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="connections-fallback">{(person.display_name||person.username||"R").slice(0,1).toUpperCase()}</span>}
+            <span className="connections-names"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
+          </button>
+          {person.i_follow&&person.follows_me?<span className="connections-friends">Amigos</span>:person.i_follow?<span className="connections-following">Siguiendo</span>:<div className="connections-follow-back"><small>Te sigue</small><button type="button" onClick={()=>followFromConnections(person)}>Seguir</button></div>}
+        </div>)}
+      </section>
+      <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>Inicio</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button></nav>
     </main>;
   }
 
@@ -1515,7 +1883,7 @@ export default function HomePage(){
                 <Heart fill={post.liked_by_me?"currentColor":"none"}/>
                 <span>{post.like_count||0}</span>
               </button>
-              <button onClick={()=>openPost(post)}><MessageCircle/><span>Comentarios</span></button>
+              <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
               <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
               <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
             </div>
@@ -1527,10 +1895,11 @@ export default function HomePage(){
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
         <button className="active"><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button><Bell/><span>Alertas</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
       </nav>
       {renderUploadModal()}
+      {commentsOpen && renderCommentsSheet()}
     </main>;
   }
 
@@ -1542,6 +1911,7 @@ export default function HomePage(){
         <button className="profile-menu" aria-label="Opciones"><MoreHorizontal size={24}/></button>
       </header>
 
+      <div className="social-profile-message"><button onClick={()=>openSocialPeer(viewedProfile)}><MessageCircle size={18}/> Enviar mensaje</button></div>
       <section className="profile-hero compact-profile">
         <div className="profile-heading-row">
           <div className="profile-heading-copy">
@@ -1656,7 +2026,7 @@ export default function HomePage(){
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
-              <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
+              <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
@@ -1670,15 +2040,7 @@ export default function HomePage(){
               </div>
             </div>
           )}
-          {commentsOpen && (
-            <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
-              <div className="post-menu-sheet comments-sheet" onClick={e=>e.stopPropagation()}>
-                <strong>Comentarios</strong>
-                <p>La sección para escribir y leer comentarios queda preparada para conectarla al sistema de comentarios.</p>
-                <button type="button" onClick={()=>setCommentsOpen(false)}>Cerrar</button>
-              </div>
-            </div>
-          )}
+          {commentsOpen && renderCommentsSheet()}
         </div>
       )}
 
@@ -1686,7 +2048,7 @@ export default function HomePage(){
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
         <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button><Bell/><span>Alertas</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
       </nav>
       {renderUploadModal()}
@@ -1698,7 +2060,7 @@ export default function HomePage(){
       <header className="profile-topbar compact">
         <button className="profile-back" onClick={()=>{setUploadOpen(false);setView("home");}}>←</button>
         <div className="profile-top-title"></div>
-        <button className="profile-menu"><MoreHorizontal size={24}/></button>
+        <button className="profile-menu" onClick={()=>setView("socialSettings")} aria-label="Configuración"><MoreHorizontal size={24}/></button>
       </header>
 
       <section className="profile-hero compact-profile">
@@ -1802,7 +2164,7 @@ export default function HomePage(){
       {selectedPost && (
         <div className="post-detail-overlay">
           <header className="post-detail-topbar">
-            <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}} aria-label="Volver">←</button>
+            <button type="button" onClick={()=>{if(postOpenedFromAlert)closeNotificationPost();else{setSelectedPost(null);setPostMenuOpen(false);}}} aria-label="Volver">←</button>
             <strong>Publicación</strong>
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
@@ -1828,7 +2190,7 @@ export default function HomePage(){
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
-              <button type="button" onClick={()=>setCommentsOpen(true)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
+              <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
@@ -1863,15 +2225,7 @@ export default function HomePage(){
             </div>
           )}
 
-          {commentsOpen && (
-            <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
-              <div className="post-menu-sheet comments-sheet" onClick={e=>e.stopPropagation()}>
-                <strong>Comentarios</strong>
-                <p>La sección para escribir y leer comentarios queda preparada para conectarla al sistema de comentarios.</p>
-                <button type="button" onClick={()=>setCommentsOpen(false)}>Cerrar</button>
-              </div>
-            </div>
-          )}
+          {commentsOpen && renderCommentsSheet()}
         </div>
       )}
 
@@ -1930,7 +2284,7 @@ export default function HomePage(){
         <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
         <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button><Bell/><span>Alertas</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
         <button className="active"><User/><span>Perfil</span></button>
       </nav>
 
@@ -2139,7 +2493,7 @@ export default function HomePage(){
     <header className="feed-topbar">
       <div className="top-brand">RIVYZA</div>
       <div className="feed-tabs">
-        <button className={feedTab==="following"?"active-tab":""} onClick={()=>changeFeedTab("following")}>Siguiendo</button>
+        <button onClick={openConnections}>Conexiones</button>
         <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>Para ti</button>
         <button onClick={()=>setView("livePreview")}>LIVE</button>
       </div>
@@ -2186,7 +2540,7 @@ export default function HomePage(){
               <Heart fill={post.liked_by_me?"currentColor":"none"}/>
               <span>{post.like_count||0}</span>
             </button>
-            <button onClick={()=>openPost(post)}><MessageCircle/><span>Comentarios</span></button>
+            <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
             <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
             <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
           </div>
@@ -2238,10 +2592,11 @@ export default function HomePage(){
       <button className="active"><Home/><span>Inicio</span></button>
       <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
       <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-      <button><Bell/><span>Alertas</span></button>
+      <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
       <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>Perfil</span></button>
     </nav>
 
     {renderUploadModal()}
+    {commentsOpen && renderCommentsSheet()}
   </main>;
 }
