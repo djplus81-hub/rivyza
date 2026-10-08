@@ -2469,3 +2469,9 @@ body::-webkit-scrollbar,
 .rivyza-comments .rivyza-comment-compose button{background:#df347c;color:#fff;padding:0 15px;min-height:40px;}
 .rivyza-comments .rivyza-comments-heading button{color:#fff;}
 .rivyza-comments .rivyza-comment-delete{color:#b6b6c4;}
+
+/* RIVYZA v13.16.8: autores de comentarios navegables */
+.rivyza-comment-profile-link{cursor:pointer;-webkit-tap-highlight-color:transparent;}
+button.rivyza-comment-avatar{border:0;padding:0;appearance:none;-webkit-appearance:none;}
+.rivyza-comment-name{display:block;width:fit-content;text-align:left;background:transparent;border:0;padding:0;color:inherit;font-weight:700;font-size:13px;line-height:1.3;}
+.rivyza-comment-profile-link:disabled{cursor:default;opacity:1;}

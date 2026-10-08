@@ -233,6 +233,32 @@ export default function HomePage(){
     return null;
   },[supabase]);
 
+  // Contadores reales desde Supabase, sin depender de abrir la hoja de comentarios.
+  async function getCommentCounts(postIds){
+    const ids=[...new Set((postIds||[]).filter(Boolean))];
+    if(!supabase||!ids.length)return {};
+    const counts={};
+    // Procesar por lotes para evitar solicitudes demasiado grandes.
+    for(let i=0;i<ids.length;i+=80){
+      const {data,error}=await supabase.from("post_comments").select("post_id").in("post_id",ids.slice(i,i+80));
+      if(error){console.warn("Comment counts:",error);return null;}
+      (data||[]).forEach(row=>{counts[row.post_id]=(counts[row.post_id]||0)+1;});
+    }
+    return counts;
+  }
+  function syncCommentCount(postId,count){
+    setFeedPosts(rows=>rows.map(row=>row.id===postId?{...row,comment_count:count}:row));
+    setProfilePosts(rows=>rows.map(row=>row.id===postId?{...row,comment_count:count}:row));
+    setViewedProfilePosts(rows=>rows.map(row=>row.id===postId?{...row,comment_count:count}:row));
+    setSelectedPost(row=>row?.id===postId?{...row,comment_count:count}:row);
+  }
+  async function openCommentAuthor(author){
+    if(!author?.id)return;
+    setCommentsOpen(false);
+    setSelectedPost(null);
+    await openUserProfile(author);
+  }
+
   async function loadProfilePosts(){
     if(!supabase || !user?.id)return;
 
@@ -254,7 +280,8 @@ export default function HomePage(){
       return new Date(b.created_at)-new Date(a.created_at);
     });
 
-    setProfilePosts(sorted);
+    const counts=await getCommentCounts(sorted.map(p=>p.id));
+    setProfilePosts(sorted.map(p=>({...p,comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
   async function loadProfileLikeCount(profileId,{own=false}={}){
@@ -419,7 +446,8 @@ export default function HomePage(){
       if(ap!==bp)return ap-bp;
       return new Date(b.created_at)-new Date(a.created_at);
     });
-    setViewedProfilePosts(sorted);
+    const counts=await getCommentCounts(sorted.map(p=>p.id));
+    setViewedProfilePosts(sorted.map(p=>({...p,comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
   async function searchPeople(term=peopleSearch){
@@ -530,13 +558,15 @@ export default function HomePage(){
         if(like.user_id===user.id)likedByMe.add(like.post_id);
       });
 
+      const commentCounts=await getCommentCounts(postIds);
       feedNewestIdRef.current=rows[0]?.id||null;
       setNewFeedPostsAvailable(false);
       setFeedPosts(rows.map(post=>({
         ...post,
         creator:creatorMap.get(post.user_id)||null,
         like_count:likeCountMap.get(post.id)||0,
-        liked_by_me:likedByMe.has(post.id)
+        liked_by_me:likedByMe.has(post.id),
+        comment_count:commentCounts===null?Number(post.comment_count||0):(commentCounts[post.id]||0)
       })));
     }catch(e){
       console.error("Home feed load error:",e);
@@ -644,6 +674,7 @@ export default function HomePage(){
     const byId=Object.fromEntries(people.map(person=>[person.id,person]));
     setCommentRows((data||[]).map(c=>({...c,author:byId[c.user_id]||null})));
     setPostCommentCount((data||[]).length);
+    syncCommentCount(postId,(data||[]).length);
     setCommentsLoading(false);
   }
   function openComments(post){
@@ -680,8 +711,8 @@ export default function HomePage(){
           {commentsLoading&&<p>Cargando comentarios…</p>}
           {!commentsLoading&&!commentRows.length&&!commentError&&<p>Sé la primera persona en comentar.</p>}
           {commentRows.map(c=><div className="rivyza-comment" key={c.id}>
-            <div className="rivyza-comment-avatar">{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}</div>
-            <div className="rivyza-comment-content"><b>{c.author?.display_name||c.author?.username||"Usuario"}</b><span>{c.body}</span><small>{formatPostDate(c.created_at)}</small></div>
+            <button type="button" className="rivyza-comment-avatar rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id} aria-label={`Ver perfil de ${c.author?.display_name||c.author?.username||"usuario"}`}>{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}</button>
+            <div className="rivyza-comment-content"><button type="button" className="rivyza-comment-name rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id}>{c.author?.display_name||c.author?.username||"Usuario"}</button><span>{c.body}</span><small>{formatPostDate(c.created_at)}</small></div>
             {(c.user_id===user?.id||selectedPost?.user_id===user?.id)&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">Eliminar</button>}
           </div>)}
         </div>
@@ -711,6 +742,7 @@ export default function HomePage(){
     setPostCommentCount(Number(post.comment_count||0));
     setPostLiked(false);
     if(!supabase)return;
+    getCommentCounts([post.id]).then(counts=>{if(counts!==null){const n=counts[post.id]||0;setPostCommentCount(n);syncCommentCount(post.id,n);}});
     try{
       const {data:countData}=await supabase.rpc("get_post_like_count",{target_post_id:post.id});
       if(countData!==null && countData!==undefined)setPostLikeCount(Number(countData)||0);
