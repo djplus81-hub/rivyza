@@ -49,7 +49,7 @@ function formatPostDateTime(value){
 }
 
 
-const RIVYZA_EN={"Cuenta":"Account","Compartir perfil":"Share profile","Preferencias":"Preferences","Notificaciones":"Notifications","Sesión":"Session","Cerrar sesión":"Log out","¿Quieres cerrar sesión?":"Do you want to log out?","Inicio": "Home", "Amigos": "Friends", "Alertas": "Notifications", "Perfil": "Profile", "Para ti": "For You", "Conexiones": "Connections", "Todos los usuarios": "All users", "Comunidad": "Community", "Buscar conexiones": "Search connections", "Buscar usuarios": "Search users", "Siguiendo": "Following", "Seguidores": "Followers", "Te sigue": "Follows you", "Seguir": "Follow", "Enviar mensaje": "Send message", "Editar perfil": "Edit profile", "Me gusta": "Liked posts", "Privacidad": "Privacy", "Configuración y privacidad": "Settings & privacy", "Mostrar cuando estoy en línea": "Show when I am online", "Cuando esté desactivado, nadie verá tu punto verde.": "When disabled, nobody will see your green dot.", "Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.": "Your preference is saved. When enabled, others can see your green dot while you are online.", "Actividad y seguidores": "Activity & followers", "Mensajes": "Messages", "Buscar personas para enviar un mensaje": "Find people to message", "Buscar personas": "Find people", "Ver todos ›": "See all ›", "Publicación": "Post", "Compartir": "Share", "Más": "More", "Publicar": "Post", "Publicando…": "Posting…", "Guardar": "Save", "Cancelar": "Cancel", "Eliminar": "Delete", "Volver": "Back", "Cerrar": "Close", "Foto": "Photo", "Video": "Video", "Fotos": "Photos", "Videos": "Videos", "Buscar": "Search", "Nombre": "Name", "Usuario": "User", "Usuarios registrados": "Registered users", "En línea": "Online", "Solo tú puedes ver las publicaciones a las que les has dado like.": "Only you can see the posts you have liked.", "Tus fotos y videos aparecerán aquí": "Your photos and videos will appear here", "Aún no has dado me gusta a ninguna publicación.": "You have not liked any posts yet.", "Cargando tus me gusta…": "Loading your liked posts…", "No se pudieron cargar tus me gusta.": "Could not load your liked posts.", "Idioma de la aplicación": "App language", "Idioma": "Language", "Español": "Spanish", "Inglés": "English", "Configuración": "Settings", "Continuar con Google": "Continue with Google", "Escribe un mensaje…": "Write a message…", "Enviar": "Send", "Amigos, personas que sigues y personas que te siguen.": "Friends, people you follow, and people who follow you.", "No hay resultados.": "No results.", "No hay usuarios.": "No users.", "Comentarios": "Comments", "Comentar": "Comment", "Publicaciones": "Posts", "Cambiar idioma": "Change language", "Mis me gusta": "My liked posts", "Solo yo": "Only me", "No hay conexiones.": "No connections."};
+const RIVYZA_EN={"Ver perfil":"View profile","Seguridad y contraseña":"Security & password","Información de cuenta":"Account information","Cuenta privada":"Private account","Cuentas bloqueadas":"Blocked accounts","Estado en línea":"Online status","Quién puede enviarme mensajes":"Who can message me","Quién puede comentar":"Who can comment","Menciones y etiquetas":"Mentions & tags","Publicaciones que me gustan":"Liked posts","Lista de seguidos":"Following list","Apariencia":"Appearance","Cambiar de cuenta":"Switch account","Próximamente":"Coming soon","Entendido":"Got it","Enlace copiado":"Link copied","Cuenta":"Account","Compartir perfil":"Share profile","Preferencias":"Preferences","Notificaciones":"Notifications","Sesión":"Session","Cerrar sesión":"Log out","¿Quieres cerrar sesión?":"Do you want to log out?","Inicio": "Home", "Amigos": "Friends", "Alertas": "Notifications", "Perfil": "Profile", "Para ti": "For You", "Conexiones": "Connections", "Todos los usuarios": "All users", "Comunidad": "Community", "Buscar conexiones": "Search connections", "Buscar usuarios": "Search users", "Siguiendo": "Following", "Seguidores": "Followers", "Te sigue": "Follows you", "Seguir": "Follow", "Enviar mensaje": "Send message", "Editar perfil": "Edit profile", "Me gusta": "Liked posts", "Privacidad": "Privacy", "Configuración y privacidad": "Settings & privacy", "Mostrar cuando estoy en línea": "Show when I am online", "Cuando esté desactivado, nadie verá tu punto verde.": "When disabled, nobody will see your green dot.", "Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.": "Your preference is saved. When enabled, others can see your green dot while you are online.", "Actividad y seguidores": "Activity & followers", "Mensajes": "Messages", "Buscar personas para enviar un mensaje": "Find people to message", "Buscar personas": "Find people", "Ver todos ›": "See all ›", "Publicación": "Post", "Compartir": "Share", "Más": "More", "Publicar": "Post", "Publicando…": "Posting…", "Guardar": "Save", "Cancelar": "Cancel", "Eliminar": "Delete", "Volver": "Back", "Cerrar": "Close", "Foto": "Photo", "Video": "Video", "Fotos": "Photos", "Videos": "Videos", "Buscar": "Search", "Nombre": "Name", "Usuario": "User", "Usuarios registrados": "Registered users", "En línea": "Online", "Solo tú puedes ver las publicaciones a las que les has dado like.": "Only you can see the posts you have liked.", "Tus fotos y videos aparecerán aquí": "Your photos and videos will appear here", "Aún no has dado me gusta a ninguna publicación.": "You have not liked any posts yet.", "Cargando tus me gusta…": "Loading your liked posts…", "No se pudieron cargar tus me gusta.": "Could not load your liked posts.", "Idioma de la aplicación": "App language", "Idioma": "Language", "Español": "Spanish", "Inglés": "English", "Configuración": "Settings", "Continuar con Google": "Continue with Google", "Escribe un mensaje…": "Write a message…", "Enviar": "Send", "Amigos, personas que sigues y personas que te siguen.": "Friends, people you follow, and people who follow you.", "No hay resultados.": "No results.", "No hay usuarios.": "No users.", "Comentarios": "Comments", "Comentar": "Comment", "Publicaciones": "Posts", "Cambiar idioma": "Change language", "Mis me gusta": "My liked posts", "Solo yo": "Only me", "No hay conexiones.": "No connections."};
 
 export default function HomePage(){
   const countryCodes=["AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR","GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR","HT","HU","ID","IE","IL","IM","IN","IO","IQ","IR","IS","IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ","TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE","YT","ZA","ZM","ZW"];
@@ -76,6 +76,8 @@ export default function HomePage(){
   },[]);
 
   const [appLanguage,setAppLanguage]=useState("es");
+  const [languageSheetOpen,setLanguageSheetOpen]=useState(false);
+  const [settingsComingSoon,setSettingsComingSoon]=useState("");
   useEffect(()=>{try{setAppLanguage(localStorage.getItem("rivyza-language")==="en"?"en":"es");}catch(e){}},[]);
   const changeAppLanguage=(value)=>{setAppLanguage(value);try{localStorage.setItem("rivyza-language",value);}catch(e){}};
   const t=(value)=>appLanguage==="en"?(RIVYZA_EN[value]||value):value;
@@ -87,6 +89,7 @@ export default function HomePage(){
   const [socialMessages,setSocialMessages]=useState([]);
   const [socialPeer,setSocialPeer]=useState(null);
   const [socialChatReturnView,setSocialChatReturnView]=useState("alerts");
+  const [profileReturnToChat,setProfileReturnToChat]=useState(false);
   const [socialDraft,setSocialDraft]=useState("");
   const [socialBusy,setSocialBusy]=useState(false);
   const [socialError,setSocialError]=useState("");
@@ -1710,7 +1713,7 @@ export default function HomePage(){
   async function openSocialPeer(person){
     if(!person?.id || person.id===user?.id)return;
     setSocialChatReturnView(view==="alerts"?"alerts":view==="inbox"?"inbox":view==="messages"?socialChatReturnView:view==="otherProfile"?"otherProfile":view==="publicProfile"?"publicProfile":"alerts");
-    setSocialPeer(person);setSocialDraft("");setSocialError("");setView("messages");
+    setProfileReturnToChat(false);setSocialPeer(person);setSocialDraft("");setSocialError("");setView("messages");
     await markSocialRead(socialNotices.filter(n=>n.kind==="message" && n.actor_id===person.id && !n.read_at).map(n=>n.id));
     await loadSocial();
   }
@@ -1849,32 +1852,36 @@ export default function HomePage(){
         {recentConversations.map(({peer,last})=><button className="social-item" key={peer.id} onClick={()=>openSocialPeer(peer)}><span className="social-icon rivyza-presence-anchor">{peer.avatar_url?<img className="rivyza-inbox-photo" src={peer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(peer.id)}</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.body}</small></span></button>)}
         {conversations.size===0&&<p className="social-empty">Aún no tienes conversaciones. Visita el perfil de una persona y toca «Enviar mensaje».</p>}
       </div>}
-      {view==="messages"&&<section className="social-chat-layout"><div className="rivyza-chat-peer"><span className="rivyza-chat-peer-avatar rivyza-presence-anchor">{socialPeer?.avatar_url?<img src={socialPeer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(socialPeer?.id)}</span><strong>{socialPeer?.display_name||socialPeer?.username||"Usuario"}</strong></div><div className="social-thread" ref={socialThreadRef}>
+      {view==="messages"&&<section className="social-chat-layout"><button type="button" className="rivyza-chat-peer rivyza-chat-peer-link" onClick={()=>{if(socialPeer?.id){setProfileReturnToChat(true);openUserProfile(socialPeer);}}} aria-label={t("Ver perfil")}><span className="rivyza-chat-peer-avatar rivyza-presence-anchor">{socialPeer?.avatar_url?<img src={socialPeer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(socialPeer?.id)}</span><strong>{socialPeer?.display_name||socialPeer?.username||"Usuario"}</strong><span className="rivyza-chat-chevron">›</span></button><div className="social-thread" ref={socialThreadRef}>
         {thread.map(m=><div key={m.id} className={"social-bubble "+(m.sender_id===user.id?"mine":"theirs")}><p>{m.body}</p>{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
       </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form></section>}
-      {view==="socialSettings"&&<section className="social-settings rivyza-settings-page">
-        <h3>{t("Cuenta")}</h3>
-        <div className="rivyza-settings-group">
-          <button type="button" onClick={()=>setView("profile")}><User size={20}/><span>{t("Editar perfil")}</span><b>›</b></button>
-          <button type="button" onClick={async()=>{const url=window.location.origin;try{if(navigator.share)await navigator.share({title:"RIVYZA",url});else if(navigator.clipboard){await navigator.clipboard.writeText(url);alert("Enlace copiado");}}catch(e){}}}><Share2 size={20}/><span>{t("Compartir perfil")}</span><b>›</b></button>
-        </div>
-        <h3>{t("Privacidad")}</h3>
-        <div className="rivyza-settings-group">
-          <label><span><strong>{t("Mostrar cuando estoy en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label>
-        </div>
-        <h3>{t("Preferencias")}</h3>
-        <div className="rivyza-settings-group">
-          <div className="rivyza-settings-language"><strong>{t("Idioma de la aplicación")}</strong><div className="rivyza-language-choices"><button type="button" className={appLanguage==="es"?"selected":""} onClick={()=>changeAppLanguage("es")}>🇪🇸 Español {appLanguage==="es"?"✓":""}</button><button type="button" className={appLanguage==="en"?"selected":""} onClick={()=>changeAppLanguage("en")}>🇺🇸 English {appLanguage==="en"?"✓":""}</button></div></div>
-          <button type="button" onClick={()=>setView("alerts")}><Bell size={20}/><span>{t("Notificaciones")}</span><b>›</b></button>
-          <button type="button" onClick={()=>setView("inbox")}><MessageCircle size={20}/><span>{t("Mensajes")}</span><b>›</b></button>
-          <button type="button" onClick={()=>setView("activity")}><Heart size={20}/><span>{t("Actividad y seguidores")}</span><b>›</b></button>
-        </div>
-        <h3>{t("Sesión")}</h3>
-        <div className="rivyza-settings-group">
-          <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={20}/><span>{t("Cerrar sesión")}</span></button>
-        </div>
-        <p className="rivyza-settings-version">RIVYZA v13.19.7</p>
+      {view==="socialSettings"&&<section className="social-settings rivyza-settings-page rivyza-settings-v9">
+        {[
+          {heading:"Cuenta",items:[["Seguridad y contraseña","security"],["Información de cuenta","account"]]},
+          {heading:"Privacidad",items:[["Cuenta privada","private"],["Cuentas bloqueadas","blocked"],["Estado en línea","online"],["Quién puede enviarme mensajes","dm"],["Quién puede comentar","comments"],["Menciones y etiquetas","mentions"],["Publicaciones que me gustan","likes"],["Lista de seguidos","following"]]},
+          {heading:"Preferencias",items:[["Idioma","language"],["Apariencia","appearance"],["Notificaciones","notification-settings"]]},
+          {heading:"Sesión",items:[["Cambiar de cuenta","switch"],["Cerrar sesión","logout"]]}
+        ].map(group=><div className="rivyza-settings-category" key={group.heading}>
+          <div className="rivyza-settings-section-title">{t(group.heading)}</div>
+          <div className="rivyza-settings-group">{group.items.map(([label,key])=><button key={key} type="button" className="rivyza-settings-entry" onClick={()=>{
+            if(key==="language")setLanguageSheetOpen(true);
+            else if(key==="logout"){if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}
+            else if(key!=="online")setSettingsComingSoon(label);
+          }}>
+            <span>{t(label)}</span>
+            {key==="online"?<input type="checkbox" aria-label={t("Estado en línea")} checked={onlinePreference} onClick={e=>e.stopPropagation()} onChange={e=>saveOnlinePreference(e.target.checked)}/>:key==="language"?<small>{appLanguage==="es"?"Español":"English"}</small>:null}
+            {key!=="logout"&&key!=="online"&&<b>›</b>}
+          </button>)}</div>
+        </div>)}
+        <p className="rivyza-settings-version">RIVYZA v13.19.9</p>
+        {languageSheetOpen&&<div className="rivyza-sheet-overlay" onClick={()=>setLanguageSheetOpen(false)}>
+          <div className="rivyza-language-sheet" role="dialog" aria-modal="true" aria-label={t("Idioma")} onClick={e=>e.stopPropagation()}>
+            <div className="rivyza-sheet-grabber"/><div className="rivyza-sheet-heading"><strong>{t("Idioma")}</strong><button type="button" onClick={()=>setLanguageSheetOpen(false)} aria-label={t("Cerrar")}>×</button></div>
+            {[["es","Español"],["en","English"]].map(([code,label])=><button key={code} type="button" className="rivyza-language-sheet-choice" onClick={()=>{changeAppLanguage(code);setLanguageSheetOpen(false);}}><span>{label}</span>{appLanguage===code&&<Check size={19}/>}</button>)}
+          </div>
+        </div>}
+        {settingsComingSoon&&<div className="rivyza-sheet-overlay" onClick={()=>setSettingsComingSoon("")}><div className="rivyza-language-sheet rivyza-coming-sheet" role="dialog" aria-modal="true" onClick={e=>e.stopPropagation()}><div className="rivyza-sheet-grabber"/><div className="rivyza-sheet-heading"><strong>{t(settingsComingSoon)}</strong><button type="button" onClick={()=>setSettingsComingSoon("")}>×</button></div><p>{t("Próximamente")}</p><button className="rivyza-coming-dismiss" type="button" onClick={()=>setSettingsComingSoon("")}>{t("Entendido")}</button></div></div>}
       </section>}
       {socialNav()}
     </main>;
@@ -2010,8 +2017,8 @@ export default function HomePage(){
   if(view==="otherProfile" && viewedProfile){
     return <main className="public-profile-shell other-profile-shell">
       <header className="profile-topbar compact">
-        <button className="profile-back" onClick={()=>{setSelectedPost(null);setView("home");}}>←</button>
-        <div className="profile-top-title">@{viewedProfile.username||"usuario"}</div>
+        <button className="profile-back" onClick={()=>{setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else setView("home");}}>←</button>
+        <div className="profile-top-title">RIVYZA</div>
         <button className="profile-menu" aria-label="Opciones"><MoreHorizontal size={24}/></button>
       </header>
 
