@@ -841,7 +841,7 @@ export default function HomePage(){
           {commentsLoading&&<p>Cargando comentarios…</p>}
           {!commentsLoading&&!commentRows.length&&!commentError&&<p>Sé la primera persona en comentar.</p>}
           {commentRows.map(c=><div className="rivyza-comment" key={c.id}>
-            <button type="button" className="rivyza-comment-avatar rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id} aria-label={`Ver perfil de ${c.author?.display_name||c.author?.username||"usuario"}`}>{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}</button>
+            <button type="button" className="rivyza-comment-avatar rivyza-comment-profile-link rivyza-presence-anchor" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id} aria-label={`Ver perfil de ${c.author?.display_name||c.author?.username||"usuario"}`}>{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}{onlineDot(c.author?.id)}</button>
             <div className="rivyza-comment-content"><button type="button" className="rivyza-comment-name rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id}>{c.author?.display_name||c.author?.username||"Usuario"}</button><span>{c.body}</span><small>{formatPostDate(c.created_at)}</small></div>
             {(c.user_id===user?.id||selectedPost?.user_id===user?.id)&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">Eliminar</button>}
           </div>)}
@@ -1770,7 +1770,7 @@ export default function HomePage(){
         <section className="rivyza-alert-messages" aria-label="Mensajes privados">
           <div className="rivyza-alert-section-heading"><span><MessageCircle size={20}/> <strong>Mensajes</strong></span>{unreadMessages>0&&<b className="rivyza-message-count">{unreadMessages>99?"99+":unreadMessages} nuevos</b>}<button type="button" onClick={()=>setView("inbox")}>Ver todos ›</button></div>
           {recentConversations.length===0?<button className="rivyza-alert-empty-chat" onClick={()=>setView("inbox")}>Todavía no tienes mensajes. Abrir bandeja ›</button>:recentConversations.map(({peer,last})=><button className="rivyza-alert-conversation" key={peer.id} onClick={()=>openSocialPeer(peer)}>
-            <span className="rivyza-alert-avatar">{peer.avatar_url?<img src={peer.avatar_url} alt=""/>:<span>{(peer.display_name||peer.username||"U").slice(0,1).toUpperCase()}</span>}</span>
+            <span className="rivyza-alert-avatar rivyza-presence-anchor">{peer.avatar_url?<img src={peer.avatar_url} alt=""/>:<span>{(peer.display_name||peer.username||"U").slice(0,1).toUpperCase()}</span>}{onlineDot(peer.id)}</span>
             <span className="rivyza-alert-chat-copy"><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.sender_id===user.id?"Tú: ":""}{last.body}</small></span>
             <span className="rivyza-alert-chat-meta"><small>{formatPostDateTime(last.created_at)}</small>{unreadBySender.get(peer.id)>0&&<b>{unreadBySender.get(peer.id)>99?"99+":unreadBySender.get(peer.id)}</b>}</span>
           </button>)}
@@ -1785,17 +1785,17 @@ export default function HomePage(){
       {view==="activity"&&<div className="social-list rivyza-activity-list">
         {activityAlerts.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
         {activityAlerts.map(n=><button key={n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openActivityNotice(n)}>
-          <span className="rivyza-notice-avatar">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt="" loading="lazy"/>:<User size={24}/>}</span>
+          <span className="rivyza-notice-avatar rivyza-presence-anchor">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt="" loading="lazy"/>:<User size={24}/>}{onlineDot(n.actor?.id)}</span>
           <span className="rivyza-notice-copy"><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong><span>{n.kind==="like"?"Le dio like a tu publicación.":n.kind==="comment"?"Comentó tu publicación.":n.kind==="follow"?"Comenzó a seguirte.":n.kind==="unfollow"?"Dejó de seguirte.":"Nueva actividad."}</span><small>{formatPostDateTime(n.created_at)}</small></span>
           <span className="rivyza-notice-end">{(n.kind==="like"||n.kind==="comment")&&n.relatedPost?.media_path?<span className="rivyza-notice-thumb">{n.relatedPost.media_type==="photo"?<img src={n.relatedPost.media_path} alt="Publicación" loading="lazy"/>:<video src={`${n.relatedPost.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</span>:null}<span className={"rivyza-notice-type rivyza-notice-type-"+n.kind}>{n.kind==="like"?<Heart size={20}/>:n.kind==="comment"?<MessageCircle size={20}/>:n.kind==="follow"?<UserRoundPlus size={21}/>:n.kind==="unfollow"?<UserRoundMinus size={21}/>:<Bell size={20}/>}</span>{!n.read_at&&<i className="rivyza-notice-unread"/>}</span>
         </button>)}
       </div>}
       {view==="inbox"&&<div className="social-list">
         <button className="social-quick" onClick={()=>{setView("home");setPeopleSearchOpen(true);}}>+ Buscar personas para enviar un mensaje</button>
-        {recentConversations.map(({peer,last})=><button className="social-item" key={peer.id} onClick={()=>openSocialPeer(peer)}><span className="social-icon">✉️</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.body}</small></span></button>)}
+        {recentConversations.map(({peer,last})=><button className="social-item" key={peer.id} onClick={()=>openSocialPeer(peer)}><span className="social-icon rivyza-presence-anchor">{peer.avatar_url?<img className="rivyza-inbox-photo" src={peer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(peer.id)}</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.body}</small></span></button>)}
         {conversations.size===0&&<p className="social-empty">Aún no tienes conversaciones. Visita el perfil de una persona y toca «Enviar mensaje».</p>}
       </div>}
-      {view==="messages"&&<section className="social-chat-layout"><div className="social-thread" ref={socialThreadRef}>
+      {view==="messages"&&<section className="social-chat-layout"><div className="rivyza-chat-peer"><span className="rivyza-chat-peer-avatar rivyza-presence-anchor">{socialPeer?.avatar_url?<img src={socialPeer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(socialPeer?.id)}</span><strong>{socialPeer?.display_name||socialPeer?.username||"Usuario"}</strong></div><div className="social-thread" ref={socialThreadRef}>
         {thread.map(m=><div key={m.id} className={"social-bubble "+(m.sender_id===user.id?"mine":"theirs")}><p>{m.body}</p>{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
       </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder="Escribe un mensaje…" maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>Enviar</button></form></section>}
@@ -1957,11 +1957,12 @@ export default function HomePage(){
               </div>
             )}
           </div>
-          <div className="profile-photo-edit-wrap visitor-avatar-wrap">
+          <div className="profile-photo-edit-wrap visitor-avatar-wrap rivyza-presence-anchor">
             {viewedProfile.avatar_url
               ? <img className="public-profile-photo" src={viewedProfile.avatar_url} alt={viewedProfile.display_name||viewedProfile.username}/>
               : <div className="public-profile-photo fallback">{(viewedProfile.display_name?.[0]||viewedProfile.username?.[0]||"R").toUpperCase()}</div>
             }
+            {onlineDot(viewedProfile.id)}
           </div>
         </div>
 
@@ -2016,7 +2017,7 @@ export default function HomePage(){
               {socialListRows.map(person=>(
                 <div className="social-person-row" key={person.id}>
                   <button className="people-result social-person-open" onClick={()=>{setSocialListOpen(false);openUserProfile(person);}}>
-                    {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                    <span className="rivyza-list-avatar rivyza-presence-anchor">{person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}{onlineDot(person.id)}</span>
                     <span className="people-result-copy">
                       <strong>{person.display_name||person.username||"Usuario"}</strong>
                       <small>@{person.username||"usuario"}</small>
@@ -2268,7 +2269,7 @@ export default function HomePage(){
               {socialListRows.map(person=>(
                 <div className="social-person-row" key={person.id}>
                   <button className="people-result social-person-open" onClick={()=>{setSocialListOpen(false);openUserProfile(person);}}>
-                    {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                    <span className="rivyza-list-avatar rivyza-presence-anchor">{person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}{onlineDot(person.id)}</span>
                     <span className="people-result-copy">
                       <strong>{person.display_name||person.username||"Usuario"}</strong>
                       <small>@{person.username||"usuario"}</small>
@@ -2297,7 +2298,7 @@ export default function HomePage(){
               {!likersLoading && !likersRows.length && <p className="social-list-empty">Todavía nadie ha dado like.</p>}
               {likersRows.map(person=>(
                 <button className="people-result liker-person" key={person.id} onClick={()=>{setLikersOpen(false);openUserProfile(person);}}>
-                  {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                  <span className="rivyza-list-avatar rivyza-presence-anchor">{person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}{onlineDot(person.id)}</span>
                   <span className="people-result-copy"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
                 </button>
               ))}
