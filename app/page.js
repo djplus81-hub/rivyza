@@ -48,6 +48,9 @@ function formatPostDateTime(value){
   });
 }
 
+
+const RIVYZA_EN={"Inicio": "Home", "Amigos": "Friends", "Alertas": "Notifications", "Perfil": "Profile", "Para ti": "For You", "Conexiones": "Connections", "Todos los usuarios": "All users", "Comunidad": "Community", "Buscar conexiones": "Search connections", "Buscar usuarios": "Search users", "Siguiendo": "Following", "Seguidores": "Followers", "Te sigue": "Follows you", "Seguir": "Follow", "Enviar mensaje": "Send message", "Editar perfil": "Edit profile", "Me gusta": "Liked posts", "Privacidad": "Privacy", "Configuración y privacidad": "Settings & privacy", "Mostrar cuando estoy en línea": "Show when I am online", "Cuando esté desactivado, nadie verá tu punto verde.": "When disabled, nobody will see your green dot.", "Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.": "Your preference is saved. When enabled, others can see your green dot while you are online.", "Actividad y seguidores": "Activity & followers", "Mensajes": "Messages", "Buscar personas para enviar un mensaje": "Find people to message", "Buscar personas": "Find people", "Ver todos ›": "See all ›", "Publicación": "Post", "Compartir": "Share", "Más": "More", "Publicar": "Post", "Publicando…": "Posting…", "Guardar": "Save", "Cancelar": "Cancel", "Eliminar": "Delete", "Volver": "Back", "Cerrar": "Close", "Foto": "Photo", "Video": "Video", "Fotos": "Photos", "Videos": "Videos", "Buscar": "Search", "Nombre": "Name", "Usuario": "User", "Usuarios registrados": "Registered users", "En línea": "Online", "Solo tú puedes ver las publicaciones a las que les has dado like.": "Only you can see the posts you have liked.", "Tus fotos y videos aparecerán aquí": "Your photos and videos will appear here", "Aún no has dado me gusta a ninguna publicación.": "You have not liked any posts yet.", "Cargando tus me gusta…": "Loading your liked posts…", "No se pudieron cargar tus me gusta.": "Could not load your liked posts.", "Idioma de la aplicación": "App language", "Idioma": "Language", "Español": "Spanish", "Inglés": "English", "Configuración": "Settings", "Continuar con Google": "Continue with Google", "Escribe un mensaje…": "Write a message…", "Enviar": "Send", "Amigos, personas que sigues y personas que te siguen.": "Friends, people you follow, and people who follow you.", "No hay resultados.": "No results.", "No hay usuarios.": "No users.", "Comentarios": "Comments", "Comentar": "Comment", "Publicaciones": "Posts", "Cambiar idioma": "Change language", "Mis me gusta": "My liked posts", "Solo yo": "Only me", "No hay conexiones.": "No connections."};
+
 export default function HomePage(){
   const countryCodes=["AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR","GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR","HT","HU","ID","IE","IL","IM","IN","IO","IQ","IR","IS","IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ","TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE","YT","ZA","ZM","ZW"];
   const regionNames=useMemo(()=>new Intl.DisplayNames(["es"],{type:"region"}),[]);
@@ -72,6 +75,14 @@ export default function HomePage(){
     }):null;
   },[]);
 
+  const [appLanguage,setAppLanguage]=useState("es");
+  useEffect(()=>{try{setAppLanguage(localStorage.getItem("rivyza-language")==="en"?"en":"es");}catch(e){}},[]);
+  const changeAppLanguage=(value)=>{setAppLanguage(value);try{localStorage.setItem("rivyza-language",value);}catch(e){}};
+  const t=(value)=>appLanguage==="en"?(RIVYZA_EN[value]||value):value;
+  useEffect(()=>{if(typeof document!=="undefined")document.documentElement.lang=appLanguage;},[appLanguage]);
+  const [likedPosts,setLikedPosts]=useState([]);
+  const [likedPostsLoading,setLikedPostsLoading]=useState(false);
+  const [likedPostsError,setLikedPostsError]=useState("");
   const [socialNotices,setSocialNotices]=useState([]);
   const [socialMessages,setSocialMessages]=useState([]);
   const [socialPeer,setSocialPeer]=useState(null);
@@ -81,7 +92,7 @@ export default function HomePage(){
   const [socialError,setSocialError]=useState("");
   const [onlinePreference,setOnlinePreference]=useState(false);
   const [onlineIds,setOnlineIds]=useState([]);
-  const onlineDot=(id)=>id&&id!==user?.id&&onlineIds.includes(id)?<span className="rivyza-online-dot" title="En línea" aria-label="En línea"/>:null;
+  const onlineDot=(id)=>id&&id!==user?.id&&onlineIds.includes(id)?<span className="rivyza-online-dot" title={t("En línea")} aria-label={t("En línea")}/>:null;
 
   const socialPollBusy=useRef(false);
   const socialThreadRef=useRef(null);
@@ -306,6 +317,28 @@ export default function HomePage(){
     const counts=await getCommentCounts(sorted.map(p=>p.id));
     setProfilePosts(sorted.map(p=>({...p,comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
+
+  async function loadMyLikedPosts(){
+    if(!supabase||!user?.id)return;
+    setLikedPostsLoading(true);setLikedPostsError("");
+    try{
+      const {data:likes,error}=await supabase.from("post_likes").select("post_id,created_at").eq("user_id",user.id).order("created_at",{ascending:false}).limit(500);
+      if(error)throw error;
+      const ids=[...new Set((likes||[]).map(x=>x.post_id).filter(Boolean))];
+      if(!ids.length){setLikedPosts([]);return;}
+      const posts=[];
+      for(let i=0;i<ids.length;i+=100){
+        const {data,error:pe}=await supabase.from("posts").select("*").in("id",ids.slice(i,i+100));
+        if(pe)throw pe;
+        posts.push(...(data||[]));
+      }
+      const byId=new Map(posts.map(post=>[post.id,post]));
+      // Posts may have been deleted or made private since the like was recorded.
+      setLikedPosts(ids.map(id=>byId.get(id)).filter(post=>post&&(post.user_id===user.id||post.visibility==="public")));
+    }catch(e){console.error("Liked posts error",e);setLikedPostsError("No se pudieron cargar tus me gusta.");}
+    finally{setLikedPostsLoading(false);}
+  }
+  useEffect(()=>{if(view==="publicProfile"&&profileTab==="likes"&&user?.id)loadMyLikedPosts();},[view,profileTab,user?.id]);
 
   async function loadProfileLikeCount(profileId,{own=false}={}){
     if(!supabase || !profileId)return;
@@ -856,14 +889,14 @@ export default function HomePage(){
   function renderCommentsSheet(){return (
     <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
       <div className="post-menu-sheet comments-sheet rivyza-comments" onClick={e=>e.stopPropagation()}>
-        <div className="rivyza-comments-heading"><strong>Comentarios</strong><button type="button" onClick={()=>setCommentsOpen(false)} aria-label="Cerrar comentarios">×</button></div>
+        <div className="rivyza-comments-heading"><strong>{t("Comentarios")}</strong><button type="button" onClick={()=>setCommentsOpen(false)} aria-label="Cerrar comentarios">×</button></div>
         <div className="rivyza-comments-list">
           {commentsLoading&&<p>Cargando comentarios…</p>}
           {!commentsLoading&&!commentRows.length&&!commentError&&<p>Sé la primera persona en comentar.</p>}
           {commentRows.map(c=><div className="rivyza-comment" key={c.id}>
             <button type="button" className="rivyza-comment-avatar rivyza-comment-profile-link rivyza-presence-anchor" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id} aria-label={`Ver perfil de ${c.author?.display_name||c.author?.username||"usuario"}`}>{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}{onlineDot(c.author?.id)}</button>
             <div className="rivyza-comment-content"><button type="button" className="rivyza-comment-name rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id}>{c.author?.display_name||c.author?.username||"Usuario"}</button><span>{c.body}</span><small>{formatPostDate(c.created_at)}</small></div>
-            {(c.user_id===user?.id||selectedPost?.user_id===user?.id)&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">Eliminar</button>}
+            {(c.user_id===user?.id||selectedPost?.user_id===user?.id)&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">{t("Eliminar")}</button>}
           </div>)}
         </div>
         {commentError&&<p className="rivyza-comment-error">{commentError}</p>}
@@ -972,6 +1005,7 @@ export default function HomePage(){
         if(error)throw error;
         setPostLiked(true);setPostLikeCount(v=>v+1);
       }
+      if(view==="publicProfile"&&profileTab==="likes")loadMyLikedPosts();
       if(selectedPost.user_id===user.id)loadProfileLikeCount(user.id,{own:true});
       else if(viewedProfile?.id===selectedPost.user_id)loadProfileLikeCount(viewedProfile.id);
     }catch(e){setPostActionMessage("Los likes necesitan activar el SQL incluido en el paquete.");}
@@ -1508,11 +1542,11 @@ export default function HomePage(){
            </label>
 
            <label className="upload-field">
-             <span>Privacidad</span>
+             <span>{t("Privacidad")}</span>
              <select value={uploadVisibility} onChange={(e)=>setUploadVisibility(e.target.value)}>
                <option value="public">Público</option>
                <option value="followers">Solo seguidores</option>
-               <option value="private">Solo yo</option>
+               <option value="private">{t("Solo yo")}</option>
              </select>
            </label>
 
@@ -1742,11 +1776,11 @@ export default function HomePage(){
     return ()=>{active=false;clearInterval(timer);document.removeEventListener("visibilitychange",onVisibility);};
   },[supabase,user?.id,onlinePreference]);
   function socialNav(){return <nav className="bottom-nav">
-    <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
-    <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
-    <button onClick={()=>setView("inbox")}><MessageCircle/><span>Mensajes</span></button>
-    <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-    <button onClick={()=>setView("publicProfile")}><User/><span>Perfil</span></button>
+    <button onClick={()=>setView("home")}><Home/><span>{t("Inicio")}</span></button>
+    <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
+    <button onClick={()=>setView("inbox")}><MessageCircle/><span>{t("Mensajes")}</span></button>
+    <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+    <button onClick={()=>setView("publicProfile")}><User/><span>{t("Perfil")}</span></button>
   </nav>;}
   if(loading)return <div className="center">Cargando RIVYZA…</div>;
 
@@ -1756,7 +1790,7 @@ export default function HomePage(){
         <div className="logo-mark">R</div>
         <h1>RIVYZA</h1>
         <p className="tagline">Vive. Conecta. Transmite.</p>
-        <button className="google-btn" onClick={signInWithGoogle}>Continuar con Google</button>
+        <button className="google-btn" onClick={signInWithGoogle}>{t("Continuar con Google")}</button>
       </section>
     </main>;
   }
@@ -1788,7 +1822,7 @@ export default function HomePage(){
       {socialError&&<p className="social-error">{socialError}</p>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
         <section className="rivyza-alert-messages" aria-label="Mensajes privados">
-          <div className="rivyza-alert-section-heading"><span><MessageCircle size={20}/> <strong>Mensajes</strong></span>{unreadMessages>0&&<b className="rivyza-message-count">{unreadMessages>99?"99+":unreadMessages} nuevos</b>}<button type="button" onClick={()=>setView("inbox")}>Ver todos ›</button></div>
+          <div className="rivyza-alert-section-heading"><span><MessageCircle size={20}/> <strong>{t("Mensajes")}</strong></span>{unreadMessages>0&&<b className="rivyza-message-count">{unreadMessages>99?"99+":unreadMessages} nuevos</b>}<button type="button" onClick={()=>setView("inbox")}>{t("Ver todos ›")}</button></div>
           {recentConversations.length===0?<button className="rivyza-alert-empty-chat" onClick={()=>setView("inbox")}>Todavía no tienes mensajes. Abrir bandeja ›</button>:recentConversations.map(({peer,last})=><button className="rivyza-alert-conversation" key={peer.id} onClick={()=>openSocialPeer(peer)}>
             <span className="rivyza-alert-avatar rivyza-presence-anchor">{peer.avatar_url?<img src={peer.avatar_url} alt=""/>:<span>{(peer.display_name||peer.username||"U").slice(0,1).toUpperCase()}</span>}{onlineDot(peer.id)}</span>
             <span className="rivyza-alert-chat-copy"><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.sender_id===user.id?"Tú: ":""}{last.body}</small></span>
@@ -1797,7 +1831,7 @@ export default function HomePage(){
         </section>
         <button type="button" className="rivyza-activity-entry" onClick={()=>setView("activity")}>
           <span className="rivyza-activity-logo"><Heart size={20}/><User size={16}/></span>
-          <span className="rivyza-activity-copy"><strong>Actividad y seguidores</strong><small>Likes, comentarios y seguidores</small></span>
+          <span className="rivyza-activity-copy"><strong>{t("Actividad y seguidores")}</strong><small>Likes, comentarios y seguidores</small></span>
           {activityUnread>0&&<b className="rivyza-message-count">{activityUnread>99?"99+":activityUnread}</b>}
           <span aria-hidden="true">›</span>
         </button>
@@ -1818,8 +1852,8 @@ export default function HomePage(){
       {view==="messages"&&<section className="social-chat-layout"><div className="rivyza-chat-peer"><span className="rivyza-chat-peer-avatar rivyza-presence-anchor">{socialPeer?.avatar_url?<img src={socialPeer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(socialPeer?.id)}</span><strong>{socialPeer?.display_name||socialPeer?.username||"Usuario"}</strong></div><div className="social-thread" ref={socialThreadRef}>
         {thread.map(m=><div key={m.id} className={"social-bubble "+(m.sender_id===user.id?"mine":"theirs")}><p>{m.body}</p>{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
-      </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder="Escribe un mensaje…" maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>Enviar</button></form></section>}
-      {view==="socialSettings"&&<section className="social-settings"><h3>Privacidad</h3><label><span><strong>Mostrar cuando estoy en línea</strong><small>Cuando esté desactivado, nadie verá tu punto verde.</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label><p>Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.</p></section>}
+      </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form></section>}
+      {view==="socialSettings"&&<section className="social-settings"><h3>{t("Idioma de la aplicación")}</h3><div className="rivyza-language-choices"><button type="button" className={appLanguage==="es"?"selected":""} onClick={()=>changeAppLanguage("es")}>🇪🇸 Español {appLanguage==="es"?"✓":""}</button><button type="button" className={appLanguage==="en"?"selected":""} onClick={()=>changeAppLanguage("en")}>🇺🇸 English {appLanguage==="en"?"✓":""}</button></div><h3>{t("Privacidad")}</h3><label><span><strong>{t("Mostrar cuando estoy en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label><p>{t("Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.")}</p></section>}
       {socialNav()}
     </main>;
   }
@@ -1850,11 +1884,11 @@ export default function HomePage(){
       </section>
 
       <nav className="bottom-nav live-preview-bottom-nav">
-        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
-        <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
+        <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
     </main>;
@@ -1863,9 +1897,9 @@ export default function HomePage(){
   if(view==="connections"){
     const matches=(connectionsTab==="mine"?connectionsRows:communityRows).filter(p=>(`${p.display_name||""} ${p.username||""}`).toLowerCase().includes(connectionsSearch.toLowerCase()));
     return <main className="feed-shell connections-screen">
-      <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>Comunidad</h1><span></span></header>
-      <div className="rivyza-community-tabs"><button type="button" className={connectionsTab==="mine"?"active":""} onClick={()=>setConnectionsTab("mine")}>Conexiones</button><button type="button" className={connectionsTab==="all"?"active":""} onClick={()=>{setConnectionsTab("all");loadCommunity();}}>Todos los usuarios</button></div>
-      <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder={connectionsTab==="mine"?"Buscar conexiones":"Buscar usuarios registrados"} aria-label="Buscar usuarios"/></div>
+      <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>{t("Comunidad")}</h1><span></span></header>
+      <div className="rivyza-community-tabs"><button type="button" className={connectionsTab==="mine"?"active":""} onClick={()=>setConnectionsTab("mine")}>{t("Conexiones")}</button><button type="button" className={connectionsTab==="all"?"active":""} onClick={()=>{setConnectionsTab("all");loadCommunity();}}>{t("Todos los usuarios")}</button></div>
+      <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder={connectionsTab==="mine"?"Buscar conexiones":"Buscar usuarios registrados"} aria-label={t("Buscar usuarios")}/></div>
       <p className="connections-hint">{connectionsTab==="mine"?"Amigos, personas que sigues y personas que te siguen.":"Cuentas registradas en RIVYZA · el punto verde indica quién está en línea."}</p>
       <section className="connections-list">
         {(connectionsTab==="mine"?connectionsLoading:communityLoading)&&<p className="connections-empty">Cargando usuarios…</p>}
@@ -1875,17 +1909,17 @@ export default function HomePage(){
             <span className="rivyza-presence-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="connections-fallback">{(person.display_name||person.username||"R").slice(0,1).toUpperCase()}</span>}{onlineDot(person.id)}</span>
             <span className="connections-names"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
           </button>
-          {person.i_follow&&person.follows_me?<span className="connections-friends">Amigos</span>:person.i_follow?<span className="connections-following">Siguiendo</span>:<div className="connections-follow-back">{person.follows_me&&<small>Te sigue</small>}<button type="button" onClick={()=>followFromConnections(person)}>Seguir</button></div>}
+          {person.i_follow&&person.follows_me?<span className="connections-friends">{t("Amigos")}</span>:person.i_follow?<span className="connections-following">{t("Siguiendo")}</span>:<div className="connections-follow-back">{person.follows_me&&<small>{t("Te sigue")}</small>}<button type="button" onClick={()=>followFromConnections(person)}>{t("Seguir")}</button></div>}
         </div>)}
       </section>
-      <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>Inicio</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button></nav>
+      <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>{t("Inicio")}</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button></nav>
     </main>;
   }
 
   if(view==="friends"){
     return <main className="feed-shell friends-feed-shell">
       <header className="friends-topbar friends-feed-topbar">
-        <h1>Amigos</h1>
+        <h1>{t("Amigos")}</h1>
         <p>Solo personas que tú sigues y que también te siguen.</p>
       </header>
 
@@ -1932,19 +1966,19 @@ export default function HomePage(){
                 <span>{post.like_count||0}</span>
               </button>
               <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
-              <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
-              <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
+              <button onClick={()=>openPost(post)}><Share2/><span>{t("Compartir")}</span></button>
+              <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
             </div>
           </article>
         ))}
       </section>
 
       <nav className="bottom-nav">
-        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
-        <button className="active"><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
+        <button className="active"><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
       {commentsOpen && renderCommentsSheet()}
@@ -1959,7 +1993,7 @@ export default function HomePage(){
         <button className="profile-menu" aria-label="Opciones"><MoreHorizontal size={24}/></button>
       </header>
 
-      <div className="social-profile-message"><button onClick={()=>openSocialPeer(viewedProfile)}><MessageCircle size={18}/> Enviar mensaje</button></div>
+      <div className="social-profile-message"><button onClick={()=>openSocialPeer(viewedProfile)}><MessageCircle size={18}/> {t("Enviar mensaje")}</button></div>
       <section className="profile-hero compact-profile">
         <div className="profile-heading-row">
           <div className="profile-heading-copy">
@@ -2047,7 +2081,7 @@ export default function HomePage(){
                     </span>
                   </button>
                   {person.id!==user?.id && person.i_follow && (
-                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>Siguiendo</button>
+                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>{t("Siguiendo")}</button>
                   )}
                 </div>
               ))}
@@ -2060,7 +2094,7 @@ export default function HomePage(){
         <div className="post-detail-overlay">
           <header className="post-detail-topbar">
             <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}} aria-label="Volver">←</button>
-            <strong>Publicación</strong>
+            <strong>{t("Publicación")}</strong>
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
           <div className="post-detail-media post-swipe-viewer" onTouchStart={handlePostTouchStart} onTouchEnd={handlePostTouchEnd} onWheel={handlePostWheel}>
@@ -2076,7 +2110,7 @@ export default function HomePage(){
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
-              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
+              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>{t("Compartir")}</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
@@ -2085,7 +2119,7 @@ export default function HomePage(){
               <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
                 <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={20}/>Compartir en RIVYZA</button>
                 <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
-                <button type="button" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+                <button type="button" onClick={()=>setPostMenuOpen(false)}>{t("Cancelar")}</button>
               </div>
             </div>
           )}
@@ -2094,11 +2128,11 @@ export default function HomePage(){
       )}
 
       <nav className="bottom-nav">
-        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
-        <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
     </main>;
@@ -2109,7 +2143,7 @@ export default function HomePage(){
       <header className="profile-topbar compact">
         <button className="profile-back" onClick={()=>{setUploadOpen(false);setView("home");}}>←</button>
         <div className="profile-top-title"></div>
-        <button className="profile-menu" onClick={()=>setView("socialSettings")} aria-label="Configuración"><MoreHorizontal size={24}/></button>
+        <button className="profile-menu" onClick={()=>setView("socialSettings")} aria-label={t("Configuración")}><MoreHorizontal size={24}/></button>
       </header>
 
       <section className="profile-hero compact-profile">
@@ -2162,7 +2196,7 @@ export default function HomePage(){
           {profile?.facebook_url && <a href={profile.facebook_url} target="_blank" rel="noreferrer"><Facebook size={16}/><span>Facebook</span></a>}
         </div>
 
-        <button className="edit-profile-main-btn" onClick={()=>setView("profile")}>Editar perfil</button>
+        <button className="edit-profile-main-btn" onClick={()=>setView("profile")}>{t("Editar perfil")}</button>
       </section>
 
       <section className="profile-content-section">
@@ -2197,16 +2231,16 @@ export default function HomePage(){
               ))
             ) : (
               <div className="empty-grid-card first">
-                Tus fotos y videos aparecerán aquí
+                {t("Tus fotos y videos aparecerán aquí")}
               </div>
             )}
           </div>
         ) : (
-          <div className="likes-private-panel">
-            <Heart size={38}/>
-            <h3>Me gusta</h3>
-            <p>Solo tú puedes ver las publicaciones a las que les has dado like.</p>
-          </div>
+          <section className="rivyza-liked-private">
+            <div className="rivyza-liked-heading"><Heart size={19}/><strong>{t("Mis me gusta")}</strong><span>🔒 {t("Solo yo")}</span></div>
+            <p className="rivyza-liked-note">{t("Solo tú puedes ver las publicaciones a las que les has dado like.")}</p>
+            {likedPostsLoading?<p className="rivyza-liked-note">{t("Cargando tus me gusta…")}</p>:likedPostsError?<p className="rivyza-liked-note">{t(likedPostsError)}</p>:likedPosts.length===0?<p className="rivyza-liked-note">{t("Aún no has dado me gusta a ninguna publicación.")}</p>:<div className="posts-grid">{likedPosts.map(post=><button type="button" className="profile-post-card rivyza-liked-post" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||t("Publicación")}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>)}</div>}
+          </section>
         )}
       </section>
 
@@ -2214,7 +2248,7 @@ export default function HomePage(){
         <div className="post-detail-overlay">
           <header className="post-detail-topbar">
             <button type="button" onClick={()=>{if(postOpenedFromAlert)closeNotificationPost();else{setSelectedPost(null);setPostMenuOpen(false);}}} aria-label="Volver">←</button>
-            <strong>Publicación</strong>
+            <strong>{t("Publicación")}</strong>
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
 
@@ -2240,7 +2274,7 @@ export default function HomePage(){
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
-              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
+              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>{t("Compartir")}</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
@@ -2256,7 +2290,7 @@ export default function HomePage(){
                   {selectedPost.pinned_position && <button type="button" onClick={()=>setPostPin(null)}>Quitar de fijadas</button>}
                   <button type="button" className="danger" onClick={()=>{setPostMenuOpen(false);setDeleteConfirmOpen(true);}}>🗑️ Eliminar publicación</button>
                 </>}
-                <button type="button" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+                <button type="button" onClick={()=>setPostMenuOpen(false)}>{t("Cancelar")}</button>
               </div>
             </div>
           )}
@@ -2267,8 +2301,8 @@ export default function HomePage(){
                 <strong>¿Eliminar esta publicación?</strong>
                 <p>Esta acción no se puede deshacer.</p>
                 <div className="delete-confirm-actions">
-                  <button type="button" onClick={()=>setDeleteConfirmOpen(false)}>Cancelar</button>
-                  <button type="button" className="danger" onClick={async()=>{setDeleteConfirmOpen(false);await deleteSelectedPost();}}>Eliminar</button>
+                  <button type="button" onClick={()=>setDeleteConfirmOpen(false)}>{t("Cancelar")}</button>
+                  <button type="button" className="danger" onClick={async()=>{setDeleteConfirmOpen(false);await deleteSelectedPost();}}>{t("Eliminar")}</button>
                 </div>
               </div>
             </div>
@@ -2299,7 +2333,7 @@ export default function HomePage(){
                     </span>
                   </button>
                   {person.id!==user?.id && person.i_follow && (
-                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>Siguiendo</button>
+                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>{t("Siguiendo")}</button>
                   )}
                 </div>
               ))}
@@ -2330,11 +2364,11 @@ export default function HomePage(){
       )}
 
       <nav className="bottom-nav">
-        <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
-        <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>{t("Inicio")}</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-        <button className="active"><User/><span>Perfil</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button className="active"><User/><span>{t("Perfil")}</span></button>
       </nav>
 
       
@@ -2542,11 +2576,11 @@ export default function HomePage(){
     <header className="feed-topbar">
       <div className="top-brand">RIVYZA</div>
       <div className="feed-tabs">
-        <button onClick={openConnections}>Conexiones</button>
-        <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>Para ti</button>
+        <button onClick={openConnections}>{t("Conexiones")}</button>
+        <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>{t("Para ti")}</button>
         <button onClick={()=>setView("livePreview")}>LIVE</button>
       </div>
-      <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label="Buscar usuarios"><Search size={23}/></button>
+      <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label={t("Buscar usuarios")}><Search size={23}/></button>
     </header>
 
     <section className="video-feed home-real-feed">
@@ -2591,8 +2625,8 @@ export default function HomePage(){
               <span>{post.like_count||0}</span>
             </button>
             <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
-            <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
-            <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
+            <button onClick={()=>openPost(post)}><Share2/><span>{t("Compartir")}</span></button>
+            <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
           </div>
         </article>
       ))}
@@ -2603,7 +2637,7 @@ export default function HomePage(){
         <div className="people-search-panel">
           <header className="people-search-header">
             <button type="button" onClick={()=>setPeopleSearchOpen(false)} aria-label="Cerrar">←</button>
-            <strong>Buscar personas</strong>
+            <strong>{t("Buscar personas")}</strong>
             <span></span>
           </header>
           <form className="people-search-form" onSubmit={e=>{e.preventDefault();searchPeople();}}>
@@ -2639,11 +2673,11 @@ export default function HomePage(){
     )}
 
     <nav className="bottom-nav">
-      <button className="active"><Home/><span>Inicio</span></button>
-      <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+      <button className="active"><Home/><span>{t("Inicio")}</span></button>
+      <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
       <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-      <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-      <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>Perfil</span></button>
+      <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+      <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
     </nav>
 
     {renderUploadModal()}
