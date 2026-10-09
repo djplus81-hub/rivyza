@@ -2742,12 +2742,12 @@ button.rivyza-comment-avatar{border:0;padding:0;appearance:none;-webkit-appearan
 .rivyza-sheet-options button span{color:#43d7a1}
 .rivyza-sheet-soon{padding:20px 8px 28px;color:#bbb;font-size:14px;text-align:center}
 
-/* v13.19.10 - Swipe left-to-right to reveal delete for me */
+/* v13.19.12 - Swipe right-to-left to reveal delete for me */
 .rivyza-swipe-row{position:relative;max-width:85%;width:max-content;min-width:95px;align-self:flex-start;touch-action:pan-y;transition:transform .18s ease}
 .rivyza-swipe-row.mine{align-self:flex-end}
 .rivyza-swipe-row .social-bubble{max-width:100%;width:100%;position:relative;z-index:1;box-sizing:border-box}
-.rivyza-swipe-row .rivyza-swipe-actions{position:absolute;left:-93px;top:0;bottom:0;width:88px;display:flex;align-items:stretch;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease}
-.rivyza-swipe-row.is-open{transform:translateX(93px)}
+.rivyza-swipe-row .rivyza-swipe-actions{position:absolute;right:-93px;top:0;bottom:0;width:88px;display:flex;align-items:stretch;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease}
+.rivyza-swipe-row.is-open{transform:translateX(-93px)}
 .rivyza-swipe-row.is-open .rivyza-swipe-actions{opacity:1;pointer-events:auto}
 .rivyza-swipe-actions button{background:#d9344d;color:white;border:0;border-radius:12px;padding:8px;font-size:13px;font-weight:700;cursor:pointer}
 
