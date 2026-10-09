@@ -125,6 +125,9 @@ export default function HomePage(){
   const [ownFollowingCount,setOwnFollowingCount]=useState(0);
   const [socialListOpen,setSocialListOpen]=useState(false);
   const [socialListTitle,setSocialListTitle]=useState("");
+  const [connectionsRows,setConnectionsRows]=useState([]);
+  const [connectionsLoading,setConnectionsLoading]=useState(false);
+  const [connectionsSearch,setConnectionsSearch]=useState("");
   const [socialListRows,setSocialListRows]=useState([]);
   const [socialListLoading,setSocialListLoading]=useState(false);
   const [feedTab,setFeedTab]=useState("forYou");
@@ -386,6 +389,34 @@ export default function HomePage(){
       setPostActionMessage("No se pudo dejar de seguir a esta persona.");
     }
   }
+
+  async function loadConnections(){
+    if(!supabase || !user?.id)return;
+    setConnectionsLoading(true);
+    try{
+      const [{data:out,error:oe},{data:incoming,error:ie}]=await Promise.all([
+        supabase.from("follows").select("following_id").eq("follower_id",user.id),
+        supabase.from("follows").select("follower_id").eq("following_id",user.id)
+      ]);
+      if(oe||ie)throw oe||ie;
+      const outIds=new Set((out||[]).map(x=>x.following_id));
+      const inIds=new Set((incoming||[]).map(x=>x.follower_id));
+      const ids=[...new Set([...outIds,...inIds])].filter(id=>id&&id!==user.id);
+      if(!ids.length){setConnectionsRows([]);return;}
+      const {data,error}=await supabase.from("profiles").select("id,username,display_name,avatar_url,bio").in("id",ids);
+      if(error)throw error;
+      setConnectionsRows((data||[]).map(p=>({...p,i_follow:outIds.has(p.id),follows_me:inIds.has(p.id)})).sort((a,b)=>Number(b.i_follow&&b.follows_me)-Number(a.i_follow&&a.follows_me)));
+    }catch(e){console.error("Connections error:",e);}
+    finally{setConnectionsLoading(false);}
+  }
+  async function followFromConnections(person){
+    if(!supabase||!user?.id||!person?.id)return;
+    const {error}=await supabase.from("follows").insert({follower_id:user.id,following_id:person.id});
+    if(error){console.error("Follow connection error:",error);return;}
+    setConnectionsRows(rows=>rows.map(p=>p.id===person.id?{...p,i_follow:true}:p));
+    loadFollowCounts(user.id,{own:true});
+  }
+  function openConnections(){setConnectionsSearch("");setView("connections");loadConnections();}
 
   async function openSocialList(profileId,type){
     if(!supabase || !profileId)return;
@@ -1783,6 +1814,27 @@ export default function HomePage(){
     </main>;
   }
 
+  if(view==="connections"){
+    const matches=connectionsRows.filter(p=>(`${p.display_name||""} ${p.username||""}`).toLowerCase().includes(connectionsSearch.toLowerCase()));
+    return <main className="feed-shell connections-screen">
+      <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>Conexiones</h1><span></span></header>
+      <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder="Buscar entre tus conexiones" aria-label="Buscar conexiones"/></div>
+      <p className="connections-hint">Amigos, personas que sigues y personas que te siguen.</p>
+      <section className="connections-list">
+        {connectionsLoading&&<p className="connections-empty">Cargando conexiones…</p>}
+        {!connectionsLoading&&!matches.length&&<p className="connections-empty">No hay conexiones para mostrar.</p>}
+        {matches.map(person=><div className="connections-person" key={person.id}>
+          <button type="button" className="connections-identity" onClick={()=>openUserProfile(person)}>
+            {person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="connections-fallback">{(person.display_name||person.username||"R").slice(0,1).toUpperCase()}</span>}
+            <span className="connections-names"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
+          </button>
+          {person.i_follow&&person.follows_me?<span className="connections-friends">Amigos</span>:person.i_follow?<span className="connections-following">Siguiendo</span>:<div className="connections-follow-back"><small>Te sigue</small><button type="button" onClick={()=>followFromConnections(person)}>Seguir</button></div>}
+        </div>)}
+      </section>
+      <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>Inicio</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button></nav>
+    </main>;
+  }
+
   if(view==="friends"){
     return <main className="feed-shell friends-feed-shell">
       <header className="friends-topbar friends-feed-topbar">
@@ -2441,7 +2493,7 @@ export default function HomePage(){
     <header className="feed-topbar">
       <div className="top-brand">RIVYZA</div>
       <div className="feed-tabs">
-        <button className={feedTab==="following"?"active-tab":""} onClick={()=>changeFeedTab("following")}>Siguiendo</button>
+        <button onClick={openConnections}>Conexiones</button>
         <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>Para ti</button>
         <button onClick={()=>setView("livePreview")}>LIVE</button>
       </div>
