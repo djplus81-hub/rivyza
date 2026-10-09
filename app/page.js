@@ -80,6 +80,9 @@ export default function HomePage(){
   const [socialBusy,setSocialBusy]=useState(false);
   const [socialError,setSocialError]=useState("");
   const [onlinePreference,setOnlinePreference]=useState(false);
+  const [onlineIds,setOnlineIds]=useState([]);
+  const onlineDot=(id)=>id&&id!==user?.id&&onlineIds.includes(id)?<span className="rivyza-online-dot" title="En línea" aria-label="En línea"/>:null;
+
   const socialPollBusy=useRef(false);
   const socialThreadRef=useRef(null);
   const unreadSocial=socialNotices.filter(n=>!n.read_at).length;
@@ -1695,6 +1698,29 @@ export default function HomePage(){
     if(!user?.id || !supabase)return;
     supabase.from("rivyza_presence_preferences").select("show_online").eq("user_id",user.id).maybeSingle().then(({data})=>setOnlinePreference(Boolean(data?.show_online)));
   },[user?.id,supabase]);
+  // Presence heartbeat: only opted-in users are visible, and stale sessions expire.
+  useEffect(()=>{
+    if(!supabase||!user?.id)return;
+    let active=true;
+    const refresh=async()=>{
+      const since=new Date(Date.now()-75000).toISOString();
+      const {data,error}=await supabase.from("rivyza_online_sessions").select("user_id").gte("last_seen_at",since);
+      if(active&&!error)setOnlineIds((data||[]).map(r=>r.user_id));
+    };
+    const heartbeat=async()=>{
+      if(!document.hidden&&onlinePreference){
+        await supabase.from("rivyza_online_sessions").upsert({user_id:user.id,last_seen_at:new Date().toISOString()});
+      }else{
+        await supabase.from("rivyza_online_sessions").delete().eq("user_id",user.id);
+      }
+      if(active)refresh();
+    };
+    heartbeat();
+    const timer=setInterval(heartbeat,25000);
+    const onVisibility=()=>heartbeat();
+    document.addEventListener("visibilitychange",onVisibility);
+    return ()=>{active=false;clearInterval(timer);document.removeEventListener("visibilitychange",onVisibility);};
+  },[supabase,user?.id,onlinePreference]);
   function socialNav(){return <nav className="bottom-nav">
     <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
     <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
@@ -1773,7 +1799,7 @@ export default function HomePage(){
         {thread.map(m=><div key={m.id} className={"social-bubble "+(m.sender_id===user.id?"mine":"theirs")}><p>{m.body}</p>{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
       </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder="Escribe un mensaje…" maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>Enviar</button></form></section>}
-      {view==="socialSettings"&&<section className="social-settings"><h3>Privacidad</h3><label><span><strong>Mostrar cuando estoy en línea</strong><small>Cuando esté desactivado, nadie verá tu punto verde.</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label><p>Esta opción guarda tu preferencia. El indicador verde de presencia en tiempo real se activará en una actualización posterior.</p></section>}
+      {view==="socialSettings"&&<section className="social-settings"><h3>Privacidad</h3><label><span><strong>Mostrar cuando estoy en línea</strong><small>Cuando esté desactivado, nadie verá tu punto verde.</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label><p>Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.</p></section>}
       {socialNav()}
     </main>;
   }
@@ -1825,7 +1851,7 @@ export default function HomePage(){
         {!connectionsLoading&&!matches.length&&<p className="connections-empty">No hay conexiones para mostrar.</p>}
         {matches.map(person=><div className="connections-person" key={person.id}>
           <button type="button" className="connections-identity" onClick={()=>openUserProfile(person)}>
-            {person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="connections-fallback">{(person.display_name||person.username||"R").slice(0,1).toUpperCase()}</span>}
+            <span className="rivyza-presence-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="connections-fallback">{(person.display_name||person.username||"R").slice(0,1).toUpperCase()}</span>}{onlineDot(person.id)}</span>
             <span className="connections-names"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
           </button>
           {person.i_follow&&person.follows_me?<span className="connections-friends">Amigos</span>:person.i_follow?<span className="connections-following">Siguiendo</span>:<div className="connections-follow-back"><small>Te sigue</small><button type="button" onClick={()=>followFromConnections(person)}>Seguir</button></div>}
