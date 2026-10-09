@@ -49,7 +49,7 @@ function formatPostDateTime(value){
 }
 
 
-const RIVYZA_EN={"Inicio": "Home", "Amigos": "Friends", "Alertas": "Notifications", "Perfil": "Profile", "Para ti": "For You", "Conexiones": "Connections", "Todos los usuarios": "All users", "Comunidad": "Community", "Buscar conexiones": "Search connections", "Buscar usuarios": "Search users", "Siguiendo": "Following", "Seguidores": "Followers", "Te sigue": "Follows you", "Seguir": "Follow", "Enviar mensaje": "Send message", "Editar perfil": "Edit profile", "Me gusta": "Liked posts", "Privacidad": "Privacy", "Configuración y privacidad": "Settings & privacy", "Mostrar cuando estoy en línea": "Show when I am online", "Cuando esté desactivado, nadie verá tu punto verde.": "When disabled, nobody will see your green dot.", "Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.": "Your preference is saved. When enabled, others can see your green dot while you are online.", "Actividad y seguidores": "Activity & followers", "Mensajes": "Messages", "Buscar personas para enviar un mensaje": "Find people to message", "Buscar personas": "Find people", "Ver todos ›": "See all ›", "Publicación": "Post", "Compartir": "Share", "Más": "More", "Publicar": "Post", "Publicando…": "Posting…", "Guardar": "Save", "Cancelar": "Cancel", "Eliminar": "Delete", "Volver": "Back", "Cerrar": "Close", "Foto": "Photo", "Video": "Video", "Fotos": "Photos", "Videos": "Videos", "Buscar": "Search", "Nombre": "Name", "Usuario": "User", "Usuarios registrados": "Registered users", "En línea": "Online", "Solo tú puedes ver las publicaciones a las que les has dado like.": "Only you can see the posts you have liked.", "Tus fotos y videos aparecerán aquí": "Your photos and videos will appear here", "Aún no has dado me gusta a ninguna publicación.": "You have not liked any posts yet.", "Cargando tus me gusta…": "Loading your liked posts…", "No se pudieron cargar tus me gusta.": "Could not load your liked posts.", "Idioma de la aplicación": "App language", "Idioma": "Language", "Español": "Spanish", "Inglés": "English", "Configuración": "Settings", "Continuar con Google": "Continue with Google", "Escribe un mensaje…": "Write a message…", "Enviar": "Send", "Amigos, personas que sigues y personas que te siguen.": "Friends, people you follow, and people who follow you.", "No hay resultados.": "No results.", "No hay usuarios.": "No users.", "Comentarios": "Comments", "Comentar": "Comment", "Publicaciones": "Posts", "Cambiar idioma": "Change language", "Mis me gusta": "My liked posts", "Solo yo": "Only me", "No hay conexiones.": "No connections."};
+const RIVYZA_EN={"Cuenta":"Account","Compartir perfil":"Share profile","Preferencias":"Preferences","Notificaciones":"Notifications","Sesión":"Session","Cerrar sesión":"Log out","¿Quieres cerrar sesión?":"Do you want to log out?","Inicio": "Home", "Amigos": "Friends", "Alertas": "Notifications", "Perfil": "Profile", "Para ti": "For You", "Conexiones": "Connections", "Todos los usuarios": "All users", "Comunidad": "Community", "Buscar conexiones": "Search connections", "Buscar usuarios": "Search users", "Siguiendo": "Following", "Seguidores": "Followers", "Te sigue": "Follows you", "Seguir": "Follow", "Enviar mensaje": "Send message", "Editar perfil": "Edit profile", "Me gusta": "Liked posts", "Privacidad": "Privacy", "Configuración y privacidad": "Settings & privacy", "Mostrar cuando estoy en línea": "Show when I am online", "Cuando esté desactivado, nadie verá tu punto verde.": "When disabled, nobody will see your green dot.", "Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.": "Your preference is saved. When enabled, others can see your green dot while you are online.", "Actividad y seguidores": "Activity & followers", "Mensajes": "Messages", "Buscar personas para enviar un mensaje": "Find people to message", "Buscar personas": "Find people", "Ver todos ›": "See all ›", "Publicación": "Post", "Compartir": "Share", "Más": "More", "Publicar": "Post", "Publicando…": "Posting…", "Guardar": "Save", "Cancelar": "Cancel", "Eliminar": "Delete", "Volver": "Back", "Cerrar": "Close", "Foto": "Photo", "Video": "Video", "Fotos": "Photos", "Videos": "Videos", "Buscar": "Search", "Nombre": "Name", "Usuario": "User", "Usuarios registrados": "Registered users", "En línea": "Online", "Solo tú puedes ver las publicaciones a las que les has dado like.": "Only you can see the posts you have liked.", "Tus fotos y videos aparecerán aquí": "Your photos and videos will appear here", "Aún no has dado me gusta a ninguna publicación.": "You have not liked any posts yet.", "Cargando tus me gusta…": "Loading your liked posts…", "No se pudieron cargar tus me gusta.": "Could not load your liked posts.", "Idioma de la aplicación": "App language", "Idioma": "Language", "Español": "Spanish", "Inglés": "English", "Configuración": "Settings", "Continuar con Google": "Continue with Google", "Escribe un mensaje…": "Write a message…", "Enviar": "Send", "Amigos, personas que sigues y personas que te siguen.": "Friends, people you follow, and people who follow you.", "No hay resultados.": "No results.", "No hay usuarios.": "No users.", "Comentarios": "Comments", "Comentar": "Comment", "Publicaciones": "Posts", "Cambiar idioma": "Change language", "Mis me gusta": "My liked posts", "Solo yo": "Only me", "No hay conexiones.": "No connections."};
 
 export default function HomePage(){
   const countryCodes=["AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR","GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR","HT","HU","ID","IE","IL","IM","IN","IO","IQ","IR","IS","IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ","TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE","YT","ZA","ZM","ZW"];
@@ -1818,7 +1818,7 @@ export default function HomePage(){
     }
     const thread=socialMessages.filter(m=>socialPeer && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     return <main className="social-screen">
-      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):"Configuración y privacidad"}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
+      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
       {socialError&&<p className="social-error">{socialError}</p>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
         <section className="rivyza-alert-messages" aria-label="Mensajes privados">
@@ -1853,7 +1853,29 @@ export default function HomePage(){
         {thread.map(m=><div key={m.id} className={"social-bubble "+(m.sender_id===user.id?"mine":"theirs")}><p>{m.body}</p>{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
       </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form></section>}
-      {view==="socialSettings"&&<section className="social-settings"><h3>{t("Idioma de la aplicación")}</h3><div className="rivyza-language-choices"><button type="button" className={appLanguage==="es"?"selected":""} onClick={()=>changeAppLanguage("es")}>🇪🇸 Español {appLanguage==="es"?"✓":""}</button><button type="button" className={appLanguage==="en"?"selected":""} onClick={()=>changeAppLanguage("en")}>🇺🇸 English {appLanguage==="en"?"✓":""}</button></div><h3>{t("Privacidad")}</h3><label><span><strong>{t("Mostrar cuando estoy en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label><p>{t("Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.")}</p></section>}
+      {view==="socialSettings"&&<section className="social-settings rivyza-settings-page">
+        <h3>{t("Cuenta")}</h3>
+        <div className="rivyza-settings-group">
+          <button type="button" onClick={()=>setView("profile")}><User size={20}/><span>{t("Editar perfil")}</span><b>›</b></button>
+          <button type="button" onClick={async()=>{const url=window.location.origin;try{if(navigator.share)await navigator.share({title:"RIVYZA",url});else if(navigator.clipboard){await navigator.clipboard.writeText(url);alert("Enlace copiado");}}catch(e){}}}><Share2 size={20}/><span>{t("Compartir perfil")}</span><b>›</b></button>
+        </div>
+        <h3>{t("Privacidad")}</h3>
+        <div className="rivyza-settings-group">
+          <label><span><strong>{t("Mostrar cuando estoy en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label>
+        </div>
+        <h3>{t("Preferencias")}</h3>
+        <div className="rivyza-settings-group">
+          <div className="rivyza-settings-language"><strong>{t("Idioma de la aplicación")}</strong><div className="rivyza-language-choices"><button type="button" className={appLanguage==="es"?"selected":""} onClick={()=>changeAppLanguage("es")}>🇪🇸 Español {appLanguage==="es"?"✓":""}</button><button type="button" className={appLanguage==="en"?"selected":""} onClick={()=>changeAppLanguage("en")}>🇺🇸 English {appLanguage==="en"?"✓":""}</button></div></div>
+          <button type="button" onClick={()=>setView("alerts")}><Bell size={20}/><span>{t("Notificaciones")}</span><b>›</b></button>
+          <button type="button" onClick={()=>setView("inbox")}><MessageCircle size={20}/><span>{t("Mensajes")}</span><b>›</b></button>
+          <button type="button" onClick={()=>setView("activity")}><Heart size={20}/><span>{t("Actividad y seguidores")}</span><b>›</b></button>
+        </div>
+        <h3>{t("Sesión")}</h3>
+        <div className="rivyza-settings-group">
+          <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={20}/><span>{t("Cerrar sesión")}</span></button>
+        </div>
+        <p className="rivyza-settings-version">RIVYZA v13.19.7</p>
+      </section>}
       {socialNav()}
     </main>;
   }
@@ -2142,7 +2164,7 @@ export default function HomePage(){
     return <main className="public-profile-shell">
       <header className="profile-topbar compact">
         <button className="profile-back" onClick={()=>{setUploadOpen(false);setView("home");}}>←</button>
-        <div className="profile-top-title"></div>
+        <div className="profile-top-title">RIVYZA</div>
         <button className="profile-menu" onClick={()=>setView("socialSettings")} aria-label={t("Configuración")}><MoreHorizontal size={24}/></button>
       </header>
 
@@ -2534,7 +2556,7 @@ export default function HomePage(){
           </button>
         </form>
 
-        <button className="logout-link" onClick={signOut}><LogOut size={16}/>Cerrar sesión</button>
+        
       </section>
 
       {cropOpen&&<div className="crop-modal">
