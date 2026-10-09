@@ -131,6 +131,9 @@ export default function HomePage(){
   const [connectionsRows,setConnectionsRows]=useState([]);
   const [connectionsLoading,setConnectionsLoading]=useState(false);
   const [connectionsSearch,setConnectionsSearch]=useState("");
+  const [connectionsTab,setConnectionsTab]=useState("mine");
+  const [communityRows,setCommunityRows]=useState([]);
+  const [communityLoading,setCommunityLoading]=useState(false);
   const [socialListRows,setSocialListRows]=useState([]);
   const [socialListLoading,setSocialListLoading]=useState(false);
   const [feedTab,setFeedTab]=useState("forYou");
@@ -417,9 +420,26 @@ export default function HomePage(){
     const {error}=await supabase.from("follows").insert({follower_id:user.id,following_id:person.id});
     if(error){console.error("Follow connection error:",error);return;}
     setConnectionsRows(rows=>rows.map(p=>p.id===person.id?{...p,i_follow:true}:p));
+    setCommunityRows(rows=>rows.map(p=>p.id===person.id?{...p,i_follow:true}:p));
     loadFollowCounts(user.id,{own:true});
   }
-  function openConnections(){setConnectionsSearch("");setView("connections");loadConnections();}
+  async function loadCommunity(){
+    if(!supabase||!user?.id)return;
+    setCommunityLoading(true);
+    try{
+      const [{data:people,error:pe},{data:out,error:oe},{data:incoming,error:ie}]=await Promise.all([
+        supabase.from("profiles").select("id,username,display_name,avatar_url,bio").order("created_at",{ascending:false}).limit(500),
+        supabase.from("follows").select("following_id").eq("follower_id",user.id),
+        supabase.from("follows").select("follower_id").eq("following_id",user.id)
+      ]);
+      if(pe||oe||ie)throw pe||oe||ie;
+      const outIds=new Set((out||[]).map(x=>x.following_id));
+      const inIds=new Set((incoming||[]).map(x=>x.follower_id));
+      setCommunityRows((people||[]).filter(p=>p.id!==user.id).map(p=>({...p,i_follow:outIds.has(p.id),follows_me:inIds.has(p.id)})));
+    }catch(e){console.error("Community directory error:",e);setCommunityRows([]);}
+    finally{setCommunityLoading(false);}
+  }
+  function openConnections(){setConnectionsSearch("");setConnectionsTab("mine");setView("connections");loadConnections();loadCommunity();}
 
   async function openSocialList(profileId,type){
     if(!supabase || !profileId)return;
@@ -1841,20 +1861,21 @@ export default function HomePage(){
   }
 
   if(view==="connections"){
-    const matches=connectionsRows.filter(p=>(`${p.display_name||""} ${p.username||""}`).toLowerCase().includes(connectionsSearch.toLowerCase()));
+    const matches=(connectionsTab==="mine"?connectionsRows:communityRows).filter(p=>(`${p.display_name||""} ${p.username||""}`).toLowerCase().includes(connectionsSearch.toLowerCase()));
     return <main className="feed-shell connections-screen">
-      <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>Conexiones</h1><span></span></header>
-      <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder="Buscar entre tus conexiones" aria-label="Buscar conexiones"/></div>
-      <p className="connections-hint">Amigos, personas que sigues y personas que te siguen.</p>
+      <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>Comunidad</h1><span></span></header>
+      <div className="rivyza-community-tabs"><button type="button" className={connectionsTab==="mine"?"active":""} onClick={()=>setConnectionsTab("mine")}>Conexiones</button><button type="button" className={connectionsTab==="all"?"active":""} onClick={()=>{setConnectionsTab("all");loadCommunity();}}>Todos los usuarios</button></div>
+      <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder={connectionsTab==="mine"?"Buscar conexiones":"Buscar usuarios registrados"} aria-label="Buscar usuarios"/></div>
+      <p className="connections-hint">{connectionsTab==="mine"?"Amigos, personas que sigues y personas que te siguen.":"Cuentas registradas en RIVYZA · el punto verde indica quién está en línea."}</p>
       <section className="connections-list">
-        {connectionsLoading&&<p className="connections-empty">Cargando conexiones…</p>}
-        {!connectionsLoading&&!matches.length&&<p className="connections-empty">No hay conexiones para mostrar.</p>}
+        {(connectionsTab==="mine"?connectionsLoading:communityLoading)&&<p className="connections-empty">Cargando usuarios…</p>}
+        {!(connectionsTab==="mine"?connectionsLoading:communityLoading)&&!matches.length&&<p className="connections-empty">No hay usuarios para mostrar.</p>}
         {matches.map(person=><div className="connections-person" key={person.id}>
           <button type="button" className="connections-identity" onClick={()=>openUserProfile(person)}>
             <span className="rivyza-presence-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="connections-fallback">{(person.display_name||person.username||"R").slice(0,1).toUpperCase()}</span>}{onlineDot(person.id)}</span>
             <span className="connections-names"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
           </button>
-          {person.i_follow&&person.follows_me?<span className="connections-friends">Amigos</span>:person.i_follow?<span className="connections-following">Siguiendo</span>:<div className="connections-follow-back"><small>Te sigue</small><button type="button" onClick={()=>followFromConnections(person)}>Seguir</button></div>}
+          {person.i_follow&&person.follows_me?<span className="connections-friends">Amigos</span>:person.i_follow?<span className="connections-following">Siguiendo</span>:<div className="connections-follow-back">{person.follows_me&&<small>Te sigue</small>}<button type="button" onClick={()=>followFromConnections(person)}>Seguir</button></div>}
         </div>)}
       </section>
       <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>Inicio</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button></nav>
@@ -1904,6 +1925,7 @@ export default function HomePage(){
                 {post.creator?.avatar_url
                   ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
                   : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+                            {onlineDot(post.creator?.id||post.user_id)}
               </button>
               <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
                 <Heart fill={post.liked_by_me?"currentColor":"none"}/>
@@ -2561,6 +2583,7 @@ export default function HomePage(){
               {post.creator?.avatar_url
                 ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
                 : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+              {onlineDot(post.creator?.id||post.user_id)}
             </button>
 
             <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
