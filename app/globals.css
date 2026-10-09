@@ -2730,23 +2730,30 @@ button.rivyza-comment-avatar{border:0;padding:0;appearance:none;-webkit-appearan
 .rivyza-chat-peer-link strong{flex:1}
 .rivyza-chat-chevron{font-size:24px;color:#999}
 
-/* v13.19.9 — Compact native-feeling settings, without repeating navigation destinations */
-.rivyza-settings-v9{padding:4px 0 100px!important;background:#080808!important}
-.rivyza-settings-v9 .rivyza-settings-category{margin:0 0 7px}
-.rivyza-settings-v9 .rivyza-settings-section-title{font-size:12px;color:#8f9095;padding:23px 20px 8px;font-weight:600}
-.rivyza-settings-v9 .rivyza-settings-group{background:transparent!important}
-.rivyza-settings-v9 .rivyza-settings-group>.rivyza-settings-entry{min-height:53px;padding:13px 20px!important;border:0!important;background:transparent!important;display:flex;align-items:center;gap:12px;font-size:15px;font-weight:500;text-align:left;width:100%;color:#f5f5f5}
-.rivyza-settings-v9 .rivyza-settings-entry>span{flex:1}
-.rivyza-settings-v9 .rivyza-settings-entry>b{font-size:24px;color:#767676;font-weight:300}
-.rivyza-settings-v9 .rivyza-settings-entry>small{color:#8d8d92;font-size:12px}
-.rivyza-settings-v9 .rivyza-settings-entry>input{accent-color:#4bd99d;width:20px;height:20px}
-.rivyza-sheet-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.65);display:flex;align-items:flex-end;justify-content:center}
-.rivyza-language-sheet{background:#202024;color:white;width:100%;max-width:540px;border-radius:18px 18px 0 0;padding:8px 18px calc(26px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px #0006;animation:rivyza-sheet-up .2s ease-out}
-@keyframes rivyza-sheet-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.rivyza-sheet-grabber{width:38px;height:4px;background:#5a5a60;border-radius:20px;margin:2px auto 18px}
-.rivyza-sheet-heading{display:flex;align-items:center;justify-content:space-between;padding:0 4px 12px;font-size:16px}
-.rivyza-sheet-heading button{border:0;background:transparent;color:#aaa;font-size:28px;line-height:1;padding:0 4px}
-.rivyza-language-sheet-choice{border:0;border-top:1px solid #343439;background:transparent;color:#f5f5f5;width:100%;padding:17px 5px;display:flex;justify-content:space-between;align-items:center;text-align:left;font-size:15px}
-.rivyza-language-sheet-choice svg{color:#57e4a5}
-.rivyza-coming-sheet p{color:#aaa;text-align:center;margin:20px 0 26px}
-.rivyza-coming-dismiss{border:0;border-radius:10px;padding:13px;background:#36363c;color:white;width:100%;font-size:15px}
+/* v13.19.9 settings: compact bottom sheet and plain list */
+.rivyza-settings-page .rivyza-settings-group>button em{font-size:12px;font-style:normal;color:#999;margin-left:auto}
+.rivyza-sheet-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.62);display:flex;align-items:flex-end;justify-content:center}
+.rivyza-sheet-panel{width:100%;max-width:600px;background:#202020;border-radius:18px 18px 0 0;color:white;padding:10px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -12px 35px #0008;animation:rivyzaSheetUp .22s ease-out}
+@keyframes rivyzaSheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.rivyza-sheet-handle{height:4px;width:38px;border-radius:8px;background:#6a6a6a;margin:0 auto 15px}
+.rivyza-sheet-heading{display:flex;justify-content:space-between;align-items:center;padding:5px 2px 15px;font-size:16px}
+.rivyza-sheet-heading button{border:0;background:transparent;color:#aaa;font-size:26px;padding:0 5px}
+.rivyza-sheet-options button{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-top:1px solid #383838;background:transparent;color:#fff;padding:17px 8px;text-align:left;font-size:15px}
+.rivyza-sheet-options button span{color:#43d7a1}
+.rivyza-sheet-soon{padding:20px 8px 28px;color:#bbb;font-size:14px;text-align:center}
+
+/* v13.19.10 - Swipe left-to-right to reveal delete for me */
+.rivyza-swipe-row{position:relative;max-width:85%;width:max-content;min-width:95px;align-self:flex-start;touch-action:pan-y;transition:transform .18s ease}
+.rivyza-swipe-row.mine{align-self:flex-end}
+.rivyza-swipe-row .social-bubble{max-width:100%;width:100%;position:relative;z-index:1;box-sizing:border-box}
+.rivyza-swipe-row .rivyza-swipe-actions{position:absolute;left:-93px;top:0;bottom:0;width:88px;display:flex;align-items:stretch;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease}
+.rivyza-swipe-row.is-open{transform:translateX(93px)}
+.rivyza-swipe-row.is-open .rivyza-swipe-actions{opacity:1;pointer-events:auto}
+.rivyza-swipe-actions button{background:#d9344d;color:white;border:0;border-radius:12px;padding:8px;font-size:13px;font-weight:700;cursor:pointer}
+
+/* v13.19.11: swipe left to clear conversation only for current account */
+.rivyza-conversation-swipe{position:relative;overflow:hidden;touch-action:pan-y;isolation:isolate}
+.rivyza-conversation-swipe>.rivyza-alert-conversation,.rivyza-conversation-swipe>.social-item{position:relative;z-index:2;width:100%;transition:transform .18s ease;background:#14151e}
+.rivyza-conversation-swipe>.social-item{background:#090a11}
+.rivyza-conversation-swipe.is-open>.rivyza-alert-conversation,.rivyza-conversation-swipe.is-open>.social-item{transform:translateX(-104px)}
+.rivyza-conversation-delete{position:absolute;right:0;top:0;bottom:0;width:104px;border:0;background:#dc3046;color:#fff;font-size:13px;font-weight:700;cursor:pointer;z-index:1}
