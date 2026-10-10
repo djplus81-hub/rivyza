@@ -103,6 +103,9 @@ export default function HomePage(){
   const [voiceSending,setVoiceSending]=useState(false);
   const [voicePlayingId,setVoicePlayingId]=useState(null);
   const [voiceProgress,setVoiceProgress]=useState({});
+  const [voiceLevels,setVoiceLevels]=useState(Array(26).fill(5));
+  const voiceAudioContextRef=useRef(null);
+  const voiceAnalyserRef=useRef(null);
   const voiceRecorderRef=useRef(null);
   const voiceStreamRef=useRef(null);
   const voiceChunksRef=useRef([]);
@@ -1734,7 +1737,13 @@ export default function HomePage(){
     const {error}=await supabase.from("rivyza_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",user.id).in("id",ids);
     if(!error)setSocialNotices(rows=>rows.map(n=>ids.includes(n.id)?{...n,read_at:new Date().toISOString()}:n));
   }
+  function cleanupVoiceVisualizer(){
+    voiceAnalyserRef.current=null;
+    if(voiceAudioContextRef.current){voiceAudioContextRef.current.close().catch(()=>{});voiceAudioContextRef.current=null;}
+  }
   function resetVoice(){
+    cleanupVoiceVisualizer();
+    setVoiceLevels(Array(26).fill(5));
     if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
     voiceTimerRef.current=null;
     const recorder=voiceRecorderRef.current;
@@ -1751,13 +1760,22 @@ export default function HomePage(){
     try{
       setSocialError("");
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      try{
+        const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+        if(AudioContextClass){
+          const ctx=new AudioContextClass();
+          const analyser=ctx.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=.65;
+          ctx.createMediaStreamSource(stream).connect(analyser);
+          voiceAudioContextRef.current=ctx;voiceAnalyserRef.current=analyser;
+        }
+      }catch(_e){cleanupVoiceVisualizer();}
       const formats=["audio/mp4","audio/webm;codecs=opus","audio/webm"];
       const mime=formats.find(x=>MediaRecorder.isTypeSupported(x));
       const recorder=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
       voiceStreamRef.current=stream;voiceRecorderRef.current=recorder;voiceChunksRef.current=[];voiceStoppingRef.current=false;
       recorder.ondataavailable=e=>{if(e.data?.size)voiceChunksRef.current.push(e.data);};
       recorder.onstop=()=>{
-        stream.getTracks().forEach(track=>track.stop());voiceStreamRef.current=null;
+        stream.getTracks().forEach(track=>track.stop());voiceStreamRef.current=null;cleanupVoiceVisualizer();
         const blob=new Blob(voiceChunksRef.current,{type:recorder.mimeType||"audio/webm"});
         if(blob.size){setVoiceBlob(blob);setVoiceUrl(URL.createObjectURL(blob));setVoiceStage("preview");}
         else {setVoiceStage("idle");setSocialError("No se grabó audio. Inténtalo nuevamente.");}
@@ -1765,6 +1783,15 @@ export default function HomePage(){
       recorder.onerror=()=>{setSocialError("Error al grabar el audio.");resetVoice();};
       recorder.start(250);voiceStartedRef.current=Date.now();setVoiceSeconds(0);setVoiceStage("recording");
       voiceTimerRef.current=setInterval(()=>{
+        const analyser=voiceAnalyserRef.current;
+        if(analyser){
+          const samples=new Uint8Array(analyser.frequencyBinCount);analyser.getByteTimeDomainData(samples);
+          const levels=Array.from({length:26},(_,i)=>{
+            let peak=0;const a=Math.floor(i*samples.length/26),b=Math.floor((i+1)*samples.length/26);
+            for(let j=a;j<b;j++)peak=Math.max(peak,Math.abs(samples[j]-128)/128);
+            return Math.min(26,Math.max(5,Math.round(5+peak*65)));
+          });setVoiceLevels(levels);
+        }
         const elapsed=Math.min(60,Math.floor((Date.now()-voiceStartedRef.current)/1000));
         setVoiceSeconds(elapsed);
         if(elapsed>=60)stopVoice();
@@ -1778,6 +1805,7 @@ export default function HomePage(){
     voiceStoppingRef.current=true;
     if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
     voiceTimerRef.current=null;
+    cleanupVoiceVisualizer();
     setVoiceSeconds(Math.min(60,Math.max(1,Math.ceil((Date.now()-voiceStartedRef.current)/1000))));
     recorder.stop();
   }
@@ -1837,6 +1865,7 @@ export default function HomePage(){
   }
   useEffect(()=>()=>{
     if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
+    cleanupVoiceVisualizer();
     voiceRecorderRef.current?.state!=="inactive"&&voiceRecorderRef.current?.stop();
     voiceStreamRef.current?.getTracks().forEach(track=>track.stop());
     voiceAudioRef.current?.pause();
@@ -2026,12 +2055,12 @@ export default function HomePage(){
           onTouchStart={e=>{swipeStartRef.current={id:m.id,x:e.touches[0].clientX,y:e.touches[0].clientY};}}
           onTouchEnd={e=>{const start=swipeStartRef.current;swipeStartRef.current=null;if(!start||start.id!==m.id)return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.abs(dy)>Math.abs(dx))return;if(dx< -55)setSwipedMessageId(m.id);else if(dx>35)setSwipedMessageId(null);}}>
           <div className="rivyza-swipe-actions"><button type="button" onClick={()=>hideSocialMessage(m.id)}>{t("Eliminar para mí")}</button>{m.sender_id===user.id&&Date.now()-new Date(m.created_at).getTime()<180000&&<button type="button" className="rivyza-delete-everyone" onClick={()=>deleteSocialMessageForEveryone(m)}>{t("Eliminar para todos")}</button>}</div>
-          <div className="social-bubble">{m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
+          <div className={"social-bubble"+(m.audio_path?" rivyza-audio-message":"")}>{m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
             {Array.from({length:30},(_,i)=><span key={i} className={i/30<=(voiceProgress[m.id]||0)?"played":""} style={{height:(6+Math.round(Math.abs(Math.sin((i+1)*1.71)*Math.cos((i+2)*.49))*18))+"px"}}/>)}
           </div><small>{Math.min(60,m.audio_duration||0)}s</small></div>:<p>{m.body}</p>}{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>
         </div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
-      </div><div className="rivyza-voice-composer">{voiceStage==="idle"?<form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><div className="rivyza-voice-input"><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="button" className="rivyza-mic-button" onClick={startVoice} aria-label="Grabar mensaje de voz"><Mic size={22}/></button></div><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form>:<div className="rivyza-record-panel"><div className="rivyza-record-wave"><span className={voiceStage==="recording"?"rivyza-record-dot":""}>{voiceStage==="recording"?"●":"🎤"}</span><span className="rivyza-voice-wave">▂▅▃▇▂▄▆▃▅▂▇▄▃▆▂▅▃▇</span><strong>{String(Math.floor(voiceSeconds/60)).padStart(2,"0")}:{String(voiceSeconds%60).padStart(2,"0")}</strong><small>/ 1:00</small></div>{voiceStage==="preview"&&voiceUrl&&<audio controls preload="metadata" src={voiceUrl} className="rivyza-voice-preview"/>}<div className="rivyza-record-actions"><button type="button" onClick={resetVoice} disabled={voiceSending}><Trash2 size={17}/> {t("Cancelar")}</button>{voiceStage==="recording"?<><button type="button" onClick={stopVoice}><Square size={16}/> Stop</button></>:<button type="button" onClick={sendVoice} disabled={voiceSending}><Send size={17}/> {voiceSending?"Enviando…":t("Enviar")}</button>}</div></div>}</div></section>}
+      </div><div className="rivyza-voice-composer">{voiceStage==="idle"?<form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><div className="rivyza-voice-input"><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="button" className="rivyza-mic-button" onClick={startVoice} aria-label="Grabar mensaje de voz"><Mic size={22}/></button></div><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form>:<div className="rivyza-record-panel"><div className="rivyza-record-wave"><span className={voiceStage==="recording"?"rivyza-record-dot":""}>{voiceStage==="recording"?"●":"🎤"}</span><span className="rivyza-record-levels" aria-label="Nivel de voz">{voiceLevels.map((height,i)=><span key={i} style={{height:(voiceStage==="recording"?height:6+Math.round(Math.abs(Math.sin(i*1.73))*17))+"px"}}/>)}</span><strong>{String(Math.floor(voiceSeconds/60)).padStart(2,"0")}:{String(voiceSeconds%60).padStart(2,"0")}</strong><small>/ 1:00</small></div>{voiceStage==="preview"&&voiceUrl&&<audio controls preload="metadata" src={voiceUrl} className="rivyza-voice-preview"/>}<div className="rivyza-record-actions"><button type="button" onClick={resetVoice} disabled={voiceSending}><Trash2 size={17}/> {t("Cancelar")}</button>{voiceStage==="recording"?<><button type="button" onClick={stopVoice}><Square size={16}/> Stop</button></>:<button type="button" onClick={sendVoice} disabled={voiceSending}><Send size={17}/> {voiceSending?"Enviando…":t("Enviar")}</button>}</div></div>}</div></section>}
       {view==="socialSettings"&&<section className="social-settings rivyza-settings-page">
         <div className="rivyza-settings-section-title">{t("Cuenta")}</div>
         <div className="rivyza-settings-group">

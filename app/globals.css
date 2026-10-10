@@ -2803,3 +2803,17 @@ button.rivyza-comment-avatar{border:0;padding:0;appearance:none;-webkit-appearan
 .rivyza-voice-seek span.played{background:#18d8aa}
 .rivyza-voice-seek:focus-visible{outline:2px solid #18d8aa;border-radius:5px}
 .rivyza-voice-bubble small{font-size:10px}
+
+/* RIVYZA 13.19.17: keep voice messages visible on narrow iPhones */
+.rivyza-swipe-row:has(.rivyza-audio-message){width:min(260px,85vw);max-width:85%;min-width:0;box-sizing:border-box}
+.rivyza-swipe-row .social-bubble.rivyza-audio-message{display:block;width:100%;max-width:100%;min-width:0;padding:9px 11px;box-sizing:border-box;overflow:visible}
+.rivyza-audio-message .rivyza-voice-bubble{display:flex;width:100%;max-width:100%;min-width:0;gap:7px}
+.rivyza-audio-message .rivyza-voice-seek{flex:1 1 0;width:auto;min-width:0;max-width:none;gap:2px;touch-action:pan-y}
+.rivyza-audio-message .rivyza-voice-seek span{min-width:1px;max-width:none}
+.rivyza-audio-message .rivyza-voice-bubble small{flex:0 0 auto;font-size:10px}
+.rivyza-record-panel{padding:9px 12px 10px}
+.rivyza-record-wave{gap:8px;min-width:0}
+.rivyza-record-levels{display:flex;align-items:center;justify-content:space-between;gap:2px;flex:1;min-width:0;height:30px;overflow:hidden}
+.rivyza-record-levels>span{display:block;flex:1 1 0;min-width:1px;max-width:4px;border-radius:4px;background:#18d8aa;transition:height .11s ease}
+.rivyza-record-dot{color:#18d8aa}
+@media(max-width:375px){.rivyza-swipe-row:has(.rivyza-audio-message){width:min(245px,84vw)}.rivyza-record-wave{gap:5px}.rivyza-record-wave small{font-size:10px}}
