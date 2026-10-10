@@ -5,7 +5,7 @@ import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
-  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3
+  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send
 } from "lucide-react";
 
 function createImage(url){return new Promise((resolve,reject)=>{const i=new Image();i.addEventListener("load",()=>resolve(i));i.addEventListener("error",reject);i.setAttribute("crossOrigin","anonymous");i.src=url;});}
@@ -48,6 +48,9 @@ function formatPostDateTime(value){
   });
 }
 
+
+const RIVYZA_EN={"Eliminar para mí":"Delete for me","Eliminar para todos":"Delete for everyone","¿Eliminar este mensaje para todos?":"Delete this message for everyone?","Solo puedes eliminar para todos tus mensajes durante los primeros 3 minutos.":"You can delete your messages for everyone only within the first 3 minutes.","No se pudo eliminar para todos.":"Could not delete for everyone.","Eliminar":"Delete","¿Eliminar este mensaje solo para ti?":"Delete this message only for you?","No se pudo eliminar el mensaje. Ejecuta el SQL de esta actualización en Supabase.":"Unable to delete the message. Run this update’s SQL in Supabase.","Seguridad y contraseña":"Security & password","Información de cuenta":"Account information","Cuenta privada":"Private account","Cuentas bloqueadas":"Blocked accounts","Estado en línea":"Online status","Quién puede enviarme mensajes":"Who can message me","Quién puede comentar":"Who can comment","Menciones y etiquetas":"Mentions & tags","Publicaciones que me gustan":"Liked posts","Lista de seguidos":"Following list","Apariencia":"Appearance","Preferencias de notificaciones":"Notification preferences","Cambiar de cuenta":"Switch account","Próximamente":"Coming soon","Ver perfil":"View profile","Enlace copiado":"Link copied","Cuenta":"Account","Compartir perfil":"Share profile","Preferencias":"Preferences","Notificaciones":"Notifications","Sesión":"Session","Cerrar sesión":"Log out","¿Quieres cerrar sesión?":"Do you want to log out?","Inicio": "Home", "Amigos": "Friends", "Alertas": "Notifications", "Perfil": "Profile", "Para ti": "For You", "Conexiones": "Connections", "Todos los usuarios": "All users", "Comunidad": "Community", "Buscar conexiones": "Search connections", "Buscar usuarios": "Search users", "Siguiendo": "Following", "Seguidores": "Followers", "Te sigue": "Follows you", "Seguir": "Follow", "Enviar mensaje": "Send message", "Editar perfil": "Edit profile", "Me gusta": "Liked posts", "Privacidad": "Privacy", "Configuración y privacidad": "Settings & privacy", "Mostrar cuando estoy en línea": "Show when I am online", "Cuando esté desactivado, nadie verá tu punto verde.": "When disabled, nobody will see your green dot.", "Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.": "Your preference is saved. When enabled, others can see your green dot while you are online.", "Actividad y seguidores": "Activity & followers", "Mensajes": "Messages", "Buscar personas para enviar un mensaje": "Find people to message", "Buscar personas": "Find people", "Ver todos ›": "See all ›", "Publicación": "Post", "Compartir": "Share", "Más": "More", "Publicar": "Post", "Publicando…": "Posting…", "Guardar": "Save", "Cancelar": "Cancel", "Eliminar": "Delete", "Volver": "Back", "Cerrar": "Close", "Foto": "Photo", "Video": "Video", "Fotos": "Photos", "Videos": "Videos", "Buscar": "Search", "Nombre": "Name", "Usuario": "User", "Usuarios registrados": "Registered users", "En línea": "Online", "Solo tú puedes ver las publicaciones a las que les has dado like.": "Only you can see the posts you have liked.", "Tus fotos y videos aparecerán aquí": "Your photos and videos will appear here", "Aún no has dado me gusta a ninguna publicación.": "You have not liked any posts yet.", "Cargando tus me gusta…": "Loading your liked posts…", "No se pudieron cargar tus me gusta.": "Could not load your liked posts.", "Idioma de la aplicación": "App language", "Idioma": "Language", "Español": "Spanish", "Inglés": "English", "Configuración": "Settings", "Continuar con Google": "Continue with Google", "Escribe un mensaje…": "Write a message…", "Enviar": "Send", "Amigos, personas que sigues y personas que te siguen.": "Friends, people you follow, and people who follow you.", "No hay resultados.": "No results.", "No hay usuarios.": "No users.", "Comentarios": "Comments", "Comentar": "Comment", "Publicaciones": "Posts", "Cambiar idioma": "Change language", "Mis me gusta": "My liked posts", "Solo yo": "Only me", "No hay conexiones.": "No connections."};
+
 export default function HomePage(){
   const countryCodes=["AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR","GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR","HT","HU","ID","IE","IL","IM","IN","IO","IQ","IR","IS","IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ","TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE","YT","ZA","ZM","ZW"];
   const regionNames=useMemo(()=>new Intl.DisplayNames(["es"],{type:"region"}),[]);
@@ -72,14 +75,48 @@ export default function HomePage(){
     }):null;
   },[]);
 
+  const [appLanguage,setAppLanguage]=useState("es");
+  useEffect(()=>{try{setAppLanguage(localStorage.getItem("rivyza-language")==="en"?"en":"es");}catch(e){}},[]);
+  const changeAppLanguage=(value)=>{setAppLanguage(value);try{localStorage.setItem("rivyza-language",value);}catch(e){}};
+  const t=(value)=>appLanguage==="en"?(RIVYZA_EN[value]||value):value;
+  useEffect(()=>{if(typeof document!=="undefined")document.documentElement.lang=appLanguage;},[appLanguage]);
+  const [likedPosts,setLikedPosts]=useState([]);
+  const [likedPostsLoading,setLikedPostsLoading]=useState(false);
+  const [likedPostsError,setLikedPostsError]=useState("");
   const [socialNotices,setSocialNotices]=useState([]);
   const [socialMessages,setSocialMessages]=useState([]);
+  const [hiddenMessageIds,setHiddenMessageIds]=useState([]);
+  const [conversationCutoffs,setConversationCutoffs]=useState({});
+  const [swipedConversationId,setSwipedConversationId]=useState(null);
+  const conversationSwipeStartRef=useRef(null);
+  const [swipedMessageId,setSwipedMessageId]=useState(null);
+  const swipeStartRef=useRef(null);
   const [socialPeer,setSocialPeer]=useState(null);
   const [socialChatReturnView,setSocialChatReturnView]=useState("alerts");
+  const [profileReturnToChat,setProfileReturnToChat]=useState(false);
+  const [settingsSheet,setSettingsSheet]=useState("");
   const [socialDraft,setSocialDraft]=useState("");
+  const [voiceStage,setVoiceStage]=useState("idle");
+  const [voiceSeconds,setVoiceSeconds]=useState(0);
+  const [voiceBlob,setVoiceBlob]=useState(null);
+  const [voiceUrl,setVoiceUrl]=useState("");
+  const [voiceSending,setVoiceSending]=useState(false);
+  const [voicePlayingId,setVoicePlayingId]=useState(null);
+  const [voiceProgress,setVoiceProgress]=useState({});
+  const voiceRecorderRef=useRef(null);
+  const voiceStreamRef=useRef(null);
+  const voiceChunksRef=useRef([]);
+  const voiceStartedRef=useRef(0);
+  const voiceTimerRef=useRef(null);
+  const voiceAudioRef=useRef(null);
+  const voiceStoppingRef=useRef(false);
+  const [voiceLinks,setVoiceLinks]=useState({});
   const [socialBusy,setSocialBusy]=useState(false);
   const [socialError,setSocialError]=useState("");
   const [onlinePreference,setOnlinePreference]=useState(false);
+  const [onlineIds,setOnlineIds]=useState([]);
+  const onlineDot=(id)=>id&&id!==user?.id&&onlineIds.includes(id)?<span className="rivyza-online-dot" title={t("En línea")} aria-label={t("En línea")}/>:null;
+
   const socialPollBusy=useRef(false);
   const socialThreadRef=useRef(null);
   const unreadSocial=socialNotices.filter(n=>!n.read_at).length;
@@ -128,6 +165,9 @@ export default function HomePage(){
   const [connectionsRows,setConnectionsRows]=useState([]);
   const [connectionsLoading,setConnectionsLoading]=useState(false);
   const [connectionsSearch,setConnectionsSearch]=useState("");
+  const [connectionsTab,setConnectionsTab]=useState("mine");
+  const [communityRows,setCommunityRows]=useState([]);
+  const [communityLoading,setCommunityLoading]=useState(false);
   const [socialListRows,setSocialListRows]=useState([]);
   const [socialListLoading,setSocialListLoading]=useState(false);
   const [feedTab,setFeedTab]=useState("forYou");
@@ -301,6 +341,28 @@ export default function HomePage(){
     setProfilePosts(sorted.map(p=>({...p,comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
+  async function loadMyLikedPosts(){
+    if(!supabase||!user?.id)return;
+    setLikedPostsLoading(true);setLikedPostsError("");
+    try{
+      const {data:likes,error}=await supabase.from("post_likes").select("post_id,created_at").eq("user_id",user.id).order("created_at",{ascending:false}).limit(500);
+      if(error)throw error;
+      const ids=[...new Set((likes||[]).map(x=>x.post_id).filter(Boolean))];
+      if(!ids.length){setLikedPosts([]);return;}
+      const posts=[];
+      for(let i=0;i<ids.length;i+=100){
+        const {data,error:pe}=await supabase.from("posts").select("*").in("id",ids.slice(i,i+100));
+        if(pe)throw pe;
+        posts.push(...(data||[]));
+      }
+      const byId=new Map(posts.map(post=>[post.id,post]));
+      // Posts may have been deleted or made private since the like was recorded.
+      setLikedPosts(ids.map(id=>byId.get(id)).filter(post=>post&&(post.user_id===user.id||post.visibility==="public")));
+    }catch(e){console.error("Liked posts error",e);setLikedPostsError("No se pudieron cargar tus me gusta.");}
+    finally{setLikedPostsLoading(false);}
+  }
+  useEffect(()=>{if(view==="publicProfile"&&profileTab==="likes"&&user?.id)loadMyLikedPosts();},[view,profileTab,user?.id]);
+
   async function loadProfileLikeCount(profileId,{own=false}={}){
     if(!supabase || !profileId)return;
     try{
@@ -414,9 +476,26 @@ export default function HomePage(){
     const {error}=await supabase.from("follows").insert({follower_id:user.id,following_id:person.id});
     if(error){console.error("Follow connection error:",error);return;}
     setConnectionsRows(rows=>rows.map(p=>p.id===person.id?{...p,i_follow:true}:p));
+    setCommunityRows(rows=>rows.map(p=>p.id===person.id?{...p,i_follow:true}:p));
     loadFollowCounts(user.id,{own:true});
   }
-  function openConnections(){setConnectionsSearch("");setView("connections");loadConnections();}
+  async function loadCommunity(){
+    if(!supabase||!user?.id)return;
+    setCommunityLoading(true);
+    try{
+      const [{data:people,error:pe},{data:out,error:oe},{data:incoming,error:ie}]=await Promise.all([
+        supabase.from("profiles").select("id,username,display_name,avatar_url,bio").order("created_at",{ascending:false}).limit(500),
+        supabase.from("follows").select("following_id").eq("follower_id",user.id),
+        supabase.from("follows").select("follower_id").eq("following_id",user.id)
+      ]);
+      if(pe||oe||ie)throw pe||oe||ie;
+      const outIds=new Set((out||[]).map(x=>x.following_id));
+      const inIds=new Set((incoming||[]).map(x=>x.follower_id));
+      setCommunityRows((people||[]).filter(p=>p.id!==user.id).map(p=>({...p,i_follow:outIds.has(p.id),follows_me:inIds.has(p.id)})));
+    }catch(e){console.error("Community directory error:",e);setCommunityRows([]);}
+    finally{setCommunityLoading(false);}
+  }
+  function openConnections(){setConnectionsSearch("");setConnectionsTab("mine");setView("connections");loadConnections();loadCommunity();}
 
   async function openSocialList(profileId,type){
     if(!supabase || !profileId)return;
@@ -833,14 +912,14 @@ export default function HomePage(){
   function renderCommentsSheet(){return (
     <div className="post-menu-backdrop" onClick={()=>setCommentsOpen(false)}>
       <div className="post-menu-sheet comments-sheet rivyza-comments" onClick={e=>e.stopPropagation()}>
-        <div className="rivyza-comments-heading"><strong>Comentarios</strong><button type="button" onClick={()=>setCommentsOpen(false)} aria-label="Cerrar comentarios">×</button></div>
+        <div className="rivyza-comments-heading"><strong>{t("Comentarios")}</strong><button type="button" onClick={()=>setCommentsOpen(false)} aria-label="Cerrar comentarios">×</button></div>
         <div className="rivyza-comments-list">
           {commentsLoading&&<p>Cargando comentarios…</p>}
           {!commentsLoading&&!commentRows.length&&!commentError&&<p>Sé la primera persona en comentar.</p>}
           {commentRows.map(c=><div className="rivyza-comment" key={c.id}>
-            <button type="button" className="rivyza-comment-avatar rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id} aria-label={`Ver perfil de ${c.author?.display_name||c.author?.username||"usuario"}`}>{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}</button>
+            <button type="button" className="rivyza-comment-avatar rivyza-comment-profile-link rivyza-presence-anchor" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id} aria-label={`Ver perfil de ${c.author?.display_name||c.author?.username||"usuario"}`}>{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}{onlineDot(c.author?.id)}</button>
             <div className="rivyza-comment-content"><button type="button" className="rivyza-comment-name rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id}>{c.author?.display_name||c.author?.username||"Usuario"}</button><span>{c.body}</span><small>{formatPostDate(c.created_at)}</small></div>
-            {(c.user_id===user?.id||selectedPost?.user_id===user?.id)&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">Eliminar</button>}
+            {(c.user_id===user?.id||selectedPost?.user_id===user?.id)&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">{t("Eliminar")}</button>}
           </div>)}
         </div>
         {commentError&&<p className="rivyza-comment-error">{commentError}</p>}
@@ -949,6 +1028,7 @@ export default function HomePage(){
         if(error)throw error;
         setPostLiked(true);setPostLikeCount(v=>v+1);
       }
+      if(view==="publicProfile"&&profileTab==="likes")loadMyLikedPosts();
       if(selectedPost.user_id===user.id)loadProfileLikeCount(user.id,{own:true});
       else if(viewedProfile?.id===selectedPost.user_id)loadProfileLikeCount(viewedProfile.id);
     }catch(e){setPostActionMessage("Los likes necesitan activar el SQL incluido en el paquete.");}
@@ -1485,11 +1565,11 @@ export default function HomePage(){
            </label>
 
            <label className="upload-field">
-             <span>Privacidad</span>
+             <span>{t("Privacidad")}</span>
              <select value={uploadVisibility} onChange={(e)=>setUploadVisibility(e.target.value)}>
                <option value="public">Público</option>
                <option value="followers">Solo seguidores</option>
-               <option value="private">Solo yo</option>
+               <option value="private">{t("Solo yo")}</option>
              </select>
            </label>
 
@@ -1613,9 +1693,11 @@ export default function HomePage(){
     if(!supabase || !user?.id || socialPollBusy.current)return;
     socialPollBusy.current=true;
     try{
-      const [notices,messages]=await Promise.all([
+      const [notices,messages,hidden,cleared]=await Promise.all([
         supabase.from("rivyza_notifications").select("*").eq("recipient_id",user.id).order("created_at",{ascending:false}).limit(80),
-        supabase.from("rivyza_messages").select("*").or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`).order("created_at",{ascending:false}).limit(150)
+        supabase.from("rivyza_messages").select("*").or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`).order("created_at",{ascending:false}).limit(150),
+        supabase.from("rivyza_hidden_messages").select("message_id").eq("user_id",user.id),
+        supabase.from("rivyza_cleared_conversations").select("peer_id,cleared_at").eq("user_id",user.id)
       ]);
       if(notices.error || messages.error){setSocialError("Primero configura RIVYZA_SOCIAL_V1.sql en Supabase.");return;}
       const ids=[...new Set([...(notices.data||[]).map(n=>n.actor_id),...(messages.data||[]).flatMap(m=>[m.sender_id,m.recipient_id])])];
@@ -1625,7 +1707,9 @@ export default function HomePage(){
       const {data:noticePosts}=postIds.length?await supabase.from("posts").select("id,media_path,media_type").in("id",postIds):{data:[]};
       const postsById=Object.fromEntries((noticePosts||[]).map(post=>[post.id,post]));
       setSocialNotices((notices.data||[]).map(n=>({...n,actor:byId[n.actor_id],relatedPost:postsById[n.post_id]||null})));
-      setSocialMessages((messages.data||[]).map(m=>({...m,sender:byId[m.sender_id],recipient:byId[m.recipient_id]})));
+      setSocialMessages((messages.data||[]).filter(m=>!m.deleted_for_all && (!m.audio_path || !m.audio_expires_at || new Date(m.audio_expires_at)>new Date())).map(m=>({...m,sender:byId[m.sender_id],recipient:byId[m.recipient_id]})));
+      if(!hidden.error)setHiddenMessageIds((hidden.data||[]).map(x=>x.message_id));
+      if(!cleared.error)setConversationCutoffs(Object.fromEntries((cleared.data||[]).map(x=>[x.peer_id,x.cleared_at])));
       setSocialError("");
     }catch(e){console.warn("RIVYZA social:",e);}finally{socialPollBusy.current=false;}
   }
@@ -1650,14 +1734,159 @@ export default function HomePage(){
     const {error}=await supabase.from("rivyza_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",user.id).in("id",ids);
     if(!error)setSocialNotices(rows=>rows.map(n=>ids.includes(n.id)?{...n,read_at:new Date().toISOString()}:n));
   }
+  function resetVoice(){
+    if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
+    voiceTimerRef.current=null;
+    const recorder=voiceRecorderRef.current;
+    if(recorder && recorder.state!=="inactive"){recorder.onstop=null;recorder.stop();}
+    voiceStreamRef.current?.getTracks().forEach(track=>track.stop());
+    voiceRecorderRef.current=null;voiceStreamRef.current=null;
+    if(voiceUrl)URL.revokeObjectURL(voiceUrl);
+    setVoiceUrl("");setVoiceBlob(null);setVoiceSeconds(0);setVoiceStage("idle");voiceStoppingRef.current=false;
+  }
+  async function startVoice(){
+    if(voiceStage!=="idle" || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder==="undefined"){
+      setSocialError("Este navegador no permite grabar audio. Usa Safari o Chrome actualizado con HTTPS.");return;
+    }
+    try{
+      setSocialError("");
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const formats=["audio/mp4","audio/webm;codecs=opus","audio/webm"];
+      const mime=formats.find(x=>MediaRecorder.isTypeSupported(x));
+      const recorder=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
+      voiceStreamRef.current=stream;voiceRecorderRef.current=recorder;voiceChunksRef.current=[];voiceStoppingRef.current=false;
+      recorder.ondataavailable=e=>{if(e.data?.size)voiceChunksRef.current.push(e.data);};
+      recorder.onstop=()=>{
+        stream.getTracks().forEach(track=>track.stop());voiceStreamRef.current=null;
+        const blob=new Blob(voiceChunksRef.current,{type:recorder.mimeType||"audio/webm"});
+        if(blob.size){setVoiceBlob(blob);setVoiceUrl(URL.createObjectURL(blob));setVoiceStage("preview");}
+        else {setVoiceStage("idle");setSocialError("No se grabó audio. Inténtalo nuevamente.");}
+      };
+      recorder.onerror=()=>{setSocialError("Error al grabar el audio.");resetVoice();};
+      recorder.start(250);voiceStartedRef.current=Date.now();setVoiceSeconds(0);setVoiceStage("recording");
+      voiceTimerRef.current=setInterval(()=>{
+        const elapsed=Math.min(60,Math.floor((Date.now()-voiceStartedRef.current)/1000));
+        setVoiceSeconds(elapsed);
+        if(elapsed>=60)stopVoice();
+      },250);
+    }catch(e){setSocialError("No se pudo usar el micrófono. Revisa los permisos del navegador.");}
+  }
+  function stopVoice(){
+    if(voiceStoppingRef.current)return;
+    const recorder=voiceRecorderRef.current;
+    if(!recorder || recorder.state==="inactive")return;
+    voiceStoppingRef.current=true;
+    if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
+    voiceTimerRef.current=null;
+    setVoiceSeconds(Math.min(60,Math.max(1,Math.ceil((Date.now()-voiceStartedRef.current)/1000))));
+    recorder.stop();
+  }
+  async function sendVoice(){
+    if(!voiceBlob || !user?.id || !socialPeer?.id || voiceSending)return;
+    setVoiceSending(true);setSocialError("");
+    const ext=voiceBlob.type.includes("mp4")?"m4a":"webm";
+    const path=`${user.id}/${crypto.randomUUID()}.${ext}`;
+    try{
+      if(voiceBlob.size>8*1024*1024)throw new Error("El audio supera el límite de 8 MB.");
+      const {error:uploadError}=await supabase.storage.from("rivyza-voice").upload(path,voiceBlob,{contentType:voiceBlob.type||"audio/webm",upsert:false});
+      if(uploadError)throw uploadError;
+      const {error:insertError}=await supabase.from("rivyza_messages").insert({sender_id:user.id,recipient_id:socialPeer.id,body:"",audio_path:path,audio_duration:Math.min(60,voiceSeconds)});
+      if(insertError){await supabase.storage.from("rivyza-voice").remove([path]);throw insertError;}
+      resetVoice();await loadSocial();
+    }catch(e){setSocialError("No se pudo enviar el audio: "+(e?.message||"Error desconocido"));}
+    finally{setVoiceSending(false);}
+  }
+  async function playVoice(message){
+    if(!message.audio_path)return;
+    try{
+      if(voiceAudioRef.current){voiceAudioRef.current.pause();voiceAudioRef.current=null;}
+      if(voicePlayingId===message.id){setVoicePlayingId(null);return;}
+      let url=voiceLinks[message.id];
+      if(!url){
+        const {data,error}=await supabase.storage.from("rivyza-voice").createSignedUrl(message.audio_path,120);
+        if(error)throw error;
+        url=data.signedUrl;
+        setVoiceLinks(old=>({...old,[message.id]:url}));
+      }
+      const audio=new Audio(url);voiceAudioRef.current=audio;
+      audio.ontimeupdate=()=>{if(Number.isFinite(audio.duration)&&audio.duration>0)setVoiceProgress(old=>({...old,[message.id]:Math.min(1,audio.currentTime/audio.duration)}));};
+      audio.onended=()=>{setVoiceProgress(old=>({...old,[message.id]:0}));setVoicePlayingId(null);voiceAudioRef.current=null;};
+      audio.onerror=()=>{setVoicePlayingId(null);setSocialError("No se pudo reproducir el audio.");};
+      await audio.play();setVoicePlayingId(message.id);
+      if(message.recipient_id===user.id && !message.audio_listened_at){
+        const {error}=await supabase.rpc("rivyza_mark_voice_listened",{p_message_id:message.id});
+        if(!error)setSocialMessages(old=>old.map(m=>m.id===message.id?{...m,audio_listened_at:new Date().toISOString()}:m));
+      }
+    }catch(e){setVoicePlayingId(null);setSocialError("No se pudo abrir el audio: "+(e?.message||"Error"));}
+  }
+  async function seekVoice(message,fraction){
+    const value=Math.max(0,Math.min(1,fraction));
+    setVoiceProgress(old=>({...old,[message.id]:value}));
+    if(voicePlayingId===message.id && voiceAudioRef.current){
+      const audio=voiceAudioRef.current;
+      if(Number.isFinite(audio.duration)&&audio.duration>0)audio.currentTime=value*audio.duration;
+      return;
+    }
+    // Si no está reproduciéndose, iniciar desde la posición seleccionada.
+    await playVoice(message);
+    const audio=voiceAudioRef.current;
+    if(audio){
+      const apply=()=>{if(Number.isFinite(audio.duration)&&audio.duration>0)audio.currentTime=value*audio.duration;};
+      if(audio.readyState>=1)apply();else audio.addEventListener("loadedmetadata",apply,{once:true});
+    }
+  }
+  useEffect(()=>()=>{
+    if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
+    voiceRecorderRef.current?.state!=="inactive"&&voiceRecorderRef.current?.stop();
+    voiceStreamRef.current?.getTracks().forEach(track=>track.stop());
+    voiceAudioRef.current?.pause();
+  },[]);
   async function openSocialPeer(person){
     if(!person?.id || person.id===user?.id)return;
     setSocialChatReturnView(view==="alerts"?"alerts":view==="inbox"?"inbox":view==="messages"?socialChatReturnView:view==="otherProfile"?"otherProfile":view==="publicProfile"?"publicProfile":"alerts");
-    setSocialPeer(person);setSocialDraft("");setSocialError("");setView("messages");
+    resetVoice();setVoiceLinks({});setProfileReturnToChat(false);setSocialPeer(person);setSocialDraft("");setSocialError("");setView("messages");
     await markSocialRead(socialNotices.filter(n=>n.kind==="message" && n.actor_id===person.id && !n.read_at).map(n=>n.id));
     await loadSocial();
   }
-  async function sendSocialMessage(sharedPostId=null){
+  async function clearSocialConversation(peerId){
+    if(!user?.id || !peerId)return;
+    if(!window.confirm(t("¿Eliminar toda esta conversación solo para ti? La otra persona conservará sus mensajes.")))return;
+    const {data,error}=await supabase.rpc("rivyza_clear_conversation",{p_peer_id:peerId});
+    if(error){setSocialError(t("No se pudo eliminar la conversación. Ejecuta el SQL de esta actualización en Supabase."));return;}
+    const cutoff=data||new Date().toISOString();
+    setConversationCutoffs(old=>({...old,[peerId]:cutoff}));
+    setSwipedConversationId(null);
+    // Remove old message notifications from the inbox badge for this conversation.
+    const unreadIds=socialNotices.filter(n=>n.kind==="message"&&n.actor_id===peerId&&!n.read_at).map(n=>n.id);
+    if(unreadIds.length)await markSocialRead(unreadIds);
+  }
+  function conversationSwipeProps(peerId){
+    return {
+      onTouchStart:e=>{conversationSwipeStartRef.current={id:peerId,x:e.touches[0].clientX,y:e.touches[0].clientY};},
+      onTouchEnd:e=>{const start=conversationSwipeStartRef.current;conversationSwipeStartRef.current=null;if(!start||start.id!==peerId)return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.abs(dy)>Math.abs(dx))return;if(dx< -55)setSwipedConversationId(peerId);else if(dx>35)setSwipedConversationId(null);}
+    };
+  }
+  async function deleteSocialMessageForEveryone(message){
+    if(!user?.id || !message?.id || message.sender_id!==user.id)return;
+    if(Date.now()-new Date(message.created_at).getTime()>=180000){
+      setSocialError(t("Solo puedes eliminar para todos tus mensajes durante los primeros 3 minutos."));return;
+    }
+    if(!window.confirm(t("¿Eliminar este mensaje para todos?")))return;
+    const {error}=await supabase.rpc("rivyza_delete_message_for_everyone",{p_message_id:message.id});
+    if(error){setSocialError(t("No se pudo eliminar para todos.")+" "+error.message);return;}
+    setSocialMessages(old=>old.filter(m=>m.id!==message.id));
+    setSwipedMessageId(null);
+    await loadSocial();
+  }
+  async function hideSocialMessage(messageId){
+    if(!user?.id || !messageId)return;
+    if(!window.confirm(t("¿Eliminar este mensaje solo para ti?")))return;
+    const {error}=await supabase.from("rivyza_hidden_messages").insert({user_id:user.id,message_id:messageId});
+    if(error){setSocialError(t("No se pudo eliminar el mensaje. Ejecuta el SQL de esta actualización en Supabase."));return;}
+    setHiddenMessageIds(ids=>[...new Set([...ids,messageId])]);
+    setSwipedMessageId(null);
+  }
+    async function sendSocialMessage(sharedPostId=null){
     const body=socialDraft.trim();
     if(!socialPeer?.id || (!body && !sharedPostId) || socialBusy)return;
     setSocialBusy(true);
@@ -1695,12 +1924,35 @@ export default function HomePage(){
     if(!user?.id || !supabase)return;
     supabase.from("rivyza_presence_preferences").select("show_online").eq("user_id",user.id).maybeSingle().then(({data})=>setOnlinePreference(Boolean(data?.show_online)));
   },[user?.id,supabase]);
+  // Presence heartbeat: only opted-in users are visible, and stale sessions expire.
+  useEffect(()=>{
+    if(!supabase||!user?.id)return;
+    let active=true;
+    const refresh=async()=>{
+      const since=new Date(Date.now()-75000).toISOString();
+      const {data,error}=await supabase.from("rivyza_online_sessions").select("user_id").gte("last_seen_at",since);
+      if(active&&!error)setOnlineIds((data||[]).map(r=>r.user_id));
+    };
+    const heartbeat=async()=>{
+      if(!document.hidden&&onlinePreference){
+        await supabase.from("rivyza_online_sessions").upsert({user_id:user.id,last_seen_at:new Date().toISOString()});
+      }else{
+        await supabase.from("rivyza_online_sessions").delete().eq("user_id",user.id);
+      }
+      if(active)refresh();
+    };
+    heartbeat();
+    const timer=setInterval(heartbeat,25000);
+    const onVisibility=()=>heartbeat();
+    document.addEventListener("visibilitychange",onVisibility);
+    return ()=>{active=false;clearInterval(timer);document.removeEventListener("visibilitychange",onVisibility);};
+  },[supabase,user?.id,onlinePreference]);
   function socialNav(){return <nav className="bottom-nav">
-    <button onClick={()=>setView("home")}><Home/><span>Inicio</span></button>
-    <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
-    <button onClick={()=>setView("inbox")}><MessageCircle/><span>Mensajes</span></button>
-    <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-    <button onClick={()=>setView("publicProfile")}><User/><span>Perfil</span></button>
+    <button onClick={()=>setView("home")}><Home/><span>{t("Inicio")}</span></button>
+    <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
+    <button onClick={()=>setView("inbox")}><MessageCircle/><span>{t("Mensajes")}</span></button>
+    <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+    <button onClick={()=>setView("publicProfile")}><User/><span>{t("Perfil")}</span></button>
   </nav>;}
   if(loading)return <div className="center">Cargando RIVYZA…</div>;
 
@@ -1710,7 +1962,7 @@ export default function HomePage(){
         <div className="logo-mark">R</div>
         <h1>RIVYZA</h1>
         <p className="tagline">Vive. Conecta. Transmite.</p>
-        <button className="google-btn" onClick={signInWithGoogle}>Continuar con Google</button>
+        <button className="google-btn" onClick={signInWithGoogle}>{t("Continuar con Google")}</button>
       </section>
     </main>;
   }
@@ -1718,7 +1970,7 @@ export default function HomePage(){
   
   if(["alerts","activity","inbox","messages","socialSettings"].includes(view)){
     const conversations=new Map();
-    socialMessages.forEach(m=>{const peer=m.sender_id===user.id?m.recipient:m.sender;if(peer?.id&&!conversations.has(peer.id))conversations.set(peer.id,{peer,last:m});});
+    socialMessages.filter(m=>!hiddenMessageIds.includes(m.id)).forEach(m=>{const peer=m.sender_id===user.id?m.recipient:m.sender;if(peer?.id && (!conversationCutoffs[peer.id] || new Date(m.created_at)>new Date(conversationCutoffs[peer.id])) && !conversations.has(peer.id))conversations.set(peer.id,{peer,last:m});});
     // Mensajes y actividad son dos bandejas independientes.
     // Cada remitente ocupa una sola fila; el último mensaje decide su posición.
     const recentConversations=[...conversations.values()].sort((a,b)=>new Date(b.last.created_at)-new Date(a.last.created_at));
@@ -1736,22 +1988,22 @@ export default function HomePage(){
       await markSocialRead([n.id]);
       if(n.actor){openUserProfile(n.actor);}else setSocialError("Este perfil no está disponible.");
     }
-    const thread=socialMessages.filter(m=>socialPeer && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    const thread=socialMessages.filter(m=>!hiddenMessageIds.includes(m.id) && socialPeer && (!conversationCutoffs[socialPeer.id] || new Date(m.created_at)>new Date(conversationCutoffs[socialPeer.id])) && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     return <main className="social-screen">
-      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):"Configuración y privacidad"}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
+      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
       {socialError&&<p className="social-error">{socialError}</p>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
         <section className="rivyza-alert-messages" aria-label="Mensajes privados">
-          <div className="rivyza-alert-section-heading"><span><MessageCircle size={20}/> <strong>Mensajes</strong></span>{unreadMessages>0&&<b className="rivyza-message-count">{unreadMessages>99?"99+":unreadMessages} nuevos</b>}<button type="button" onClick={()=>setView("inbox")}>Ver todos ›</button></div>
-          {recentConversations.length===0?<button className="rivyza-alert-empty-chat" onClick={()=>setView("inbox")}>Todavía no tienes mensajes. Abrir bandeja ›</button>:recentConversations.map(({peer,last})=><button className="rivyza-alert-conversation" key={peer.id} onClick={()=>openSocialPeer(peer)}>
-            <span className="rivyza-alert-avatar">{peer.avatar_url?<img src={peer.avatar_url} alt=""/>:<span>{(peer.display_name||peer.username||"U").slice(0,1).toUpperCase()}</span>}</span>
+          <div className="rivyza-alert-section-heading"><span><MessageCircle size={20}/> <strong>{t("Mensajes")}</strong></span>{unreadMessages>0&&<b className="rivyza-message-count">{unreadMessages>99?"99+":unreadMessages} nuevos</b>}<button type="button" onClick={()=>setView("inbox")}>{t("Ver todos ›")}</button></div>
+          {recentConversations.length===0?<button className="rivyza-alert-empty-chat" onClick={()=>setView("inbox")}>Todavía no tienes mensajes. Abrir bandeja ›</button>:recentConversations.map(({peer,last})=><div className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")} key={peer.id} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button className="rivyza-alert-conversation" onClick={()=>{if(swipedConversationId===peer.id){setSwipedConversationId(null);return;}openSocialPeer(peer);}}>
+            <span className="rivyza-alert-avatar rivyza-presence-anchor">{peer.avatar_url?<img src={peer.avatar_url} alt=""/>:<span>{(peer.display_name||peer.username||"U").slice(0,1).toUpperCase()}</span>}{onlineDot(peer.id)}</span>
             <span className="rivyza-alert-chat-copy"><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.sender_id===user.id?"Tú: ":""}{last.body}</small></span>
             <span className="rivyza-alert-chat-meta"><small>{formatPostDateTime(last.created_at)}</small>{unreadBySender.get(peer.id)>0&&<b>{unreadBySender.get(peer.id)>99?"99+":unreadBySender.get(peer.id)}</b>}</span>
-          </button>)}
+          </button></div>)}
         </section>
         <button type="button" className="rivyza-activity-entry" onClick={()=>setView("activity")}>
           <span className="rivyza-activity-logo"><Heart size={20}/><User size={16}/></span>
-          <span className="rivyza-activity-copy"><strong>Actividad y seguidores</strong><small>Likes, comentarios y seguidores</small></span>
+          <span className="rivyza-activity-copy"><strong>{t("Actividad y seguidores")}</strong><small>Likes, comentarios y seguidores</small></span>
           {activityUnread>0&&<b className="rivyza-message-count">{activityUnread>99?"99+":activityUnread}</b>}
           <span aria-hidden="true">›</span>
         </button>
@@ -1759,21 +2011,55 @@ export default function HomePage(){
       {view==="activity"&&<div className="social-list rivyza-activity-list">
         {activityAlerts.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
         {activityAlerts.map(n=><button key={n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openActivityNotice(n)}>
-          <span className="rivyza-notice-avatar">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt="" loading="lazy"/>:<User size={24}/>}</span>
+          <span className="rivyza-notice-avatar rivyza-presence-anchor">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt="" loading="lazy"/>:<User size={24}/>}{onlineDot(n.actor?.id)}</span>
           <span className="rivyza-notice-copy"><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong><span>{n.kind==="like"?"Le dio like a tu publicación.":n.kind==="comment"?"Comentó tu publicación.":n.kind==="follow"?"Comenzó a seguirte.":n.kind==="unfollow"?"Dejó de seguirte.":"Nueva actividad."}</span><small>{formatPostDateTime(n.created_at)}</small></span>
           <span className="rivyza-notice-end">{(n.kind==="like"||n.kind==="comment")&&n.relatedPost?.media_path?<span className="rivyza-notice-thumb">{n.relatedPost.media_type==="photo"?<img src={n.relatedPost.media_path} alt="Publicación" loading="lazy"/>:<video src={`${n.relatedPost.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</span>:null}<span className={"rivyza-notice-type rivyza-notice-type-"+n.kind}>{n.kind==="like"?<Heart size={20}/>:n.kind==="comment"?<MessageCircle size={20}/>:n.kind==="follow"?<UserRoundPlus size={21}/>:n.kind==="unfollow"?<UserRoundMinus size={21}/>:<Bell size={20}/>}</span>{!n.read_at&&<i className="rivyza-notice-unread"/>}</span>
         </button>)}
       </div>}
       {view==="inbox"&&<div className="social-list">
         <button className="social-quick" onClick={()=>{setView("home");setPeopleSearchOpen(true);}}>+ Buscar personas para enviar un mensaje</button>
-        {recentConversations.map(({peer,last})=><button className="social-item" key={peer.id} onClick={()=>openSocialPeer(peer)}><span className="social-icon">✉️</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.body}</small></span></button>)}
+        {recentConversations.map(({peer,last})=><div className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")} key={peer.id} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button className="social-item" onClick={()=>{if(swipedConversationId===peer.id){setSwipedConversationId(null);return;}openSocialPeer(peer);}}><span className="social-icon rivyza-presence-anchor">{peer.avatar_url?<img className="rivyza-inbox-photo" src={peer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(peer.id)}</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.audio_path?"🎤 Mensaje de voz":last.body}</small></span></button></div>)}
         {conversations.size===0&&<p className="social-empty">Aún no tienes conversaciones. Visita el perfil de una persona y toca «Enviar mensaje».</p>}
       </div>}
-      {view==="messages"&&<section className="social-chat-layout"><div className="social-thread" ref={socialThreadRef}>
-        {thread.map(m=><div key={m.id} className={"social-bubble "+(m.sender_id===user.id?"mine":"theirs")}><p>{m.body}</p>{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>)}
+      {view==="messages"&&<section className="social-chat-layout"><button type="button" className="rivyza-chat-peer rivyza-chat-peer-link" onClick={()=>{if(socialPeer?.id){setProfileReturnToChat(true);openUserProfile(socialPeer);}}} aria-label={t("Ver perfil")}><span className="rivyza-chat-peer-avatar rivyza-presence-anchor">{socialPeer?.avatar_url?<img src={socialPeer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(socialPeer?.id)}</span><strong>{socialPeer?.display_name||socialPeer?.username||"Usuario"}</strong><span className="rivyza-chat-chevron">›</span></button><div className="social-thread" ref={socialThreadRef}>
+        {thread.map(m=><div key={m.id} className={"rivyza-swipe-row "+(m.sender_id===user.id?"mine":"theirs")+ (swipedMessageId===m.id?" is-open":"")}
+          onTouchStart={e=>{swipeStartRef.current={id:m.id,x:e.touches[0].clientX,y:e.touches[0].clientY};}}
+          onTouchEnd={e=>{const start=swipeStartRef.current;swipeStartRef.current=null;if(!start||start.id!==m.id)return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.abs(dy)>Math.abs(dx))return;if(dx< -55)setSwipedMessageId(m.id);else if(dx>35)setSwipedMessageId(null);}}>
+          <div className="rivyza-swipe-actions"><button type="button" onClick={()=>hideSocialMessage(m.id)}>{t("Eliminar para mí")}</button>{m.sender_id===user.id&&Date.now()-new Date(m.created_at).getTime()<180000&&<button type="button" className="rivyza-delete-everyone" onClick={()=>deleteSocialMessageForEveryone(m)}>{t("Eliminar para todos")}</button>}</div>
+          <div className="social-bubble">{m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
+            {Array.from({length:30},(_,i)=><span key={i} className={i/30<=(voiceProgress[m.id]||0)?"played":""} style={{height:(6+Math.round(Math.abs(Math.sin((i+1)*1.71)*Math.cos((i+2)*.49))*18))+"px"}}/>)}
+          </div><small>{Math.min(60,m.audio_duration||0)}s</small></div>:<p>{m.body}</p>}{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>
+        </div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
-      </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder="Escribe un mensaje…" maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>Enviar</button></form></section>}
-      {view==="socialSettings"&&<section className="social-settings"><h3>Privacidad</h3><label><span><strong>Mostrar cuando estoy en línea</strong><small>Cuando esté desactivado, nadie verá tu punto verde.</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label><p>Esta opción guarda tu preferencia. El indicador verde de presencia en tiempo real se activará en una actualización posterior.</p></section>}
+      </div><div className="rivyza-voice-composer">{voiceStage==="idle"?<form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><div className="rivyza-voice-input"><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="button" className="rivyza-mic-button" onClick={startVoice} aria-label="Grabar mensaje de voz"><Mic size={22}/></button></div><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form>:<div className="rivyza-record-panel"><div className="rivyza-record-wave"><span className={voiceStage==="recording"?"rivyza-record-dot":""}>{voiceStage==="recording"?"●":"🎤"}</span><span className="rivyza-voice-wave">▂▅▃▇▂▄▆▃▅▂▇▄▃▆▂▅▃▇</span><strong>{String(Math.floor(voiceSeconds/60)).padStart(2,"0")}:{String(voiceSeconds%60).padStart(2,"0")}</strong><small>/ 1:00</small></div>{voiceStage==="preview"&&voiceUrl&&<audio controls preload="metadata" src={voiceUrl} className="rivyza-voice-preview"/>}<div className="rivyza-record-actions"><button type="button" onClick={resetVoice} disabled={voiceSending}><Trash2 size={17}/> {t("Cancelar")}</button>{voiceStage==="recording"?<><button type="button" onClick={stopVoice}><Square size={16}/> Stop</button></>:<button type="button" onClick={sendVoice} disabled={voiceSending}><Send size={17}/> {voiceSending?"Enviando…":t("Enviar")}</button>}</div></div>}</div></section>}
+      {view==="socialSettings"&&<section className="social-settings rivyza-settings-page">
+        <div className="rivyza-settings-section-title">{t("Cuenta")}</div>
+        <div className="rivyza-settings-group">
+          {[["Seguridad y contraseña",ShieldCheck],["Información de cuenta",User]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
+        </div>
+        <div className="rivyza-settings-section-title">{t("Privacidad")}</div>
+        <div className="rivyza-settings-group">
+          {[["Cuenta privada",Lock],["Cuentas bloqueadas",Ban]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
+          <label className="rivyza-settings-toggle"><span><strong>{t("Estado en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label>
+          {[["Quién puede enviarme mensajes",MessageCircle],["Quién puede comentar",MessageSquare],["Menciones y etiquetas",AtSign],["Publicaciones que me gustan",Heart],["Lista de seguidos",Users]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
+        </div>
+        <div className="rivyza-settings-section-title">{t("Preferencias")}</div>
+        <div className="rivyza-settings-group">
+          <button type="button" onClick={()=>setSettingsSheet("language")}><Languages size={21}/><span>{t("Idioma")}</span><em>{appLanguage==="es"?"Español":"English"}</em><b>›</b></button>
+          {[["Apariencia",Moon],["Preferencias de notificaciones",Bell]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
+        </div>
+        <div className="rivyza-settings-section-title">{t("Sesión")}</div>
+        <div className="rivyza-settings-group">
+          <button type="button" onClick={()=>setSettingsSheet("Cambiar de cuenta")}><RefreshCw size={21}/><span>{t("Cambiar de cuenta")}</span><b>›</b></button>
+          <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={21}/><span>{t("Cerrar sesión")}</span></button>
+        </div>
+        <p className="rivyza-settings-version">RIVYZA v13.19.9</p>
+        {settingsSheet&&<div className="rivyza-sheet-overlay" onClick={()=>setSettingsSheet("")} role="presentation"><div className="rivyza-sheet-panel" role="dialog" aria-modal="true" aria-label={settingsSheet==="language"?t("Idioma"):t(settingsSheet)} onClick={e=>e.stopPropagation()}>
+          <div className="rivyza-sheet-handle"/>
+          <div className="rivyza-sheet-heading"><strong>{settingsSheet==="language"?t("Idioma"):t(settingsSheet)}</strong><button type="button" onClick={()=>setSettingsSheet("")} aria-label={t("Cerrar")}>×</button></div>
+          {settingsSheet==="language"?<div className="rivyza-sheet-options">{[["es","Español"],["en","English"]].map(([code,label])=><button type="button" key={code} onClick={()=>{changeAppLanguage(code);setSettingsSheet("");}}>{label}<span>{appLanguage===code?"✓":""}</span></button>)}</div>:<p className="rivyza-sheet-soon">{t("Próximamente")}</p>}
+        </div></div>}
+      </section>}
       {socialNav()}
     </main>;
   }
@@ -1804,41 +2090,42 @@ export default function HomePage(){
       </section>
 
       <nav className="bottom-nav live-preview-bottom-nav">
-        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
-        <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
+        <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
     </main>;
   }
 
   if(view==="connections"){
-    const matches=connectionsRows.filter(p=>(`${p.display_name||""} ${p.username||""}`).toLowerCase().includes(connectionsSearch.toLowerCase()));
+    const matches=(connectionsTab==="mine"?connectionsRows:communityRows).filter(p=>(`${p.display_name||""} ${p.username||""}`).toLowerCase().includes(connectionsSearch.toLowerCase()));
     return <main className="feed-shell connections-screen">
-      <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>Conexiones</h1><span></span></header>
-      <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder="Buscar entre tus conexiones" aria-label="Buscar conexiones"/></div>
-      <p className="connections-hint">Amigos, personas que sigues y personas que te siguen.</p>
+      <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>{t("Comunidad")}</h1><span></span></header>
+      <div className="rivyza-community-tabs"><button type="button" className={connectionsTab==="mine"?"active":""} onClick={()=>setConnectionsTab("mine")}>{t("Conexiones")}</button><button type="button" className={connectionsTab==="all"?"active":""} onClick={()=>{setConnectionsTab("all");loadCommunity();}}>{t("Todos los usuarios")}</button></div>
+      <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder={connectionsTab==="mine"?"Buscar conexiones":"Buscar usuarios registrados"} aria-label={t("Buscar usuarios")}/></div>
+      <p className="connections-hint">{connectionsTab==="mine"?"Amigos, personas que sigues y personas que te siguen.":"Cuentas registradas en RIVYZA · el punto verde indica quién está en línea."}</p>
       <section className="connections-list">
-        {connectionsLoading&&<p className="connections-empty">Cargando conexiones…</p>}
-        {!connectionsLoading&&!matches.length&&<p className="connections-empty">No hay conexiones para mostrar.</p>}
+        {(connectionsTab==="mine"?connectionsLoading:communityLoading)&&<p className="connections-empty">Cargando usuarios…</p>}
+        {!(connectionsTab==="mine"?connectionsLoading:communityLoading)&&!matches.length&&<p className="connections-empty">No hay usuarios para mostrar.</p>}
         {matches.map(person=><div className="connections-person" key={person.id}>
           <button type="button" className="connections-identity" onClick={()=>openUserProfile(person)}>
-            {person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="connections-fallback">{(person.display_name||person.username||"R").slice(0,1).toUpperCase()}</span>}
+            <span className="rivyza-presence-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="connections-fallback">{(person.display_name||person.username||"R").slice(0,1).toUpperCase()}</span>}{onlineDot(person.id)}</span>
             <span className="connections-names"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
           </button>
-          {person.i_follow&&person.follows_me?<span className="connections-friends">Amigos</span>:person.i_follow?<span className="connections-following">Siguiendo</span>:<div className="connections-follow-back"><small>Te sigue</small><button type="button" onClick={()=>followFromConnections(person)}>Seguir</button></div>}
+          {person.i_follow&&person.follows_me?<span className="connections-friends">{t("Amigos")}</span>:person.i_follow?<span className="connections-following">{t("Siguiendo")}</span>:<div className="connections-follow-back">{person.follows_me&&<small>{t("Te sigue")}</small>}<button type="button" onClick={()=>followFromConnections(person)}>{t("Seguir")}</button></div>}
         </div>)}
       </section>
-      <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>Inicio</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button></nav>
+      <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>{t("Inicio")}</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button></nav>
     </main>;
   }
 
   if(view==="friends"){
     return <main className="feed-shell friends-feed-shell">
       <header className="friends-topbar friends-feed-topbar">
-        <h1>Amigos</h1>
+        <h1>{t("Amigos")}</h1>
         <p>Solo personas que tú sigues y que también te siguen.</p>
       </header>
 
@@ -1878,25 +2165,26 @@ export default function HomePage(){
                 {post.creator?.avatar_url
                   ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
                   : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+                            {onlineDot(post.creator?.id||post.user_id)}
               </button>
               <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
                 <Heart fill={post.liked_by_me?"currentColor":"none"}/>
                 <span>{post.like_count||0}</span>
               </button>
               <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
-              <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
-              <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
+              <button onClick={()=>openPost(post)}><Share2/><span>{t("Compartir")}</span></button>
+              <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
             </div>
           </article>
         ))}
       </section>
 
       <nav className="bottom-nav">
-        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
-        <button className="active"><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
+        <button className="active"><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
       {commentsOpen && renderCommentsSheet()}
@@ -1906,12 +2194,12 @@ export default function HomePage(){
   if(view==="otherProfile" && viewedProfile){
     return <main className="public-profile-shell other-profile-shell">
       <header className="profile-topbar compact">
-        <button className="profile-back" onClick={()=>{setSelectedPost(null);setView("home");}}>←</button>
-        <div className="profile-top-title">@{viewedProfile.username||"usuario"}</div>
+        <button className="profile-back" onClick={()=>{setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else setView("home");}}>←</button>
+        <div className="profile-top-title">RIVYZA</div>
         <button className="profile-menu" aria-label="Opciones"><MoreHorizontal size={24}/></button>
       </header>
 
-      <div className="social-profile-message"><button onClick={()=>openSocialPeer(viewedProfile)}><MessageCircle size={18}/> Enviar mensaje</button></div>
+      <div className="social-profile-message"><button onClick={()=>openSocialPeer(viewedProfile)}><MessageCircle size={18}/> {t("Enviar mensaje")}</button></div>
       <section className="profile-hero compact-profile">
         <div className="profile-heading-row">
           <div className="profile-heading-copy">
@@ -1931,11 +2219,12 @@ export default function HomePage(){
               </div>
             )}
           </div>
-          <div className="profile-photo-edit-wrap visitor-avatar-wrap">
+          <div className="profile-photo-edit-wrap visitor-avatar-wrap rivyza-presence-anchor">
             {viewedProfile.avatar_url
               ? <img className="public-profile-photo" src={viewedProfile.avatar_url} alt={viewedProfile.display_name||viewedProfile.username}/>
               : <div className="public-profile-photo fallback">{(viewedProfile.display_name?.[0]||viewedProfile.username?.[0]||"R").toUpperCase()}</div>
             }
+            {onlineDot(viewedProfile.id)}
           </div>
         </div>
 
@@ -1990,7 +2279,7 @@ export default function HomePage(){
               {socialListRows.map(person=>(
                 <div className="social-person-row" key={person.id}>
                   <button className="people-result social-person-open" onClick={()=>{setSocialListOpen(false);openUserProfile(person);}}>
-                    {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                    <span className="rivyza-list-avatar rivyza-presence-anchor">{person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}{onlineDot(person.id)}</span>
                     <span className="people-result-copy">
                       <strong>{person.display_name||person.username||"Usuario"}</strong>
                       <small>@{person.username||"usuario"}</small>
@@ -1998,7 +2287,7 @@ export default function HomePage(){
                     </span>
                   </button>
                   {person.id!==user?.id && person.i_follow && (
-                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>Siguiendo</button>
+                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>{t("Siguiendo")}</button>
                   )}
                 </div>
               ))}
@@ -2011,7 +2300,7 @@ export default function HomePage(){
         <div className="post-detail-overlay">
           <header className="post-detail-topbar">
             <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}} aria-label="Volver">←</button>
-            <strong>Publicación</strong>
+            <strong>{t("Publicación")}</strong>
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
           <div className="post-detail-media post-swipe-viewer" onTouchStart={handlePostTouchStart} onTouchEnd={handlePostTouchEnd} onWheel={handlePostWheel}>
@@ -2027,7 +2316,7 @@ export default function HomePage(){
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
-              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
+              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>{t("Compartir")}</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
@@ -2036,7 +2325,7 @@ export default function HomePage(){
               <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
                 <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={20}/>Compartir en RIVYZA</button>
                 <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
-                <button type="button" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+                <button type="button" onClick={()=>setPostMenuOpen(false)}>{t("Cancelar")}</button>
               </div>
             </div>
           )}
@@ -2045,11 +2334,11 @@ export default function HomePage(){
       )}
 
       <nav className="bottom-nav">
-        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>Inicio</span></button>
-        <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>Perfil</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
     </main>;
@@ -2059,8 +2348,8 @@ export default function HomePage(){
     return <main className="public-profile-shell">
       <header className="profile-topbar compact">
         <button className="profile-back" onClick={()=>{setUploadOpen(false);setView("home");}}>←</button>
-        <div className="profile-top-title"></div>
-        <button className="profile-menu" onClick={()=>setView("socialSettings")} aria-label="Configuración"><MoreHorizontal size={24}/></button>
+        <div className="profile-top-title">RIVYZA</div>
+        <button className="profile-menu" onClick={()=>setView("socialSettings")} aria-label={t("Configuración")}><MoreHorizontal size={24}/></button>
       </header>
 
       <section className="profile-hero compact-profile">
@@ -2113,7 +2402,7 @@ export default function HomePage(){
           {profile?.facebook_url && <a href={profile.facebook_url} target="_blank" rel="noreferrer"><Facebook size={16}/><span>Facebook</span></a>}
         </div>
 
-        <button className="edit-profile-main-btn" onClick={()=>setView("profile")}>Editar perfil</button>
+        <button className="edit-profile-main-btn" onClick={()=>setView("profile")}>{t("Editar perfil")}</button>
       </section>
 
       <section className="profile-content-section">
@@ -2148,16 +2437,16 @@ export default function HomePage(){
               ))
             ) : (
               <div className="empty-grid-card first">
-                Tus fotos y videos aparecerán aquí
+                {t("Tus fotos y videos aparecerán aquí")}
               </div>
             )}
           </div>
         ) : (
-          <div className="likes-private-panel">
-            <Heart size={38}/>
-            <h3>Me gusta</h3>
-            <p>Solo tú puedes ver las publicaciones a las que les has dado like.</p>
-          </div>
+          <section className="rivyza-liked-private">
+            <div className="rivyza-liked-heading"><Heart size={19}/><strong>{t("Mis me gusta")}</strong><span>🔒 {t("Solo yo")}</span></div>
+            <p className="rivyza-liked-note">{t("Solo tú puedes ver las publicaciones a las que les has dado like.")}</p>
+            {likedPostsLoading?<p className="rivyza-liked-note">{t("Cargando tus me gusta…")}</p>:likedPostsError?<p className="rivyza-liked-note">{t(likedPostsError)}</p>:likedPosts.length===0?<p className="rivyza-liked-note">{t("Aún no has dado me gusta a ninguna publicación.")}</p>:<div className="posts-grid">{likedPosts.map(post=><button type="button" className="profile-post-card rivyza-liked-post" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||t("Publicación")}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>)}</div>}
+          </section>
         )}
       </section>
 
@@ -2165,7 +2454,7 @@ export default function HomePage(){
         <div className="post-detail-overlay">
           <header className="post-detail-topbar">
             <button type="button" onClick={()=>{if(postOpenedFromAlert)closeNotificationPost();else{setSelectedPost(null);setPostMenuOpen(false);}}} aria-label="Volver">←</button>
-            <strong>Publicación</strong>
+            <strong>{t("Publicación")}</strong>
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
 
@@ -2191,7 +2480,7 @@ export default function HomePage(){
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
-              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>Compartir</span></button>
+              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>{t("Compartir")}</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
@@ -2207,7 +2496,7 @@ export default function HomePage(){
                   {selectedPost.pinned_position && <button type="button" onClick={()=>setPostPin(null)}>Quitar de fijadas</button>}
                   <button type="button" className="danger" onClick={()=>{setPostMenuOpen(false);setDeleteConfirmOpen(true);}}>🗑️ Eliminar publicación</button>
                 </>}
-                <button type="button" onClick={()=>setPostMenuOpen(false)}>Cancelar</button>
+                <button type="button" onClick={()=>setPostMenuOpen(false)}>{t("Cancelar")}</button>
               </div>
             </div>
           )}
@@ -2218,8 +2507,8 @@ export default function HomePage(){
                 <strong>¿Eliminar esta publicación?</strong>
                 <p>Esta acción no se puede deshacer.</p>
                 <div className="delete-confirm-actions">
-                  <button type="button" onClick={()=>setDeleteConfirmOpen(false)}>Cancelar</button>
-                  <button type="button" className="danger" onClick={async()=>{setDeleteConfirmOpen(false);await deleteSelectedPost();}}>Eliminar</button>
+                  <button type="button" onClick={()=>setDeleteConfirmOpen(false)}>{t("Cancelar")}</button>
+                  <button type="button" className="danger" onClick={async()=>{setDeleteConfirmOpen(false);await deleteSelectedPost();}}>{t("Eliminar")}</button>
                 </div>
               </div>
             </div>
@@ -2242,7 +2531,7 @@ export default function HomePage(){
               {socialListRows.map(person=>(
                 <div className="social-person-row" key={person.id}>
                   <button className="people-result social-person-open" onClick={()=>{setSocialListOpen(false);openUserProfile(person);}}>
-                    {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                    <span className="rivyza-list-avatar rivyza-presence-anchor">{person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}{onlineDot(person.id)}</span>
                     <span className="people-result-copy">
                       <strong>{person.display_name||person.username||"Usuario"}</strong>
                       <small>@{person.username||"usuario"}</small>
@@ -2250,7 +2539,7 @@ export default function HomePage(){
                     </span>
                   </button>
                   {person.id!==user?.id && person.i_follow && (
-                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>Siguiendo</button>
+                    <button type="button" className="list-following-btn" onClick={()=>unfollowFromList(person)}>{t("Siguiendo")}</button>
                   )}
                 </div>
               ))}
@@ -2271,7 +2560,7 @@ export default function HomePage(){
               {!likersLoading && !likersRows.length && <p className="social-list-empty">Todavía nadie ha dado like.</p>}
               {likersRows.map(person=>(
                 <button className="people-result liker-person" key={person.id} onClick={()=>{setLikersOpen(false);openUserProfile(person);}}>
-                  {person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}
+                  <span className="rivyza-list-avatar rivyza-presence-anchor">{person.avatar_url?<img src={person.avatar_url} alt={person.display_name||person.username}/>:<span className="people-result-fallback">{(person.display_name?.[0]||person.username?.[0]||"R").toUpperCase()}</span>}{onlineDot(person.id)}</span>
                   <span className="people-result-copy"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
                 </button>
               ))}
@@ -2281,11 +2570,11 @@ export default function HomePage(){
       )}
 
       <nav className="bottom-nav">
-        <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>Inicio</span></button>
-        <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>{t("Inicio")}</span></button>
+        <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-        <button className="active"><User/><span>Perfil</span></button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button className="active"><User/><span>{t("Perfil")}</span></button>
       </nav>
 
       
@@ -2451,7 +2740,7 @@ export default function HomePage(){
           </button>
         </form>
 
-        <button className="logout-link" onClick={signOut}><LogOut size={16}/>Cerrar sesión</button>
+        
       </section>
 
       {cropOpen&&<div className="crop-modal">
@@ -2493,11 +2782,11 @@ export default function HomePage(){
     <header className="feed-topbar">
       <div className="top-brand">RIVYZA</div>
       <div className="feed-tabs">
-        <button onClick={openConnections}>Conexiones</button>
-        <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>Para ti</button>
+        <button onClick={openConnections}>{t("Conexiones")}</button>
+        <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>{t("Para ti")}</button>
         <button onClick={()=>setView("livePreview")}>LIVE</button>
       </div>
-      <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label="Buscar usuarios"><Search size={23}/></button>
+      <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label={t("Buscar usuarios")}><Search size={23}/></button>
     </header>
 
     <section className="video-feed home-real-feed">
@@ -2534,6 +2823,7 @@ export default function HomePage(){
               {post.creator?.avatar_url
                 ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
                 : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+              {onlineDot(post.creator?.id||post.user_id)}
             </button>
 
             <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
@@ -2541,8 +2831,8 @@ export default function HomePage(){
               <span>{post.like_count||0}</span>
             </button>
             <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
-            <button onClick={()=>openPost(post)}><Share2/><span>Compartir</span></button>
-            <button onClick={()=>openPost(post)}><MoreHorizontal/><span>Más</span></button>
+            <button onClick={()=>openPost(post)}><Share2/><span>{t("Compartir")}</span></button>
+            <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
           </div>
         </article>
       ))}
@@ -2553,7 +2843,7 @@ export default function HomePage(){
         <div className="people-search-panel">
           <header className="people-search-header">
             <button type="button" onClick={()=>setPeopleSearchOpen(false)} aria-label="Cerrar">←</button>
-            <strong>Buscar personas</strong>
+            <strong>{t("Buscar personas")}</strong>
             <span></span>
           </header>
           <form className="people-search-form" onSubmit={e=>{e.preventDefault();searchPeople();}}>
@@ -2589,11 +2879,11 @@ export default function HomePage(){
     )}
 
     <nav className="bottom-nav">
-      <button className="active"><Home/><span>Inicio</span></button>
-      <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>Amigos</span></button>
+      <button className="active"><Home/><span>{t("Inicio")}</span></button>
+      <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
       <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-      <button onClick={openSocialAlerts}><Bell/><span>Alertas</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-      <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>Perfil</span></button>
+      <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+      <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
     </nav>
 
     {renderUploadModal()}
