@@ -2771,3 +2771,26 @@ button.rivyza-comment-avatar{border:0;padding:0;appearance:none;-webkit-appearan
 .rivyza-swipe-row.theirs.is-open{transform:none;}
 .rivyza-swipe-row.theirs .rivyza-swipe-actions{left:calc(100% + 8px);right:auto;}
 @media(max-width:390px){.rivyza-swipe-row .rivyza-swipe-actions{width:132px;right:-140px}.rivyza-swipe-row.is-open{transform:translateX(-140px)}.rivyza-swipe-row.theirs.is-open{transform:none}}
+
+/* RIVYZA v13.19.15: voice composer integrated into chat */
+.rivyza-voice-composer{flex:0 0 auto;order:2;min-width:0}
+.rivyza-voice-composer .social-compose{position:relative!important;bottom:auto!important;display:flex!important;align-items:center;padding:10px 12px}
+.rivyza-voice-input{display:flex;align-items:center;min-width:0;flex:1;border:1px solid #40414d;border-radius:25px;background:#1b1c25;overflow:hidden}
+.rivyza-voice-input input{flex:1;min-width:0;border:0!important;background:transparent!important;outline:0;padding:12px!important}
+.rivyza-voice-input .rivyza-mic-button{border:0;background:transparent;color:#f3f3f5;padding:9px 12px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.rivyza-record-panel{padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:#171821;border-top:1px solid #363741}
+.rivyza-record-wave{display:flex;align-items:center;gap:10px;color:#fff;min-height:30px}
+.rivyza-record-wave strong{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rivyza-record-wave small{font-size:11px;color:#a7a8b5}
+.rivyza-record-dot{color:#ff4565;animation:rivyza-record-pulse 1s infinite}
+@keyframes rivyza-record-pulse{50%{opacity:.25}}
+.rivyza-voice-wave{font-size:15px;letter-spacing:1px;white-space:nowrap;overflow:hidden;color:#e95a91;flex:1;min-width:0}
+.rivyza-record-actions{display:flex;justify-content:space-between;gap:10px;margin-top:9px}
+.rivyza-record-actions button{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 13px;border:0;border-radius:20px;background:#343642;color:#fff;font-weight:700}
+.rivyza-record-actions button:last-child{background:#60dba2;color:#0a2219}
+.rivyza-record-actions button:disabled{opacity:.5}
+.rivyza-voice-preview{width:100%;height:38px;margin-top:6px}
+.rivyza-voice-bubble{display:flex;align-items:center;gap:7px;min-width:155px;max-width:240px}
+.rivyza-voice-bubble button{display:flex;align-items:center;justify-content:center;border:0;border-radius:50%;width:33px;height:33px;background:#60dba2;color:#10231b;flex-shrink:0}
+.rivyza-voice-bubble .rivyza-voice-wave{color:#c4ffdf;font-size:13px}
+.rivyza-voice-bubble small{white-space:nowrap}

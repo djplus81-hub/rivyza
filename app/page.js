@@ -5,7 +5,7 @@ import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
-  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3
+  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send
 } from "lucide-react";
 
 function createImage(url){return new Promise((resolve,reject)=>{const i=new Image();i.addEventListener("load",()=>resolve(i));i.addEventListener("error",reject);i.setAttribute("crossOrigin","anonymous");i.src=url;});}
@@ -96,6 +96,20 @@ export default function HomePage(){
   const [profileReturnToChat,setProfileReturnToChat]=useState(false);
   const [settingsSheet,setSettingsSheet]=useState("");
   const [socialDraft,setSocialDraft]=useState("");
+  const [voiceStage,setVoiceStage]=useState("idle");
+  const [voiceSeconds,setVoiceSeconds]=useState(0);
+  const [voiceBlob,setVoiceBlob]=useState(null);
+  const [voiceUrl,setVoiceUrl]=useState("");
+  const [voiceSending,setVoiceSending]=useState(false);
+  const [voicePlayingId,setVoicePlayingId]=useState(null);
+  const voiceRecorderRef=useRef(null);
+  const voiceStreamRef=useRef(null);
+  const voiceChunksRef=useRef([]);
+  const voiceStartedRef=useRef(0);
+  const voiceTimerRef=useRef(null);
+  const voiceAudioRef=useRef(null);
+  const voiceStoppingRef=useRef(false);
+  const [voiceLinks,setVoiceLinks]=useState({});
   const [socialBusy,setSocialBusy]=useState(false);
   const [socialError,setSocialError]=useState("");
   const [onlinePreference,setOnlinePreference]=useState(false);
@@ -1692,7 +1706,7 @@ export default function HomePage(){
       const {data:noticePosts}=postIds.length?await supabase.from("posts").select("id,media_path,media_type").in("id",postIds):{data:[]};
       const postsById=Object.fromEntries((noticePosts||[]).map(post=>[post.id,post]));
       setSocialNotices((notices.data||[]).map(n=>({...n,actor:byId[n.actor_id],relatedPost:postsById[n.post_id]||null})));
-      setSocialMessages((messages.data||[]).filter(m=>!m.deleted_for_all).map(m=>({...m,sender:byId[m.sender_id],recipient:byId[m.recipient_id]})));
+      setSocialMessages((messages.data||[]).filter(m=>!m.deleted_for_all && (!m.audio_path || !m.audio_expires_at || new Date(m.audio_expires_at)>new Date())).map(m=>({...m,sender:byId[m.sender_id],recipient:byId[m.recipient_id]})));
       if(!hidden.error)setHiddenMessageIds((hidden.data||[]).map(x=>x.message_id));
       if(!cleared.error)setConversationCutoffs(Object.fromEntries((cleared.data||[]).map(x=>[x.peer_id,x.cleared_at])));
       setSocialError("");
@@ -1719,10 +1733,100 @@ export default function HomePage(){
     const {error}=await supabase.from("rivyza_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",user.id).in("id",ids);
     if(!error)setSocialNotices(rows=>rows.map(n=>ids.includes(n.id)?{...n,read_at:new Date().toISOString()}:n));
   }
+  function resetVoice(){
+    if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
+    voiceTimerRef.current=null;
+    const recorder=voiceRecorderRef.current;
+    if(recorder && recorder.state!=="inactive"){recorder.onstop=null;recorder.stop();}
+    voiceStreamRef.current?.getTracks().forEach(track=>track.stop());
+    voiceRecorderRef.current=null;voiceStreamRef.current=null;
+    if(voiceUrl)URL.revokeObjectURL(voiceUrl);
+    setVoiceUrl("");setVoiceBlob(null);setVoiceSeconds(0);setVoiceStage("idle");voiceStoppingRef.current=false;
+  }
+  async function startVoice(){
+    if(voiceStage!=="idle" || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder==="undefined"){
+      setSocialError("Este navegador no permite grabar audio. Usa Safari o Chrome actualizado con HTTPS.");return;
+    }
+    try{
+      setSocialError("");
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const formats=["audio/mp4","audio/webm;codecs=opus","audio/webm"];
+      const mime=formats.find(x=>MediaRecorder.isTypeSupported(x));
+      const recorder=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
+      voiceStreamRef.current=stream;voiceRecorderRef.current=recorder;voiceChunksRef.current=[];voiceStoppingRef.current=false;
+      recorder.ondataavailable=e=>{if(e.data?.size)voiceChunksRef.current.push(e.data);};
+      recorder.onstop=()=>{
+        stream.getTracks().forEach(track=>track.stop());voiceStreamRef.current=null;
+        const blob=new Blob(voiceChunksRef.current,{type:recorder.mimeType||"audio/webm"});
+        if(blob.size){setVoiceBlob(blob);setVoiceUrl(URL.createObjectURL(blob));setVoiceStage("preview");}
+        else {setVoiceStage("idle");setSocialError("No se grabó audio. Inténtalo nuevamente.");}
+      };
+      recorder.onerror=()=>{setSocialError("Error al grabar el audio.");resetVoice();};
+      recorder.start(250);voiceStartedRef.current=Date.now();setVoiceSeconds(0);setVoiceStage("recording");
+      voiceTimerRef.current=setInterval(()=>{
+        const elapsed=Math.min(60,Math.floor((Date.now()-voiceStartedRef.current)/1000));
+        setVoiceSeconds(elapsed);
+        if(elapsed>=60)stopVoice();
+      },250);
+    }catch(e){setSocialError("No se pudo usar el micrófono. Revisa los permisos del navegador.");}
+  }
+  function stopVoice(){
+    if(voiceStoppingRef.current)return;
+    const recorder=voiceRecorderRef.current;
+    if(!recorder || recorder.state==="inactive")return;
+    voiceStoppingRef.current=true;
+    if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
+    voiceTimerRef.current=null;
+    setVoiceSeconds(Math.min(60,Math.max(1,Math.ceil((Date.now()-voiceStartedRef.current)/1000))));
+    recorder.stop();
+  }
+  async function sendVoice(){
+    if(!voiceBlob || !user?.id || !socialPeer?.id || voiceSending)return;
+    setVoiceSending(true);setSocialError("");
+    const ext=voiceBlob.type.includes("mp4")?"m4a":"webm";
+    const path=`${user.id}/${crypto.randomUUID()}.${ext}`;
+    try{
+      if(voiceBlob.size>8*1024*1024)throw new Error("El audio supera el límite de 8 MB.");
+      const {error:uploadError}=await supabase.storage.from("rivyza-voice").upload(path,voiceBlob,{contentType:voiceBlob.type||"audio/webm",upsert:false});
+      if(uploadError)throw uploadError;
+      const {error:insertError}=await supabase.from("rivyza_messages").insert({sender_id:user.id,recipient_id:socialPeer.id,body:"",audio_path:path,audio_duration:Math.min(60,voiceSeconds)});
+      if(insertError){await supabase.storage.from("rivyza-voice").remove([path]);throw insertError;}
+      resetVoice();await loadSocial();
+    }catch(e){setSocialError("No se pudo enviar el audio: "+(e?.message||"Error desconocido"));}
+    finally{setVoiceSending(false);}
+  }
+  async function playVoice(message){
+    if(!message.audio_path)return;
+    try{
+      if(voiceAudioRef.current){voiceAudioRef.current.pause();voiceAudioRef.current=null;}
+      if(voicePlayingId===message.id){setVoicePlayingId(null);return;}
+      let url=voiceLinks[message.id];
+      if(!url){
+        const {data,error}=await supabase.storage.from("rivyza-voice").createSignedUrl(message.audio_path,120);
+        if(error)throw error;
+        url=data.signedUrl;
+        setVoiceLinks(old=>({...old,[message.id]:url}));
+      }
+      const audio=new Audio(url);voiceAudioRef.current=audio;
+      audio.onended=()=>{setVoicePlayingId(null);voiceAudioRef.current=null;};
+      audio.onerror=()=>{setVoicePlayingId(null);setSocialError("No se pudo reproducir el audio.");};
+      await audio.play();setVoicePlayingId(message.id);
+      if(message.recipient_id===user.id && !message.audio_listened_at){
+        const {error}=await supabase.rpc("rivyza_mark_voice_listened",{p_message_id:message.id});
+        if(!error)setSocialMessages(old=>old.map(m=>m.id===message.id?{...m,audio_listened_at:new Date().toISOString()}:m));
+      }
+    }catch(e){setVoicePlayingId(null);setSocialError("No se pudo abrir el audio: "+(e?.message||"Error"));}
+  }
+  useEffect(()=>()=>{
+    if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
+    voiceRecorderRef.current?.state!=="inactive"&&voiceRecorderRef.current?.stop();
+    voiceStreamRef.current?.getTracks().forEach(track=>track.stop());
+    voiceAudioRef.current?.pause();
+  },[]);
   async function openSocialPeer(person){
     if(!person?.id || person.id===user?.id)return;
     setSocialChatReturnView(view==="alerts"?"alerts":view==="inbox"?"inbox":view==="messages"?socialChatReturnView:view==="otherProfile"?"otherProfile":view==="publicProfile"?"publicProfile":"alerts");
-    setProfileReturnToChat(false);setSocialPeer(person);setSocialDraft("");setSocialError("");setView("messages");
+    resetVoice();setVoiceLinks({});setProfileReturnToChat(false);setSocialPeer(person);setSocialDraft("");setSocialError("");setView("messages");
     await markSocialRead(socialNotices.filter(n=>n.kind==="message" && n.actor_id===person.id && !n.read_at).map(n=>n.id));
     await loadSocial();
   }
@@ -1896,7 +2000,7 @@ export default function HomePage(){
       </div>}
       {view==="inbox"&&<div className="social-list">
         <button className="social-quick" onClick={()=>{setView("home");setPeopleSearchOpen(true);}}>+ Buscar personas para enviar un mensaje</button>
-        {recentConversations.map(({peer,last})=><div className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")} key={peer.id} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button className="social-item" onClick={()=>{if(swipedConversationId===peer.id){setSwipedConversationId(null);return;}openSocialPeer(peer);}}><span className="social-icon rivyza-presence-anchor">{peer.avatar_url?<img className="rivyza-inbox-photo" src={peer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(peer.id)}</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.body}</small></span></button></div>)}
+        {recentConversations.map(({peer,last})=><div className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")} key={peer.id} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button className="social-item" onClick={()=>{if(swipedConversationId===peer.id){setSwipedConversationId(null);return;}openSocialPeer(peer);}}><span className="social-icon rivyza-presence-anchor">{peer.avatar_url?<img className="rivyza-inbox-photo" src={peer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(peer.id)}</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.audio_path?"🎤 Mensaje de voz":last.body}</small></span></button></div>)}
         {conversations.size===0&&<p className="social-empty">Aún no tienes conversaciones. Visita el perfil de una persona y toca «Enviar mensaje».</p>}
       </div>}
       {view==="messages"&&<section className="social-chat-layout"><button type="button" className="rivyza-chat-peer rivyza-chat-peer-link" onClick={()=>{if(socialPeer?.id){setProfileReturnToChat(true);openUserProfile(socialPeer);}}} aria-label={t("Ver perfil")}><span className="rivyza-chat-peer-avatar rivyza-presence-anchor">{socialPeer?.avatar_url?<img src={socialPeer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(socialPeer?.id)}</span><strong>{socialPeer?.display_name||socialPeer?.username||"Usuario"}</strong><span className="rivyza-chat-chevron">›</span></button><div className="social-thread" ref={socialThreadRef}>
@@ -1904,10 +2008,10 @@ export default function HomePage(){
           onTouchStart={e=>{swipeStartRef.current={id:m.id,x:e.touches[0].clientX,y:e.touches[0].clientY};}}
           onTouchEnd={e=>{const start=swipeStartRef.current;swipeStartRef.current=null;if(!start||start.id!==m.id)return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.abs(dy)>Math.abs(dx))return;if(dx< -55)setSwipedMessageId(m.id);else if(dx>35)setSwipedMessageId(null);}}>
           <div className="rivyza-swipe-actions"><button type="button" onClick={()=>hideSocialMessage(m.id)}>{t("Eliminar para mí")}</button>{m.sender_id===user.id&&Date.now()-new Date(m.created_at).getTime()<180000&&<button type="button" className="rivyza-delete-everyone" onClick={()=>deleteSocialMessageForEveryone(m)}>{t("Eliminar para todos")}</button>}</div>
-          <div className="social-bubble"><p>{m.body}</p>{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>
+          <div className="social-bubble">{m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><span className="rivyza-voice-wave">▂▅▃▇▂▄▆▃▅▂▇▄▃▆▂▅▃▇</span><small>{Math.min(60,m.audio_duration||0)}s</small></div>:<p>{m.body}</p>}{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>
         </div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
-      </div><form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form></section>}
+      </div><div className="rivyza-voice-composer">{voiceStage==="idle"?<form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><div className="rivyza-voice-input"><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="button" className="rivyza-mic-button" onClick={startVoice} aria-label="Grabar mensaje de voz"><Mic size={22}/></button></div><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form>:<div className="rivyza-record-panel"><div className="rivyza-record-wave"><span className={voiceStage==="recording"?"rivyza-record-dot":""}>{voiceStage==="recording"?"●":"🎤"}</span><span className="rivyza-voice-wave">▂▅▃▇▂▄▆▃▅▂▇▄▃▆▂▅▃▇</span><strong>{String(Math.floor(voiceSeconds/60)).padStart(2,"0")}:{String(voiceSeconds%60).padStart(2,"0")}</strong><small>/ 1:00</small></div>{voiceStage==="preview"&&voiceUrl&&<audio controls preload="metadata" src={voiceUrl} className="rivyza-voice-preview"/>}<div className="rivyza-record-actions"><button type="button" onClick={resetVoice} disabled={voiceSending}><Trash2 size={17}/> {t("Cancelar")}</button>{voiceStage==="recording"?<><button type="button" onClick={stopVoice}><Square size={16}/> Stop</button></>:<button type="button" onClick={sendVoice} disabled={voiceSending}><Send size={17}/> {voiceSending?"Enviando…":t("Enviar")}</button>}</div></div>}</div></section>}
       {view==="socialSettings"&&<section className="social-settings rivyza-settings-page">
         <div className="rivyza-settings-section-title">{t("Cuenta")}</div>
         <div className="rivyza-settings-group">
