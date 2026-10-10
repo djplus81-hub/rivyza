@@ -2794,3 +2794,12 @@ button.rivyza-comment-avatar{border:0;padding:0;appearance:none;-webkit-appearan
 .rivyza-voice-bubble button{display:flex;align-items:center;justify-content:center;border:0;border-radius:50%;width:33px;height:33px;background:#60dba2;color:#10231b;flex-shrink:0}
 .rivyza-voice-bubble .rivyza-voice-wave{color:#c4ffdf;font-size:13px}
 .rivyza-voice-bubble small{white-space:nowrap}
+
+/* RIVYZA 13.19.16 — reproductor de voz compacto con búsqueda táctil */
+.rivyza-voice-bubble{min-width:0;max-width:225px;gap:7px}
+.rivyza-voice-bubble button{width:29px;height:29px}
+.rivyza-voice-seek{display:flex;align-items:center;justify-content:space-between;gap:2px;width:145px;height:30px;touch-action:pan-y;cursor:pointer;outline-offset:3px;flex-shrink:1;min-width:95px}
+.rivyza-voice-seek span{display:block;flex:1;min-width:2px;max-width:4px;background:#8b9b99;border-radius:4px;pointer-events:none;transition:background .1s}
+.rivyza-voice-seek span.played{background:#18d8aa}
+.rivyza-voice-seek:focus-visible{outline:2px solid #18d8aa;border-radius:5px}
+.rivyza-voice-bubble small{font-size:10px}
