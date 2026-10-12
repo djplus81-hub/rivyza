@@ -2803,3 +2803,53 @@ button.rivyza-comment-avatar{border:0;padding:0;appearance:none;-webkit-appearan
 .rivyza-voice-seek span.played{background:#18d8aa}
 .rivyza-voice-seek:focus-visible{outline:2px solid #18d8aa;border-radius:5px}
 .rivyza-voice-bubble small{font-size:10px}
+
+/* RIVYZA 13.19.17: keep voice messages visible on narrow iPhones */
+.rivyza-swipe-row:has(.rivyza-audio-message){width:min(260px,85vw);max-width:85%;min-width:0;box-sizing:border-box}
+.rivyza-swipe-row .social-bubble.rivyza-audio-message{display:block;width:100%;max-width:100%;min-width:0;padding:9px 11px;box-sizing:border-box;overflow:visible}
+.rivyza-audio-message .rivyza-voice-bubble{display:flex;width:100%;max-width:100%;min-width:0;gap:7px}
+.rivyza-audio-message .rivyza-voice-seek{flex:1 1 0;width:auto;min-width:0;max-width:none;gap:2px;touch-action:pan-y}
+.rivyza-audio-message .rivyza-voice-seek span{min-width:1px;max-width:none}
+.rivyza-audio-message .rivyza-voice-bubble small{flex:0 0 auto;font-size:10px}
+.rivyza-record-panel{padding:9px 12px 10px}
+.rivyza-record-wave{gap:8px;min-width:0}
+.rivyza-record-levels{display:flex;align-items:center;justify-content:space-between;gap:2px;flex:1;min-width:0;height:30px;overflow:hidden}
+.rivyza-record-levels>span{display:block;flex:1 1 0;min-width:1px;max-width:4px;border-radius:4px;background:#18d8aa;transition:height .11s ease}
+.rivyza-record-dot{color:#18d8aa}
+@media(max-width:375px){.rivyza-swipe-row:has(.rivyza-audio-message){width:min(245px,84vw)}.rivyza-record-wave{gap:5px}.rivyza-record-wave small{font-size:10px}}
+
+/* v13.19.19: vista previa de voz sin controles nativos de Safari */
+.rivyza-voice-preview-custom{display:flex;align-items:center;gap:10px;min-width:0;width:100%;margin-top:9px;padding:7px 10px;background:#292c35;border-radius:24px;color:#f5f6f8}
+.rivyza-voice-preview-custom audio{display:none}
+.rivyza-voice-preview-custom .rivyza-preview-play{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;border:0;border-radius:50%;background:#60dba2;color:#12271d}
+.rivyza-voice-preview-custom .rivyza-preview-time{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rivyza-voice-preview-custom input[type=range]{flex:1;min-width:0;width:100%;accent-color:#60dba2;cursor:pointer}
+/* v13.19.20 ajustes de perfiles y configuración */
+.rivyza-visitor-actions{display:flex;align-items:center;justify-content:center;gap:9px}
+.rivyza-visitor-actions .visitor-follow-btn{flex:0 1 auto!important;min-width:100px!important;width:auto!important;padding:9px 13px!important;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px}
+.rivyza-mini-action{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;border:1px solid #58506b;background:#211d2c;color:#c7a6ff;cursor:pointer}
+.rivyza-mini-action.active{background:#7034b3;color:white;border-color:#a26de4}
+.rivyza-mini-action.block{color:#f09aa9}
+.rivyza-feature-settings{padding:12px 16px 24px;display:flex;flex-direction:column;gap:14px;max-height:65vh;overflow:auto}
+.rivyza-feature-settings p{font-size:12px;opacity:.75;line-height:1.5}
+.rivyza-feature-settings input,.rivyza-phone-auth input,.rivyza-phone-auth select{width:100%;min-height:40px;border-radius:10px;border:1px solid #5a506e;padding:10px;background:#252033;color:white}
+.rivyza-feature-settings button,.rivyza-phone-auth button{border-radius:10px;border:1px solid #6e508f;background:#5d2d8f;color:white;padding:10px;cursor:pointer}
+.rivyza-feature-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #393343;padding:9px 0;color:inherit;background:transparent!important}
+.rivyza-feature-toggle{display:flex;align-items:center;justify-content:space-between}
+.rivyza-feature-toggle input{width:20px;height:20px;min-height:0}
+.rivyza-account-logo{margin:auto;background:#7e30cb;border-radius:16px;width:62px;height:62px;display:grid;place-items:center;font-size:35px;font-weight:900;color:white}
+.rivyza-feature-settings h3{text-align:center;margin:0}
+.rivyza-strikes{display:flex;gap:7px}.rivyza-strikes span{width:25px;height:25px;border:1px solid #777082;border-radius:50%;display:grid;place-items:center;font-size:16px;color:white}
+.rivyza-phone-auth{margin-top:18px;display:flex;flex-direction:column;gap:10px}.rivyza-phone-auth h3{margin:0;font-size:15px}.rivyza-phone-auth small{opacity:.7}
+html[data-rivyza-appearance="light"] .rivyza-settings-page{background:#f6f3fa;color:#23192e}html[data-rivyza-appearance="light"] .rivyza-settings-group{background:#fff;color:#23192e}
+@media(prefers-color-scheme:light){html[data-rivyza-appearance="auto"] .rivyza-settings-page{background:#f6f3fa;color:#23192e}}
+
+/* v13.19.22 — lista identificable de cuentas bloqueadas */
+.rivyza-blocked-list{display:flex;flex-direction:column;gap:10px}
+.rivyza-blocked-person{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid rgba(150,150,170,.16);min-width:0}
+.rivyza-blocked-avatar{width:43px;height:43px;flex:0 0 43px;border-radius:50%;overflow:hidden;background:#343044;display:flex;align-items:center;justify-content:center;color:#ddd}
+.rivyza-blocked-avatar img{width:100%;height:100%;object-fit:cover}
+.rivyza-blocked-details{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.rivyza-blocked-details strong,.rivyza-blocked-details small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rivyza-blocked-details strong{font-size:14px}.rivyza-blocked-details small{font-size:12px;opacity:.65}
+.rivyza-blocked-unblock{flex-shrink:0;font-size:12px!important;padding:9px 10px!important;border-radius:9px!important}

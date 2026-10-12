@@ -93,16 +93,52 @@ export default function HomePage(){
   const swipeStartRef=useRef(null);
   const [socialPeer,setSocialPeer]=useState(null);
   const [socialChatReturnView,setSocialChatReturnView]=useState("alerts");
+  const [socialInboxReturnView,setSocialInboxReturnView]=useState("alerts");
   const [profileReturnToChat,setProfileReturnToChat]=useState(false);
   const [settingsSheet,setSettingsSheet]=useState("");
+  const [blockedUsers,setBlockedUsers]=useState([]);
+  const [blockedProfiles,setBlockedProfiles]=useState({});
+  const [blockedProfilesLoading,setBlockedProfilesLoading]=useState(false);
+  const [liveBellIds,setLiveBellIds]=useState([]);
+  const [privateAccount,setPrivateAccount]=useState(false);
+  const [appearance,setAppearance]=useState("dark");
+  const [settingsError,setSettingsError]=useState("");
+  const [phoneCountry,setPhoneCountry]=useState("US");
+  const [phoneNumber,setPhoneNumber]=useState("");
+  const [phoneOtp,setPhoneOtp]=useState("");
+  const [phoneStage,setPhoneStage]=useState("number");
+  const [phoneBusy,setPhoneBusy]=useState(false);
+  const [phoneError,setPhoneError]=useState("");
+  const [passwordEmail,setPasswordEmail]=useState("");
+  const [savedAccounts,setSavedAccounts]=useState([]);
+  useEffect(()=>{try{setAppearance(localStorage.getItem("rivyza-appearance")||"dark");setSavedAccounts(JSON.parse(localStorage.getItem("rivyza-saved-accounts")||"[]"));}catch(e){}},[]);
+  useEffect(()=>{if(typeof document!=="undefined")document.documentElement.dataset.rivyzaAppearance=appearance;},[appearance]);
+  const changeAppearance=(next)=>{setAppearance(next);try{localStorage.setItem("rivyza-appearance",next);}catch(e){}};
+  const dialingCodes={US:"1",DO:"1",PR:"1",CA:"1",MX:"52",CO:"57",ES:"34",AR:"54",BR:"55",CL:"56",PE:"51",VE:"58",EC:"593",GB:"44",FR:"33",DE:"49",IT:"39",IN:"91",PK:"92",ID:"62",PH:"63",AU:"61",JP:"81",KR:"82",NG:"234",ZA:"27",HT:"509",JM:"1",PA:"507",CR:"506",GT:"502",SV:"503",HN:"504",NI:"505",CU:"53",UY:"598",PY:"595",BO:"591"};
+  const e164Phone=()=>"+"+(dialingCodes[phoneCountry]||"")+phoneNumber.replace(/\D/g,"").replace(/^0+/,"");
+  async function requestPhoneOtp(){if(!supabase)return;setPhoneError("");if(!dialingCodes[phoneCountry]){setPhoneError("Selecciona un país con prefijo configurado.");return;}if(phoneNumber.replace(/\D/g,"").length<6){setPhoneError("Escribe un número válido.");return;}setPhoneBusy(true);try{const {error}=await supabase.auth.signInWithOtp({phone:e164Phone()});if(error)throw error;setPhoneStage("otp");}catch(e){setPhoneError(e.message||"No se pudo enviar el código SMS.");}finally{setPhoneBusy(false);}}
+  async function verifyPhoneOtp(){setPhoneError("");setPhoneBusy(true);try{const {error}=await supabase.auth.verifyOtp({phone:e164Phone(),token:phoneOtp.trim(),type:"sms"});if(error)throw error;}catch(e){setPhoneError(e.message||"Código incorrecto.");}finally{setPhoneBusy(false);}}
+  async function loadSafetySettings(){if(!supabase||!user?.id)return;const [blocks,bells,priv]=await Promise.all([supabase.from("rivyza_user_blocks").select("blocked_id").eq("blocker_id",user.id),supabase.from("rivyza_live_alerts").select("creator_id").eq("subscriber_id",user.id),supabase.from("rivyza_account_preferences").select("is_private").eq("user_id",user.id).maybeSingle()]);if(!blocks.error)setBlockedUsers((blocks.data||[]).map(x=>x.blocked_id));if(!bells.error)setLiveBellIds((bells.data||[]).map(x=>x.creator_id));if(!priv.error)setPrivateAccount(!!priv.data?.is_private);}
+  async function setBlocked(target,block){if(!user?.id||!target||target===user.id)return;setSettingsError("");try{if(block){const {error}=await supabase.from("rivyza_user_blocks").insert({blocker_id:user.id,blocked_id:target});if(error)throw error;setBlockedUsers(v=>[...new Set([...v,target])]);setIsFollowingViewed(false);}else{const {error}=await supabase.from("rivyza_user_blocks").delete().eq("blocker_id",user.id).eq("blocked_id",target);if(error)throw error;setBlockedUsers(v=>v.filter(id=>id!==target));}}catch(e){setSettingsError("No se pudo actualizar el bloqueo. Revisa el SQL de esta versión. "+(e.message||""));alert("No se pudo actualizar el bloqueo. Verifica el SQL de la actualización.");}}
+  async function toggleLiveBell(target){if(!user?.id||!target)return;const on=liveBellIds.includes(target);const q=supabase.from("rivyza_live_alerts");const {error}=on?await q.delete().eq("subscriber_id",user.id).eq("creator_id",target):await q.insert({subscriber_id:user.id,creator_id:target});if(error){alert("Falta configurar avisos de LIVE en Supabase.");return;}setLiveBellIds(v=>on?v.filter(id=>id!==target):[...v,target]);}
+  async function togglePrivateAccount(on){const {error}=await supabase.from("rivyza_account_preferences").upsert({user_id:user.id,is_private:on},{onConflict:"user_id"});if(error){alert("Falta configurar privacidad en Supabase.");return;}setPrivateAccount(on);if(on&&onlinePreference)await saveOnlinePreference(false);}
+  async function sendPasswordReset(){const email=passwordEmail.trim()||user?.email;if(!email){setSettingsError("Escribe tu correo electrónico.");return;}const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});setSettingsError(error?error.message:"Se envió un enlace de recuperación, si el correo está registrado.");}
+
   const [socialDraft,setSocialDraft]=useState("");
   const [voiceStage,setVoiceStage]=useState("idle");
   const [voiceSeconds,setVoiceSeconds]=useState(0);
   const [voiceBlob,setVoiceBlob]=useState(null);
   const [voiceUrl,setVoiceUrl]=useState("");
   const [voiceSending,setVoiceSending]=useState(false);
+  const [voicePreviewPlaying,setVoicePreviewPlaying]=useState(false);
+  const [voicePreviewTime,setVoicePreviewTime]=useState(0);
+  const [voicePreviewDuration,setVoicePreviewDuration]=useState(0);
+  const voicePreviewRef=useRef(null);
   const [voicePlayingId,setVoicePlayingId]=useState(null);
   const [voiceProgress,setVoiceProgress]=useState({});
+  const [voiceLevels,setVoiceLevels]=useState(Array(26).fill(5));
+  const voiceAudioContextRef=useRef(null);
+  const voiceAnalyserRef=useRef(null);
   const voiceRecorderRef=useRef(null);
   const voiceStreamRef=useRef(null);
   const voiceChunksRef=useRef([]);
@@ -121,6 +157,27 @@ export default function HomePage(){
   const socialThreadRef=useRef(null);
   const unreadSocial=socialNotices.filter(n=>!n.read_at).length;
   const [user,setUser]=useState(null);
+  useEffect(()=>{
+    if(settingsSheet!=="Cuentas bloqueadas"||!supabase||!user?.id)return;
+    let cancelled=false;
+    async function loadBlockedProfiles(){
+      setBlockedProfilesLoading(true);
+      const {data:blocks,error:blockError}=await supabase.from("rivyza_user_blocks").select("blocked_id").eq("blocker_id",user.id);
+      if(cancelled)return;
+      if(blockError){setSettingsError("No se pudo cargar la lista de cuentas bloqueadas.");setBlockedProfilesLoading(false);return;}
+      const ids=(blocks||[]).map(b=>b.blocked_id).filter(Boolean);
+      setBlockedUsers(ids);
+      if(!ids.length){setBlockedProfiles({});setBlockedProfilesLoading(false);return;}
+      const {data:people,error:peopleError}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids);
+      if(cancelled)return;
+      if(peopleError)setSettingsError("No se pudieron cargar algunos perfiles bloqueados.");
+      setBlockedProfiles(Object.fromEntries((people||[]).map(person=>[person.id,person])));
+      setBlockedProfilesLoading(false);
+    }
+    loadBlockedProfiles();
+    return ()=>{cancelled=true;};
+  },[settingsSheet,user?.id]);
+  useEffect(()=>{if(user?.id)loadSafetySettings();},[user?.id]);
   const [profile,setProfile]=useState(null);
   const [profilePosts,setProfilePosts]=useState([]);
   const [selectedPost,setSelectedPost]=useState(null);
@@ -411,6 +468,7 @@ export default function HomePage(){
   }
 
   async function toggleFollowViewed(){
+    if(viewedProfile?.id && blockedUsers.includes(viewedProfile.id)){alert("Desbloquea esta cuenta antes de seguirla.");return;}
     if(!supabase || !user?.id || !viewedProfile?.id || viewedProfile.id===user.id || followBusy)return;
     setFollowBusy(true);
     try{
@@ -1734,7 +1792,15 @@ export default function HomePage(){
     const {error}=await supabase.from("rivyza_notifications").update({read_at:new Date().toISOString()}).eq("recipient_id",user.id).in("id",ids);
     if(!error)setSocialNotices(rows=>rows.map(n=>ids.includes(n.id)?{...n,read_at:new Date().toISOString()}:n));
   }
+  function cleanupVoiceVisualizer(){
+    voiceAnalyserRef.current=null;
+    if(voiceAudioContextRef.current){voiceAudioContextRef.current.close().catch(()=>{});voiceAudioContextRef.current=null;}
+  }
   function resetVoice(){
+    if(voicePreviewRef.current){voicePreviewRef.current.pause();voicePreviewRef.current.currentTime=0;}
+    setVoicePreviewPlaying(false);setVoicePreviewTime(0);setVoicePreviewDuration(0);
+    cleanupVoiceVisualizer();
+    setVoiceLevels(Array(26).fill(5));
     if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
     voiceTimerRef.current=null;
     const recorder=voiceRecorderRef.current;
@@ -1751,13 +1817,22 @@ export default function HomePage(){
     try{
       setSocialError("");
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      try{
+        const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+        if(AudioContextClass){
+          const ctx=new AudioContextClass();
+          const analyser=ctx.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=.65;
+          ctx.createMediaStreamSource(stream).connect(analyser);
+          voiceAudioContextRef.current=ctx;voiceAnalyserRef.current=analyser;
+        }
+      }catch(_e){cleanupVoiceVisualizer();}
       const formats=["audio/mp4","audio/webm;codecs=opus","audio/webm"];
       const mime=formats.find(x=>MediaRecorder.isTypeSupported(x));
       const recorder=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
       voiceStreamRef.current=stream;voiceRecorderRef.current=recorder;voiceChunksRef.current=[];voiceStoppingRef.current=false;
       recorder.ondataavailable=e=>{if(e.data?.size)voiceChunksRef.current.push(e.data);};
       recorder.onstop=()=>{
-        stream.getTracks().forEach(track=>track.stop());voiceStreamRef.current=null;
+        stream.getTracks().forEach(track=>track.stop());voiceStreamRef.current=null;cleanupVoiceVisualizer();
         const blob=new Blob(voiceChunksRef.current,{type:recorder.mimeType||"audio/webm"});
         if(blob.size){setVoiceBlob(blob);setVoiceUrl(URL.createObjectURL(blob));setVoiceStage("preview");}
         else {setVoiceStage("idle");setSocialError("No se grabó audio. Inténtalo nuevamente.");}
@@ -1765,6 +1840,15 @@ export default function HomePage(){
       recorder.onerror=()=>{setSocialError("Error al grabar el audio.");resetVoice();};
       recorder.start(250);voiceStartedRef.current=Date.now();setVoiceSeconds(0);setVoiceStage("recording");
       voiceTimerRef.current=setInterval(()=>{
+        const analyser=voiceAnalyserRef.current;
+        if(analyser){
+          const samples=new Uint8Array(analyser.frequencyBinCount);analyser.getByteTimeDomainData(samples);
+          const levels=Array.from({length:26},(_,i)=>{
+            let peak=0;const a=Math.floor(i*samples.length/26),b=Math.floor((i+1)*samples.length/26);
+            for(let j=a;j<b;j++)peak=Math.max(peak,Math.abs(samples[j]-128)/128);
+            return Math.min(26,Math.max(5,Math.round(5+peak*65)));
+          });setVoiceLevels(levels);
+        }
         const elapsed=Math.min(60,Math.floor((Date.now()-voiceStartedRef.current)/1000));
         setVoiceSeconds(elapsed);
         if(elapsed>=60)stopVoice();
@@ -1778,6 +1862,7 @@ export default function HomePage(){
     voiceStoppingRef.current=true;
     if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
     voiceTimerRef.current=null;
+    cleanupVoiceVisualizer();
     setVoiceSeconds(Math.min(60,Math.max(1,Math.ceil((Date.now()-voiceStartedRef.current)/1000))));
     recorder.stop();
   }
@@ -1837,6 +1922,7 @@ export default function HomePage(){
   }
   useEffect(()=>()=>{
     if(voiceTimerRef.current)clearInterval(voiceTimerRef.current);
+    cleanupVoiceVisualizer();
     voiceRecorderRef.current?.state!=="inactive"&&voiceRecorderRef.current?.stop();
     voiceStreamRef.current?.getTracks().forEach(track=>track.stop());
     voiceAudioRef.current?.pause();
@@ -1913,6 +1999,10 @@ export default function HomePage(){
     setCommentsOpen(false);setSelectedPost(null);setPostMenuOpen(false);
     setPostOpenedFromAlert(false);setView("alerts");
   }
+  function openSocialInbox(fromView){
+    setSocialInboxReturnView(fromView === "alerts" ? "alerts" : "home");
+    setView("inbox");
+  }
   async function openSocialAlerts(){
     setView("alerts");await loadSocial();
   }
@@ -1950,7 +2040,7 @@ export default function HomePage(){
   function socialNav(){return <nav className="bottom-nav">
     <button onClick={()=>setView("home")}><Home/><span>{t("Inicio")}</span></button>
     <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
-    <button onClick={()=>setView("inbox")}><MessageCircle/><span>{t("Mensajes")}</span></button>
+    <button onClick={()=>openSocialInbox(view)}><MessageCircle/><span>{t("Mensajes")}</span></button>
     <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
     <button onClick={()=>setView("publicProfile")}><User/><span>{t("Perfil")}</span></button>
   </nav>;}
@@ -1963,6 +2053,7 @@ export default function HomePage(){
         <h1>RIVYZA</h1>
         <p className="tagline">Vive. Conecta. Transmite.</p>
         <button className="google-btn" onClick={signInWithGoogle}>{t("Continuar con Google")}</button>
+        <div className="rivyza-phone-auth"><h3>Continuar con teléfono</h3><select value={phoneCountry} onChange={e=>setPhoneCountry(e.target.value)}>{countryOptions.map(c=><option key={c.code} value={c.code}>{c.flag} {c.name} {dialingCodes[c.code]?"(+"+dialingCodes[c.code]+")":""}</option>)}</select>{phoneStage==="number"?<><input type="tel" inputMode="tel" placeholder="Número de teléfono" value={phoneNumber} onChange={e=>setPhoneNumber(e.target.value)}/><button disabled={phoneBusy} onClick={requestPhoneOtp}>Enviar código SMS</button></>:<><input inputMode="numeric" placeholder="Código de verificación" value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value)}/><button disabled={phoneBusy} onClick={verifyPhoneOtp}>Verificar y continuar</button><button onClick={()=>setPhoneStage("number")}>Cambiar número</button></>}{phoneError&&<p role="alert">{phoneError}</p>}<small>Disponible en países habilitados para SMS en Supabase/Twilio.</small></div>
       </section>
     </main>;
   }
@@ -1990,12 +2081,12 @@ export default function HomePage(){
     }
     const thread=socialMessages.filter(m=>!hiddenMessageIds.includes(m.id) && socialPeer && (!conversationCutoffs[socialPeer.id] || new Date(m.created_at)>new Date(conversationCutoffs[socialPeer.id])) && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     return <main className="social-screen">
-      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>setView("inbox")} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
+      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":view==="inbox"?socialInboxReturnView:"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>openSocialInbox(view)} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
       {socialError&&<p className="social-error">{socialError}</p>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
         <section className="rivyza-alert-messages" aria-label="Mensajes privados">
-          <div className="rivyza-alert-section-heading"><span><MessageCircle size={20}/> <strong>{t("Mensajes")}</strong></span>{unreadMessages>0&&<b className="rivyza-message-count">{unreadMessages>99?"99+":unreadMessages} nuevos</b>}<button type="button" onClick={()=>setView("inbox")}>{t("Ver todos ›")}</button></div>
-          {recentConversations.length===0?<button className="rivyza-alert-empty-chat" onClick={()=>setView("inbox")}>Todavía no tienes mensajes. Abrir bandeja ›</button>:recentConversations.map(({peer,last})=><div className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")} key={peer.id} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button className="rivyza-alert-conversation" onClick={()=>{if(swipedConversationId===peer.id){setSwipedConversationId(null);return;}openSocialPeer(peer);}}>
+          <div className="rivyza-alert-section-heading"><span><MessageCircle size={20}/> <strong>{t("Mensajes")}</strong></span>{unreadMessages>0&&<b className="rivyza-message-count">{unreadMessages>99?"99+":unreadMessages} nuevos</b>}<button type="button" onClick={()=>openSocialInbox(view)}>{t("Ver todos ›")}</button></div>
+          {recentConversations.length===0?<button className="rivyza-alert-empty-chat" onClick={()=>openSocialInbox(view)}>Todavía no tienes mensajes. Abrir bandeja ›</button>:recentConversations.map(({peer,last})=><div className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")} key={peer.id} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button className="rivyza-alert-conversation" onClick={()=>{if(swipedConversationId===peer.id){setSwipedConversationId(null);return;}openSocialPeer(peer);}}>
             <span className="rivyza-alert-avatar rivyza-presence-anchor">{peer.avatar_url?<img src={peer.avatar_url} alt=""/>:<span>{(peer.display_name||peer.username||"U").slice(0,1).toUpperCase()}</span>}{onlineDot(peer.id)}</span>
             <span className="rivyza-alert-chat-copy"><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.sender_id===user.id?"Tú: ":""}{last.body}</small></span>
             <span className="rivyza-alert-chat-meta"><small>{formatPostDateTime(last.created_at)}</small>{unreadBySender.get(peer.id)>0&&<b>{unreadBySender.get(peer.id)>99?"99+":unreadBySender.get(peer.id)}</b>}</span>
@@ -2026,12 +2117,12 @@ export default function HomePage(){
           onTouchStart={e=>{swipeStartRef.current={id:m.id,x:e.touches[0].clientX,y:e.touches[0].clientY};}}
           onTouchEnd={e=>{const start=swipeStartRef.current;swipeStartRef.current=null;if(!start||start.id!==m.id)return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.abs(dy)>Math.abs(dx))return;if(dx< -55)setSwipedMessageId(m.id);else if(dx>35)setSwipedMessageId(null);}}>
           <div className="rivyza-swipe-actions"><button type="button" onClick={()=>hideSocialMessage(m.id)}>{t("Eliminar para mí")}</button>{m.sender_id===user.id&&Date.now()-new Date(m.created_at).getTime()<180000&&<button type="button" className="rivyza-delete-everyone" onClick={()=>deleteSocialMessageForEveryone(m)}>{t("Eliminar para todos")}</button>}</div>
-          <div className="social-bubble">{m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
+          <div className={"social-bubble"+(m.audio_path?" rivyza-audio-message":"")}>{m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
             {Array.from({length:30},(_,i)=><span key={i} className={i/30<=(voiceProgress[m.id]||0)?"played":""} style={{height:(6+Math.round(Math.abs(Math.sin((i+1)*1.71)*Math.cos((i+2)*.49))*18))+"px"}}/>)}
           </div><small>{Math.min(60,m.audio_duration||0)}s</small></div>:<p>{m.body}</p>}{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>
         </div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
-      </div><div className="rivyza-voice-composer">{voiceStage==="idle"?<form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><div className="rivyza-voice-input"><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="button" className="rivyza-mic-button" onClick={startVoice} aria-label="Grabar mensaje de voz"><Mic size={22}/></button></div><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form>:<div className="rivyza-record-panel"><div className="rivyza-record-wave"><span className={voiceStage==="recording"?"rivyza-record-dot":""}>{voiceStage==="recording"?"●":"🎤"}</span><span className="rivyza-voice-wave">▂▅▃▇▂▄▆▃▅▂▇▄▃▆▂▅▃▇</span><strong>{String(Math.floor(voiceSeconds/60)).padStart(2,"0")}:{String(voiceSeconds%60).padStart(2,"0")}</strong><small>/ 1:00</small></div>{voiceStage==="preview"&&voiceUrl&&<audio controls preload="metadata" src={voiceUrl} className="rivyza-voice-preview"/>}<div className="rivyza-record-actions"><button type="button" onClick={resetVoice} disabled={voiceSending}><Trash2 size={17}/> {t("Cancelar")}</button>{voiceStage==="recording"?<><button type="button" onClick={stopVoice}><Square size={16}/> Stop</button></>:<button type="button" onClick={sendVoice} disabled={voiceSending}><Send size={17}/> {voiceSending?"Enviando…":t("Enviar")}</button>}</div></div>}</div></section>}
+      </div><div className="rivyza-voice-composer">{voiceStage==="idle"?<form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><div className="rivyza-voice-input"><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="button" className="rivyza-mic-button" onClick={startVoice} aria-label="Grabar mensaje de voz"><Mic size={22}/></button></div><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form>:<div className="rivyza-record-panel"><div className="rivyza-record-wave"><span className={voiceStage==="recording"?"rivyza-record-dot":""}>{voiceStage==="recording"?"●":"🎤"}</span><span className="rivyza-record-levels" aria-label="Nivel de voz">{voiceLevels.map((height,i)=><span key={i} style={{height:(voiceStage==="recording"?height:6+Math.round(Math.abs(Math.sin(i*1.73))*17))+"px"}}/>)}</span><strong>{String(Math.floor(voiceSeconds/60)).padStart(2,"0")}:{String(voiceSeconds%60).padStart(2,"0")}</strong><small>/ 1:00</small></div>{voiceStage==="preview"&&voiceUrl&&<div className="rivyza-voice-preview-custom"><audio ref={voicePreviewRef} preload="metadata" src={voiceUrl} onLoadedMetadata={e=>setVoicePreviewDuration(Number.isFinite(e.currentTarget.duration)?e.currentTarget.duration:voiceSeconds)} onDurationChange={e=>{if(Number.isFinite(e.currentTarget.duration))setVoicePreviewDuration(e.currentTarget.duration);}} onTimeUpdate={e=>setVoicePreviewTime(e.currentTarget.currentTime)} onPlay={()=>setVoicePreviewPlaying(true)} onPause={()=>setVoicePreviewPlaying(false)} onEnded={()=>{setVoicePreviewPlaying(false);setVoicePreviewTime(0);}}/><button type="button" className="rivyza-preview-play" aria-label={voicePreviewPlaying?"Pausar audio":"Reproducir audio"} onClick={()=>{const a=voicePreviewRef.current;if(!a)return;if(a.paused){a.play().catch(()=>setVoicePreviewPlaying(false));}else a.pause();}}>{voicePreviewPlaying?<Pause size={19}/>:<Play size={19}/>}</button><span className="rivyza-preview-time">{String(Math.floor(voicePreviewTime/60)).padStart(2,"0")}:{String(Math.floor(voicePreviewTime%60)).padStart(2,"0")}</span><input type="range" min="0" max={Math.max(.1,voicePreviewDuration||voiceSeconds)} step="0.1" value={Math.min(voicePreviewTime,Math.max(.1,voicePreviewDuration||voiceSeconds))} aria-label="Adelantar o retroceder audio" onChange={e=>{const a=voicePreviewRef.current;if(a){a.currentTime=Number(e.target.value);setVoicePreviewTime(a.currentTime);}}}/><span className="rivyza-preview-time">{String(Math.floor((voicePreviewDuration||voiceSeconds)/60)).padStart(2,"0")}:{String(Math.floor((voicePreviewDuration||voiceSeconds)%60)).padStart(2,"0")}</span></div>}<div className="rivyza-record-actions"><button type="button" onClick={resetVoice} disabled={voiceSending}><Trash2 size={17}/> {t("Cancelar")}</button>{voiceStage==="recording"?<><button type="button" onClick={stopVoice}><Square size={16}/> Stop</button></>:<button type="button" onClick={sendVoice} disabled={voiceSending}><Send size={17}/> {voiceSending?"Enviando…":t("Enviar")}</button>}</div></div>}</div></section>}
       {view==="socialSettings"&&<section className="social-settings rivyza-settings-page">
         <div className="rivyza-settings-section-title">{t("Cuenta")}</div>
         <div className="rivyza-settings-group">
@@ -2053,11 +2144,17 @@ export default function HomePage(){
           <button type="button" onClick={()=>setSettingsSheet("Cambiar de cuenta")}><RefreshCw size={21}/><span>{t("Cambiar de cuenta")}</span><b>›</b></button>
           <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={21}/><span>{t("Cerrar sesión")}</span></button>
         </div>
-        <p className="rivyza-settings-version">RIVYZA v13.19.9</p>
+        <p className="rivyza-settings-version">RIVYZA v13.19.20</p>
         {settingsSheet&&<div className="rivyza-sheet-overlay" onClick={()=>setSettingsSheet("")} role="presentation"><div className="rivyza-sheet-panel" role="dialog" aria-modal="true" aria-label={settingsSheet==="language"?t("Idioma"):t(settingsSheet)} onClick={e=>e.stopPropagation()}>
           <div className="rivyza-sheet-handle"/>
           <div className="rivyza-sheet-heading"><strong>{settingsSheet==="language"?t("Idioma"):t(settingsSheet)}</strong><button type="button" onClick={()=>setSettingsSheet("")} aria-label={t("Cerrar")}>×</button></div>
-          {settingsSheet==="language"?<div className="rivyza-sheet-options">{[["es","Español"],["en","English"]].map(([code,label])=><button type="button" key={code} onClick={()=>{changeAppLanguage(code);setSettingsSheet("");}}>{label}<span>{appLanguage===code?"✓":""}</span></button>)}</div>:<p className="rivyza-sheet-soon">{t("Próximamente")}</p>}
+          {settingsSheet==="language"?<div className="rivyza-sheet-options">{[["es","Español"],["en","English"]].map(([code,label])=><button type="button" key={code} onClick={()=>{changeAppLanguage(code);setSettingsSheet("");}}>{label}<span>{appLanguage===code?"✓":""}</span></button>)}</div> :settingsSheet==="Cuenta privada"?<div className="rivyza-feature-settings"><label className="rivyza-feature-toggle">Cuenta privada <input type="checkbox" checked={privateAccount} onChange={e=>togglePrivateAccount(e.target.checked)}/></label><p>Oculta tu estado en línea. En los LIVE, solo el anfitrión debe poder identificarte; esta regla también requiere integración en el servicio LIVE.</p></div>
+          :settingsSheet==="Cuentas bloqueadas"?<div className="rivyza-feature-settings rivyza-blocked-list">{blockedProfilesLoading?<p>Cargando cuentas bloqueadas…</p>:blockedUsers.length?blockedUsers.map(id=>{const person=blockedProfiles[id];const name=person?.display_name||person?.username||"Cuenta bloqueada";return <div className="rivyza-blocked-person" key={id}><span className="rivyza-blocked-avatar">{person?.avatar_url?<img src={person.avatar_url} alt=""/>:<User size={21}/>}</span><span className="rivyza-blocked-details"><strong>{name}</strong><small>{person?.username?"@"+person.username:"Perfil no disponible"}</small></span><button type="button" className="rivyza-blocked-unblock" onClick={()=>{if(window.confirm(`¿Desbloquear a ${name}?`))setBlocked(id,false);}}>Desbloquear</button></div>}):<p>No tienes cuentas bloqueadas.</p>}</div>
+          :settingsSheet==="Información de cuenta"?<div className="rivyza-feature-settings"><div className="rivyza-account-logo">R</div><h3>RIVYZA</h3><div className="rivyza-feature-row"><span>Usuario</span><strong>@{profile?.username||"usuario"}</strong></div><div className="rivyza-feature-row"><span>Registro</span><strong>{formatPostDateTime(user?.created_at||profile?.created_at)||"Sin fecha"}</strong></div><div className="rivyza-feature-row"><span>Estado</span><strong>Activa</strong></div><div className="rivyza-feature-row"><span>Infracciones</span><div className="rivyza-strikes"><span>×</span><span>×</span><span>×</span></div></div><p>Las infracciones requieren revisión administrativa. Estas X son informativas hasta integrar el sistema de sanciones.</p></div>
+          :settingsSheet==="Apariencia"?<div className="rivyza-feature-settings">{[["dark","Oscuro"],["light","Claro"],["auto","Automático"]].map(([value,label])=><button className="rivyza-feature-row" key={value} onClick={()=>changeAppearance(value)}>{label}<strong>{appearance===value?"✓":""}</strong></button>)}</div>
+          :settingsSheet==="Seguridad y contraseña"?<div className="rivyza-feature-settings"><h3>Recuperar o cambiar contraseña</h3><p>Te enviaremos un enlace de recuperación. Si usas Google, cambia la contraseña desde Google.</p><input type="email" value={passwordEmail} onChange={e=>setPasswordEmail(e.target.value)} placeholder={user?.email||"Correo electrónico"}/><button onClick={sendPasswordReset}>Enviar enlace</button><p>La verificación en dos pasos y la gestión de dispositivos requieren configuración adicional en Supabase Auth.</p></div>
+          :settingsSheet==="Cambiar de cuenta"?<div className="rivyza-feature-settings"><p>Cuenta actual: {user?.email||profile?.username||"RIVYZA"}</p><p>Para proteger las sesiones, primero se debe iniciar sesión con la otra cuenta. No se conservarán contraseñas ni tokens manualmente.</p><button onClick={async()=>{await signOut();setSettingsSheet("");}}>Entrar con otra cuenta</button></div>
+          :<p className="rivyza-sheet-soon">{t("Próximamente")}</p>}
         </div></div>}
       </section>}
       {socialNav()}
@@ -2233,11 +2330,13 @@ export default function HomePage(){
           <button onClick={()=>openSocialList(viewedProfile.id,"followers")}><strong>{viewedFollowersCount}</strong><span>Followers</span></button>
           <button><strong>{viewedLikesCount}</strong><span>Likes</span></button>
         </div>
-        <div className="visitor-follow-row">
+        <div className="visitor-follow-row rivyza-visitor-actions">
           <button type="button" className={`visitor-follow-btn ${isFollowingViewed?"following":""}`}
-            disabled={followBusy} onClick={toggleFollowViewed}>
-            {followBusy?"...":isFollowingViewed?"Siguiendo":"Seguir"}
+            disabled={followBusy||blockedUsers.includes(viewedProfile.id)} onClick={toggleFollowViewed}>
+            <UserRoundPlus size={17}/>{followBusy?"...":isFollowingViewed?"Siguiendo":"Seguir"}
           </button>
+          <button type="button" className={`rivyza-mini-action ${liveBellIds.includes(viewedProfile.id)?"active":""}`} title="Avisarme cuando inicie LIVE" aria-label="Avisos de LIVE" onClick={()=>toggleLiveBell(viewedProfile.id)}><Bell size={19}/></button>
+          <button type="button" className="rivyza-mini-action block" title="Bloquear cuenta" aria-label="Bloquear cuenta" onClick={()=>{if(window.confirm("¿Bloquear a esta persona?"))setBlocked(viewedProfile.id,true);}}><Ban size={19}/></button>
         </div>
 
         {viewedProfile.bio && <p className="public-bio">{viewedProfile.bio}</p>}
