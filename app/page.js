@@ -97,6 +97,9 @@ export default function HomePage(){
   const [profileReturnToChat,setProfileReturnToChat]=useState(false);
   const [settingsSheet,setSettingsSheet]=useState("");
   const [blockedUsers,setBlockedUsers]=useState([]);
+  const [blockedProfiles,setBlockedProfiles]=useState({});
+  const [blockedProfilesLoading,setBlockedProfilesLoading]=useState(false);
+  const [blockedProfilesError,setBlockedProfilesError]=useState("");
   const [liveBellIds,setLiveBellIds]=useState([]);
   const [privateAccount,setPrivateAccount]=useState(false);
   const [appearance,setAppearance]=useState("dark");
@@ -117,6 +120,20 @@ export default function HomePage(){
   async function requestPhoneOtp(){if(!supabase)return;setPhoneError("");if(!dialingCodes[phoneCountry]){setPhoneError("Selecciona un país con prefijo configurado.");return;}if(phoneNumber.replace(/\D/g,"").length<6){setPhoneError("Escribe un número válido.");return;}setPhoneBusy(true);try{const {error}=await supabase.auth.signInWithOtp({phone:e164Phone()});if(error)throw error;setPhoneStage("otp");}catch(e){setPhoneError(e.message||"No se pudo enviar el código SMS.");}finally{setPhoneBusy(false);}}
   async function verifyPhoneOtp(){setPhoneError("");setPhoneBusy(true);try{const {error}=await supabase.auth.verifyOtp({phone:e164Phone(),token:phoneOtp.trim(),type:"sms"});if(error)throw error;}catch(e){setPhoneError(e.message||"Código incorrecto.");}finally{setPhoneBusy(false);}}
   async function loadSafetySettings(){if(!supabase||!user?.id)return;const [blocks,bells,priv]=await Promise.all([supabase.from("rivyza_user_blocks").select("blocked_id").eq("blocker_id",user.id),supabase.from("rivyza_live_alerts").select("creator_id").eq("subscriber_id",user.id),supabase.from("rivyza_account_preferences").select("is_private").eq("user_id",user.id).maybeSingle()]);if(!blocks.error)setBlockedUsers((blocks.data||[]).map(x=>x.blocked_id));if(!bells.error)setLiveBellIds((bells.data||[]).map(x=>x.creator_id));if(!priv.error)setPrivateAccount(!!priv.data?.is_private);}
+  useEffect(()=>{
+    if(settingsSheet!=="Cuentas bloqueadas"||!user?.id||!supabase)return;
+    let cancelled=false;
+    const ids=[...new Set(blockedUsers)].filter(Boolean);
+    if(!ids.length){setBlockedProfiles({});setBlockedProfilesLoading(false);setBlockedProfilesError("");return;}
+    setBlockedProfilesLoading(true);setBlockedProfilesError("");
+    supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids).then(({data,error})=>{
+      if(cancelled)return;
+      if(error){setBlockedProfilesError("No se pudo cargar la información de las cuentas.");setBlockedProfiles({});}
+      else setBlockedProfiles(Object.fromEntries((data||[]).map(p=>[p.id,p])));
+      setBlockedProfilesLoading(false);
+    }).catch(()=>{if(!cancelled){setBlockedProfilesError("No se pudo cargar la lista.");setBlockedProfilesLoading(false);}});
+    return ()=>{cancelled=true;};
+  },[settingsSheet,user?.id,blockedUsers]);
   async function setBlocked(target,block){if(!user?.id||!target||target===user.id)return;setSettingsError("");try{if(block){const {error}=await supabase.from("rivyza_user_blocks").insert({blocker_id:user.id,blocked_id:target});if(error)throw error;setBlockedUsers(v=>[...new Set([...v,target])]);setIsFollowingViewed(false);}else{const {error}=await supabase.from("rivyza_user_blocks").delete().eq("blocker_id",user.id).eq("blocked_id",target);if(error)throw error;setBlockedUsers(v=>v.filter(id=>id!==target));}}catch(e){setSettingsError("No se pudo actualizar el bloqueo. Revisa el SQL de esta versión. "+(e.message||""));alert("No se pudo actualizar el bloqueo. Verifica el SQL de la actualización.");}}
   async function toggleLiveBell(target){if(!user?.id||!target)return;const on=liveBellIds.includes(target);const q=supabase.from("rivyza_live_alerts");const {error}=on?await q.delete().eq("subscriber_id",user.id).eq("creator_id",target):await q.insert({subscriber_id:user.id,creator_id:target});if(error){alert("Falta configurar avisos de LIVE en Supabase.");return;}setLiveBellIds(v=>on?v.filter(id=>id!==target):[...v,target]);}
   async function togglePrivateAccount(on){const {error}=await supabase.from("rivyza_account_preferences").upsert({user_id:user.id,is_private:on},{onConflict:"user_id"});if(error){alert("Falta configurar privacidad en Supabase.");return;}setPrivateAccount(on);if(on&&onlinePreference)await saveOnlinePreference(false);}
@@ -2122,12 +2139,12 @@ export default function HomePage(){
           <button type="button" onClick={()=>setSettingsSheet("Cambiar de cuenta")}><RefreshCw size={21}/><span>{t("Cambiar de cuenta")}</span><b>›</b></button>
           <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={21}/><span>{t("Cerrar sesión")}</span></button>
         </div>
-        <p className="rivyza-settings-version">RIVYZA v13.19.20</p>
+        <p className="rivyza-settings-version">RIVYZA v13.19.22</p>
         {settingsSheet&&<div className="rivyza-sheet-overlay" onClick={()=>setSettingsSheet("")} role="presentation"><div className="rivyza-sheet-panel" role="dialog" aria-modal="true" aria-label={settingsSheet==="language"?t("Idioma"):t(settingsSheet)} onClick={e=>e.stopPropagation()}>
           <div className="rivyza-sheet-handle"/>
           <div className="rivyza-sheet-heading"><strong>{settingsSheet==="language"?t("Idioma"):t(settingsSheet)}</strong><button type="button" onClick={()=>setSettingsSheet("")} aria-label={t("Cerrar")}>×</button></div>
           {settingsSheet==="language"?<div className="rivyza-sheet-options">{[["es","Español"],["en","English"]].map(([code,label])=><button type="button" key={code} onClick={()=>{changeAppLanguage(code);setSettingsSheet("");}}>{label}<span>{appLanguage===code?"✓":""}</span></button>)}</div> :settingsSheet==="Cuenta privada"?<div className="rivyza-feature-settings"><label className="rivyza-feature-toggle">Cuenta privada <input type="checkbox" checked={privateAccount} onChange={e=>togglePrivateAccount(e.target.checked)}/></label><p>Oculta tu estado en línea. En los LIVE, solo el anfitrión debe poder identificarte; esta regla también requiere integración en el servicio LIVE.</p></div>
-          :settingsSheet==="Cuentas bloqueadas"?<div className="rivyza-feature-settings">{blockedUsers.length?blockedUsers.map(id=><div className="rivyza-feature-row" key={id}><span>Cuenta · {id.slice(0,8)}</span><button onClick={()=>setBlocked(id,false)}>Desbloquear</button></div>):<p>No tienes cuentas bloqueadas.</p>}</div>
+          :settingsSheet==="Cuentas bloqueadas"?<div className="rivyza-feature-settings">{blockedProfilesLoading&&<p>Cargando cuentas bloqueadas…</p>}{blockedProfilesError&&<p role="alert">{blockedProfilesError}</p>}{blockedUsers.length?blockedUsers.map(id=>{const person=blockedProfiles[id];return <div className="rivyza-feature-row rivyza-blocked-account" key={id}><div className="rivyza-blocked-person">{person?.avatar_url?<img className="rivyza-blocked-avatar" src={person.avatar_url} alt=""/>:<span className="rivyza-blocked-avatar rivyza-blocked-fallback"><User size={20}/></span>}<div className="rivyza-blocked-identity"><strong>{person?.display_name||person?.username||"Cuenta bloqueada"}</strong><small>{person?.username?`@${person.username}`:"Perfil no disponible"}</small></div></div><button type="button" onClick={()=>setBlocked(id,false)}>Desbloquear</button></div>}):<p>No tienes cuentas bloqueadas.</p>}</div>
           :settingsSheet==="Información de cuenta"?<div className="rivyza-feature-settings"><div className="rivyza-account-logo">R</div><h3>RIVYZA</h3><div className="rivyza-feature-row"><span>Usuario</span><strong>@{profile?.username||"usuario"}</strong></div><div className="rivyza-feature-row"><span>Registro</span><strong>{formatPostDateTime(user?.created_at||profile?.created_at)||"Sin fecha"}</strong></div><div className="rivyza-feature-row"><span>Estado</span><strong>Activa</strong></div><div className="rivyza-feature-row"><span>Infracciones</span><div className="rivyza-strikes"><span>×</span><span>×</span><span>×</span></div></div><p>Las infracciones requieren revisión administrativa. Estas X son informativas hasta integrar el sistema de sanciones.</p></div>
           :settingsSheet==="Apariencia"?<div className="rivyza-feature-settings">{[["dark","Oscuro"],["light","Claro"],["auto","Automático"]].map(([value,label])=><button className="rivyza-feature-row" key={value} onClick={()=>changeAppearance(value)}>{label}<strong>{appearance===value?"✓":""}</strong></button>)}</div>
           :settingsSheet==="Seguridad y contraseña"?<div className="rivyza-feature-settings"><h3>Recuperar o cambiar contraseña</h3><p>Te enviaremos un enlace de recuperación. Si usas Google, cambia la contraseña desde Google.</p><input type="email" value={passwordEmail} onChange={e=>setPasswordEmail(e.target.value)} placeholder={user?.email||"Correo electrónico"}/><button onClick={sendPasswordReset}>Enviar enlace</button><p>La verificación en dos pasos y la gestión de dispositivos requieren configuración adicional en Supabase Auth.</p></div>
