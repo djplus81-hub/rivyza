@@ -92,6 +92,18 @@ export default function HomePage(){
   const [swipedMessageId,setSwipedMessageId]=useState(null);
   const swipeStartRef=useRef(null);
   const [socialPeer,setSocialPeer]=useState(null);
+  // Compartir v13.19.26: estado independiente del visor y de los mensajes.
+  const [sharePost,setSharePost]=useState(null);
+  const [sharePeople,setSharePeople]=useState([]);
+  const [shareSearch,setShareSearch]=useState("");
+  const [shareSelected,setShareSelected]=useState([]);
+  const [shareLoading,setShareLoading]=useState(false);
+  const [shareSending,setShareSending]=useState(false);
+  const [shareError,setShareError]=useState("");
+  const [shareSuccess,setShareSuccess]=useState("");
+  const sharePrivate=sharePost?.visibility && sharePost.visibility!=="public";
+  const shareUrl=sharePost?.id && typeof window!=="undefined"?`${window.location.origin}/?post=${encodeURIComponent(sharePost.id)}`:"";
+
   const [socialChatReturnView,setSocialChatReturnView]=useState("alerts");
   const [socialInboxReturnView,setSocialInboxReturnView]=useState("alerts");
   const [profileReturnToChat,setProfileReturnToChat]=useState(false);
@@ -1093,6 +1105,109 @@ export default function HomePage(){
     finally{postLikeBusyRef.current=false;}
   }
 
+  async function openShare(post){
+    if(!post?.id)return;
+    setSharePost(post);setShareSearch("");setShareSelected([]);setShareError("");setShareSuccess("");setSharePeople([]);
+    setPostMenuOpen(false);
+    if(!supabase || !user?.id)return;
+    setShareLoading(true);
+    try{
+      // Amigos: seguimiento mutuo. Consultamos los perfiles reales.
+      const [{data:following,error:e1},{data:followers,error:e2}]=await Promise.all([
+        supabase.from("follows").select("following_id").eq("follower_id",user.id),
+        supabase.from("follows").select("follower_id").eq("following_id",user.id)
+      ]);
+      if(e1||e2)throw e1||e2;
+      const incoming=new Set((followers||[]).map(x=>x.follower_id));
+      const friendIds=(following||[]).map(x=>x.following_id).filter(id=>incoming.has(id) && id!==user.id && !blockedUsers.includes(id));
+      if(friendIds.length){
+        const {data,error}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",friendIds.slice(0,150));
+        if(error)throw error;
+        setSharePeople((data||[]).sort((a,b)=>(a.display_name||a.username||"").localeCompare(b.display_name||b.username||"")));
+      }
+    }catch(e){setShareError("No se pudo cargar la lista de amigos: "+(e.message||"Error"));}
+    finally{setShareLoading(false);}
+  }
+  function toggleShareRecipient(id){setShareSelected(old=>old.includes(id)?old.filter(x=>x!==id):[...old,id]);setShareError("");}
+  async function sendSharedPost(){
+    if(!supabase||!user?.id||!sharePost?.id||!shareSelected.length||shareSending)return;
+    setShareSending(true);setShareError("");setShareSuccess("");
+    try{
+      // Revalidar la relación antes de enviar, y no permitir destinatarios bloqueados.
+      const [{data:out,error:outError},{data:incoming,error:inError}]=await Promise.all([
+        supabase.from("follows").select("following_id").eq("follower_id",user.id).in("following_id",shareSelected),
+        supabase.from("follows").select("follower_id").eq("following_id",user.id).in("follower_id",shareSelected)
+      ]);
+      if(outError||inError)throw outError||inError;
+      const a=new Set((out||[]).map(x=>x.following_id));
+      const b=new Set((incoming||[]).map(x=>x.follower_id));
+      const recipients=shareSelected.filter(id=>a.has(id)&&b.has(id)&&!blockedUsers.includes(id));
+      if(recipients.length!==shareSelected.length)throw new Error("Algún destinatario ya no está disponible como amigo.");
+      const rows=recipients.map(id=>({sender_id:user.id,recipient_id:id,body:"Te compartió una publicación",shared_post_id:sharePost.id}));
+      const {error}=await supabase.from("rivyza_messages").insert(rows);
+      if(error)throw error;
+      setShareSuccess(`Publicación enviada a ${recipients.length} ${recipients.length===1?"amigo":"amigos"}.`);
+      setShareSelected([]);
+      await loadSocial();
+    }catch(e){setShareError("No se pudo enviar: "+(e.message||"Error"));}
+    finally{setShareSending(false);}
+  }
+  async function shareOutside(){
+    if(!sharePost?.id)return;
+    if(sharePrivate){setShareError("Esta publicación no es pública. No se puede compartir fuera de RIVYZA.");return;}
+    const url=`${window.location.origin}/?post=${encodeURIComponent(sharePost.id)}`;
+    if(navigator.share){
+      try{await navigator.share({title:"RIVYZA",text:"Mira esta publicación en RIVYZA",url});}
+      catch(e){if(e?.name!=="AbortError")setShareError("No se pudo abrir el menú de compartir.");}
+    }else{
+      try{await navigator.clipboard.writeText(url);setShareSuccess("Enlace copiado. Puedes pegarlo en otra aplicación.");}
+      catch{setShareError("Tu navegador no permite compartir ni copiar el enlace.");}
+    }
+  }
+  async function copyShareLink(){
+    if(!sharePost?.id)return;
+    if(sharePrivate){setShareError("Esta publicación no es pública.");return;}
+    try{await navigator.clipboard.writeText(`${window.location.origin}/?post=${encodeURIComponent(sharePost.id)}`);setShareSuccess("Enlace copiado.");setShareError("");}
+    catch{setShareError("No se pudo copiar el enlace.");}
+  }
+  useEffect(()=>{
+    if(!user?.id||!supabase||typeof window==="undefined")return;
+    const postId=new URLSearchParams(window.location.search).get("post");
+    if(!postId)return;
+    let cancelled=false;
+    (async()=>{
+      const {data,error}=await supabase.from("posts").select("*").eq("id",postId).maybeSingle();
+      if(cancelled)return;
+      if(!error&&data){setView("home");openPost(data);}
+      else setPostActionMessage("La publicación no está disponible o no tienes permiso para verla.");
+      window.history.replaceState({},"",window.location.pathname);
+    })();
+    return()=>{cancelled=true;};
+  },[user?.id,supabase]);
+
+  function renderShareSheet(){
+    if(!sharePost)return null;
+    const people=sharePeople.filter(p=>`${p.display_name||""} ${p.username||""}`.toLocaleLowerCase().includes(shareSearch.trim().toLocaleLowerCase()));
+    return createPortal(<div className="rivyza-share-backdrop" onClick={()=>{if(!shareSending)setSharePost(null);}}>
+      <section className="rivyza-share-sheet" role="dialog" aria-modal="true" aria-label="Compartir publicación" onClick={e=>e.stopPropagation()}>
+        <div className="rivyza-share-grip"/><header><strong>Compartir publicación</strong><button type="button" onClick={()=>setSharePost(null)} aria-label="Cerrar"><X size={22}/></button></header>
+        <div className="rivyza-share-search"><Search size={19}/><input placeholder="Buscar amigos de RIVYZA" value={shareSearch} onChange={e=>setShareSearch(e.target.value)}/></div>
+        <h4>ENVIAR A AMIGOS</h4>
+        {shareLoading?<p className="rivyza-share-hint">Buscando amigos…</p>:people.length?<div className="rivyza-share-friends">{people.map(person=><button key={person.id} type="button" className={shareSelected.includes(person.id)?"chosen":""} onClick={()=>toggleShareRecipient(person.id)}><span className="rivyza-share-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:(person.display_name||person.username||"R").slice(0,1).toUpperCase()}{shareSelected.includes(person.id)&&<span className="rivyza-share-check"><Check size={13}/></span>}</span><small>{person.display_name||person.username||"Usuario"}</small></button>)}</div>:<p className="rivyza-share-hint">{shareSearch?"No hay amigos con ese nombre.":"Tus amigos (seguimiento mutuo) aparecerán aquí."}</p>}
+        {shareSelected.length>0&&<button type="button" className="rivyza-share-send" disabled={shareSending} onClick={sendSharedPost}><Send size={18}/>{shareSending?"Enviando…":`Enviar a ${shareSelected.length} ${shareSelected.length===1?"amigo":"amigos"}`}</button>}
+        <h4>COMPARTIR EN OTRAS APLICACIONES</h4>
+        <div className="rivyza-share-external">
+          <button type="button" onClick={shareOutside}><span className="rivyza-share-round"><Share2/></span><small>Más aplicaciones</small></button>
+          <button type="button" onClick={copyShareLink}><span className="rivyza-share-round"><LinkIcon/></span><small>Copiar enlace</small></button>
+        </div>
+        <p className="rivyza-share-hint">Al tocar «Más aplicaciones», tu teléfono mostrará WhatsApp, Facebook, Mensajes y otras aplicaciones compatibles que tengas instaladas.</p>
+        {sharePrivate&&<p className="rivyza-share-warning">Esta publicación no es pública. Los enlaces externos están desactivados.</p>}
+        {shareError&&<p className="rivyza-share-warning" role="alert">{shareError}</p>}
+        {shareSuccess&&<p className="rivyza-share-success" role="status">{shareSuccess}</p>}
+      </section>
+    </div>,document.body);
+  }
+
   async function copyPostLink(){
     const url=`${window.location.origin}/?post=${selectedPost?.id||""}`;
     try{await navigator.clipboard.writeText(url);setPostActionMessage("Enlace copiado.");}
@@ -1981,6 +2096,15 @@ export default function HomePage(){
     else{setSocialDraft("");await loadSocial();}
     setSocialBusy(false);
   }
+  async function openSharedPostFromChat(postId){
+    if(!postId||!supabase)return;
+    setSocialError("");
+    const {data,error}=await supabase.from("posts").select("*").eq("id",postId).maybeSingle();
+    if(error||!data){setSocialError("La publicación no está disponible o no tienes permiso para verla.");return;}
+    setProfileReturnToChat(true);
+    setView("publicProfile");
+    await openPost(data);
+  }
   async function openNotificationPost(notice){
     if(!notice?.post_id || !supabase)return;
     setSocialError("");
@@ -2119,7 +2243,7 @@ export default function HomePage(){
           <div className="rivyza-swipe-actions"><button type="button" onClick={()=>hideSocialMessage(m.id)}>{t("Eliminar para mí")}</button>{m.sender_id===user.id&&Date.now()-new Date(m.created_at).getTime()<180000&&<button type="button" className="rivyza-delete-everyone" onClick={()=>deleteSocialMessageForEveryone(m)}>{t("Eliminar para todos")}</button>}</div>
           <div className={"social-bubble"+(m.audio_path?" rivyza-audio-message":"")}>{m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
             {Array.from({length:30},(_,i)=><span key={i} className={i/30<=(voiceProgress[m.id]||0)?"played":""} style={{height:(6+Math.round(Math.abs(Math.sin((i+1)*1.71)*Math.cos((i+2)*.49))*18))+"px"}}/>)}
-          </div><small>{Math.min(60,m.audio_duration||0)}s</small></div>:<p>{m.body}</p>}{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>
+          </div><small>{Math.min(60,m.audio_duration||0)}s</small></div>:<p>{m.body}</p>}{m.shared_post_id&&<button type="button" className="rivyza-shared-post-open" onClick={()=>openSharedPostFromChat(m.shared_post_id)}><Share2 size={16}/> Ver publicación compartida</button>}<small>{formatPostDateTime(m.created_at)}</small></div>
         </div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
       </div><div className="rivyza-voice-composer">{voiceStage==="idle"?<form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><div className="rivyza-voice-input"><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="button" className="rivyza-mic-button" onClick={startVoice} aria-label="Grabar mensaje de voz"><Mic size={22}/></button></div><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form>:<div className="rivyza-record-panel"><div className="rivyza-record-wave"><span className={voiceStage==="recording"?"rivyza-record-dot":""}>{voiceStage==="recording"?"●":"🎤"}</span><span className="rivyza-record-levels" aria-label="Nivel de voz">{voiceLevels.map((height,i)=><span key={i} style={{height:(voiceStage==="recording"?height:6+Math.round(Math.abs(Math.sin(i*1.73))*17))+"px"}}/>)}</span><strong>{String(Math.floor(voiceSeconds/60)).padStart(2,"0")}:{String(voiceSeconds%60).padStart(2,"0")}</strong><small>/ 1:00</small></div>{voiceStage==="preview"&&voiceUrl&&<div className="rivyza-voice-preview-custom"><audio ref={voicePreviewRef} preload="metadata" src={voiceUrl} onLoadedMetadata={e=>setVoicePreviewDuration(Number.isFinite(e.currentTarget.duration)?e.currentTarget.duration:voiceSeconds)} onDurationChange={e=>{if(Number.isFinite(e.currentTarget.duration))setVoicePreviewDuration(e.currentTarget.duration);}} onTimeUpdate={e=>setVoicePreviewTime(e.currentTarget.currentTime)} onPlay={()=>setVoicePreviewPlaying(true)} onPause={()=>setVoicePreviewPlaying(false)} onEnded={()=>{setVoicePreviewPlaying(false);setVoicePreviewTime(0);}}/><button type="button" className="rivyza-preview-play" aria-label={voicePreviewPlaying?"Pausar audio":"Reproducir audio"} onClick={()=>{const a=voicePreviewRef.current;if(!a)return;if(a.paused){a.play().catch(()=>setVoicePreviewPlaying(false));}else a.pause();}}>{voicePreviewPlaying?<Pause size={19}/>:<Play size={19}/>}</button><span className="rivyza-preview-time">{String(Math.floor(voicePreviewTime/60)).padStart(2,"0")}:{String(Math.floor(voicePreviewTime%60)).padStart(2,"0")}</span><input type="range" min="0" max={Math.max(.1,voicePreviewDuration||voiceSeconds)} step="0.1" value={Math.min(voicePreviewTime,Math.max(.1,voicePreviewDuration||voiceSeconds))} aria-label="Adelantar o retroceder audio" onChange={e=>{const a=voicePreviewRef.current;if(a){a.currentTime=Number(e.target.value);setVoicePreviewTime(a.currentTime);}}}/><span className="rivyza-preview-time">{String(Math.floor((voicePreviewDuration||voiceSeconds)/60)).padStart(2,"0")}:{String(Math.floor((voicePreviewDuration||voiceSeconds)%60)).padStart(2,"0")}</span></div>}<div className="rivyza-record-actions"><button type="button" onClick={resetVoice} disabled={voiceSending}><Trash2 size={17}/> {t("Cancelar")}</button>{voiceStage==="recording"?<><button type="button" onClick={stopVoice}><Square size={16}/> Stop</button></>:<button type="button" onClick={sendVoice} disabled={voiceSending}><Send size={17}/> {voiceSending?"Enviando…":t("Enviar")}</button>}</div></div>}</div></section>}
@@ -2194,6 +2318,7 @@ export default function HomePage(){
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
+      {renderShareSheet()}
     </main>;
   }
 
@@ -2269,7 +2394,7 @@ export default function HomePage(){
                 <span>{post.like_count||0}</span>
               </button>
               <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
-              <button onClick={()=>openPost(post)}><Share2/><span>{t("Compartir")}</span></button>
+              <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
               <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
             </div>
           </article>
@@ -2285,6 +2410,7 @@ export default function HomePage(){
       </nav>
       {renderUploadModal()}
       {commentsOpen && renderCommentsSheet()}
+      {renderShareSheet()}
     </main>;
   }
 
@@ -2415,14 +2541,14 @@ export default function HomePage(){
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
-              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>{t("Compartir")}</span></button>
+              <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={23}/><span>{t("Compartir")}</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
           {postMenuOpen && (
             <div className="post-menu-backdrop" onClick={()=>setPostMenuOpen(false)}>
               <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
-                <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={20}/>Compartir en RIVYZA</button>
+                <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={20}/>Compartir en RIVYZA</button>
                 <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
                 <button type="button" onClick={()=>setPostMenuOpen(false)}>{t("Cancelar")}</button>
               </div>
@@ -2440,6 +2566,7 @@ export default function HomePage(){
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
+      {renderShareSheet()}
     </main>;
   }
 
@@ -2579,7 +2706,7 @@ export default function HomePage(){
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
-              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>{t("Compartir")}</span></button>
+              <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={23}/><span>{t("Compartir")}</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
@@ -2587,7 +2714,7 @@ export default function HomePage(){
           {postMenuOpen && (
             <div className="post-menu-backdrop" onClick={()=>setPostMenuOpen(false)}>
               <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
-                <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={20}/>Compartir en RIVYZA</button>
+                <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={20}/>Compartir en RIVYZA</button>
                 <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
                 {selectedPost.user_id===user?.id && <>
                   <button type="button" onClick={()=>setPostPin(1)}>📌 Fijar en posición 1</button>
@@ -2930,7 +3057,7 @@ export default function HomePage(){
               <span>{post.like_count||0}</span>
             </button>
             <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
-            <button onClick={()=>openPost(post)}><Share2/><span>{t("Compartir")}</span></button>
+            <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
             <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
           </div>
         </article>
@@ -2987,5 +3114,6 @@ export default function HomePage(){
 
     {renderUploadModal()}
     {commentsOpen && renderCommentsSheet()}
+    {renderShareSheet()}
   </main>;
 }
