@@ -2904,3 +2904,9 @@ html[data-rivyza-appearance="auto"] .rivyza-sheet-options button,html[data-rivyz
 html[data-rivyza-appearance="auto"] .rivyza-feature-settings input{background:var(--rv-panel)!important;color:var(--rv-ink)!important}
 html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes span{color:var(--rv-ink)!important}
 }
+
+/* v13.19.25: keep privacy toggle isolated from appearance navigation */
+.rivyza-settings-page .rivyza-online-row{display:flex;align-items:center;gap:15px;padding:17px 20px;position:relative;isolation:isolate;min-height:66px}
+.rivyza-settings-page .rivyza-online-row>span{flex:1;min-width:0;pointer-events:none}
+.rivyza-settings-page .rivyza-online-row>input[type="checkbox"]{flex:0 0 auto;position:relative;z-index:1;cursor:pointer}
+.rivyza-settings-page .rivyza-settings-group>button{position:relative;z-index:0;touch-action:manipulation}

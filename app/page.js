@@ -2131,20 +2131,20 @@ export default function HomePage(){
         <div className="rivyza-settings-section-title">{t("Privacidad")}</div>
         <div className="rivyza-settings-group">
           {[["Cuenta privada",Lock],["Cuentas bloqueadas",Ban]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
-          <label className="rivyza-settings-toggle"><span><strong>{t("Estado en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label>
+          <div className="rivyza-settings-toggle rivyza-online-row"><span><strong>{t("Estado en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" aria-label={t("Estado en línea")} checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></div>
           {[["Quién puede enviarme mensajes",MessageCircle],["Quién puede comentar",MessageSquare],["Menciones y etiquetas",AtSign],["Publicaciones que me gustan",Heart],["Lista de seguidos",Users]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
         </div>
         <div className="rivyza-settings-section-title">{t("Preferencias")}</div>
         <div className="rivyza-settings-group">
           <button type="button" onClick={()=>setSettingsSheet("language")}><Languages size={21}/><span>{t("Idioma")}</span><em>{appLanguage==="es"?"Español":"English"}</em><b>›</b></button>
-          {[["Apariencia",Moon],["Preferencias de notificaciones",Bell]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
+          {[["Apariencia",Moon],["Preferencias de notificaciones",Bell]].map(([label,Icon])=><button type="button" key={label} onClick={e=>{e.stopPropagation();setSettingsSheet(label);}}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
         </div>
         <div className="rivyza-settings-section-title">{t("Sesión")}</div>
         <div className="rivyza-settings-group">
           <button type="button" onClick={()=>setSettingsSheet("Cambiar de cuenta")}><RefreshCw size={21}/><span>{t("Cambiar de cuenta")}</span><b>›</b></button>
           <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={21}/><span>{t("Cerrar sesión")}</span></button>
         </div>
-        <p className="rivyza-settings-version">RIVYZA v13.19.24</p>
+        <p className="rivyza-settings-version">RIVYZA v13.19.25</p>
         {settingsSheet&&<div className="rivyza-sheet-overlay" onClick={()=>setSettingsSheet("")} role="presentation"><div className="rivyza-sheet-panel" role="dialog" aria-modal="true" aria-label={settingsSheet==="language"?t("Idioma"):t(settingsSheet)} onClick={e=>e.stopPropagation()}>
           <div className="rivyza-sheet-handle"/>
           <div className="rivyza-sheet-heading"><strong>{settingsSheet==="language"?t("Idioma"):t(settingsSheet)}</strong><button type="button" onClick={()=>setSettingsSheet("")} aria-label={t("Cerrar")}>×</button></div>
