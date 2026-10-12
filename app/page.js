@@ -96,6 +96,33 @@ export default function HomePage(){
   const [socialInboxReturnView,setSocialInboxReturnView]=useState("alerts");
   const [profileReturnToChat,setProfileReturnToChat]=useState(false);
   const [settingsSheet,setSettingsSheet]=useState("");
+  const [blockedUsers,setBlockedUsers]=useState([]);
+  const [liveBellIds,setLiveBellIds]=useState([]);
+  const [privateAccount,setPrivateAccount]=useState(false);
+  const [appearance,setAppearance]=useState("dark");
+  const [settingsError,setSettingsError]=useState("");
+  const [phoneCountry,setPhoneCountry]=useState("US");
+  const [phoneNumber,setPhoneNumber]=useState("");
+  const [phoneOtp,setPhoneOtp]=useState("");
+  const [phoneStage,setPhoneStage]=useState("number");
+  const [phoneBusy,setPhoneBusy]=useState(false);
+  const [phoneError,setPhoneError]=useState("");
+  const [passwordEmail,setPasswordEmail]=useState("");
+  const [savedAccounts,setSavedAccounts]=useState([]);
+  useEffect(()=>{try{setAppearance(localStorage.getItem("rivyza-appearance")||"dark");setSavedAccounts(JSON.parse(localStorage.getItem("rivyza-saved-accounts")||"[]"));}catch(e){}},[]);
+  useEffect(()=>{if(typeof document!=="undefined")document.documentElement.dataset.rivyzaAppearance=appearance;},[appearance]);
+  const changeAppearance=(next)=>{setAppearance(next);try{localStorage.setItem("rivyza-appearance",next);}catch(e){}};
+  const dialingCodes={US:"1",DO:"1",PR:"1",CA:"1",MX:"52",CO:"57",ES:"34",AR:"54",BR:"55",CL:"56",PE:"51",VE:"58",EC:"593",GB:"44",FR:"33",DE:"49",IT:"39",IN:"91",PK:"92",ID:"62",PH:"63",AU:"61",JP:"81",KR:"82",NG:"234",ZA:"27",HT:"509",JM:"1",PA:"507",CR:"506",GT:"502",SV:"503",HN:"504",NI:"505",CU:"53",UY:"598",PY:"595",BO:"591"};
+  const e164Phone=()=>"+"+(dialingCodes[phoneCountry]||"")+phoneNumber.replace(/\D/g,"").replace(/^0+/,"");
+  async function requestPhoneOtp(){if(!supabase)return;setPhoneError("");if(!dialingCodes[phoneCountry]){setPhoneError("Selecciona un país con prefijo configurado.");return;}if(phoneNumber.replace(/\D/g,"").length<6){setPhoneError("Escribe un número válido.");return;}setPhoneBusy(true);try{const {error}=await supabase.auth.signInWithOtp({phone:e164Phone()});if(error)throw error;setPhoneStage("otp");}catch(e){setPhoneError(e.message||"No se pudo enviar el código SMS.");}finally{setPhoneBusy(false);}}
+  async function verifyPhoneOtp(){setPhoneError("");setPhoneBusy(true);try{const {error}=await supabase.auth.verifyOtp({phone:e164Phone(),token:phoneOtp.trim(),type:"sms"});if(error)throw error;}catch(e){setPhoneError(e.message||"Código incorrecto.");}finally{setPhoneBusy(false);}}
+  async function loadSafetySettings(){if(!supabase||!user?.id)return;const [blocks,bells,priv]=await Promise.all([supabase.from("rivyza_user_blocks").select("blocked_id").eq("blocker_id",user.id),supabase.from("rivyza_live_alerts").select("creator_id").eq("subscriber_id",user.id),supabase.from("rivyza_account_preferences").select("is_private").eq("user_id",user.id).maybeSingle()]);if(!blocks.error)setBlockedUsers((blocks.data||[]).map(x=>x.blocked_id));if(!bells.error)setLiveBellIds((bells.data||[]).map(x=>x.creator_id));if(!priv.error)setPrivateAccount(!!priv.data?.is_private);}
+  useEffect(()=>{if(user?.id)loadSafetySettings();},[user?.id]);
+  async function setBlocked(target,block){if(!user?.id||!target||target===user.id)return;setSettingsError("");try{if(block){const {error}=await supabase.from("rivyza_user_blocks").insert({blocker_id:user.id,blocked_id:target});if(error)throw error;setBlockedUsers(v=>[...new Set([...v,target])]);setIsFollowingViewed(false);}else{const {error}=await supabase.from("rivyza_user_blocks").delete().eq("blocker_id",user.id).eq("blocked_id",target);if(error)throw error;setBlockedUsers(v=>v.filter(id=>id!==target));}}catch(e){setSettingsError("No se pudo actualizar el bloqueo. Revisa el SQL de esta versión. "+(e.message||""));alert("No se pudo actualizar el bloqueo. Verifica el SQL de la actualización.");}}
+  async function toggleLiveBell(target){if(!user?.id||!target)return;const on=liveBellIds.includes(target);const q=supabase.from("rivyza_live_alerts");const {error}=on?await q.delete().eq("subscriber_id",user.id).eq("creator_id",target):await q.insert({subscriber_id:user.id,creator_id:target});if(error){alert("Falta configurar avisos de LIVE en Supabase.");return;}setLiveBellIds(v=>on?v.filter(id=>id!==target):[...v,target]);}
+  async function togglePrivateAccount(on){const {error}=await supabase.from("rivyza_account_preferences").upsert({user_id:user.id,is_private:on},{onConflict:"user_id"});if(error){alert("Falta configurar privacidad en Supabase.");return;}setPrivateAccount(on);if(on&&onlinePreference)await saveOnlinePreference(false);}
+  async function sendPasswordReset(){const email=passwordEmail.trim()||user?.email;if(!email){setSettingsError("Escribe tu correo electrónico.");return;}const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});setSettingsError(error?error.message:"Se envió un enlace de recuperación, si el correo está registrado.");}
+
   const [socialDraft,setSocialDraft]=useState("");
   const [voiceStage,setVoiceStage]=useState("idle");
   const [voiceSeconds,setVoiceSeconds]=useState(0);
@@ -419,6 +446,7 @@ export default function HomePage(){
   }
 
   async function toggleFollowViewed(){
+    if(viewedProfile?.id && blockedUsers.includes(viewedProfile.id)){alert("Desbloquea esta cuenta antes de seguirla.");return;}
     if(!supabase || !user?.id || !viewedProfile?.id || viewedProfile.id===user.id || followBusy)return;
     setFollowBusy(true);
     try{
@@ -2003,6 +2031,7 @@ export default function HomePage(){
         <h1>RIVYZA</h1>
         <p className="tagline">Vive. Conecta. Transmite.</p>
         <button className="google-btn" onClick={signInWithGoogle}>{t("Continuar con Google")}</button>
+        <div className="rivyza-phone-auth"><h3>Continuar con teléfono</h3><select value={phoneCountry} onChange={e=>setPhoneCountry(e.target.value)}>{countryOptions.map(c=><option key={c.code} value={c.code}>{c.flag} {c.name} {dialingCodes[c.code]?"(+"+dialingCodes[c.code]+")":""}</option>)}</select>{phoneStage==="number"?<><input type="tel" inputMode="tel" placeholder="Número de teléfono" value={phoneNumber} onChange={e=>setPhoneNumber(e.target.value)}/><button disabled={phoneBusy} onClick={requestPhoneOtp}>Enviar código SMS</button></>:<><input inputMode="numeric" placeholder="Código de verificación" value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value)}/><button disabled={phoneBusy} onClick={verifyPhoneOtp}>Verificar y continuar</button><button onClick={()=>setPhoneStage("number")}>Cambiar número</button></>}{phoneError&&<p role="alert">{phoneError}</p>}<small>Disponible en países habilitados para SMS en Supabase/Twilio.</small></div>
       </section>
     </main>;
   }
@@ -2093,11 +2122,17 @@ export default function HomePage(){
           <button type="button" onClick={()=>setSettingsSheet("Cambiar de cuenta")}><RefreshCw size={21}/><span>{t("Cambiar de cuenta")}</span><b>›</b></button>
           <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={21}/><span>{t("Cerrar sesión")}</span></button>
         </div>
-        <p className="rivyza-settings-version">RIVYZA v13.19.9</p>
+        <p className="rivyza-settings-version">RIVYZA v13.19.20</p>
         {settingsSheet&&<div className="rivyza-sheet-overlay" onClick={()=>setSettingsSheet("")} role="presentation"><div className="rivyza-sheet-panel" role="dialog" aria-modal="true" aria-label={settingsSheet==="language"?t("Idioma"):t(settingsSheet)} onClick={e=>e.stopPropagation()}>
           <div className="rivyza-sheet-handle"/>
           <div className="rivyza-sheet-heading"><strong>{settingsSheet==="language"?t("Idioma"):t(settingsSheet)}</strong><button type="button" onClick={()=>setSettingsSheet("")} aria-label={t("Cerrar")}>×</button></div>
-          {settingsSheet==="language"?<div className="rivyza-sheet-options">{[["es","Español"],["en","English"]].map(([code,label])=><button type="button" key={code} onClick={()=>{changeAppLanguage(code);setSettingsSheet("");}}>{label}<span>{appLanguage===code?"✓":""}</span></button>)}</div>:<p className="rivyza-sheet-soon">{t("Próximamente")}</p>}
+          {settingsSheet==="language"?<div className="rivyza-sheet-options">{[["es","Español"],["en","English"]].map(([code,label])=><button type="button" key={code} onClick={()=>{changeAppLanguage(code);setSettingsSheet("");}}>{label}<span>{appLanguage===code?"✓":""}</span></button>)}</div> :settingsSheet==="Cuenta privada"?<div className="rivyza-feature-settings"><label className="rivyza-feature-toggle">Cuenta privada <input type="checkbox" checked={privateAccount} onChange={e=>togglePrivateAccount(e.target.checked)}/></label><p>Oculta tu estado en línea. En los LIVE, solo el anfitrión debe poder identificarte; esta regla también requiere integración en el servicio LIVE.</p></div>
+          :settingsSheet==="Cuentas bloqueadas"?<div className="rivyza-feature-settings">{blockedUsers.length?blockedUsers.map(id=><div className="rivyza-feature-row" key={id}><span>Cuenta · {id.slice(0,8)}</span><button onClick={()=>setBlocked(id,false)}>Desbloquear</button></div>):<p>No tienes cuentas bloqueadas.</p>}</div>
+          :settingsSheet==="Información de cuenta"?<div className="rivyza-feature-settings"><div className="rivyza-account-logo">R</div><h3>RIVYZA</h3><div className="rivyza-feature-row"><span>Usuario</span><strong>@{profile?.username||"usuario"}</strong></div><div className="rivyza-feature-row"><span>Registro</span><strong>{formatPostDateTime(user?.created_at||profile?.created_at)||"Sin fecha"}</strong></div><div className="rivyza-feature-row"><span>Estado</span><strong>Activa</strong></div><div className="rivyza-feature-row"><span>Infracciones</span><div className="rivyza-strikes"><span>×</span><span>×</span><span>×</span></div></div><p>Las infracciones requieren revisión administrativa. Estas X son informativas hasta integrar el sistema de sanciones.</p></div>
+          :settingsSheet==="Apariencia"?<div className="rivyza-feature-settings">{[["dark","Oscuro"],["light","Claro"],["auto","Automático"]].map(([value,label])=><button className="rivyza-feature-row" key={value} onClick={()=>changeAppearance(value)}>{label}<strong>{appearance===value?"✓":""}</strong></button>)}</div>
+          :settingsSheet==="Seguridad y contraseña"?<div className="rivyza-feature-settings"><h3>Recuperar o cambiar contraseña</h3><p>Te enviaremos un enlace de recuperación. Si usas Google, cambia la contraseña desde Google.</p><input type="email" value={passwordEmail} onChange={e=>setPasswordEmail(e.target.value)} placeholder={user?.email||"Correo electrónico"}/><button onClick={sendPasswordReset}>Enviar enlace</button><p>La verificación en dos pasos y la gestión de dispositivos requieren configuración adicional en Supabase Auth.</p></div>
+          :settingsSheet==="Cambiar de cuenta"?<div className="rivyza-feature-settings"><p>Cuenta actual: {user?.email||profile?.username||"RIVYZA"}</p><p>Para proteger las sesiones, primero se debe iniciar sesión con la otra cuenta. No se conservarán contraseñas ni tokens manualmente.</p><button onClick={async()=>{await signOut();setSettingsSheet("");}}>Entrar con otra cuenta</button></div>
+          :<p className="rivyza-sheet-soon">{t("Próximamente")}</p>}
         </div></div>}
       </section>}
       {socialNav()}
@@ -2273,11 +2308,13 @@ export default function HomePage(){
           <button onClick={()=>openSocialList(viewedProfile.id,"followers")}><strong>{viewedFollowersCount}</strong><span>Followers</span></button>
           <button><strong>{viewedLikesCount}</strong><span>Likes</span></button>
         </div>
-        <div className="visitor-follow-row">
+        <div className="visitor-follow-row rivyza-visitor-actions">
           <button type="button" className={`visitor-follow-btn ${isFollowingViewed?"following":""}`}
-            disabled={followBusy} onClick={toggleFollowViewed}>
-            {followBusy?"...":isFollowingViewed?"Siguiendo":"Seguir"}
+            disabled={followBusy||blockedUsers.includes(viewedProfile.id)} onClick={toggleFollowViewed}>
+            <UserRoundPlus size={17}/>{followBusy?"...":isFollowingViewed?"Siguiendo":"Seguir"}
           </button>
+          <button type="button" className={`rivyza-mini-action ${liveBellIds.includes(viewedProfile.id)?"active":""}`} title="Avisarme cuando inicie LIVE" aria-label="Avisos de LIVE" onClick={()=>toggleLiveBell(viewedProfile.id)}><Bell size={19}/></button>
+          <button type="button" className="rivyza-mini-action block" title="Bloquear cuenta" aria-label="Bloquear cuenta" onClick={()=>{if(window.confirm("¿Bloquear a esta persona?"))setBlocked(viewedProfile.id,true);}}><Ban size={19}/></button>
         </div>
 
         {viewedProfile.bio && <p className="public-bio">{viewedProfile.bio}</p>}

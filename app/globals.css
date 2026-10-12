@@ -2824,3 +2824,22 @@ button.rivyza-comment-avatar{border:0;padding:0;appearance:none;-webkit-appearan
 .rivyza-voice-preview-custom .rivyza-preview-play{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex-shrink:0;border:0;border-radius:50%;background:#60dba2;color:#12271d}
 .rivyza-voice-preview-custom .rivyza-preview-time{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rivyza-voice-preview-custom input[type=range]{flex:1;min-width:0;width:100%;accent-color:#60dba2;cursor:pointer}
+/* v13.19.20 ajustes de perfiles y configuración */
+.rivyza-visitor-actions{display:flex;align-items:center;justify-content:center;gap:9px}
+.rivyza-visitor-actions .visitor-follow-btn{flex:0 1 auto!important;min-width:100px!important;width:auto!important;padding:9px 13px!important;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px}
+.rivyza-mini-action{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;border:1px solid #58506b;background:#211d2c;color:#c7a6ff;cursor:pointer}
+.rivyza-mini-action.active{background:#7034b3;color:white;border-color:#a26de4}
+.rivyza-mini-action.block{color:#f09aa9}
+.rivyza-feature-settings{padding:12px 16px 24px;display:flex;flex-direction:column;gap:14px;max-height:65vh;overflow:auto}
+.rivyza-feature-settings p{font-size:12px;opacity:.75;line-height:1.5}
+.rivyza-feature-settings input,.rivyza-phone-auth input,.rivyza-phone-auth select{width:100%;min-height:40px;border-radius:10px;border:1px solid #5a506e;padding:10px;background:#252033;color:white}
+.rivyza-feature-settings button,.rivyza-phone-auth button{border-radius:10px;border:1px solid #6e508f;background:#5d2d8f;color:white;padding:10px;cursor:pointer}
+.rivyza-feature-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #393343;padding:9px 0;color:inherit;background:transparent!important}
+.rivyza-feature-toggle{display:flex;align-items:center;justify-content:space-between}
+.rivyza-feature-toggle input{width:20px;height:20px;min-height:0}
+.rivyza-account-logo{margin:auto;background:#7e30cb;border-radius:16px;width:62px;height:62px;display:grid;place-items:center;font-size:35px;font-weight:900;color:white}
+.rivyza-feature-settings h3{text-align:center;margin:0}
+.rivyza-strikes{display:flex;gap:7px}.rivyza-strikes span{width:25px;height:25px;border:1px solid #777082;border-radius:50%;display:grid;place-items:center;font-size:16px;color:white}
+.rivyza-phone-auth{margin-top:18px;display:flex;flex-direction:column;gap:10px}.rivyza-phone-auth h3{margin:0;font-size:15px}.rivyza-phone-auth small{opacity:.7}
+html[data-rivyza-appearance="light"] .rivyza-settings-page{background:#f6f3fa;color:#23192e}html[data-rivyza-appearance="light"] .rivyza-settings-group{background:#fff;color:#23192e}
+@media(prefers-color-scheme:light){html[data-rivyza-appearance="auto"] .rivyza-settings-page{background:#f6f3fa;color:#23192e}}
