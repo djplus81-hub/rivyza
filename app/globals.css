@@ -2853,3 +2853,54 @@ html[data-rivyza-appearance="light"] .rivyza-settings-page{background:#f6f3fa;co
 .rivyza-blocked-details strong,.rivyza-blocked-details small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rivyza-blocked-details strong{font-size:14px}.rivyza-blocked-details small{font-size:12px;opacity:.65}
 .rivyza-blocked-unblock{flex-shrink:0;font-size:12px!important;padding:9px 10px!important;border-radius:9px!important}
+
+
+/* RIVYZA v13.19.24 — Apariencia: oscuro, claro y automático.
+   Se mantienen oscuros el feed de video, la cámara y el reproductor multimedia. */
+.rivyza-appearance-panel{gap:8px!important;padding-top:18px!important}
+.rivyza-appearance-intro{font-size:13px!important;line-height:1.5!important;margin:0 0 12px!important}
+.rivyza-appearance-choice{display:flex!important;align-items:center!important;text-align:left!important;gap:12px!important;min-height:66px!important;padding:12px!important;background:transparent!important;border:1px solid rgba(150,140,165,.3)!important;border-radius:14px!important;color:inherit!important}
+.rivyza-appearance-choice.selected{border-color:#9c60f3!important;background:rgba(148,70,235,.11)!important}
+.rivyza-appearance-icon{display:grid;place-items:center;width:40px;height:40px;flex-shrink:0;border-radius:12px;background:#28243a;color:#d5b5ff;font-size:22px}
+.rivyza-appearance-icon.light{background:#fff0cc;color:#a96a00}.rivyza-appearance-icon.auto{background:linear-gradient(110deg,#333044 50%,#e9e5f1 50%);color:#ad77ff}
+.rivyza-appearance-description{flex:1;display:flex;flex-direction:column;gap:3px}.rivyza-appearance-description strong{font-size:14px}.rivyza-appearance-description small{font-size:12px;opacity:.65}.rivyza-appearance-check{width:22px;text-align:center;color:#a36af8;font-weight:800}
+.rivyza-appearance-saved{margin-top:8px!important;text-align:center}
+/* Light theme applies to interface panels, not full-screen media. */
+html[data-rivyza-appearance="light"]{--rv-surface:#f7f5fa;--rv-ink:#22192c;--rv-line:#e4dfea;--rv-panel:#ffffff;--rv-subtle:#635c70}
+@media(prefers-color-scheme:light){html[data-rivyza-appearance="auto"]{--rv-surface:#f7f5fa;--rv-ink:#22192c;--rv-line:#e4dfea;--rv-panel:#ffffff;--rv-subtle:#635c70}}
+html[style]{}
+html[data-rivyza-appearance="light"] .rivyza-settings-page,
+html[data-rivyza-appearance="light"] .social-screen,
+html[data-rivyza-appearance="light"] .public-profile-shell{background:var(--rv-surface)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="light"] .rivyza-settings-page .rivyza-settings-group>button,
+html[data-rivyza-appearance="light"] .rivyza-settings-page .rivyza-settings-group>button svg,
+html[data-rivyza-appearance="light"] .social-top button,
+html[data-rivyza-appearance="light"] .social-item,
+html[data-rivyza-appearance="light"] .social-top,
+html[data-rivyza-appearance="light"] .social-quick{color:var(--rv-ink)!important}
+html[data-rivyza-appearance="light"] .social-top,
+html[data-rivyza-appearance="light"] .social-compose,
+html[data-rivyza-appearance="light"] .social-chat-layout .social-compose{background:var(--rv-surface)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="light"] .social-compose input{background:var(--rv-panel)!important;color:var(--rv-ink)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="light"] .social-bubble:not(.mine){background:#e9e4f0!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="light"] .rivyza-settings-section-title,
+html[data-rivyza-appearance="light"] .rivyza-settings-page small,
+html[data-rivyza-appearance="light"] .rivyza-settings-page p{color:var(--rv-subtle)!important}
+html[data-rivyza-appearance="light"] .rivyza-sheet-panel{background:var(--rv-panel)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="light"] .rivyza-sheet-options button,
+html[data-rivyza-appearance="light"] .rivyza-feature-row,
+html[data-rivyza-appearance="light"] .rivyza-appearance-choice{color:var(--rv-ink)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="light"] .rivyza-feature-settings input{background:var(--rv-panel)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="light"] .rivyza-feature-settings .rivyza-strikes span{color:var(--rv-ink)!important}
+@media(prefers-color-scheme:light){
+html[data-rivyza-appearance="auto"] .rivyza-settings-page,html[data-rivyza-appearance="auto"] .social-screen,html[data-rivyza-appearance="auto"] .public-profile-shell{background:var(--rv-surface)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="auto"] .rivyza-settings-page .rivyza-settings-group>button,html[data-rivyza-appearance="auto"] .rivyza-settings-page .rivyza-settings-group>button svg,html[data-rivyza-appearance="auto"] .social-top button,html[data-rivyza-appearance="auto"] .social-item,html[data-rivyza-appearance="auto"] .social-top,html[data-rivyza-appearance="auto"] .social-quick{color:var(--rv-ink)!important}
+html[data-rivyza-appearance="auto"] .social-top,html[data-rivyza-appearance="auto"] .social-compose,html[data-rivyza-appearance="auto"] .social-chat-layout .social-compose{background:var(--rv-surface)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="auto"] .social-compose input{background:var(--rv-panel)!important;color:var(--rv-ink)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="auto"] .social-bubble:not(.mine){background:#e9e4f0!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="auto"] .rivyza-settings-section-title,html[data-rivyza-appearance="auto"] .rivyza-settings-page small,html[data-rivyza-appearance="auto"] .rivyza-settings-page p{color:var(--rv-subtle)!important}
+html[data-rivyza-appearance="auto"] .rivyza-sheet-panel{background:var(--rv-panel)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="auto"] .rivyza-sheet-options button,html[data-rivyza-appearance="auto"] .rivyza-feature-row,html[data-rivyza-appearance="auto"] .rivyza-appearance-choice{color:var(--rv-ink)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="auto"] .rivyza-feature-settings input{background:var(--rv-panel)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes span{color:var(--rv-ink)!important}
+}
