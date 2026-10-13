@@ -2957,3 +2957,7 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .camera-stage .rivyza-zoom-presets{background:rgba(0,0,0,.52);box-shadow:0 3px 14px rgba(0,0,0,.24)}
 .camera-stage .rivyza-zoom-swipe{display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;min-width:76px;background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.32);box-shadow:0 3px 14px rgba(0,0,0,.3)}
 .camera-stage .rivyza-zoom-swipe::before{content:"";display:block;width:4px;height:38px;border-radius:8px;background:linear-gradient(to bottom,rgba(255,255,255,.9),rgba(255,255,255,.28),rgba(255,255,255,.9))}
+
+/* v13.19.31 — deslizador vertical a la derecha solamente cuando la pestaña esta oculta */
+.camera-stage .rivyza-camera-zoom:has(> .rivyza-zoom-swipe){left:auto;right:max(12px,env(safe-area-inset-right));transform:none;width:auto;align-items:flex-end}
+.camera-stage .rivyza-camera-zoom:has(> .rivyza-zoom-swipe) .rivyza-zoom-swipe{min-width:66px;padding:8px 10px}
