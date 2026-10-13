@@ -1647,19 +1647,21 @@ export default function HomePage(){
              />
 
              <div className="rivyza-camera-zoom" aria-label="Zoom de cámara">
-               <div className="rivyza-zoom-presets">
-                 {[0.5,1,2,4,8].map(level=>(
-                   <button key={level} type="button"
-                     disabled={!cameraZoomRange || level<cameraZoomRange.min || level>cameraZoomRange.max}
-                     className={Math.abs(cameraZoom-level)<0.12?"active":""}
-                     onClick={()=>applyCameraZoom(level)}>{level}×</button>
-                 ))}
-               </div>
-               {cameraZoomRange ? (
+               {!cameraPanelCollapsed ? (
+                 <div className="rivyza-zoom-presets">
+                   {[0.5,1,2,4,8].map(level=>(
+                     <button key={level} type="button"
+                       disabled={!cameraZoomRange || level<cameraZoomRange.min || level>cameraZoomRange.max}
+                       className={Math.abs(cameraZoom-level)<0.12?"active":""}
+                       onClick={()=>applyCameraZoom(level)}>{level}×</button>
+                   ))}
+                 </div>
+               ) : cameraZoomRange ? (
                  <div className="rivyza-zoom-swipe"
                    onTouchStart={zoomGestureStart}
                    onTouchMove={zoomGestureMove}
                    onTouchEnd={()=>{cameraZoomGestureRef.current=null;}}
+                   onTouchCancel={()=>{cameraZoomGestureRef.current=null;}}
                    aria-label="Desliza hacia arriba para acercar y abajo para alejar">
                    <span>↕ {cameraZoom.toFixed(1)}×</span>
                  </div>
