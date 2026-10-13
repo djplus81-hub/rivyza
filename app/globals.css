@@ -2935,3 +2935,10 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-share-warning{color:#ffaaa8;font-size:13px;margin:10px 0}
 .rivyza-share-success{color:#71e5b1;font-size:13px;margin:10px 0}
 .rivyza-shared-post-open{display:inline-flex;align-items:center;gap:7px;background:#37234e;color:#fff;border:1px solid #8f5bba;border-radius:10px;padding:9px 10px;font-size:12px;margin:6px 0}
+
+/* RIVYZA v13.19.27 — Para ti: restore approved 35px photo alignment.
+   Only shifts the image within its existing frame; no resizing, cropping,
+   scrolling, videos, navigation or action positions are changed. */
+.feed-shell > .home-real-feed > .feed-post-card img.feed-media {
+  object-position: 50% calc(50% + 35px) !important;
+}
