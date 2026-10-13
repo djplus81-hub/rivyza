@@ -280,6 +280,10 @@ export default function HomePage(){
   const [recordSeconds,setRecordSeconds]=useState(0);
   const [recordLimit,setRecordLimit]=useState(60);
   const cameraVideoRef=useRef(null);
+  const [cameraZoom,setCameraZoom]=useState(1);
+  const [cameraZoomRange,setCameraZoomRange]=useState(null);
+  const cameraZoomGestureRef=useRef(null);
+  const cameraZoomTrackRef=useRef(null);
   const mediaRecorderRef=useRef(null);
   const recordedChunksRef=useRef([]);
   const recordTimerRef=useRef(null);
@@ -1336,7 +1340,35 @@ export default function HomePage(){
   
 
 
+ async function applyCameraZoom(next){
+   const track=cameraZoomTrackRef.current;
+   const range=cameraZoomRange;
+   if(!track || !range)return;
+   const value=Math.max(range.min,Math.min(range.max,Number(next)));
+   try{
+     await track.applyConstraints({advanced:[{zoom:value}]});
+     setCameraZoom(value);
+   }catch(err){console.warn("Zoom no disponible:",err);}
+ }
+ function zoomGestureStart(e){
+   if(!cameraZoomRange)return;
+   const y=e.touches?.[0]?.clientY;
+   if(y!==undefined)cameraZoomGestureRef.current={y,zoom:cameraZoom};
+ }
+ function zoomGestureMove(e){
+   const start=cameraZoomGestureRef.current;
+   if(!start || !cameraZoomRange)return;
+   e.preventDefault();
+   const y=e.touches?.[0]?.clientY;
+   if(y===undefined)return;
+   const delta=(start.y-y)/240*(cameraZoomRange.max-cameraZoomRange.min);
+   applyCameraZoom(start.zoom+delta);
+ }
+
  async function stopCamera(){
+   cameraZoomTrackRef.current=null;
+   setCameraZoomRange(null);
+   setCameraZoom(1);
    if(cameraStream){
      cameraStream.getTracks().forEach(t=>t.stop());
    }
@@ -1363,6 +1395,18 @@ export default function HomePage(){
        audio:cameraMode==="video"
      });
 
+     const track=stream.getVideoTracks()[0];
+     cameraZoomTrackRef.current=track || null;
+     const caps=track?.getCapabilities?.();
+     const range=caps?.zoom;
+     if(range && Number.isFinite(range.min) && Number.isFinite(range.max) && range.max>range.min){
+       setCameraZoomRange({min:range.min,max:range.max});
+       const current=track.getSettings?.().zoom ?? Math.max(1,range.min);
+       setCameraZoom(current);
+     }else{
+       setCameraZoomRange(null);
+       setCameraZoom(1);
+     }
      setCameraStream(stream);
      setTimeout(()=>{
        if(cameraVideoRef.current){
@@ -1601,6 +1645,26 @@ export default function HomePage(){
                muted
                playsInline
              />
+
+             <div className="rivyza-camera-zoom" aria-label="Zoom de cámara">
+               <div className="rivyza-zoom-presets">
+                 {[0.5,1,2,4,8].map(level=>(
+                   <button key={level} type="button"
+                     disabled={!cameraZoomRange || level<cameraZoomRange.min || level>cameraZoomRange.max}
+                     className={Math.abs(cameraZoom-level)<0.12?"active":""}
+                     onClick={()=>applyCameraZoom(level)}>{level}×</button>
+                 ))}
+               </div>
+               {cameraZoomRange ? (
+                 <div className="rivyza-zoom-swipe"
+                   onTouchStart={zoomGestureStart}
+                   onTouchMove={zoomGestureMove}
+                   onTouchEnd={()=>{cameraZoomGestureRef.current=null;}}
+                   aria-label="Desliza hacia arriba para acercar y abajo para alejar">
+                   <span>↕ {cameraZoom.toFixed(1)}×</span>
+                 </div>
+               ) : <span className="rivyza-zoom-unavailable">Zoom no disponible en este navegador</span>}
+             </div>
 
              <div className="camera-topbar">
                <button className="camera-icon-btn" onClick={async()=>{await stopCamera();setUploadOpen(false);}}>
