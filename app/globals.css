@@ -3008,3 +3008,12 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
   white-space: normal;
   cursor: pointer;
 }
+
+/* v13.19.38 private messages */
+.rivyza-conversation-swipe.is-private-open>.social-item{transform:translateX(114px)}
+.rivyza-conversation-make-private{position:absolute;left:0;top:0;bottom:0;width:114px;border:0;background:#6c42bd;color:white;font-weight:700;z-index:1}
+.rivyza-private-gate{padding:30px 20px;display:flex;flex-direction:column;gap:16px;align-items:center;text-align:center}
+.rivyza-private-gate input{width:min(100%,290px);padding:14px;border:1px solid #5d5374;background:#15121d;color:white;border-radius:12px;text-align:center;font-size:19px;letter-spacing:5px}
+.rivyza-private-gate>button{padding:13px 32px;border:0;border-radius:12px;background:#8755e7;color:white;font-weight:700}
+.rivyza-private-hint{font-size:12px;opacity:.75;max-width:310px}
+.rivyza-private-restore{margin:5px 15px 14px;padding:8px 12px;border:1px solid #8658ce;border-radius:9px;background:transparent;color:#b99af0}
