@@ -233,6 +233,9 @@ export default function HomePage(){
   const [commentsOpen,setCommentsOpen]=useState(false);
   const [commentRows,setCommentRows]=useState([]);
   const [commentDraft,setCommentDraft]=useState("");
+  const [mentionMatches,setMentionMatches]=useState([]);
+  const [mentionContext,setMentionContext]=useState(null);
+  const [mentionNotices,setMentionNotices]=useState([]);
   const [commentsLoading,setCommentsLoading]=useState(false);
   const [commentSending,setCommentSending]=useState(false);
   const [commentError,setCommentError]=useState("");
@@ -1020,6 +1023,36 @@ export default function HomePage(){
     }
     loadComments(post.id);
   }
+  // Menciones: sugerencias en descripciones y comentarios, respetando privacidad.
+  useEffect(()=>{
+    if(!supabase||!user?.id||!mentionContext){setMentionMatches([]);return;}
+    const source=mentionContext==="comment"?commentDraft:uploadCaption;
+    const match=source.match(/(?:^|\s)@([a-zA-Z0-9_.]{1,30})$/);
+    if(!match){setMentionMatches([]);return;}
+    let active=true;
+    const timer=setTimeout(async()=>{
+      const {data,error}=await supabase.rpc("rivyza_search_mentionable",{search_term:match[1]});
+      if(active)setMentionMatches(error?[]:(data||[]));
+    },220);
+    return()=>{active=false;clearTimeout(timer);};
+  },[supabase,user?.id,mentionContext,commentDraft,uploadCaption]);
+  function pickMention(person){
+    if(!person?.username)return;
+    const update=old=>old.replace(/(^|\s)@[a-zA-Z0-9_.]{1,30}$/,(_,prefix)=>prefix+"@"+person.username+" ");
+    if(mentionContext==="comment")setCommentDraft(update);
+    else setUploadCaption(update);
+    setMentionMatches([]);
+    setMentionContext(null);
+  }
+  function mentionSuggestions(context){
+    return mentionContext===context&&mentionMatches.length>0?<div className="rivyza-mention-suggestions" role="listbox" aria-label="Usuarios para mencionar">{mentionMatches.map(person=><button type="button" role="option" aria-selected="false" key={person.id} onClick={()=>pickMention(person)}>@{person.username} <small>{person.display_name||""}</small></button>)}</div>:null;
+  }
+  function renderMentionText(value){
+    return String(value||"").split(/(@[a-zA-Z0-9_.]+)/g).map((part,index)=>{
+      if(!/^@[a-zA-Z0-9_.]+$/.test(part))return part;
+      return <button key={index} type="button" className="rivyza-mention-link" onClick={async(e)=>{e.stopPropagation();const {data}=await supabase.from("profiles").select("id,username,display_name,avatar_url").ilike("username",part.slice(1)).limit(1).maybeSingle();if(data&&data.username.toLowerCase()===part.slice(1).toLowerCase())openUserProfile(data);}}>{part}</button>;
+    });
+  }
   async function sendComment(e){
     e?.preventDefault?.();
     const body=commentDraft.trim();
@@ -1027,7 +1060,7 @@ export default function HomePage(){
     setCommentSending(true);setCommentError("");
     const postId=selectedPost.id;
     const {error}=await supabase.from("post_comments").insert({post_id:postId,user_id:user.id,body});
-    if(error){setCommentError("No se pudo enviar el comentario. Es posible que el autor haya restringido quién puede comentar.");}
+    if(error){setCommentError(error.message?.includes("mención")?error.message:"No se pudo enviar el comentario. Es posible que el autor haya restringido quién puede comentar.");}
     else{setCommentDraft("");await loadComments(postId);}
     setCommentSending(false);
   }
@@ -1049,16 +1082,17 @@ export default function HomePage(){
           {!commentsLoading&&!commentRows.length&&!commentError&&<p>Sé la primera persona en comentar.</p>}
           {commentRows.map(c=><div className="rivyza-comment" key={c.id}>
             <button type="button" className="rivyza-comment-avatar rivyza-comment-profile-link rivyza-presence-anchor" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id} aria-label={`Ver perfil de ${c.author?.display_name||c.author?.username||"usuario"}`}>{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}{onlineDot(c.author?.id)}</button>
-            <div className="rivyza-comment-content"><button type="button" className="rivyza-comment-name rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id}>{c.author?.display_name||c.author?.username||"Usuario"}</button><span>{c.body}</span><small>{formatPostDate(c.created_at)}</small></div>
+            <div className="rivyza-comment-content"><button type="button" className="rivyza-comment-name rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id}>{c.author?.display_name||c.author?.username||"Usuario"}</button><span>{renderMentionText(c.body)}</span><small>{formatPostDate(c.created_at)}</small></div>
             {(c.user_id===user?.id||selectedPost?.user_id===user?.id)&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">{t("Eliminar")}</button>}
           </div>)}
         </div>
         {commentError&&<p className="rivyza-comment-error">{commentError}</p>}
         {postCommentPrivacy==="nobody"&&selectedPost?.user_id!==user?.id?<p className="rivyza-comment-error">El autor desactivó los comentarios.</p>:null}
         <form className="rivyza-comment-compose" onSubmit={sendComment}>
-          <input aria-label="Escribir comentario" placeholder="Escribe un comentario…" disabled={postCommentPrivacy==="nobody"&&selectedPost?.user_id!==user?.id} value={commentDraft} maxLength={1000} onChange={e=>setCommentDraft(e.target.value)}/>
+          <input aria-label="Escribir comentario" placeholder="Escribe un comentario…" disabled={postCommentPrivacy==="nobody"&&selectedPost?.user_id!==user?.id} value={commentDraft} maxLength={1000} onChange={e=>{setCommentDraft(e.target.value);setMentionContext("comment");}}/>
           <button type="submit" disabled={!commentDraft.trim()||commentSending||(postCommentPrivacy==="nobody"&&selectedPost?.user_id!==user?.id)}>{commentSending?"Enviando…":"Enviar"}</button>
         </form>
+        {mentionSuggestions("comment")}
       </div>
     </div>
   );}
@@ -1854,11 +1888,12 @@ export default function HomePage(){
              <span>Descripción</span>
              <textarea
                value={uploadCaption}
-               onChange={(e)=>setUploadCaption(e.target.value.slice(0,220))}
+               onChange={(e)=>{setUploadCaption(e.target.value.slice(0,220));setMentionContext("caption");}}
                placeholder="Escribe algo sobre tu publicación…"
                rows={3}
              />
              <small>{uploadCaption.length}/220</small>
+             {mentionSuggestions("caption")}
            </label>
 
            <label className="upload-field">
@@ -1986,6 +2021,23 @@ export default function HomePage(){
     }
   }
 
+  async function loadMentionNotices(){
+    if(!supabase||!user?.id)return;
+    const {data,error}=await supabase.from("rivyza_mention_notifications").select("id,actor_id,post_id,source_type,created_at,read_at").eq("recipient_id",user.id).order("created_at",{ascending:false}).limit(80);
+    if(error)return;
+    const actors=[...new Set((data||[]).map(n=>n.actor_id))];
+    const {data:profiles}=actors.length?await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",actors):{data:[]};
+    const byId=Object.fromEntries((profiles||[]).map(x=>[x.id,x]));
+    setMentionNotices((data||[]).map(n=>({...n,kind:"mention",actor:byId[n.actor_id]})));
+  }
+  async function openMentionNotice(notice){
+    const {error}=await supabase.from("rivyza_mention_notifications").update({read_at:new Date().toISOString()}).eq("id",notice.id).eq("recipient_id",user.id);
+    if(!error)setMentionNotices(old=>old.map(n=>n.id===notice.id?{...n,read_at:new Date().toISOString()}:n));
+    const {data:post}=await supabase.from("posts").select("*").eq("id",notice.post_id).maybeSingle();
+    if(!post){setSocialError("La publicación mencionada ya no está disponible.");return;}
+    setPostOpenedFromAlert(true);setProfileTab("posts");setView("publicProfile");await openPost(post);
+    if(notice.source_type==="comment")openComments(post);
+  }
   async function loadSocial(){
     if(!supabase || !user?.id || socialPollBusy.current)return;
     socialPollBusy.current=true;
@@ -2008,6 +2060,7 @@ export default function HomePage(){
       if(!hidden.error)setHiddenMessageIds((hidden.data||[]).map(x=>x.message_id));
       if(!cleared.error)setConversationCutoffs(Object.fromEntries((cleared.data||[]).map(x=>[x.peer_id,x.cleared_at])));
       setSocialError("");
+      await loadMentionNotices();
     }catch(e){console.warn("RIVYZA social:",e);}finally{socialPollBusy.current=false;}
   }
   useEffect(()=>{
@@ -2389,7 +2442,7 @@ export default function HomePage(){
     });
     const unreadMessages=[...unreadBySender.values()].reduce((sum,count)=>sum+count,0);
     const activityAlerts=socialNotices.filter(n=>n.kind!=="message");
-    const activityUnread=activityAlerts.filter(n=>!n.read_at).length;
+    const activityUnread=activityAlerts.filter(n=>!n.read_at).length+mentionNotices.filter(n=>!n.read_at).length;
     async function openActivityNotice(n){
       if(n.kind==="like"||n.kind==="comment"){await openNotificationPost(n);return;}
       await markSocialRead([n.id]);
@@ -2416,7 +2469,8 @@ export default function HomePage(){
         </button>
       </div>}
       {view==="activity"&&<div className="social-list rivyza-activity-list">
-        {activityAlerts.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
+        {activityAlerts.length===0&&mentionNotices.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
+        {mentionNotices.map(n=><button key={"mention-"+n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openMentionNotice(n)}><span className="rivyza-notice-avatar">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt=""/>:<AtSign size={23}/>}</span><span className="rivyza-notice-copy"><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong><span>Te mencionó en {n.source_type==="comment"?"un comentario":"una publicación"}.</span><small>{formatPostDateTime(n.created_at)}</small></span><AtSign size={21}/></button>)}
         {activityAlerts.map(n=><button key={n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openActivityNotice(n)}>
           <span className="rivyza-notice-avatar rivyza-presence-anchor">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt="" loading="lazy"/>:<User size={24}/>}{onlineDot(n.actor?.id)}</span>
           <span className="rivyza-notice-copy"><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong><span>{n.kind==="like"?"Le dio like a tu publicación.":n.kind==="comment"?"Comentó tu publicación.":n.kind==="follow"?"Comenzó a seguirte.":n.kind==="unfollow"?"Dejó de seguirte.":"Nueva actividad."}</span><small>{formatPostDateTime(n.created_at)}</small></span>
@@ -2588,7 +2642,7 @@ export default function HomePage(){
                 <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
               </button>
               <div className="handle">@{post.creator?.username||"usuario"}</div>
-              {post.caption&&<div className="caption">{post.caption}</div>}
+              {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
               <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
               <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
             </div>
@@ -2747,7 +2801,7 @@ export default function HomePage(){
             }
           </div>
           <div className="post-detail-info">
-            {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
+            {selectedPost.caption && <p className="post-detail-caption">{renderMentionText(selectedPost.caption)}</p>}
             <div className="post-public-stamp">Publicado · {formatPostDate(selectedPost.created_at)}</div>
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
@@ -2912,7 +2966,7 @@ export default function HomePage(){
           </div>
 
           <div className="post-detail-info">
-            {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
+            {selectedPost.caption && <p className="post-detail-caption">{renderMentionText(selectedPost.caption)}</p>}
             <div className="post-public-stamp" data-rivyza-stamp="v13.6">
               Publicado · {formatPostDate(selectedPost.created_at)}
             </div>
@@ -3255,7 +3309,7 @@ export default function HomePage(){
               <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
             </button>
             <div className="handle">@{post.creator?.username||"usuario"}</div>
-            {post.caption&&<div className="caption">{post.caption}</div>}
+            {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
             <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
               <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
           </div>

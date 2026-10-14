@@ -2974,3 +2974,6 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 
 /* RIVYZA v13.19.37: reportes y ayuda */
 .rivyza-help{max-height:65vh;overflow:auto}.rivyza-help input,.rivyza-report-sheet select,.rivyza-report-sheet textarea{width:100%;box-sizing:border-box;border:1px solid #666;border-radius:9px;padding:12px;background:#191923;color:white}.rivyza-help-article{border-bottom:1px solid #444;padding:13px 0}.rivyza-help-article p{font-size:13px;line-height:1.55;opacity:.85}.rivyza-report-sheet{padding:22px;display:flex;flex-direction:column;gap:12px;max-height:85vh;overflow:auto}.rivyza-report-sheet textarea{min-height:85px;resize:vertical}
+
+/* RIVYZA menciones */
+.rivyza-mention-suggestions{position:relative;z-index:110;max-height:185px;overflow-y:auto;background:#181824;border:1px solid #555;border-radius:12px;padding:5px;display:flex;flex-direction:column;gap:3px}.rivyza-mention-suggestions button{display:flex;gap:12px;align-items:center;width:100%;padding:10px 12px;text-align:left;border:0;border-radius:8px;background:transparent;color:white}.rivyza-mention-suggestions button:focus,.rivyza-mention-suggestions button:hover{background:#37304b}.rivyza-mention-suggestions small{color:#aaa}.rivyza-mention-link{border:0;background:transparent;color:#b9a4ff;font:inherit;padding:0 1px;display:inline;cursor:pointer;font-weight:600}
