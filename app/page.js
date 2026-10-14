@@ -2646,7 +2646,7 @@ export default function HomePage(){
               {post.pinned_position && <span className="post-pin">📌</span>}
             </div>
           )) : <div className="empty-grid-card first">Este usuario todavía no tiene publicaciones públicas.</div>}
-        </div>
+        </div>}
       </section>
 
       {socialListOpen && (
