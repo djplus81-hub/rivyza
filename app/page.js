@@ -2298,7 +2298,7 @@ export default function HomePage(){
   }
   function closeNotificationPost(){
     setCommentsOpen(false);setSelectedPost(null);setPostMenuOpen(false);
-    setPostOpenedFromAlert(false);setView("alerts");
+    setPostOpenedFromAlert(false);setView("activity");
   }
   function openSocialInbox(fromView){
     setSocialInboxReturnView(fromView === "alerts" ? "alerts" : "home");
@@ -2790,7 +2790,7 @@ export default function HomePage(){
       {selectedPost && (
         <div className="post-detail-overlay">
           <header className="post-detail-topbar">
-            <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}} aria-label="Volver">←</button>
+            <button type="button" onClick={()=>{if(postOpenedFromAlert)closeNotificationPost();else{setSelectedPost(null);setPostMenuOpen(false);}}} aria-label="Volver">←</button>
             <strong>{t("Publicación")}</strong>
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
