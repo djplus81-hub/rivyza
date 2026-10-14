@@ -2961,3 +2961,13 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 /* v13.19.31 — deslizador vertical a la derecha solamente cuando la pestaña esta oculta */
 .camera-stage .rivyza-camera-zoom:has(> .rivyza-zoom-swipe){left:auto;right:max(12px,env(safe-area-inset-right));transform:none;width:auto;align-items:flex-end}
 .camera-stage .rivyza-camera-zoom:has(> .rivyza-zoom-swipe) .rivyza-zoom-swipe{min-width:66px;padding:8px 10px}
+
+/* RIVYZA 13.19.32 — privacidad de mensajes */
+.rivyza-message-privacy{display:flex;flex-direction:column;gap:10px}
+.rivyza-privacy-choice{display:flex;justify-content:space-between;align-items:center;width:100%;padding:14px 16px;border:1px solid rgba(180,180,200,.25);border-radius:13px;background:rgba(120,120,150,.09);color:inherit;text-align:left;cursor:pointer}
+.rivyza-privacy-choice.selected{border-color:#b369ff;background:rgba(150,70,230,.17)}
+.rivyza-privacy-choice span:first-child{display:flex;flex-direction:column;gap:4px}
+.rivyza-privacy-choice small{opacity:.7;font-size:12px}
+.rivyza-privacy-choice span:last-child{color:#d29cff;font-size:22px}
+.rivyza-privacy-choice:disabled{opacity:.65;cursor:wait}
+.rivyza-privacy-error{color:#ff9b9b}
