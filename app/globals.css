@@ -2977,3 +2977,34 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 
 /* RIVYZA menciones */
 .rivyza-mention-suggestions{position:relative;z-index:110;max-height:185px;overflow-y:auto;background:#181824;border:1px solid #555;border-radius:12px;padding:5px;display:flex;flex-direction:column;gap:3px}.rivyza-mention-suggestions button{display:flex;gap:12px;align-items:center;width:100%;padding:10px 12px;text-align:left;border:0;border-radius:8px;background:transparent;color:white}.rivyza-mention-suggestions button:focus,.rivyza-mention-suggestions button:hover{background:#37304b}.rivyza-mention-suggestions small{color:#aaa}.rivyza-mention-link{border:0;background:transparent;color:#b9a4ff;font:inherit;padding:0 1px;display:inline;cursor:pointer;font-weight:600}
+
+
+/* RIVYZA: menciones como texto normal dentro de un mismo comentario.
+   Sobrescribe los botones de ancho completo del menu de publicaciones. */
+.post-menu-sheet.rivyza-comments .rivyza-comment-content > span {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.post-menu-sheet.rivyza-comments .rivyza-comment-content button.rivyza-mention-link,
+.post-menu-sheet.rivyza-comments .rivyza-comment-content button.rivyza-mention-link:last-child {
+  display: inline;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #b9a4ff;
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  text-align: inherit;
+  vertical-align: baseline;
+  white-space: normal;
+  cursor: pointer;
+}
