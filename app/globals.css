@@ -2971,3 +2971,6 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-privacy-choice span:last-child{color:#d29cff;font-size:22px}
 .rivyza-privacy-choice:disabled{opacity:.65;cursor:wait}
 .rivyza-privacy-error{color:#ff9b9b}
+
+/* RIVYZA v13.19.37: reportes y ayuda */
+.rivyza-help{max-height:65vh;overflow:auto}.rivyza-help input,.rivyza-report-sheet select,.rivyza-report-sheet textarea{width:100%;box-sizing:border-box;border:1px solid #666;border-radius:9px;padding:12px;background:#191923;color:white}.rivyza-help-article{border-bottom:1px solid #444;padding:13px 0}.rivyza-help-article p{font-size:13px;line-height:1.55;opacity:.85}.rivyza-report-sheet{padding:22px;display:flex;flex-direction:column;gap:12px;max-height:85vh;overflow:auto}.rivyza-report-sheet textarea{min-height:85px;resize:vertical}

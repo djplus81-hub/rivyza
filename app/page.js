@@ -108,6 +108,14 @@ export default function HomePage(){
   const [socialInboxReturnView,setSocialInboxReturnView]=useState("alerts");
   const [profileReturnToChat,setProfileReturnToChat]=useState(false);
   const [settingsSheet,setSettingsSheet]=useState("");
+  const [communityPrivacy,setCommunityPrivacy]=useState({followers:"everyone",following:"only_me",mentions:"everyone"});
+  const [communityPrivacyError,setCommunityPrivacyError]=useState("");
+  const [reportTarget,setReportTarget]=useState(null);
+  const [reportReason,setReportReason]=useState("harassment");
+  const [reportDetails,setReportDetails]=useState("");
+  const [reportBusy,setReportBusy]=useState(false);
+  const [reportFeedback,setReportFeedback]=useState("");
+  const [helpQuery,setHelpQuery]=useState("");
   const [messagePrivacy,setMessagePrivacy]=useState("everyone");
   const [messagePrivacyBusy,setMessagePrivacyBusy]=useState(false);
   const [messagePrivacyError,setMessagePrivacyError]=useState("");
@@ -585,12 +593,42 @@ export default function HomePage(){
   }
   function openConnections(){setConnectionsSearch("");setConnectionsTab("mine");setView("connections");loadConnections();loadCommunity();}
 
+  useEffect(()=>{
+    if(!supabase||!user?.id)return;
+    let alive=true;
+    supabase.from("rivyza_community_preferences").select("followers,following,mentions").eq("user_id",user.id).maybeSingle().then(({data,error})=>{
+      if(alive&&!error&&data)setCommunityPrivacy({followers:data.followers,following:data.following,mentions:data.mentions});
+    });
+    return ()=>{alive=false;};
+  },[supabase,user?.id]);
+  async function saveCommunityPrivacy(key,value){
+    if(!supabase||!user?.id)return;
+    setCommunityPrivacyError("");
+    const {error}=await supabase.from("rivyza_community_preferences").upsert({user_id:user.id,[key]:value},{onConflict:"user_id"});
+    if(error){setCommunityPrivacyError("No se pudo guardar. Primero ejecuta el SQL v13.19.37.");return;}
+    setCommunityPrivacy(v=>({...v,[key]:value}));
+  }
+  function startReport(kind,id){
+    if(!user?.id){alert("Inicia sesión para reportar.");return;}
+    setReportTarget({kind,id});setReportReason("harassment");setReportDetails("");setReportFeedback("");setPostMenuOpen(false);
+  }
+  async function submitReport(){
+    if(!reportTarget||!supabase||!user?.id||reportBusy)return;
+    setReportBusy(true);setReportFeedback("");
+    const {error}=await supabase.from("rivyza_reports").insert({reporter_id:user.id,target_type:reportTarget.kind,target_id:reportTarget.id,reason:reportReason,details:reportDetails.trim().slice(0,1000)});
+    setReportBusy(false);
+    if(error){setReportFeedback("No se pudo enviar. Revisa el SQL de reportes. "+error.message);return;}
+    setReportTarget(null);alert("Reporte recibido. Gracias por ayudar a proteger RIVYZA.");
+  }
   async function openSocialList(profileId,type){
     if(!supabase || !profileId)return;
     setSocialListOpen(true);
     setSocialListTitle(type==="followers"?"Seguidores":"Siguiendo");
     setSocialListRows([]); setSocialListLoading(true);
     try{
+      // Verificar privacidad en el servidor antes de cargar perfiles.
+      const {data:allowed,error:permissionError}=await supabase.rpc("rivyza_can_view_social_list",{target_user:profileId,list_kind:type});
+      if(permissionError||!allowed){setSocialListRows([]);setSocialListTitle("Lista privada");return;}
       const filterColumn=type==="followers"?"following_id":"follower_id";
       const personColumn=type==="followers"?"follower_id":"following_id";
       const {data:links,error}=await supabase.from("follows").select(personColumn).eq(filterColumn,profileId);
@@ -2410,25 +2448,41 @@ export default function HomePage(){
         <div className="rivyza-settings-group">
           {[["Cuenta privada",Lock],["Cuentas bloqueadas",Ban]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
           <div className="rivyza-settings-toggle rivyza-online-row"><span><strong>{t("Estado en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" aria-label={t("Estado en línea")} checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></div>
-          {[["Quién puede enviarme mensajes",MessageCircle],["Quién puede comentar",MessageSquare],["Menciones y etiquetas",AtSign],["Quién puede ver mis Me gusta",Heart],["Lista de seguidos",Users]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
+          {[["Quién puede enviarme mensajes",MessageCircle],["Quién puede comentar",MessageSquare],["Quién puede mencionarme",AtSign],["Quién puede ver mis Me gusta",Heart],["Quién puede ver quién me sigue",Users],["Quién puede ver a quién sigo",Users]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
         </div>
         <div className="rivyza-settings-section-title">{t("Preferencias")}</div>
         <div className="rivyza-settings-group">
           <button type="button" onClick={()=>setSettingsSheet("language")}><Languages size={21}/><span>{t("Idioma")}</span><em>{appLanguage==="es"?"Español":"English"}</em><b>›</b></button>
           {[["Apariencia",Moon],["Preferencias de notificaciones",Bell]].map(([label,Icon])=><button type="button" key={label} onClick={e=>{e.stopPropagation();setSettingsSheet(label);}}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
         </div>
+        <div className="rivyza-settings-section-title">Ayuda y comunidad</div>
+        <div className="rivyza-settings-group"><button type="button" onClick={()=>setSettingsSheet("Centro de Ayuda")}><ShieldCheck size={21}/><span>Centro de Ayuda y normas</span><b>›</b></button><button type="button" onClick={()=>setSettingsSheet("Estado de cuenta")}><ShieldCheck size={21}/><span>Estado de cuenta y sanciones</span><b>›</b></button></div>
         <div className="rivyza-settings-section-title">{t("Sesión")}</div>
         <div className="rivyza-settings-group">
           <button type="button" onClick={()=>setSettingsSheet("Cambiar de cuenta")}><RefreshCw size={21}/><span>{t("Cambiar de cuenta")}</span><b>›</b></button>
           <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={21}/><span>{t("Cerrar sesión")}</span></button>
         </div>
-        <p className="rivyza-settings-version">RIVYZA v13.19.35</p>
+        <p className="rivyza-settings-version">RIVYZA v13.19.37 (base)</p>
         {settingsSheet&&<div className="rivyza-sheet-overlay" onClick={()=>setSettingsSheet("")} role="presentation"><div className="rivyza-sheet-panel" role="dialog" aria-modal="true" aria-label={settingsSheet==="language"?t("Idioma"):t(settingsSheet)} onClick={e=>e.stopPropagation()}>
           <div className="rivyza-sheet-handle"/>
           <div className="rivyza-sheet-heading"><strong>{settingsSheet==="language"?t("Idioma"):t(settingsSheet)}</strong><button type="button" onClick={()=>setSettingsSheet("")} aria-label={t("Cerrar")}>×</button></div>
           {settingsSheet==="language"?<div className="rivyza-sheet-options">{[["es","Español"],["en","English"]].map(([code,label])=><button type="button" key={code} onClick={()=>{changeAppLanguage(code);setSettingsSheet("");}}>{label}<span>{appLanguage===code?"✓":""}</span></button>)}</div>  :settingsSheet==="Quién puede enviarme mensajes"?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Elige quién puede enviarte mensajes privados.</p>{[["everyone","Todos","Cualquier usuario puede enviarte mensajes."],["friends","Amigos","Solo personas que se siguen mutuamente."],["nobody","Nadie","Nadie puede enviarte mensajes nuevos."]].map(([value,label,description])=><button type="button" key={value} className={"rivyza-privacy-choice"+(messagePrivacy===value?" selected":"")} disabled={messagePrivacyBusy} onClick={()=>saveMessagePrivacy(value)}><span><strong>{t(label)}</strong><small>{t(description)}</small></span><span aria-hidden="true">{messagePrivacy===value?"✓":""}</span></button>)}{messagePrivacyError&&<p role="alert" className="rivyza-privacy-error">{messagePrivacyError}</p>}</div>
           :settingsSheet==="Quién puede comentar"?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Elige quién puede comentar tus fotos y videos.</p>{[["everyone","Todos","Cualquiera puede comentar tus publicaciones."],["friends","Amigos","Solo tus amigos pueden comentar."],["nobody","Nadie","Nadie puede comentar tus publicaciones."]].map(([value,label,description])=><button type="button" key={value} className={"rivyza-privacy-choice"+(commentPrivacy===value?" selected":"")} disabled={commentPrivacyBusy} onClick={()=>saveCommentPrivacy(value)}><span><strong>{t(label)}</strong><small>{t(description)}</small></span><span aria-hidden="true">{commentPrivacy===value?"✓":""}</span></button>)}{commentPrivacyError&&<p role="alert" className="rivyza-privacy-error">{commentPrivacyError}</p>}</div>
           :settingsSheet==="Quién puede ver mis Me gusta"?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Elige quién puede ver la pestaña del corazón de tu perfil.</p>{[["only_me","Solo yo","Nadie más puede ver las publicaciones que me gustan."],["everyone","Todos","Cualquier usuario puede ver las publicaciones que me gustan."],["friends","Amigos","Solo mis amigos pueden ver las publicaciones que me gustan."]].map(([value,label,description])=><button type="button" key={value} className={"rivyza-privacy-choice"+(likesPrivacy===value?" selected":"")} disabled={likesPrivacyBusy} onClick={()=>saveLikesPrivacy(value)}><span><strong>{t(label)}</strong><small>{t(description)}</small></span><span aria-hidden="true">{likesPrivacy===value?"✓":""}</span></button>)}{likesPrivacyError&&<p role="alert" className="rivyza-privacy-error">{likesPrivacyError}</p>}</div>
+          :["Quién puede ver quién me sigue","Quién puede ver a quién sigo","Quién puede mencionarme"].includes(settingsSheet)?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Configura quién puede acceder a esta información.</p>{[...(["Quién puede mencionarme"].includes(settingsSheet)?[["everyone","Todos"],["friends","Amigos"],["nobody","Nadie"]]:[["everyone","Todos"],["friends","Amigos"],["only_me","Solo yo"]])].map(([value,label])=>{const key=settingsSheet==="Quién puede mencionarme"?"mentions":settingsSheet==="Quién puede ver quién me sigue"?"followers":"following";return <button type="button" className={"rivyza-privacy-choice"+(communityPrivacy[key]===value?" selected":"")} key={value} onClick={()=>saveCommunityPrivacy(key,value)}><span><strong>{t(label)}</strong></span><span>{communityPrivacy[key]===value?"✓":""}</span></button>})}{communityPrivacyError&&<p role="alert">{communityPrivacyError}</p>}</div>
+          :settingsSheet==="Centro de Ayuda"?<div className="rivyza-feature-settings rivyza-help"><input aria-label="Buscar ayuda" placeholder="Buscar en Ayuda..." value={helpQuery} onChange={e=>setHelpQuery(e.target.value)}/>{[
+            ["¿Qué es RIVYZA?","RIVYZA es una comunidad para compartir fotos, videos, mensajes y conectar con otras personas."],
+            ["Privacidad","En Configuración puedes gestionar quién te envía mensajes, comenta, ve tus Me gusta y consulta tus listas de seguidores y seguidos."],
+            ["Reportes","Puedes reportar contenido inapropiado desde las opciones de una publicación. Un reporte no supone automáticamente una sanción."],
+            ["Normas de la comunidad","No se permiten amenazas, acoso, explotación sexual infantil, captación de menores ni contenido que ponga en peligro a otras personas. Las expresiones artísticas se evalúan según su contexto."],
+            ["Advertencias: 3 X","Las advertencias se revisan por la administración. La política propuesta restringe iniciar LIVE o participar como invitado al alcanzar tres X; la duración y la automatización están pendientes de implementación."],
+            ["Protección de menores","Cero tolerancia a la explotación y abuso sexual de menores. Los casos graves pueden conllevar restricciones preventivas y revisión urgente."],
+            ["Apelaciones","El procedimiento de apelación y el centro de moderación aún están en desarrollo. No se asignan X automáticamente desde esta versión."],
+            ["LIVE y creadores","La moderación debe tener en cuenta el contexto de música, DJ, baile, efectos visuales y actuaciones artísticas."],
+            ["Moderación por IA","La moderación automática es una función planificada, no activa en esta versión. La IA no debe sancionar únicamente por palabras aisladas."],
+            ["Privacidad y términos","Los textos legales completos y el canal de soporte oficial se publicarán antes del lanzamiento público."]
+          ].filter(([a,b])=>(a+" "+b).toLowerCase().includes(helpQuery.toLowerCase())).map(([a,b])=><div key={a} className="rivyza-help-article"><strong>{a}</strong><p>{b}</p></div>)}</div>
+          :settingsSheet==="Estado de cuenta"?<div className="rivyza-feature-settings"><h3>Estado de cuenta</h3><p>Las advertencias X y la suspensión de LIVE se encuentran en preparación. Ninguna X se asigna automáticamente en esta versión.</p><p>Para sanciones graves contra menores se prevé suspensión total con revisión urgente y un proceso de apelación limitado.</p></div>
           :settingsSheet==="Cuenta privada"?<div className="rivyza-feature-settings"><label className="rivyza-feature-toggle">Cuenta privada <input type="checkbox" checked={privateAccount} onChange={e=>togglePrivateAccount(e.target.checked)}/></label><p>Oculta tu estado en línea. En los LIVE, solo el anfitrión debe poder identificarte; esta regla también requiere integración en el servicio LIVE.</p></div>
           :settingsSheet==="Cuentas bloqueadas"?<div className="rivyza-feature-settings rivyza-blocked-list">{blockedProfilesLoading?<p>Cargando cuentas bloqueadas…</p>:blockedUsers.length?blockedUsers.map(id=>{const person=blockedProfiles[id];const name=person?.display_name||person?.username||"Cuenta bloqueada";return <div className="rivyza-blocked-person" key={id}><span className="rivyza-blocked-avatar">{person?.avatar_url?<img src={person.avatar_url} alt=""/>:<User size={21}/>}</span><span className="rivyza-blocked-details"><strong>{name}</strong><small>{person?.username?"@"+person.username:"Perfil no disponible"}</small></span><button type="button" className="rivyza-blocked-unblock" onClick={()=>{if(window.confirm(`¿Desbloquear a ${name}?`))setBlocked(id,false);}}>Desbloquear</button></div>}):<p>No tienes cuentas bloqueadas.</p>}</div>
           :settingsSheet==="Información de cuenta"?<div className="rivyza-feature-settings"><div className="rivyza-account-logo">R</div><h3>RIVYZA</h3><div className="rivyza-feature-row"><span>Usuario</span><strong>@{profile?.username||"usuario"}</strong></div><div className="rivyza-feature-row"><span>Registro</span><strong>{formatPostDateTime(user?.created_at||profile?.created_at)||"Sin fecha"}</strong></div><div className="rivyza-feature-row"><span>Estado</span><strong>Activa</strong></div><div className="rivyza-feature-row"><span>Infracciones</span><div className="rivyza-strikes"><span>×</span><span>×</span><span>×</span></div></div><p>Las infracciones requieren revisión administrativa. Estas X son informativas hasta integrar el sistema de sanciones.</p></div>
@@ -2708,10 +2762,12 @@ export default function HomePage(){
               <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
                 <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={20}/>Compartir en RIVYZA</button>
                 <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
+                {selectedPost?.user_id!==user?.id&&<button type="button" onClick={()=>startReport("post",selectedPost.id)}><ShieldCheck size={20}/>Reportar publicación</button>}
                 <button type="button" onClick={()=>setPostMenuOpen(false)}>{t("Cancelar")}</button>
               </div>
             </div>
           )}
+      {reportTarget&&<div className="post-menu-backdrop" style={{zIndex:10000}} onClick={()=>setReportTarget(null)}><div className="post-menu-sheet rivyza-report-sheet" onClick={e=>e.stopPropagation()}><h3>Reportar contenido</h3><p>Elige el motivo. Tu identidad no se mostrará al usuario reportado.</p><select aria-label="Motivo del reporte" value={reportReason} onChange={e=>setReportReason(e.target.value)}>{[["harassment","Acoso o insultos"],["threats","Amenazas"],["child_safety","Explotación o riesgo sexual de menores"],["sexual","Contenido sexual inapropiado"],["violence","Violencia"],["hate","Discriminación u odio"],["spam","Spam o estafa"],["privacy","Violación de privacidad"],["other","Otro"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select><textarea aria-label="Detalles opcionales" placeholder="Detalles (opcional)" maxLength={1000} value={reportDetails} onChange={e=>setReportDetails(e.target.value)}/>{reportFeedback&&<p role="alert">{reportFeedback}</p>}<button type="button" disabled={reportBusy} onClick={submitReport}>{reportBusy?"Enviando...":"Enviar reporte"}</button><button type="button" onClick={()=>setReportTarget(null)}>Cancelar</button></div></div>}
           {commentsOpen && renderCommentsSheet()}
         </div>
       )}
@@ -2874,6 +2930,7 @@ export default function HomePage(){
               <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
                 <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={20}/>Compartir en RIVYZA</button>
                 <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
+                {selectedPost?.user_id!==user?.id&&<button type="button" onClick={()=>startReport("post",selectedPost.id)}><ShieldCheck size={20}/>Reportar publicación</button>}
                 {selectedPost.user_id===user?.id && <>
                   <button type="button" onClick={()=>setPostPin(1)}>📌 Fijar en posición 1</button>
                   <button type="button" onClick={()=>setPostPin(2)}>📌 Fijar en posición 2</button>
@@ -2885,6 +2942,7 @@ export default function HomePage(){
             </div>
           )}
 
+      {reportTarget&&<div className="post-menu-backdrop" style={{zIndex:10000}} onClick={()=>setReportTarget(null)}><div className="post-menu-sheet rivyza-report-sheet" onClick={e=>e.stopPropagation()}><h3>Reportar contenido</h3><p>Elige el motivo. Tu identidad no se mostrará al usuario reportado.</p><select aria-label="Motivo del reporte" value={reportReason} onChange={e=>setReportReason(e.target.value)}>{[["harassment","Acoso o insultos"],["threats","Amenazas"],["child_safety","Explotación o riesgo sexual de menores"],["sexual","Contenido sexual inapropiado"],["violence","Violencia"],["hate","Discriminación u odio"],["spam","Spam o estafa"],["privacy","Violación de privacidad"],["other","Otro"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select><textarea aria-label="Detalles opcionales" placeholder="Detalles (opcional)" maxLength={1000} value={reportDetails} onChange={e=>setReportDetails(e.target.value)}/>{reportFeedback&&<p role="alert">{reportFeedback}</p>}<button type="button" disabled={reportBusy} onClick={submitReport}>{reportBusy?"Enviando...":"Enviar reporte"}</button><button type="button" onClick={()=>setReportTarget(null)}>Cancelar</button></div></div>}
           {deleteConfirmOpen && (
             <div className="post-menu-backdrop delete-confirm-backdrop" onClick={()=>setDeleteConfirmOpen(false)}>
               <div className="delete-confirm-card" onClick={e=>e.stopPropagation()}>
