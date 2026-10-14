@@ -2530,7 +2530,7 @@ export default function HomePage(){
       <header className="profile-topbar compact">
         <button className="profile-back" onClick={()=>{setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else setView("home");}}>←</button>
         <div className="profile-top-title">RIVYZA</div>
-        <button className="profile-menu" aria-label="Opciones"><MoreHorizontal size={24}/></button>
+        {/* Los ajustes solo aparecen en el perfil del propietario. */}
       </header>
 
       <div className="social-profile-message"><button onClick={()=>openSocialPeer(viewedProfile)}><MessageCircle size={18}/> {t("Enviar mensaje")}</button></div>
