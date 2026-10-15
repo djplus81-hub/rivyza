@@ -2049,7 +2049,7 @@ export default function HomePage(){
   async function loadPrivateStatus(){
     if(!supabase||!user?.id)return;
     const {data,error}=await supabase.rpc("rivyza_private_status");
-    if(!error&&data){setPrivateStatus(data);if(!data.configured)setPrivateMode("create");}
+    if(!error&&data){setPrivateStatus(data);setPrivateMode(data.configured?"unlock":"create");}
   }
   async function unlockPrivate(){
     setPrivateError("");
@@ -2057,7 +2057,10 @@ export default function HomePage(){
     if(privateMode==="create"){
       if(privatePin!==privateConfirm){setPrivateError("Los PIN no coinciden.");return;}
       const {error}=await supabase.rpc("rivyza_private_create_pin",{p_pin:privatePin});
-      if(error){setPrivateError(error.message);return;}
+      if(error){
+        if(/Ya tienes un PIN configurado/i.test(error.message||"")){setPrivateMode("unlock");setPrivateConfirm("");await loadPrivateStatus();setPrivateError("Ya tienes un PIN. Introduce tus cuatro números para entrar.");return;}
+        setPrivateError(error.message);return;
+      }
       const {data:createdUnlock,error:createdUnlockError}=await supabase.rpc("rivyza_private_unlock",{p_pin:privatePin});
       if(createdUnlockError||!createdUnlock?.ok){setPrivateError("PIN creado, pero no se pudo desbloquear. Inténtalo de nuevo.");setPrivateMode("unlock");return;}
     }else{
