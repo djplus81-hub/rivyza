@@ -296,11 +296,6 @@ export default function HomePage(){
     ]);if(live){if(!a.error)setAdminNotice(a.data||[]);if(!b.error)setMyInfractions(b.data||[]);setModerationLoadError(a.error?.message||b.error?.message||"");if(!c.error)setAdminUnread(Number(c.data||0));}};
     refresh();const id=setInterval(refresh,30000);return()=>{live=false;clearInterval(id);};
   },[supabase,user?.id,adminOwner]);
-  useEffect(()=>{if(!supabase||!viewedProfile?.id||view!=="otherProfile")return;let active=true;
-    setPublicStrikeCount(0);
-    supabase.rpc("rivyza_public_strike_count",{p_target:viewedProfile.id}).then(({data,error})=>{if(active&&!error)setPublicStrikeCount(Number(data||0));});
-    return()=>{active=false;};
-  },[supabase,view,viewedProfile?.id]);
   async function markModerationRead(id){
     // Actualizar lectura mediante RPC: la tabla no concede UPDATE directo al cliente.
     const {error}=await supabase.rpc("rivyza_mark_moderation_notice_read",{p_notice:id});
@@ -361,6 +356,11 @@ export default function HomePage(){
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
   const [viewedProfile,setViewedProfile]=useState(null);
+  useEffect(()=>{if(!supabase||!viewedProfile?.id||view!=="otherProfile")return;let active=true;
+    setPublicStrikeCount(0);
+    supabase.rpc("rivyza_public_strike_count",{p_target:viewedProfile.id}).then(({data,error})=>{if(active&&!error)setPublicStrikeCount(Number(data||0));});
+    return()=>{active=false;};
+  },[supabase,view,viewedProfile?.id]);
   const [viewedProfilePosts,setViewedProfilePosts]=useState([]);
   const [peopleSearchOpen,setPeopleSearchOpen]=useState(false);
   const [peopleSearch,setPeopleSearch]=useState("");
