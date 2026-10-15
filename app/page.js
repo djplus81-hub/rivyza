@@ -2490,6 +2490,8 @@ export default function HomePage(){
       }
     });
     const unreadMessages=[...unreadBySender.values()].reduce((sum,count)=>sum+count,0);
+    // Solo cuenta notificaciones no leídas de conversaciones clasificadas como privadas.
+    const privateUnreadCount=[...unreadBySender.entries()].reduce((total,[peerId,count])=>total+(privatePeers.includes(peerId)?count:0),0);
     const activityAlerts=socialNotices.filter(n=>n.kind!=="message");
     const activityUnread=activityAlerts.filter(n=>!n.read_at).length+mentionNotices.filter(n=>!n.read_at).length;
     async function openActivityNotice(n){
@@ -2510,7 +2512,7 @@ export default function HomePage(){
         </button></div>)}
         <button type="button" className="rivyza-activity-entry" onClick={openPrivateInbox}>
           <span className="rivyza-activity-logo"><Lock size={21}/></span>
-          <span className="rivyza-activity-copy"><strong>Mensajes privados</strong><small>Acceso con PIN de 4 dígitos</small></span><span aria-hidden="true">›</span>
+          <span className="rivyza-activity-copy"><strong>Mensajes privados</strong><small>Acceso con PIN de 4 dígitos</small></span>{privateUnreadCount>0&&<b className="rivyza-message-count" aria-label={`${privateUnreadCount} mensajes privados sin leer`}>{privateUnreadCount>99?"99+":privateUnreadCount}</b>}<span aria-hidden="true">›</span>
         </button>
         <button type="button" className="rivyza-activity-entry" onClick={()=>setView("activity")}>
           <span className="rivyza-activity-logo"><Heart size={20}/><User size={16}/></span>
