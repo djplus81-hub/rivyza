@@ -75,6 +75,63 @@ export default function HomePage(){
     }):null;
   },[]);
 
+  // Cuenta seleccionada: cada sesión se guarda en el navegador de este dispositivo.
+  // Nunca guardar contraseñas; Supabase administra los tokens y su renovación.
+  const ACCOUNTS_KEY="rivyza-device-accounts-v1";
+  const ACTIVE_KEY="rivyza-device-active-v1";
+  const AUTH_KEY=`sb-${(process.env.NEXT_PUBLIC_SUPABASE_URL||"").split("//").pop().split(".")[0]}-auth-token`;
+  const [savedAccounts,setSavedAccounts]=useState([]);
+  const [accountBusy,setAccountBusy]=useState(false);
+  const [accountError,setAccountError]=useState("");
+  const readAccounts=()=>{try{return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)||"[]").filter(a=>a&&a.id&&a.session);}catch{return [];}};
+  const rememberAccount=(session)=>{
+    if(!session?.user?.id||!session?.refresh_token)return;
+    try{
+      const existing=readAccounts();
+      const u=session.user;
+      const entry={id:u.id,name:u.user_metadata?.full_name||u.user_metadata?.name||u.email?.split("@")[0]||"Cuenta",email:u.email||"",avatar:u.user_metadata?.avatar_url||u.user_metadata?.picture||"",session};
+      const updated=[...existing.filter(a=>a.id!==u.id),entry].slice(-5);
+      localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(updated));
+      localStorage.setItem(ACTIVE_KEY,u.id);
+      setSavedAccounts(updated);
+    }catch(e){console.warn("No se pudo recordar cuenta",e);}
+  };
+  useEffect(()=>{
+    setSavedAccounts(readAccounts());
+    if(!supabase)return;
+    supabase.auth.getSession().then(({data})=>{if(data?.session)rememberAccount(data.session);});
+    const {data}=supabase.auth.onAuthStateChange((event,session)=>{
+      if(session && ["SIGNED_IN","TOKEN_REFRESHED","USER_UPDATED","INITIAL_SESSION"].includes(event))rememberAccount(session);
+    });
+    return()=>data.subscription.unsubscribe();
+  },[supabase]);
+  async function switchSavedAccount(item){
+    if(!supabase||accountBusy)return;
+    setAccountBusy(true);setAccountError("");
+    try{
+      const {data,error}=await supabase.auth.setSession({access_token:item.session.access_token,refresh_token:item.session.refresh_token});
+      if(error||data?.user?.id!==item.id)throw error||new Error("No se pudo verificar esta cuenta");
+      rememberAccount(data.session);
+      // Reiniciar estado de perfiles, mensajes y suscripciones de la cuenta anterior.
+      window.location.reload();
+    }catch(e){setAccountError("La sesión de esta cuenta venció. Agrégala nuevamente iniciando sesión.");setAccountBusy(false);}
+  }
+  async function addSavedAccount(){
+    if(accountBusy)return;
+    try{
+      const {data}=await supabase.auth.getSession();
+      if(data?.session)rememberAccount(data.session);
+      // Salir de la sesión activa del navegador sin revocar las sesiones guardadas.
+      localStorage.removeItem(AUTH_KEY);
+      localStorage.removeItem(ACTIVE_KEY);
+      window.location.reload();
+    }catch(e){setAccountError("No se pudo abrir el inicio de sesión.");}
+  }
+  function removeSavedAccount(item){
+    if(item.id===user?.id){setAccountError("Para quitar la cuenta activa, primero cambia a otra cuenta.");return;}
+    const updated=readAccounts().filter(a=>a.id!==item.id);
+    localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(updated));setSavedAccounts(updated);
+  }
   const [appLanguage,setAppLanguage]=useState("es");
   useEffect(()=>{try{setAppLanguage(localStorage.getItem("rivyza-language")==="en"?"en":"es");}catch(e){}},[]);
   const changeAppLanguage=(value)=>{setAppLanguage(value);try{localStorage.setItem("rivyza-language",value);}catch(e){}};
@@ -2612,7 +2669,21 @@ export default function HomePage(){
           :settingsSheet==="Información de cuenta"?<div className="rivyza-feature-settings"><div className="rivyza-account-logo">R</div><h3>RIVYZA</h3><div className="rivyza-feature-row"><span>Usuario</span><strong>@{profile?.username||"usuario"}</strong></div><div className="rivyza-feature-row"><span>Registro</span><strong>{formatPostDateTime(user?.created_at||profile?.created_at)||"Sin fecha"}</strong></div><div className="rivyza-feature-row"><span>Estado</span><strong>Activa</strong></div><div className="rivyza-feature-row"><span>Infracciones</span><div className="rivyza-strikes"><span>×</span><span>×</span><span>×</span></div></div><p>Las infracciones requieren revisión administrativa. Estas X son informativas hasta integrar el sistema de sanciones.</p></div>
           :settingsSheet==="Apariencia"?<div className="rivyza-feature-settings rivyza-appearance-panel"><p className="rivyza-appearance-intro">Personaliza los colores de RIVYZA. Los videos y la cámara conservarán su fondo oscuro para que el contenido se vea correctamente.</p>{[["dark","Oscuro","Fondo oscuro"],["light","Claro","Fondo claro"],["auto","Automático","Según el teléfono"]].map(([value,label,description])=><button type="button" className={"rivyza-appearance-choice"+(appearance===value?" selected":"")} key={value} aria-pressed={appearance===value} onClick={()=>changeAppearance(value)}><span className={"rivyza-appearance-icon "+value}>{value==="dark"?<Moon size={19}/>:value==="light"?<span aria-hidden="true">☀</span>:<span aria-hidden="true">◐</span>}</span><span className="rivyza-appearance-description"><strong>{label}</strong><small>{description}</small></span><span className="rivyza-appearance-check">{appearance===value?"✓":""}</span></button>)}<p className="rivyza-appearance-saved">La selección se guarda automáticamente en este dispositivo.</p></div>
           :settingsSheet==="Seguridad y contraseña"?<div className="rivyza-feature-settings"><h3>Recuperar o cambiar contraseña</h3><p>Te enviaremos un enlace de recuperación. Si usas Google, cambia la contraseña desde Google.</p><input type="email" value={passwordEmail} onChange={e=>setPasswordEmail(e.target.value)} placeholder={user?.email||"Correo electrónico"}/><button onClick={sendPasswordReset}>Enviar enlace</button><p>La verificación en dos pasos y la gestión de dispositivos requieren configuración adicional en Supabase Auth.</p></div>
-          :settingsSheet==="Cambiar de cuenta"?<div className="rivyza-feature-settings"><p>Cuenta actual: {user?.email||profile?.username||"RIVYZA"}</p><p>Para proteger las sesiones, primero se debe iniciar sesión con la otra cuenta. No se conservarán contraseñas ni tokens manualmente.</p><button onClick={async()=>{await signOut();setSettingsSheet("");}}>Entrar con otra cuenta</button></div>
+           :settingsSheet==="Cambiar de cuenta"?<div className="rivyza-feature-settings rivyza-account-switcher">
+            <p className="rivyza-account-hint">Toca la foto para cambiar de cuenta.</p>
+            <div className="rivyza-account-gallery">
+              {savedAccounts.map(a=><div key={a.id} className="rivyza-account-tile">
+                <button type="button" disabled={accountBusy} onClick={()=>a.id===user?.id?setSettingsSheet(""):switchSavedAccount(a)} className={"rivyza-account-avatar-button"+(a.id===user?.id?" active":"")} aria-label={"Cambiar a "+a.name}>
+                  {a.avatar?<img src={a.avatar} alt=""/>:<User size={31}/>}
+                </button>
+                <span className="rivyza-account-name">{a.id===user?.id?(profile?.display_name||profile?.username||a.name):a.name}</span>
+                {a.id===user?.id?<small className="rivyza-account-active">✓ Activa</small>:<button className="rivyza-account-remove" type="button" onClick={()=>{if(window.confirm("¿Quitar esta cuenta guardada del dispositivo?"))removeSavedAccount(a);}}>Quitar</button>}
+              </div>)}
+              <div className="rivyza-account-tile"><button type="button" className="rivyza-account-avatar-button rivyza-account-add" onClick={addSavedAccount} disabled={accountBusy||savedAccounts.length>=5} aria-label="Agregar otra cuenta"><Plus size={32}/></button><span className="rivyza-account-name">Agregar cuenta</span></div>
+            </div>
+            <p className="rivyza-account-hint">Hasta 5 cuentas en este dispositivo. Si una sesión caduca, tendrás que iniciar sesión de nuevo.</p>
+            {accountError&&<p role="alert" className="rivyza-privacy-error">{accountError}</p>}
+          </div>
           :<p className="rivyza-sheet-soon">{t("Próximamente")}</p>}
         </div></div>}
       </section>}
