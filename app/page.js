@@ -2500,11 +2500,11 @@ export default function HomePage(){
       {socialError&&<p className="social-error">{socialError}</p>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
         <div className="rivyza-alerts-messages-heading"><strong>Mensajes</strong><button type="button" onClick={()=>openSocialInbox("alerts")}>Ver todos ›</button></div>
-        {recentConversations.length===0?<p className="social-empty">Todavía no tienes mensajes normales.</p>:recentConversations.map(({peer,last})=><button type="button" key={"alert-message-"+peer.id} className={"rivyza-alerts-message-row"+(unreadBySender.has(peer.id)?" is-unread":"")} onClick={()=>openSocialPeer(peer)}>
+        {recentConversations.length===0?<p className="social-empty">Todavía no tienes mensajes normales.</p>:recentConversations.map(({peer,last})=><div key={"alert-message-"+peer.id} className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")+(privateSwipeId===peer.id?" is-private-open":"")} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button type="button" className="rivyza-conversation-make-private" onClick={()=>togglePrivatePeer(peer.id,true)}>Privado 🔒</button><button type="button" className={"rivyza-alerts-message-row"+(unreadBySender.has(peer.id)?" is-unread":"")} onClick={()=>{if(swipedConversationId===peer.id||privateSwipeId===peer.id){setSwipedConversationId(null);setPrivateSwipeId(null);return;}openSocialPeer(peer);}}>
           <span className="rivyza-alerts-message-avatar">{peer.avatar_url?<img src={peer.avatar_url} alt="" loading="lazy"/>:<User size={22}/>}</span>
           <span className="rivyza-alerts-message-info"><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.audio_path?"🎤 Mensaje de voz":last.body||"Mensaje"}</small></span>
           {unreadBySender.has(peer.id)?<b className="rivyza-message-count">{Math.min(unreadBySender.get(peer.id),99)}{unreadBySender.get(peer.id)>99?"+":""}</b>:<span className="rivyza-alerts-message-time">{formatPostDateTime(last.created_at)}</span>}
-        </button>)}
+        </button></div>)}
         <button type="button" className="rivyza-activity-entry" onClick={openPrivateInbox}>
           <span className="rivyza-activity-logo"><Lock size={21}/></span>
           <span className="rivyza-activity-copy"><strong>Mensajes privados</strong><small>Acceso con PIN de 4 dígitos</small></span><span aria-hidden="true">›</span>

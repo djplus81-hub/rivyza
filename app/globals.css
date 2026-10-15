@@ -3029,3 +3029,8 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-alerts-message-info strong,.rivyza-alerts-message-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rivyza-alerts-message-info small{opacity:.68;font-size:12px}
 .rivyza-alerts-message-time{font-size:10px;opacity:.55;max-width:85px;text-align:right}
+
+/* v13.19.38: restore two-direction conversation gestures in Alerts */
+.rivyza-conversation-swipe>.rivyza-alerts-message-row{position:relative;z-index:2;width:100%;transition:transform .18s ease;background:#14151e;touch-action:pan-y}
+.rivyza-conversation-swipe.is-open>.rivyza-alerts-message-row{transform:translateX(-104px)}
+.rivyza-conversation-swipe.is-private-open>.rivyza-alerts-message-row{transform:translateX(114px)}
