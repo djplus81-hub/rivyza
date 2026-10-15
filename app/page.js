@@ -270,6 +270,8 @@ export default function HomePage(){
   const [adminInbox,setAdminInbox]=useState(false);
   const [adminUnread,setAdminUnread]=useState(0);
   const [myInfractions,setMyInfractions]=useState([]);
+  const [publicStrikeCount,setPublicStrikeCount]=useState(0);
+  const [moderationLoadError,setModerationLoadError]=useState("");
   const [appealDrafts,setAppealDrafts]=useState({});
   const [adminNotice,setAdminNotice]=useState([]);
   async function adminRpc(fn,args={}){const {data,error}=await supabase.rpc(fn,args);if(error)throw error;return data;}
@@ -291,9 +293,20 @@ export default function HomePage(){
       supabase.from("rivyza_moderation_notices").select("id,body,created_at,read_at,strike_id").eq("recipient_id",user.id).order("created_at",{ascending:false}).limit(40),
       supabase.rpc("rivyza_my_strikes"),
       adminOwner?supabase.rpc("rivyza_admin_unread_count"):Promise.resolve({data:0,error:null})
-    ]);if(live){if(!a.error)setAdminNotice(a.data||[]);if(!b.error)setMyInfractions(b.data||[]);if(!c.error)setAdminUnread(Number(c.data||0));}};
+    ]);if(live){if(!a.error)setAdminNotice(a.data||[]);if(!b.error)setMyInfractions(b.data||[]);setModerationLoadError(a.error?.message||b.error?.message||"");if(!c.error)setAdminUnread(Number(c.data||0));}};
     refresh();const id=setInterval(refresh,30000);return()=>{live=false;clearInterval(id);};
   },[supabase,user?.id,adminOwner]);
+  useEffect(()=>{if(!supabase||!viewedProfile?.id||view!=="otherProfile")return;let active=true;
+    setPublicStrikeCount(0);
+    supabase.rpc("rivyza_public_strike_count",{p_target:viewedProfile.id}).then(({data,error})=>{if(active&&!error)setPublicStrikeCount(Number(data||0));});
+    return()=>{active=false;};
+  },[supabase,view,viewedProfile?.id]);
+  async function markModerationRead(id){
+    // Actualizar lectura mediante RPC: la tabla no concede UPDATE directo al cliente.
+    const {error}=await supabase.rpc("rivyza_mark_moderation_notice_read",{p_notice:id});
+    if(!error)setAdminNotice(rows=>rows.map(n=>n.id===id?{...n,read_at:new Date().toISOString()}:n));
+    setSettingsSheet("Estado de cuenta");setView("settings");
+  }
   async function submitAppeal(id){const message=(appealDrafts[id]||"").trim();if(message.length<10){alert("Explica tu apelación (mínimo 10 caracteres).");return;}
     try{await adminRpc("rivyza_appeal_strike",{p_strike:id,p_message:message});alert("Apelación enviada. Estado: En revisión.");setAppealDrafts(v=>({...v,[id]:""}));const {data}=await supabase.rpc("rivyza_my_strikes");setMyInfractions(data||[]);}catch(e){alert(e.message||"No se pudo enviar la apelación");}}
 
@@ -2591,7 +2604,7 @@ export default function HomePage(){
     // Solo cuenta notificaciones no leídas de conversaciones clasificadas como privadas.
     const privateUnreadCount=[...unreadBySender.entries()].reduce((total,[peerId,count])=>total+(privatePeers.includes(peerId)?count:0),0);
     const activityAlerts=socialNotices.filter(n=>n.kind!=="message");
-    const activityUnread=activityAlerts.filter(n=>!n.read_at).length+mentionNotices.filter(n=>!n.read_at).length;
+    const activityUnread=activityAlerts.filter(n=>!n.read_at).length+mentionNotices.filter(n=>!n.read_at).length+adminNotice.filter(n=>!n.read_at).length;
     async function openActivityNotice(n){
       if(n.kind==="like"||n.kind==="comment"){await openNotificationPost(n);return;}
       await markSocialRead([n.id]);
@@ -2602,6 +2615,8 @@ export default function HomePage(){
       <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":view==="inbox"?socialInboxReturnView:view==="privateInbox"||view==="privateGate"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="privateInbox"||view==="privateGate"?"Mensajes privados":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>openSocialInbox(view)} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
       {socialError&&<p className="social-error">{socialError}</p>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
+        {adminNotice.length>0&&<div className="rivyza-admin-item"><strong>🛡️ Avisos oficiales de RIVYZA</strong>{adminNotice.slice(0,5).map(n=><button type="button" key={n.id} className="rivyza-moderation-alert" onClick={()=>markModerationRead(n.id)}><strong>{n.read_at?"Aviso oficial":"🔴 Nuevo aviso oficial"}</strong><span>{n.body}</span><small>{formatPostDateTime(n.created_at)} · Ver estado de cuenta</small></button>)}</div>}
+
         <div className="rivyza-alerts-messages-heading"><strong>Mensajes</strong><button type="button" onClick={()=>openSocialInbox("alerts")}>Ver todos ›</button></div>
         {recentConversations.length===0?<p className="social-empty">Todavía no tienes mensajes normales.</p>:recentConversations.map(({peer,last})=><div key={"alert-message-"+peer.id} className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")+(privateSwipeId===peer.id?" is-private-open":"")} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button type="button" className="rivyza-conversation-make-private" onClick={()=>togglePrivatePeer(peer.id,true)}>Privado 🔒</button><button type="button" className={"rivyza-alerts-message-row"+(unreadBySender.has(peer.id)?" is-unread":"")} onClick={()=>{if(swipedConversationId===peer.id||privateSwipeId===peer.id){setSwipedConversationId(null);setPrivateSwipeId(null);return;}openSocialPeer(peer);}}>
           <span className="rivyza-alerts-message-avatar">{peer.avatar_url?<img src={peer.avatar_url} alt="" loading="lazy"/>:<User size={22}/>}</span>
@@ -2637,7 +2652,9 @@ export default function HomePage(){
         {!privateConversations.length&&<p className="social-empty">Todavía no tienes conversaciones privadas.</p>}
       </div>}
       {view==="activity"&&<div className="social-list rivyza-activity-list">
-        {activityAlerts.length===0&&mentionNotices.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
+        {adminNotice.map(n=><button type="button" key={"official-"+n.id} className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>markModerationRead(n.id)}><span className="rivyza-notice-avatar">🛡️</span><span className="rivyza-notice-copy"><strong>RIVYZA · Aviso oficial</strong><span>{n.body}</span><small>{formatPostDateTime(n.created_at)}</small></span></button>)}
+
+        {activityAlerts.length===0&&mentionNotices.length===0&&adminNotice.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
         {mentionNotices.map(n=><button key={"mention-"+n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openMentionNotice(n)}><span className="rivyza-notice-avatar">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt=""/>:<AtSign size={23}/>}</span><span className="rivyza-notice-copy"><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong><span>Te mencionó en {n.source_type==="comment"?"un comentario":"una publicación"}.</span><small>{formatPostDateTime(n.created_at)}</small></span><AtSign size={21}/></button>)}
         {activityAlerts.map(n=><button key={n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openActivityNotice(n)}>
           <span className="rivyza-notice-avatar rivyza-presence-anchor">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt="" loading="lazy"/>:<User size={24}/>}{onlineDot(n.actor?.id)}</span>
@@ -2731,10 +2748,10 @@ export default function HomePage(){
             ["Moderación por IA","La moderación automática es una función planificada, no activa en esta versión. La IA no debe sancionar únicamente por palabras aisladas."],
             ["Privacidad y términos","Los textos legales completos y el canal de soporte oficial se publicarán antes del lanzamiento público."]
           ].filter(([a,b])=>(a+" "+b).toLowerCase().includes(helpQuery.toLowerCase())).map(([a,b])=><div key={a} className="rivyza-help-article"><strong>{a}</strong><p>{b}</p></div>)}</div>
-          :settingsSheet==="Estado de cuenta"?<div className="rivyza-feature-settings"><h3>Estado de cuenta</h3><p>Infracciones activas: {myInfractions.filter(x=>x.status==="active").length} de 3. Con tres X activas se restringe LIVE.</p>{myInfractions.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p>{x.status==="active"&&!x.appeal_status&&<><textarea placeholder="Explica por qué deseas apelar" value={appealDrafts[x.id]||""} onChange={e=>setAppealDrafts(v=>({...v,[x.id]:e.target.value}))}/><button onClick={()=>submitAppeal(x.id)}>Apelar infracción</button></>}</div>)}<h3>Mensajes oficiales de RIVYZA</h3>{adminNotice.map(n=><div className="rivyza-admin-item" key={n.id}><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString()}</small>{n.strike_id&&<button onClick={()=>{setSettingsSheet("Estado de cuenta");}}>Ver infracción y apelar</button>}</div>)}<p>Para sanciones graves contra menores se prevé suspensión total con revisión urgente y un proceso de apelación limitado.</p></div>
+          :settingsSheet==="Estado de cuenta"?<div className="rivyza-feature-settings"><h3>Estado de cuenta</h3>{moderationLoadError&&<p role="alert" className="social-error">No se pudo consultar el estado de cuenta: {moderationLoadError}</p>}<p>Infracciones activas: {myInfractions.filter(x=>x.status==="active").length} de 3. Con tres X activas se restringe LIVE.</p>{myInfractions.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p>{x.status==="active"&&!x.appeal_status&&<><textarea placeholder="Explica por qué deseas apelar" value={appealDrafts[x.id]||""} onChange={e=>setAppealDrafts(v=>({...v,[x.id]:e.target.value}))}/><button onClick={()=>submitAppeal(x.id)}>Apelar infracción</button></>}</div>)}<h3>Mensajes oficiales de RIVYZA</h3>{adminNotice.map(n=><div className="rivyza-admin-item" key={n.id}><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString()}</small>{n.strike_id&&<button onClick={()=>{setSettingsSheet("Estado de cuenta");}}>Ver infracción y apelar</button>}</div>)}<p>Para sanciones graves contra menores se prevé suspensión total con revisión urgente y un proceso de apelación limitado.</p></div>
           :settingsSheet==="Cuenta privada"?<div className="rivyza-feature-settings"><label className="rivyza-feature-toggle">Cuenta privada <input type="checkbox" checked={privateAccount} onChange={e=>togglePrivateAccount(e.target.checked)}/></label><p>Oculta tu estado en línea. En los LIVE, solo el anfitrión debe poder identificarte; esta regla también requiere integración en el servicio LIVE.</p></div>
           :settingsSheet==="Cuentas bloqueadas"?<div className="rivyza-feature-settings rivyza-blocked-list">{blockedProfilesLoading?<p>Cargando cuentas bloqueadas…</p>:blockedUsers.length?blockedUsers.map(id=>{const person=blockedProfiles[id];const name=person?.display_name||person?.username||"Cuenta bloqueada";return <div className="rivyza-blocked-person" key={id}><span className="rivyza-blocked-avatar">{person?.avatar_url?<img src={person.avatar_url} alt=""/>:<User size={21}/>}</span><span className="rivyza-blocked-details"><strong>{name}</strong><small>{person?.username?"@"+person.username:"Perfil no disponible"}</small></span><button type="button" className="rivyza-blocked-unblock" onClick={()=>{if(window.confirm(`¿Desbloquear a ${name}?`))setBlocked(id,false);}}>Desbloquear</button></div>}):<p>No tienes cuentas bloqueadas.</p>}</div>
-          :settingsSheet==="Información de cuenta"?<div className="rivyza-feature-settings"><div className="rivyza-account-logo">R</div><h3>RIVYZA</h3><div className="rivyza-feature-row"><span>Usuario</span><strong>@{profile?.username||"usuario"}</strong></div><div className="rivyza-feature-row"><span>Registro</span><strong>{formatPostDateTime(user?.created_at||profile?.created_at)||"Sin fecha"}</strong></div><div className="rivyza-feature-row"><span>Estado</span><strong>Activa</strong></div><div className="rivyza-feature-row"><span>Infracciones</span><div className="rivyza-strikes"><span>×</span><span>×</span><span>×</span></div></div><p>Las infracciones requieren revisión administrativa. Estas X son informativas hasta integrar el sistema de sanciones.</p></div>
+          :settingsSheet==="Información de cuenta"?<div className="rivyza-feature-settings"><div className="rivyza-account-logo">R</div><h3>RIVYZA</h3><div className="rivyza-feature-row"><span>Usuario</span><strong>@{profile?.username||"usuario"}</strong></div><div className="rivyza-feature-row"><span>Registro</span><strong>{formatPostDateTime(user?.created_at||profile?.created_at)||"Sin fecha"}</strong></div><div className="rivyza-feature-row"><span>Estado</span><strong>Activa</strong></div><div className="rivyza-feature-row"><span>Infracciones</span><div className="rivyza-strikes">{[0,1,2].map(i=><span key={i} style={{color:i<myInfractions.filter(x=>x.status==="active").length?"#ff405c":"#777"}}>×</span>)}</div></div><p>Las infracciones requieren revisión administrativa. Las X rojas reflejan infracciones activas registradas en RIVYZA.</p></div>
           :settingsSheet==="Apariencia"?<div className="rivyza-feature-settings rivyza-appearance-panel"><p className="rivyza-appearance-intro">Personaliza los colores de RIVYZA. Los videos y la cámara conservarán su fondo oscuro para que el contenido se vea correctamente.</p>{[["dark","Oscuro","Fondo oscuro"],["light","Claro","Fondo claro"],["auto","Automático","Según el teléfono"]].map(([value,label,description])=><button type="button" className={"rivyza-appearance-choice"+(appearance===value?" selected":"")} key={value} aria-pressed={appearance===value} onClick={()=>changeAppearance(value)}><span className={"rivyza-appearance-icon "+value}>{value==="dark"?<Moon size={19}/>:value==="light"?<span aria-hidden="true">☀</span>:<span aria-hidden="true">◐</span>}</span><span className="rivyza-appearance-description"><strong>{label}</strong><small>{description}</small></span><span className="rivyza-appearance-check">{appearance===value?"✓":""}</span></button>)}<p className="rivyza-appearance-saved">La selección se guarda automáticamente en este dispositivo.</p></div>
           :settingsSheet==="Seguridad y contraseña"?<div className="rivyza-feature-settings"><h3>Recuperar o cambiar contraseña</h3><p>Te enviaremos un enlace de recuperación. Si usas Google, cambia la contraseña desde Google.</p><input type="email" value={passwordEmail} onChange={e=>setPasswordEmail(e.target.value)} placeholder={user?.email||"Correo electrónico"}/><button onClick={sendPasswordReset}>Enviar enlace</button><p>La verificación en dos pasos y la gestión de dispositivos requieren configuración adicional en Supabase Auth.</p></div>
            :settingsSheet==="Cambiar de cuenta"?<div className="rivyza-feature-settings rivyza-account-switcher">
@@ -2927,7 +2944,7 @@ export default function HomePage(){
         <div className="profile-heading-row">
           <div className="profile-heading-copy">
             <h1>{viewedProfile.display_name||viewedProfile.username||"Usuario"}</h1>
-            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>
+            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>{publicStrikeCount>0&&<div className="rivyza-public-strikes" title="Infracciones activas de las normas de RIVYZA">{Array.from({length:Math.min(3,publicStrikeCount)},(_,i)=><span key={i}>✖</span>)} <small>{publicStrikeCount} infracción{publicStrikeCount===1?"":"es"} activa{publicStrikeCount===1?"":"s"} de RIVYZA</small></div>}
             {viewedProfile.show_country && viewedProfile.country_code && (
               <div className="profile-country">
                 <img
