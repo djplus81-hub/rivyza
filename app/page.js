@@ -209,8 +209,7 @@ export default function HomePage(){
   const [phoneBusy,setPhoneBusy]=useState(false);
   const [phoneError,setPhoneError]=useState("");
   const [passwordEmail,setPasswordEmail]=useState("");
-  const [savedAccounts,setSavedAccounts]=useState([]);
-  useEffect(()=>{try{{const saved=localStorage.getItem("rivyza-appearance");setAppearance(["dark","light","auto"].includes(saved)?saved:"dark");}setSavedAccounts(JSON.parse(localStorage.getItem("rivyza-saved-accounts")||"[]"));}catch(e){}},[]);
+  useEffect(()=>{try{const saved=localStorage.getItem("rivyza-appearance");setAppearance(["dark","light","auto"].includes(saved)?saved:"dark");}catch(e){}},[]);
   useEffect(()=>{if(typeof document!=="undefined")document.documentElement.dataset.rivyzaAppearance=appearance;},[appearance]);
   const changeAppearance=(next)=>{setAppearance(next);try{localStorage.setItem("rivyza-appearance",next);}catch(e){}};
   const dialingCodes={US:"1",DO:"1",PR:"1",CA:"1",MX:"52",CO:"57",ES:"34",AR:"54",BR:"55",CL:"56",PE:"51",VE:"58",EC:"593",GB:"44",FR:"33",DE:"49",IT:"39",IN:"91",PK:"92",ID:"62",PH:"63",AU:"61",JP:"81",KR:"82",NG:"234",ZA:"27",HT:"509",JM:"1",PA:"507",CR:"506",GT:"502",SV:"503",HN:"504",NI:"505",CU:"53",UY:"598",PY:"595",BO:"591"};
