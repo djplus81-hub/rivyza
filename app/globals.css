@@ -3053,3 +3053,8 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 
 /* RIVYZA 13.19.43: infracciones públicas y avisos oficiales */
 .rivyza-public-strikes{display:flex;align-items:center;justify-content:center;gap:5px;margin:5px auto;color:#ff405c;font-weight:800}.rivyza-public-strikes>span{font-size:22px}.rivyza-public-strikes small{font-size:11px;color:#d4cbd5;font-weight:500;margin-left:5px}.rivyza-moderation-alert{display:flex;flex-direction:column;gap:5px;text-align:left;width:100%;border:1px solid #663349;background:#251923;color:white;padding:12px;border-radius:12px;margin-top:8px;overflow-wrap:anywhere}.rivyza-moderation-alert strong{color:#ff6681}.rivyza-moderation-alert small{opacity:.7}
+
+/* v13.19.45 — bandeja independiente de notificaciones oficiales */
+.rivyza-official-row{border-bottom:1px solid rgba(255,255,255,.12);padding:4px 0 12px}
+.rivyza-official-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:0 12px}
+.rivyza-official-actions button{border:1px solid rgba(255,255,255,.25);border-radius:9px;padding:8px 10px;background:transparent;color:inherit;font-size:12px}

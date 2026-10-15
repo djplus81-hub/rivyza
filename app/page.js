@@ -290,7 +290,7 @@ export default function HomePage(){
   },[supabase,user?.id]);
   useEffect(()=>{if(!supabase||!user?.id)return;let live=true;
     const refresh=async()=>{const [a,b,c]=await Promise.all([
-      supabase.from("rivyza_moderation_notices").select("id,body,created_at,read_at,strike_id").eq("recipient_id",user.id).order("created_at",{ascending:false}).limit(40),
+      supabase.from("rivyza_moderation_notices").select("id,body,created_at,read_at,strike_id").eq("recipient_id",user.id).is("hidden_at",null).order("created_at",{ascending:false}).limit(40),
       supabase.rpc("rivyza_my_strikes"),
       adminOwner?supabase.rpc("rivyza_admin_unread_count"):Promise.resolve({data:0,error:null})
     ]);if(live){if(!a.error)setAdminNotice(a.data||[]);if(!b.error)setMyInfractions(b.data||[]);setModerationLoadError(a.error?.message||b.error?.message||"");if(!c.error)setAdminUnread(Number(c.data||0));}};
@@ -301,6 +301,17 @@ export default function HomePage(){
     const {error}=await supabase.rpc("rivyza_mark_moderation_notice_read",{p_notice:id});
     if(!error)setAdminNotice(rows=>rows.map(n=>n.id===id?{...n,read_at:new Date().toISOString()}:n));
     setSettingsSheet("Estado de cuenta");setView("settings");
+  }
+  async function hideModerationNotice(id){
+    if(!supabase||!user?.id)return;
+    if(!window.confirm("¿Eliminar este aviso de tu bandeja? La infracción y su historial permanecerán."))return;
+    const {data,error}=await supabase.rpc("rivyza_hide_moderation_notice",{p_notice:id});
+    if(error||data!==true){alert("No se pudo eliminar el aviso. Verifica que ejecutaste el SQL v13.19.45.");return;}
+    setAdminNotice(rows=>rows.filter(n=>n.id!==id));
+  }
+  async function readOfficialNotice(id){
+    const {error}=await supabase.rpc("rivyza_mark_moderation_notice_read",{p_notice:id});
+    if(!error)setAdminNotice(rows=>rows.map(n=>n.id===id?{...n,read_at:new Date().toISOString()}:n));
   }
   async function submitAppeal(id){const message=(appealDrafts[id]||"").trim();if(message.length<10){alert("Explica tu apelación (mínimo 10 caracteres).");return;}
     try{await adminRpc("rivyza_appeal_strike",{p_strike:id,p_message:message});alert("Apelación enviada. Estado: En revisión.");setAppealDrafts(v=>({...v,[id]:""}));const {data}=await supabase.rpc("rivyza_my_strikes");setMyInfractions(data||[]);}catch(e){alert(e.message||"No se pudo enviar la apelación");}}
@@ -2586,7 +2597,7 @@ export default function HomePage(){
   }
 
   
-  if(["alerts","activity","inbox","privateInbox","privateGate","messages","socialSettings"].includes(view)){
+  if(["alerts","activity","officialNotices","inbox","privateInbox","privateGate","messages","socialSettings"].includes(view)){
     const conversations=new Map();
     socialMessages.filter(m=>!hiddenMessageIds.includes(m.id)).forEach(m=>{const peer=m.sender_id===user.id?m.recipient:m.sender;if(peer?.id && (!conversationCutoffs[peer.id] || new Date(m.created_at)>new Date(conversationCutoffs[peer.id])) && !conversations.has(peer.id))conversations.set(peer.id,{peer,last:m});});
     // Mensajes y actividad son dos bandejas independientes.
@@ -2604,7 +2615,8 @@ export default function HomePage(){
     // Solo cuenta notificaciones no leídas de conversaciones clasificadas como privadas.
     const privateUnreadCount=[...unreadBySender.entries()].reduce((total,[peerId,count])=>total+(privatePeers.includes(peerId)?count:0),0);
     const activityAlerts=socialNotices.filter(n=>n.kind!=="message");
-    const activityUnread=activityAlerts.filter(n=>!n.read_at).length+mentionNotices.filter(n=>!n.read_at).length+adminNotice.filter(n=>!n.read_at).length;
+    const activityUnread=activityAlerts.filter(n=>!n.read_at).length+mentionNotices.filter(n=>!n.read_at).length;
+    const officialUnread=adminNotice.filter(n=>!n.read_at).length;
     async function openActivityNotice(n){
       if(n.kind==="like"||n.kind==="comment"){await openNotificationPost(n);return;}
       await markSocialRead([n.id]);
@@ -2612,10 +2624,10 @@ export default function HomePage(){
     }
     const thread=socialMessages.filter(m=>!hiddenMessageIds.includes(m.id) && socialPeer && (!conversationCutoffs[socialPeer.id] || new Date(m.created_at)>new Date(conversationCutoffs[socialPeer.id])) && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     return <main className="social-screen">
-      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":view==="inbox"?socialInboxReturnView:view==="privateInbox"||view==="privateGate"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="privateInbox"||view==="privateGate"?"Mensajes privados":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>openSocialInbox(view)} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
+      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"||view==="officialNotices"?"alerts":view==="inbox"?socialInboxReturnView:view==="privateInbox"||view==="privateGate"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="officialNotices"?"Notificaciones de RIVYZA":view==="inbox"?"Mensajes":view==="privateInbox"||view==="privateGate"?"Mensajes privados":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>openSocialInbox(view)} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
       {socialError&&<p className="social-error">{socialError}</p>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
-        {adminNotice.length>0&&<div className="rivyza-admin-item"><strong>🛡️ Avisos oficiales de RIVYZA</strong>{adminNotice.slice(0,5).map(n=><button type="button" key={n.id} className="rivyza-moderation-alert" onClick={()=>markModerationRead(n.id)}><strong>{n.read_at?"Aviso oficial":"🔴 Nuevo aviso oficial"}</strong><span>{n.body}</span><small>{formatPostDateTime(n.created_at)} · Ver estado de cuenta</small></button>)}</div>}
+        
 
         <div className="rivyza-alerts-messages-heading"><strong>Mensajes</strong><button type="button" onClick={()=>openSocialInbox("alerts")}>Ver todos ›</button></div>
         {recentConversations.length===0?<p className="social-empty">Todavía no tienes mensajes normales.</p>:recentConversations.map(({peer,last})=><div key={"alert-message-"+peer.id} className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")+(privateSwipeId===peer.id?" is-private-open":"")} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button type="button" className="rivyza-conversation-make-private" onClick={()=>togglePrivatePeer(peer.id,true)}>Privado 🔒</button><button type="button" className={"rivyza-alerts-message-row"+(unreadBySender.has(peer.id)?" is-unread":"")} onClick={()=>{if(swipedConversationId===peer.id||privateSwipeId===peer.id){setSwipedConversationId(null);setPrivateSwipeId(null);return;}openSocialPeer(peer);}}>
@@ -2631,6 +2643,12 @@ export default function HomePage(){
           <span className="rivyza-activity-logo"><Heart size={20}/><User size={16}/></span>
           <span className="rivyza-activity-copy"><strong>{t("Actividad y seguidores")}</strong><small>Likes, comentarios y seguidores</small></span>
           {activityUnread>0&&<b className="rivyza-message-count">{activityUnread>99?"99+":activityUnread}</b>}
+          <span aria-hidden="true">›</span>
+        </button>
+        <button type="button" className="rivyza-activity-entry" onClick={()=>setView("officialNotices")}>
+          <span className="rivyza-activity-logo">🛡️</span>
+          <span className="rivyza-activity-copy"><strong>Notificaciones de RIVYZA</strong><small>Infracciones, apelaciones y avisos oficiales</small></span>
+          {officialUnread>0&&<b className="rivyza-message-count">{officialUnread>99?"99+":officialUnread}</b>}
           <span aria-hidden="true">›</span>
         </button>
       </div>}
@@ -2651,10 +2669,22 @@ export default function HomePage(){
         </div>)}
         {!privateConversations.length&&<p className="social-empty">Todavía no tienes conversaciones privadas.</p>}
       </div>}
+      {view==="officialNotices"&&<div className="social-list rivyza-activity-list">
+        {adminNotice.length===0&&<p className="social-empty">No tienes notificaciones oficiales de RIVYZA.</p>}
+        {adminNotice.map(n=><div key={"official-"+n.id} className="rivyza-official-row">
+          <div className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")}>
+            <span className="rivyza-notice-avatar">🛡️</span>
+            <span className="rivyza-notice-copy"><strong>{n.read_at?"RIVYZA · Aviso oficial":"🔴 RIVYZA · Nuevo aviso"}</strong><span>{n.body}</span><small>{formatPostDateTime(n.created_at)}</small></span>
+          </div>
+          <div className="rivyza-official-actions">
+            {!n.read_at&&<button type="button" onClick={()=>readOfficialNotice(n.id)}>Marcar como leído</button>}
+            {n.strike_id&&<button type="button" onClick={()=>{readOfficialNotice(n.id);setSettingsSheet("Estado de cuenta");setView("settings");}}>Ver estado de cuenta</button>}
+            <button type="button" onClick={()=>hideModerationNotice(n.id)}>Eliminar</button>
+          </div>
+        </div>)}
+      </div>}
       {view==="activity"&&<div className="social-list rivyza-activity-list">
-        {adminNotice.map(n=><button type="button" key={"official-"+n.id} className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>markModerationRead(n.id)}><span className="rivyza-notice-avatar">🛡️</span><span className="rivyza-notice-copy"><strong>RIVYZA · Aviso oficial</strong><span>{n.body}</span><small>{formatPostDateTime(n.created_at)}</small></span></button>)}
-
-        {activityAlerts.length===0&&mentionNotices.length===0&&adminNotice.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
+        {activityAlerts.length===0&&mentionNotices.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
         {mentionNotices.map(n=><button key={"mention-"+n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openMentionNotice(n)}><span className="rivyza-notice-avatar">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt=""/>:<AtSign size={23}/>}</span><span className="rivyza-notice-copy"><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong><span>Te mencionó en {n.source_type==="comment"?"un comentario":"una publicación"}.</span><small>{formatPostDateTime(n.created_at)}</small></span><AtSign size={21}/></button>)}
         {activityAlerts.map(n=><button key={n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openActivityNotice(n)}>
           <span className="rivyza-notice-avatar rivyza-presence-anchor">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt="" loading="lazy"/>:<User size={24}/>}{onlineDot(n.actor?.id)}</span>
