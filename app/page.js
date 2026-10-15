@@ -260,6 +260,8 @@ export default function HomePage(){
   const [adminPanel,setAdminPanel]=useState(false);
   const [adminTarget,setAdminTarget]=useState(null);
   const [adminStrikes,setAdminStrikes]=useState([]);
+  const [adminLiveStatus,setAdminLiveStatus]=useState(null);
+  const [adminSuspended,setAdminSuspended]=useState([]);
   const [adminCases,setAdminCases]=useState([]);
   const [adminReason,setAdminReason]=useState("");
   const [adminReply,setAdminReply]=useState("");
@@ -275,10 +277,11 @@ export default function HomePage(){
     if(!supabase||!target?.id)return;
     const [strikes,cases]=await Promise.all([adminRpc("rivyza_admin_strikes",{p_target:target.id}),adminRpc("rivyza_admin_cases",{p_target:target.id})]);
     setAdminStrikes(strikes||[]);setAdminCases(cases||[]);
+    try{setAdminLiveStatus(await adminRpc("rivyza_admin_live_status",{p_target:target.id}));}catch(e){setAdminLiveStatus(null);setAdminError("Control LIVE no disponible: ejecuta el SQL v13.19.42.");}
   }
   async function adminOpen(target){setAdminError("");setAdminTarget(target);setAdminPanel(true);setAdminInbox(false);try{await adminRefresh(target);}catch(e){setAdminError(e.message||"Error cargando moderación");}}
   async function adminDo(fn,args){setAdminBusy(true);setAdminError("");try{await adminRpc(fn,args);if(adminInbox){const cases=await adminRpc("rivyza_admin_cases",{});setAdminCases(cases||[]);}else await adminRefresh();setAdminReason("");setAdminReply("");}catch(e){setAdminError(e.message||"No se pudo completar");}finally{setAdminBusy(false);}}
-  async function adminOpenInbox(){setAdminError("");setAdminTarget(null);setAdminPanel(true);setAdminInbox(true);try{const rows=await adminRpc("rivyza_admin_cases",{});setAdminCases(rows||[]);}catch(e){setAdminError(e.message||"No se pudo cargar la bandeja");}}
+  async function adminOpenInbox(){setAdminError("");setAdminTarget(null);setAdminPanel(true);setAdminInbox(true);try{const rows=await adminRpc("rivyza_admin_cases",{});setAdminCases(rows||[]);try{setAdminSuspended(await adminRpc("rivyza_admin_suspended_live"));}catch(e){setAdminSuspended([]);}}catch(e){setAdminError(e.message||"No se pudo cargar la bandeja");}}
   useEffect(()=>{if(!supabase||!user?.id){setAdminOwner(false);return;}let live=true;
     supabase.rpc("rivyza_is_owner").then(({data,error})=>{if(live)setAdminOwner(!error&&data===true);});
     return()=>{live=false;};
@@ -2695,9 +2698,16 @@ export default function HomePage(){
           {adminStrikes.every(x=>x.status!=="active")&&<p>No hay X activas para retirar en esta cuenta.</p>}
           <div id="rivyza-active-strikes"><strong>Historial de infracciones</strong></div>
           {adminStrikes.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"❌ X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p><small>{new Date(x.created_at).toLocaleString()}</small>{x.status==="active"&&<button disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo para retirar esta X:");if(reason?.trim().length>=5)adminDo("rivyza_admin_remove_strike",{p_strike:x.id,p_reason:reason.trim()});}}>Quitar X</button>}</div>)}
+          <div className="rivyza-admin-item"><h3>Control de LIVE</h3>
+            {adminLiveStatus?<><p><strong>Estado: {adminLiveStatus.allowed?"Permitido":"Suspendido"}</strong></p>
+            <p>{adminLiveStatus.manual_suspended?"Suspensión manual activa":adminLiveStatus.active_strikes>=3?"Suspensión por 3 X activas":"Sin suspensión"}</p>
+            {adminLiveStatus.manual_suspended?<button type="button" disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo para restaurar LIVE (mínimo 10 caracteres):");if(reason?.trim().length>=10&&window.confirm("¿Restaurar permiso manual de LIVE? Las 3 X activas siguen aplicando."))adminDo("rivyza_admin_set_live_suspension",{p_target:adminTarget.id,p_suspend:false,p_reason:reason.trim()});}}>Restaurar LIVE</button>
+            :<button type="button" disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo de suspensión LIVE (mínimo 10 caracteres):");if(reason?.trim().length>=10&&window.confirm("¿Suspender LIVE y notificar oficialmente a esta cuenta?"))adminDo("rivyza_admin_set_live_suspension",{p_target:adminTarget.id,p_suspend:true,p_reason:reason.trim()});}}>Suspender LIVE</button>}</>
+            :<p>Consulta de estado no disponible. Ejecuta el SQL de esta versión antes de utilizar estos controles.</p>}
+            <small>Esta suspensión debe verificarse también en el servidor que autoriza la entrada a LIVE y a invitados.</small></div>
           <h3>Enviar mensaje oficial</h3><textarea value={adminReply} onChange={e=>setAdminReply(e.target.value)} placeholder="Mensaje de RIVYZA para este usuario"/><button disabled={adminBusy||adminReply.trim().length<2} onClick={()=>adminDo("rivyza_admin_send_notice",{p_target:adminTarget.id,p_body:adminReply.trim()})}>Enviar como RIVYZA</button>
         </>}
-        <h3>{adminInbox?"Reportes y apelaciones":"Apelaciones de esta cuenta"}</h3>
+        {adminInbox&&<div className="rivyza-admin-item"><h3>Usuarios suspendidos de LIVE</h3>{adminSuspended.length===0?<p>No hay suspensiones registradas o no se pudo cargar la lista.</p>:adminSuspended.map(u=><div key={u.user_id}><strong>{u.username||u.user_id}</strong> · {u.reason||"3 X activas"} · {u.manual_suspended?"Manual":"Por infracciones"}</div>)}</div>}<h3>{adminInbox?"Reportes y apelaciones":"Apelaciones de esta cuenta"}</h3>
         {adminCases.length===0&&<p>No hay casos pendientes.</p>}
         {adminCases.map(c=><div className="rivyza-admin-item" key={c.id}><strong>{c.kind==="appeal"?"Apelación":"Reporte"} · {c.status==="in_review"?"En revisión":c.status}</strong><p>{c.body}</p><small>{new Date(c.created_at).toLocaleString()}</small>{adminInbox&&<p>Usuario: {c.user_id}</p>}{c.status==="in_review"&&<div className="rivyza-admin-actions"><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Respuesta oficial (motivo):");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:true,p_reply:note.trim()});}}>Aceptar apelación / quitar X</button><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Motivo de la decisión:");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:false,p_reply:note.trim()});}}>Mantener X</button></div>}</div>)}
       </div></div>}
@@ -2898,9 +2908,16 @@ export default function HomePage(){
           {adminStrikes.every(x=>x.status!=="active")&&<p>No hay X activas para retirar en esta cuenta.</p>}
           <div id="rivyza-active-strikes"><strong>Historial de infracciones</strong></div>
           {adminStrikes.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"❌ X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p><small>{new Date(x.created_at).toLocaleString()}</small>{x.status==="active"&&<button disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo para retirar esta X:");if(reason?.trim().length>=5)adminDo("rivyza_admin_remove_strike",{p_strike:x.id,p_reason:reason.trim()});}}>Quitar X</button>}</div>)}
+          <div className="rivyza-admin-item"><h3>Control de LIVE</h3>
+            {adminLiveStatus?<><p><strong>Estado: {adminLiveStatus.allowed?"Permitido":"Suspendido"}</strong></p>
+            <p>{adminLiveStatus.manual_suspended?"Suspensión manual activa":adminLiveStatus.active_strikes>=3?"Suspensión por 3 X activas":"Sin suspensión"}</p>
+            {adminLiveStatus.manual_suspended?<button type="button" disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo para restaurar LIVE (mínimo 10 caracteres):");if(reason?.trim().length>=10&&window.confirm("¿Restaurar permiso manual de LIVE? Las 3 X activas siguen aplicando."))adminDo("rivyza_admin_set_live_suspension",{p_target:adminTarget.id,p_suspend:false,p_reason:reason.trim()});}}>Restaurar LIVE</button>
+            :<button type="button" disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo de suspensión LIVE (mínimo 10 caracteres):");if(reason?.trim().length>=10&&window.confirm("¿Suspender LIVE y notificar oficialmente a esta cuenta?"))adminDo("rivyza_admin_set_live_suspension",{p_target:adminTarget.id,p_suspend:true,p_reason:reason.trim()});}}>Suspender LIVE</button>}</>
+            :<p>Consulta de estado no disponible. Ejecuta el SQL de esta versión antes de utilizar estos controles.</p>}
+            <small>Esta suspensión debe verificarse también en el servidor que autoriza la entrada a LIVE y a invitados.</small></div>
           <h3>Enviar mensaje oficial</h3><textarea value={adminReply} onChange={e=>setAdminReply(e.target.value)} placeholder="Mensaje de RIVYZA para este usuario"/><button disabled={adminBusy||adminReply.trim().length<2} onClick={()=>adminDo("rivyza_admin_send_notice",{p_target:adminTarget.id,p_body:adminReply.trim()})}>Enviar como RIVYZA</button>
         </>}
-        <h3>{adminInbox?"Reportes y apelaciones":"Apelaciones de esta cuenta"}</h3>
+        {adminInbox&&<div className="rivyza-admin-item"><h3>Usuarios suspendidos de LIVE</h3>{adminSuspended.length===0?<p>No hay suspensiones registradas o no se pudo cargar la lista.</p>:adminSuspended.map(u=><div key={u.user_id}><strong>{u.username||u.user_id}</strong> · {u.reason||"3 X activas"} · {u.manual_suspended?"Manual":"Por infracciones"}</div>)}</div>}<h3>{adminInbox?"Reportes y apelaciones":"Apelaciones de esta cuenta"}</h3>
         {adminCases.length===0&&<p>No hay casos pendientes.</p>}
         {adminCases.map(c=><div className="rivyza-admin-item" key={c.id}><strong>{c.kind==="appeal"?"Apelación":"Reporte"} · {c.status==="in_review"?"En revisión":c.status}</strong><p>{c.body}</p><small>{new Date(c.created_at).toLocaleString()}</small>{adminInbox&&<p>Usuario: {c.user_id}</p>}{c.status==="in_review"&&<div className="rivyza-admin-actions"><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Respuesta oficial (motivo):");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:true,p_reply:note.trim()});}}>Aceptar apelación / quitar X</button><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Motivo de la decisión:");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:false,p_reply:note.trim()});}}>Mantener X</button></div>}</div>)}
       </div></div>}
