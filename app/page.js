@@ -255,6 +255,45 @@ export default function HomePage(){
   const socialThreadRef=useRef(null);
   const unreadSocial=socialNotices.filter(n=>!n.read_at).length;
   const [user,setUser]=useState(null);
+  // Moderación: las acciones reales se autorizan en funciones SQL, nunca por este botón.
+  const [adminOwner,setAdminOwner]=useState(false);
+  const [adminPanel,setAdminPanel]=useState(false);
+  const [adminTarget,setAdminTarget]=useState(null);
+  const [adminStrikes,setAdminStrikes]=useState([]);
+  const [adminCases,setAdminCases]=useState([]);
+  const [adminReason,setAdminReason]=useState("");
+  const [adminReply,setAdminReply]=useState("");
+  const [adminBusy,setAdminBusy]=useState(false);
+  const [adminError,setAdminError]=useState("");
+  const [adminInbox,setAdminInbox]=useState(false);
+  const [adminUnread,setAdminUnread]=useState(0);
+  const [myInfractions,setMyInfractions]=useState([]);
+  const [appealDrafts,setAppealDrafts]=useState({});
+  const [adminNotice,setAdminNotice]=useState([]);
+  async function adminRpc(fn,args={}){const {data,error}=await supabase.rpc(fn,args);if(error)throw error;return data;}
+  async function adminRefresh(target=adminTarget){
+    if(!supabase||!target?.id)return;
+    const [strikes,cases]=await Promise.all([adminRpc("rivyza_admin_strikes",{p_target:target.id}),adminRpc("rivyza_admin_cases",{p_target:target.id})]);
+    setAdminStrikes(strikes||[]);setAdminCases(cases||[]);
+  }
+  async function adminOpen(target){setAdminError("");setAdminTarget(target);setAdminPanel(true);setAdminInbox(false);try{await adminRefresh(target);}catch(e){setAdminError(e.message||"Error cargando moderación");}}
+  async function adminDo(fn,args){setAdminBusy(true);setAdminError("");try{await adminRpc(fn,args);if(adminInbox){const cases=await adminRpc("rivyza_admin_cases",{});setAdminCases(cases||[]);}else await adminRefresh();setAdminReason("");setAdminReply("");}catch(e){setAdminError(e.message||"No se pudo completar");}finally{setAdminBusy(false);}}
+  async function adminOpenInbox(){setAdminError("");setAdminTarget(null);setAdminPanel(true);setAdminInbox(true);try{const rows=await adminRpc("rivyza_admin_cases",{});setAdminCases(rows||[]);}catch(e){setAdminError(e.message||"No se pudo cargar la bandeja");}}
+  useEffect(()=>{if(!supabase||!user?.id){setAdminOwner(false);return;}let live=true;
+    supabase.rpc("rivyza_is_owner").then(({data,error})=>{if(live)setAdminOwner(!error&&data===true);});
+    return()=>{live=false;};
+  },[supabase,user?.id]);
+  useEffect(()=>{if(!supabase||!user?.id)return;let live=true;
+    const refresh=async()=>{const [a,b,c]=await Promise.all([
+      supabase.from("rivyza_moderation_notices").select("id,body,created_at,read_at,strike_id").eq("recipient_id",user.id).order("created_at",{ascending:false}).limit(40),
+      supabase.rpc("rivyza_my_strikes"),
+      adminOwner?supabase.rpc("rivyza_admin_unread_count"):Promise.resolve({data:0,error:null})
+    ]);if(live){if(!a.error)setAdminNotice(a.data||[]);if(!b.error)setMyInfractions(b.data||[]);if(!c.error)setAdminUnread(Number(c.data||0));}};
+    refresh();const id=setInterval(refresh,30000);return()=>{live=false;clearInterval(id);};
+  },[supabase,user?.id,adminOwner]);
+  async function submitAppeal(id){const message=(appealDrafts[id]||"").trim();if(message.length<10){alert("Explica tu apelación (mínimo 10 caracteres).");return;}
+    try{await adminRpc("rivyza_appeal_strike",{p_strike:id,p_message:message});alert("Apelación enviada. Estado: En revisión.");setAppealDrafts(v=>({...v,[id]:""}));const {data}=await supabase.rpc("rivyza_my_strikes");setMyInfractions(data||[]);}catch(e){alert(e.message||"No se pudo enviar la apelación");}}
+
   useEffect(()=>{
     if(settingsSheet!=="Cuentas bloqueadas"||!supabase||!user?.id)return;
     let cancelled=false;
@@ -2635,6 +2674,7 @@ export default function HomePage(){
           <button type="button" onClick={()=>setSettingsSheet("language")}><Languages size={21}/><span>{t("Idioma")}</span><em>{appLanguage==="es"?"Español":"English"}</em><b>›</b></button>
           {[["Apariencia",Moon],["Preferencias de notificaciones",Bell]].map(([label,Icon])=><button type="button" key={label} onClick={e=>{e.stopPropagation();setSettingsSheet(label);}}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
         </div>
+        {adminOwner&&<div className="rivyza-settings-group"><button type="button" onClick={adminOpenInbox}><ShieldCheck size={21}/><span>Panel de administración {adminUnread>0?`(${adminUnread} pendientes)`:""}</span><b>›</b></button></div>}
         <div className="rivyza-settings-section-title">Ayuda y comunidad</div>
         <div className="rivyza-settings-group"><button type="button" onClick={()=>setSettingsSheet("Centro de Ayuda")}><ShieldCheck size={21}/><span>Centro de Ayuda y normas</span><b>›</b></button><button type="button" onClick={()=>setSettingsSheet("Estado de cuenta")}><ShieldCheck size={21}/><span>Estado de cuenta y sanciones</span><b>›</b></button></div>
         <div className="rivyza-settings-section-title">{t("Sesión")}</div>
@@ -2643,6 +2683,22 @@ export default function HomePage(){
           <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={21}/><span>{t("Cerrar sesión")}</span></button>
         </div>
         <p className="rivyza-settings-version">RIVYZA v13.19.37 (base)</p>
+
+      {adminPanel&&<div className="rivyza-admin-overlay" role="presentation" onClick={()=>setAdminPanel(false)}><div className="rivyza-admin-card" role="dialog" aria-modal="true" aria-label="Panel de administración" onClick={e=>e.stopPropagation()}>
+        <div className="rivyza-admin-head"><strong>{adminInbox?"Bandeja administrativa":`Administrar ${adminTarget?.display_name||adminTarget?.username||"usuario"}`}</strong><button type="button" onClick={()=>setAdminPanel(false)}>✕</button></div>
+        {adminError&&<p role="alert" className="rivyza-admin-error">{adminError}</p>}
+        {!adminInbox&&<><h3>Infracciones X ({adminStrikes.filter(x=>x.status==="active").length}/3)</h3>
+          <p>Las sanciones se registran con motivo y fecha. Tres X activas restringen LIVE.</p>
+          <textarea placeholder="Motivo obligatorio para poner una X (mínimo 10 caracteres)" value={adminReason} onChange={e=>setAdminReason(e.target.value)} />
+          <button disabled={adminBusy||adminReason.trim().length<10||adminStrikes.filter(x=>x.status==="active").length>=3} onClick={()=>{if(window.confirm("¿Asignar una X y notificar oficialmente al usuario?"))adminDo("rivyza_admin_add_strike",{p_target:adminTarget.id,p_reason:adminReason.trim()});}}>Poner X y enviar aviso RIVYZA</button>
+          {adminStrikes.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"❌ X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p><small>{new Date(x.created_at).toLocaleString()}</small>{x.status==="active"&&<button disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo para retirar esta X:");if(reason?.trim().length>=5)adminDo("rivyza_admin_remove_strike",{p_strike:x.id,p_reason:reason.trim()});}}>Quitar X</button>}</div>)}
+          <h3>Enviar mensaje oficial</h3><textarea value={adminReply} onChange={e=>setAdminReply(e.target.value)} placeholder="Mensaje de RIVYZA para este usuario"/><button disabled={adminBusy||adminReply.trim().length<2} onClick={()=>adminDo("rivyza_admin_send_notice",{p_target:adminTarget.id,p_body:adminReply.trim()})}>Enviar como RIVYZA</button>
+        </>}
+        <h3>{adminInbox?"Reportes y apelaciones":"Apelaciones de esta cuenta"}</h3>
+        {adminCases.length===0&&<p>No hay casos pendientes.</p>}
+        {adminCases.map(c=><div className="rivyza-admin-item" key={c.id}><strong>{c.kind==="appeal"?"Apelación":"Reporte"} · {c.status==="in_review"?"En revisión":c.status}</strong><p>{c.body}</p><small>{new Date(c.created_at).toLocaleString()}</small>{adminInbox&&<p>Usuario: {c.user_id}</p>}{c.status==="in_review"&&<div className="rivyza-admin-actions"><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Respuesta oficial (motivo):");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:true,p_reply:note.trim()});}}>Aceptar apelación / quitar X</button><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Motivo de la decisión:");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:false,p_reply:note.trim()});}}>Mantener X</button></div>}</div>)}
+      </div></div>}
+
         {settingsSheet&&<div className="rivyza-sheet-overlay" onClick={()=>setSettingsSheet("")} role="presentation"><div className="rivyza-sheet-panel" role="dialog" aria-modal="true" aria-label={settingsSheet==="language"?t("Idioma"):t(settingsSheet)} onClick={e=>e.stopPropagation()}>
           <div className="rivyza-sheet-handle"/>
           <div className="rivyza-sheet-heading"><strong>{settingsSheet==="language"?t("Idioma"):t(settingsSheet)}</strong><button type="button" onClick={()=>setSettingsSheet("")} aria-label={t("Cerrar")}>×</button></div>
@@ -2662,7 +2718,7 @@ export default function HomePage(){
             ["Moderación por IA","La moderación automática es una función planificada, no activa en esta versión. La IA no debe sancionar únicamente por palabras aisladas."],
             ["Privacidad y términos","Los textos legales completos y el canal de soporte oficial se publicarán antes del lanzamiento público."]
           ].filter(([a,b])=>(a+" "+b).toLowerCase().includes(helpQuery.toLowerCase())).map(([a,b])=><div key={a} className="rivyza-help-article"><strong>{a}</strong><p>{b}</p></div>)}</div>
-          :settingsSheet==="Estado de cuenta"?<div className="rivyza-feature-settings"><h3>Estado de cuenta</h3><p>Las advertencias X y la suspensión de LIVE se encuentran en preparación. Ninguna X se asigna automáticamente en esta versión.</p><p>Para sanciones graves contra menores se prevé suspensión total con revisión urgente y un proceso de apelación limitado.</p></div>
+          :settingsSheet==="Estado de cuenta"?<div className="rivyza-feature-settings"><h3>Estado de cuenta</h3><p>Infracciones activas: {myInfractions.filter(x=>x.status==="active").length} de 3. Con tres X activas se restringe LIVE.</p>{myInfractions.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p>{x.status==="active"&&!x.appeal_status&&<><textarea placeholder="Explica por qué deseas apelar" value={appealDrafts[x.id]||""} onChange={e=>setAppealDrafts(v=>({...v,[x.id]:e.target.value}))}/><button onClick={()=>submitAppeal(x.id)}>Apelar infracción</button></>}</div>)}<h3>Mensajes oficiales de RIVYZA</h3>{adminNotice.map(n=><div className="rivyza-admin-item" key={n.id}><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString()}</small>{n.strike_id&&<button onClick={()=>{setSettingsSheet("Estado de cuenta");}}>Ver infracción y apelar</button>}</div>)}<p>Para sanciones graves contra menores se prevé suspensión total con revisión urgente y un proceso de apelación limitado.</p></div>
           :settingsSheet==="Cuenta privada"?<div className="rivyza-feature-settings"><label className="rivyza-feature-toggle">Cuenta privada <input type="checkbox" checked={privateAccount} onChange={e=>togglePrivateAccount(e.target.checked)}/></label><p>Oculta tu estado en línea. En los LIVE, solo el anfitrión debe poder identificarte; esta regla también requiere integración en el servicio LIVE.</p></div>
           :settingsSheet==="Cuentas bloqueadas"?<div className="rivyza-feature-settings rivyza-blocked-list">{blockedProfilesLoading?<p>Cargando cuentas bloqueadas…</p>:blockedUsers.length?blockedUsers.map(id=>{const person=blockedProfiles[id];const name=person?.display_name||person?.username||"Cuenta bloqueada";return <div className="rivyza-blocked-person" key={id}><span className="rivyza-blocked-avatar">{person?.avatar_url?<img src={person.avatar_url} alt=""/>:<User size={21}/>}</span><span className="rivyza-blocked-details"><strong>{name}</strong><small>{person?.username?"@"+person.username:"Perfil no disponible"}</small></span><button type="button" className="rivyza-blocked-unblock" onClick={()=>{if(window.confirm(`¿Desbloquear a ${name}?`))setBlocked(id,false);}}>Desbloquear</button></div>}):<p>No tienes cuentas bloqueadas.</p>}</div>
           :settingsSheet==="Información de cuenta"?<div className="rivyza-feature-settings"><div className="rivyza-account-logo">R</div><h3>RIVYZA</h3><div className="rivyza-feature-row"><span>Usuario</span><strong>@{profile?.username||"usuario"}</strong></div><div className="rivyza-feature-row"><span>Registro</span><strong>{formatPostDateTime(user?.created_at||profile?.created_at)||"Sin fecha"}</strong></div><div className="rivyza-feature-row"><span>Estado</span><strong>Activa</strong></div><div className="rivyza-feature-row"><span>Infracciones</span><div className="rivyza-strikes"><span>×</span><span>×</span><span>×</span></div></div><p>Las infracciones requieren revisión administrativa. Estas X son informativas hasta integrar el sistema de sanciones.</p></div>
@@ -2824,8 +2880,24 @@ export default function HomePage(){
       <header className="profile-topbar compact">
         <button className="profile-back" onClick={()=>{setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else setView("home");}}>←</button>
         <div className="profile-top-title">RIVYZA</div>
-        {/* Los ajustes solo aparecen en el perfil del propietario. */}
+        {adminOwner&&<button type="button" className="rivyza-admin-dots" aria-label="Administrar este perfil" onClick={()=>adminOpen(viewedProfile)}><MoreHorizontal size={25}/></button>}
       </header>
+
+
+      {adminPanel&&<div className="rivyza-admin-overlay" role="presentation" onClick={()=>setAdminPanel(false)}><div className="rivyza-admin-card" role="dialog" aria-modal="true" aria-label="Panel de administración" onClick={e=>e.stopPropagation()}>
+        <div className="rivyza-admin-head"><strong>{adminInbox?"Bandeja administrativa":`Administrar ${adminTarget?.display_name||adminTarget?.username||"usuario"}`}</strong><button type="button" onClick={()=>setAdminPanel(false)}>✕</button></div>
+        {adminError&&<p role="alert" className="rivyza-admin-error">{adminError}</p>}
+        {!adminInbox&&<><h3>Infracciones X ({adminStrikes.filter(x=>x.status==="active").length}/3)</h3>
+          <p>Las sanciones se registran con motivo y fecha. Tres X activas restringen LIVE.</p>
+          <textarea placeholder="Motivo obligatorio para poner una X (mínimo 10 caracteres)" value={adminReason} onChange={e=>setAdminReason(e.target.value)} />
+          <button disabled={adminBusy||adminReason.trim().length<10||adminStrikes.filter(x=>x.status==="active").length>=3} onClick={()=>{if(window.confirm("¿Asignar una X y notificar oficialmente al usuario?"))adminDo("rivyza_admin_add_strike",{p_target:adminTarget.id,p_reason:adminReason.trim()});}}>Poner X y enviar aviso RIVYZA</button>
+          {adminStrikes.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"❌ X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p><small>{new Date(x.created_at).toLocaleString()}</small>{x.status==="active"&&<button disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo para retirar esta X:");if(reason?.trim().length>=5)adminDo("rivyza_admin_remove_strike",{p_strike:x.id,p_reason:reason.trim()});}}>Quitar X</button>}</div>)}
+          <h3>Enviar mensaje oficial</h3><textarea value={adminReply} onChange={e=>setAdminReply(e.target.value)} placeholder="Mensaje de RIVYZA para este usuario"/><button disabled={adminBusy||adminReply.trim().length<2} onClick={()=>adminDo("rivyza_admin_send_notice",{p_target:adminTarget.id,p_body:adminReply.trim()})}>Enviar como RIVYZA</button>
+        </>}
+        <h3>{adminInbox?"Reportes y apelaciones":"Apelaciones de esta cuenta"}</h3>
+        {adminCases.length===0&&<p>No hay casos pendientes.</p>}
+        {adminCases.map(c=><div className="rivyza-admin-item" key={c.id}><strong>{c.kind==="appeal"?"Apelación":"Reporte"} · {c.status==="in_review"?"En revisión":c.status}</strong><p>{c.body}</p><small>{new Date(c.created_at).toLocaleString()}</small>{adminInbox&&<p>Usuario: {c.user_id}</p>}{c.status==="in_review"&&<div className="rivyza-admin-actions"><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Respuesta oficial (motivo):");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:true,p_reply:note.trim()});}}>Aceptar apelación / quitar X</button><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Motivo de la decisión:");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:false,p_reply:note.trim()});}}>Mantener X</button></div>}</div>)}
+      </div></div>}
 
       <div className="social-profile-message"><button onClick={()=>openSocialPeer(viewedProfile)}><MessageCircle size={18}/> {t("Enviar mensaje")}</button></div>
       <section className="profile-hero compact-profile">
