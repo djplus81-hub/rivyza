@@ -3108,3 +3108,12 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-live-confirm-box>div{display:flex;gap:10px;justify-content:center}
 .rivyza-live-confirm-box button{padding:11px 14px;border-radius:9px;background:#52415c;color:white}
 .rivyza-live-confirm-box .rivyza-live-confirm-yes{background:#ff102d;color:#fff}
+
+/* v13.19.51 camera-stage enhancements */
+.rivyza-live-avatar-fallback{width:100%;height:100%;display:grid;place-items:center;background:radial-gradient(circle at center,#563568,#191022);font-size:45px}
+.rivyza-live-grid-square.rivyza-live-solo{grid-template-columns:1fr!important}
+.rivyza-live-grid-square.rivyza-live-solo .rivyza-live-tile.rivyza-live-square:first-child{grid-column:span 1!important;aspect-ratio:9/16!important;max-height:72dvh!important}
+.rivyza-live-slot-picker{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rivyza-live-slot-picker select{background:#251c32;color:white;border:1px solid #776088;border-radius:9px;padding:8px}
+.rivyza-live-guest-exit{display:flex;justify-content:center;gap:8px;margin:8px 0}
+.rivyza-live-guest-exit button{background:#30243e;color:#fff;border:1px solid #6b5278;padding:9px;border-radius:10px}

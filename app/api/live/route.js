@@ -100,6 +100,13 @@ export async function POST(req) {
       if (error) throw error;
       return json({ ok: true });
     }
+    if (input.action === 'leave_camera') {
+      if (room.host_id === uid) return json({ error: 'El anfitrión no puede bajar de cámara' }, 403);
+      const { error } = await db.from('rivyza_live_camera_requests')
+        .update({ status: 'left' }).eq('room_id', room.id).eq('user_id', uid);
+      if (error) throw error;
+      return json({ ok: true });
+    }
     if (input.action === 'approve') {
       if (room.host_id !== uid) return json({ error: 'No autorizado' }, 403);
       const { error } = await auth.client.rpc('rivyza_live_approve_camera', { p_room: room.id, p_guest: input.guestId });
