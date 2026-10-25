@@ -3152,3 +3152,7 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-live-bottom-bar{margin-bottom:76px!important;}
 .rivyza-live-grid-square .rivyza-live-square .lk-participant-tile{min-height:0!important;}
 @media (max-width:390px){.rivyza-live-grid-square .rivyza-live-camera-name{font-size:9px!important;}}
+
+/* v13.19.51e: iOS audio unlock and visible camera arrangement control */
+.rivyza-live-enable-audio{align-self:center;border:1px solid #f0b5ff;background:#53247d;color:white;border-radius:22px;padding:11px 19px;font-weight:800;margin:5px auto 10px}
+.rivyza-live-bottom-bar button{min-height:43px}
