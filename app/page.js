@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
+import LiveRoom from "./LiveRoom";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
   AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send
@@ -1994,7 +1995,7 @@ export default function HomePage(){
                <div className="camera-create-tabs">
                  <button className="active" type="button">POST</button>
                  <button type="button" onClick={()=>setUploadMessage("Crear estará disponible próximamente.")}>CREAR</button>
-                 <button type="button" onClick={()=>setUploadMessage("LIVE estará disponible próximamente.")}>LIVE</button>
+                 <button type="button" onClick={()=>{stopCamera();setUploadOpen(false);setView("liveStudio");}}>LIVE</button>
                </div>
              </div>
            </div>
@@ -2805,6 +2806,9 @@ export default function HomePage(){
       {socialNav()}
     </main>;
   }
+  if(view==="liveStudio"){
+    return <LiveRoom supabase={supabase} user={user} onExit={()=>setView("livePreview")}/>;
+  }
   if(view==="livePreview"){
     return <main className="live-preview-shell">
       <header className="live-preview-header">
@@ -2819,6 +2823,8 @@ export default function HomePage(){
           <span>Aquí aparecerán las personas que sigues cuando estén EN VIVO</span>
         </div>
       </div>
+
+      <button type="button" className="rivyza-live-start" onClick={()=>setView("liveStudio")}>🔴 Entrar a RIVYZA LIVE · Iniciar o mirar</button>
 
       <section className="live-discovery-feed">
         <article className="live-preview-card live-preview-empty-card">
