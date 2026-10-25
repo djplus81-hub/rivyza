@@ -2853,3 +2853,302 @@ html[data-rivyza-appearance="light"] .rivyza-settings-page{background:#f6f3fa;co
 .rivyza-blocked-details strong,.rivyza-blocked-details small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rivyza-blocked-details strong{font-size:14px}.rivyza-blocked-details small{font-size:12px;opacity:.65}
 .rivyza-blocked-unblock{flex-shrink:0;font-size:12px!important;padding:9px 10px!important;border-radius:9px!important}
+
+
+/* RIVYZA v13.19.24 — Apariencia: oscuro, claro y automático.
+   Se mantienen oscuros el feed de video, la cámara y el reproductor multimedia. */
+.rivyza-appearance-panel{gap:8px!important;padding-top:18px!important}
+.rivyza-appearance-intro{font-size:13px!important;line-height:1.5!important;margin:0 0 12px!important}
+.rivyza-appearance-choice{display:flex!important;align-items:center!important;text-align:left!important;gap:12px!important;min-height:66px!important;padding:12px!important;background:transparent!important;border:1px solid rgba(150,140,165,.3)!important;border-radius:14px!important;color:inherit!important}
+.rivyza-appearance-choice.selected{border-color:#9c60f3!important;background:rgba(148,70,235,.11)!important}
+.rivyza-appearance-icon{display:grid;place-items:center;width:40px;height:40px;flex-shrink:0;border-radius:12px;background:#28243a;color:#d5b5ff;font-size:22px}
+.rivyza-appearance-icon.light{background:#fff0cc;color:#a96a00}.rivyza-appearance-icon.auto{background:linear-gradient(110deg,#333044 50%,#e9e5f1 50%);color:#ad77ff}
+.rivyza-appearance-description{flex:1;display:flex;flex-direction:column;gap:3px}.rivyza-appearance-description strong{font-size:14px}.rivyza-appearance-description small{font-size:12px;opacity:.65}.rivyza-appearance-check{width:22px;text-align:center;color:#a36af8;font-weight:800}
+.rivyza-appearance-saved{margin-top:8px!important;text-align:center}
+/* Light theme applies to interface panels, not full-screen media. */
+html[data-rivyza-appearance="light"]{--rv-surface:#f7f5fa;--rv-ink:#22192c;--rv-line:#e4dfea;--rv-panel:#ffffff;--rv-subtle:#635c70}
+@media(prefers-color-scheme:light){html[data-rivyza-appearance="auto"]{--rv-surface:#f7f5fa;--rv-ink:#22192c;--rv-line:#e4dfea;--rv-panel:#ffffff;--rv-subtle:#635c70}}
+html[style]{}
+html[data-rivyza-appearance="light"] .rivyza-settings-page,
+html[data-rivyza-appearance="light"] .social-screen,
+html[data-rivyza-appearance="light"] .public-profile-shell{background:var(--rv-surface)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="light"] .rivyza-settings-page .rivyza-settings-group>button,
+html[data-rivyza-appearance="light"] .rivyza-settings-page .rivyza-settings-group>button svg,
+html[data-rivyza-appearance="light"] .social-top button,
+html[data-rivyza-appearance="light"] .social-item,
+html[data-rivyza-appearance="light"] .social-top,
+html[data-rivyza-appearance="light"] .social-quick{color:var(--rv-ink)!important}
+html[data-rivyza-appearance="light"] .social-top,
+html[data-rivyza-appearance="light"] .social-compose,
+html[data-rivyza-appearance="light"] .social-chat-layout .social-compose{background:var(--rv-surface)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="light"] .social-compose input{background:var(--rv-panel)!important;color:var(--rv-ink)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="light"] .social-bubble:not(.mine){background:#e9e4f0!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="light"] .rivyza-settings-section-title,
+html[data-rivyza-appearance="light"] .rivyza-settings-page small,
+html[data-rivyza-appearance="light"] .rivyza-settings-page p{color:var(--rv-subtle)!important}
+html[data-rivyza-appearance="light"] .rivyza-sheet-panel{background:var(--rv-panel)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="light"] .rivyza-sheet-options button,
+html[data-rivyza-appearance="light"] .rivyza-feature-row,
+html[data-rivyza-appearance="light"] .rivyza-appearance-choice{color:var(--rv-ink)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="light"] .rivyza-feature-settings input{background:var(--rv-panel)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="light"] .rivyza-feature-settings .rivyza-strikes span{color:var(--rv-ink)!important}
+@media(prefers-color-scheme:light){
+html[data-rivyza-appearance="auto"] .rivyza-settings-page,html[data-rivyza-appearance="auto"] .social-screen,html[data-rivyza-appearance="auto"] .public-profile-shell{background:var(--rv-surface)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="auto"] .rivyza-settings-page .rivyza-settings-group>button,html[data-rivyza-appearance="auto"] .rivyza-settings-page .rivyza-settings-group>button svg,html[data-rivyza-appearance="auto"] .social-top button,html[data-rivyza-appearance="auto"] .social-item,html[data-rivyza-appearance="auto"] .social-top,html[data-rivyza-appearance="auto"] .social-quick{color:var(--rv-ink)!important}
+html[data-rivyza-appearance="auto"] .social-top,html[data-rivyza-appearance="auto"] .social-compose,html[data-rivyza-appearance="auto"] .social-chat-layout .social-compose{background:var(--rv-surface)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="auto"] .social-compose input{background:var(--rv-panel)!important;color:var(--rv-ink)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="auto"] .social-bubble:not(.mine){background:#e9e4f0!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="auto"] .rivyza-settings-section-title,html[data-rivyza-appearance="auto"] .rivyza-settings-page small,html[data-rivyza-appearance="auto"] .rivyza-settings-page p{color:var(--rv-subtle)!important}
+html[data-rivyza-appearance="auto"] .rivyza-sheet-panel{background:var(--rv-panel)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="auto"] .rivyza-sheet-options button,html[data-rivyza-appearance="auto"] .rivyza-feature-row,html[data-rivyza-appearance="auto"] .rivyza-appearance-choice{color:var(--rv-ink)!important;border-color:var(--rv-line)!important}
+html[data-rivyza-appearance="auto"] .rivyza-feature-settings input{background:var(--rv-panel)!important;color:var(--rv-ink)!important}
+html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes span{color:var(--rv-ink)!important}
+}
+
+/* v13.19.25: keep privacy toggle isolated from appearance navigation */
+.rivyza-settings-page .rivyza-online-row{display:flex;align-items:center;gap:15px;padding:17px 20px;position:relative;isolation:isolate;min-height:66px}
+.rivyza-settings-page .rivyza-online-row>span{flex:1;min-width:0;pointer-events:none}
+.rivyza-settings-page .rivyza-online-row>input[type="checkbox"]{flex:0 0 auto;position:relative;z-index:1;cursor:pointer}
+.rivyza-settings-page .rivyza-settings-group>button{position:relative;z-index:0;touch-action:manipulation}
+
+/* RIVYZA v13.19.26 - compartir publicaciones */
+.rivyza-share-backdrop{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.73);display:flex;align-items:flex-end;justify-content:center}
+.rivyza-share-sheet{width:min(100%,550px);max-height:min(86dvh,760px);overflow-y:auto;background:#171720;color:#fff;border-radius:24px 24px 0 0;padding:12px 20px max(26px,env(safe-area-inset-bottom));box-shadow:0 -10px 50px #0008;overscroll-behavior:contain}
+.rivyza-share-grip{width:42px;height:4px;background:#73707c;border-radius:10px;margin:0 auto 17px}
+.rivyza-share-sheet header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;font-size:17px}
+.rivyza-share-sheet header button{background:transparent;border:0;color:#ddd;display:flex;padding:5px}
+.rivyza-share-search{display:flex;align-items:center;gap:10px;background:#292934;border:1px solid #41404e;border-radius:14px;padding:10px 13px;color:#c8c0d5}
+.rivyza-share-search input{border:0;outline:0;background:transparent;color:#fff;min-width:0;width:100%;font-size:15px}
+.rivyza-share-sheet h4{font-size:11px;color:#c9bfd7;letter-spacing:.07em;margin:23px 0 13px}
+.rivyza-share-friends{display:flex;gap:15px;overflow-x:auto;padding:3px 2px 12px;scrollbar-width:none}
+.rivyza-share-friends button,.rivyza-share-external button{background:transparent;border:0;color:#fff;display:flex;flex-direction:column;align-items:center;gap:7px;flex:0 0 66px;min-width:0;padding:0}
+.rivyza-share-friends small,.rivyza-share-external small{font-size:11px;line-height:1.25;max-width:75px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rivyza-share-avatar{position:relative;display:grid;place-items:center;width:54px;height:54px;border-radius:50%;background:linear-gradient(140deg,#7435c4,#b53caa);font-weight:700;font-size:21px;overflow:visible}
+.rivyza-share-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.rivyza-share-friends button.chosen .rivyza-share-avatar{outline:2px solid #bd8cff;outline-offset:3px}
+.rivyza-share-check{position:absolute;bottom:-3px;right:-4px;background:#8d3bd8;color:white;border-radius:50%;width:20px;height:20px;display:grid;place-items:center;border:2px solid #171720}
+.rivyza-share-send{width:100%;display:flex;justify-content:center;align-items:center;gap:9px;border:0;border-radius:14px;background:#8f36dc;color:white;padding:13px;font-size:15px;font-weight:700;margin-top:10px}
+.rivyza-share-send:disabled{opacity:.6}
+.rivyza-share-external{display:flex;gap:22px;align-items:flex-start}
+.rivyza-share-round{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:#36334a;color:#c9a3ff}
+.rivyza-share-hint{color:#b6afc1;font-size:12px;line-height:1.45;margin:10px 0}
+.rivyza-share-warning{color:#ffaaa8;font-size:13px;margin:10px 0}
+.rivyza-share-success{color:#71e5b1;font-size:13px;margin:10px 0}
+.rivyza-shared-post-open{display:inline-flex;align-items:center;gap:7px;background:#37234e;color:#fff;border:1px solid #8f5bba;border-radius:10px;padding:9px 10px;font-size:12px;margin:6px 0}
+
+/* RIVYZA v13.19.27 — Para ti: restore approved 35px photo alignment.
+   Only shifts the image within its existing frame; no resizing, cropping,
+   scrolling, videos, navigation or action positions are changed. */
+.feed-shell > .home-real-feed > .feed-post-card img.feed-media {
+  object-position: 50% calc(50% + 35px) !important;
+}
+
+/* v13.19.28: control de zoom de cámara; no altera feed ni otros controles */
+.rivyza-camera-zoom{position:absolute;z-index:5;bottom:clamp(160px,23svh,250px);left:50%;transform:translateX(-50%);width:min(96%,390px);display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.rivyza-zoom-presets{display:flex;justify-content:center;gap:7px;padding:5px 8px;border-radius:24px;background:rgba(0,0,0,.23);backdrop-filter:blur(7px);pointer-events:auto}
+.rivyza-zoom-presets button{border:0;color:#fff;background:transparent;min-width:42px;height:38px;border-radius:22px;font-size:14px;font-weight:700}
+.rivyza-zoom-presets button.active{background:rgba(0,0,0,.65);color:#ffdf43}
+.rivyza-zoom-presets button:disabled{opacity:.24}
+.rivyza-zoom-swipe{pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;min-width:92px;text-align:center;padding:8px 16px;border-radius:24px;background:rgba(0,0,0,.35);color:#fff;font-weight:700;font-size:13px}
+.rivyza-zoom-unavailable{font-size:11px;color:#fff;background:rgba(0,0,0,.45);border-radius:15px;padding:5px 10px;text-align:center}
+
+/* v13.19.30 — subir controles de zoom y destacar deslizador cuando el panel se oculta */
+.camera-stage .rivyza-camera-zoom{bottom:clamp(205px,28svh,295px);z-index:12}
+.camera-stage .rivyza-zoom-presets{background:rgba(0,0,0,.52);box-shadow:0 3px 14px rgba(0,0,0,.24)}
+.camera-stage .rivyza-zoom-swipe{display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;min-width:76px;background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.32);box-shadow:0 3px 14px rgba(0,0,0,.3)}
+.camera-stage .rivyza-zoom-swipe::before{content:"";display:block;width:4px;height:38px;border-radius:8px;background:linear-gradient(to bottom,rgba(255,255,255,.9),rgba(255,255,255,.28),rgba(255,255,255,.9))}
+
+/* v13.19.31 — deslizador vertical a la derecha solamente cuando la pestaña esta oculta */
+.camera-stage .rivyza-camera-zoom:has(> .rivyza-zoom-swipe){left:auto;right:max(12px,env(safe-area-inset-right));transform:none;width:auto;align-items:flex-end}
+.camera-stage .rivyza-camera-zoom:has(> .rivyza-zoom-swipe) .rivyza-zoom-swipe{min-width:66px;padding:8px 10px}
+
+/* RIVYZA 13.19.32 — privacidad de mensajes */
+.rivyza-message-privacy{display:flex;flex-direction:column;gap:10px}
+.rivyza-privacy-choice{display:flex;justify-content:space-between;align-items:center;width:100%;padding:14px 16px;border:1px solid rgba(180,180,200,.25);border-radius:13px;background:rgba(120,120,150,.09);color:inherit;text-align:left;cursor:pointer}
+.rivyza-privacy-choice.selected{border-color:#b369ff;background:rgba(150,70,230,.17)}
+.rivyza-privacy-choice span:first-child{display:flex;flex-direction:column;gap:4px}
+.rivyza-privacy-choice small{opacity:.7;font-size:12px}
+.rivyza-privacy-choice span:last-child{color:#d29cff;font-size:22px}
+.rivyza-privacy-choice:disabled{opacity:.65;cursor:wait}
+.rivyza-privacy-error{color:#ff9b9b}
+
+/* RIVYZA v13.19.37: reportes y ayuda */
+.rivyza-help{max-height:65vh;overflow:auto}.rivyza-help input,.rivyza-report-sheet select,.rivyza-report-sheet textarea{width:100%;box-sizing:border-box;border:1px solid #666;border-radius:9px;padding:12px;background:#191923;color:white}.rivyza-help-article{border-bottom:1px solid #444;padding:13px 0}.rivyza-help-article p{font-size:13px;line-height:1.55;opacity:.85}.rivyza-report-sheet{padding:22px;display:flex;flex-direction:column;gap:12px;max-height:85vh;overflow:auto}.rivyza-report-sheet textarea{min-height:85px;resize:vertical}
+
+/* RIVYZA menciones */
+.rivyza-mention-suggestions{position:relative;z-index:110;max-height:185px;overflow-y:auto;background:#181824;border:1px solid #555;border-radius:12px;padding:5px;display:flex;flex-direction:column;gap:3px}.rivyza-mention-suggestions button{display:flex;gap:12px;align-items:center;width:100%;padding:10px 12px;text-align:left;border:0;border-radius:8px;background:transparent;color:white}.rivyza-mention-suggestions button:focus,.rivyza-mention-suggestions button:hover{background:#37304b}.rivyza-mention-suggestions small{color:#aaa}.rivyza-mention-link{border:0;background:transparent;color:#b9a4ff;font:inherit;padding:0 1px;display:inline;cursor:pointer;font-weight:600}
+
+
+/* RIVYZA: menciones como texto normal dentro de un mismo comentario.
+   Sobrescribe los botones de ancho completo del menu de publicaciones. */
+.post-menu-sheet.rivyza-comments .rivyza-comment-content > span {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.post-menu-sheet.rivyza-comments .rivyza-comment-content button.rivyza-mention-link,
+.post-menu-sheet.rivyza-comments .rivyza-comment-content button.rivyza-mention-link:last-child {
+  display: inline;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #b9a4ff;
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  text-align: inherit;
+  vertical-align: baseline;
+  white-space: normal;
+  cursor: pointer;
+}
+
+/* v13.19.38 private messages */
+.rivyza-conversation-swipe.is-private-open>.social-item{transform:translateX(114px)}
+.rivyza-conversation-make-private{position:absolute;left:0;top:0;bottom:0;width:114px;border:0;background:#6c42bd;color:white;font-weight:700;z-index:1}
+.rivyza-private-gate{padding:30px 20px;display:flex;flex-direction:column;gap:16px;align-items:center;text-align:center}
+.rivyza-private-gate input{width:min(100%,290px);padding:14px;border:1px solid #5d5374;background:#15121d;color:white;border-radius:12px;text-align:center;font-size:19px;letter-spacing:5px}
+.rivyza-private-gate>button{padding:13px 32px;border:0;border-radius:12px;background:#8755e7;color:white;font-weight:700}
+.rivyza-private-hint{font-size:12px;opacity:.75;max-width:310px}
+.rivyza-private-restore{margin:5px 15px 14px;padding:8px 12px;border:1px solid #8658ce;border-radius:9px;background:transparent;color:#b99af0}
+
+/* RIVYZA 13.19.38: mensajes normales visibles directamente en Alertas */
+.rivyza-alerts-messages-heading{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 5px;color:inherit}
+.rivyza-alerts-messages-heading button{border:0;background:transparent;color:#bca9ff;font-size:13px;cursor:pointer}
+.rivyza-alerts-message-row{width:100%;display:flex;align-items:center;gap:11px;padding:10px 14px;border:0;border-bottom:1px solid rgba(255,255,255,.07);background:transparent;color:inherit;text-align:left;cursor:pointer;min-width:0}
+.rivyza-alerts-message-row.is-unread{background:rgba(139,92,246,.09)}
+.rivyza-alerts-message-avatar{height:44px;width:44px;flex:0 0 44px;border-radius:50%;background:rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.rivyza-alerts-message-avatar img{width:100%;height:100%;object-fit:cover}
+.rivyza-alerts-message-info{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.rivyza-alerts-message-info strong,.rivyza-alerts-message-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rivyza-alerts-message-info small{opacity:.68;font-size:12px}
+.rivyza-alerts-message-time{font-size:10px;opacity:.55;max-width:85px;text-align:right}
+
+/* v13.19.38: restore two-direction conversation gestures in Alerts */
+.rivyza-conversation-swipe>.rivyza-alerts-message-row{position:relative;z-index:2;width:100%;transition:transform .18s ease;background:#14151e;touch-action:pan-y}
+.rivyza-conversation-swipe.is-open>.rivyza-alerts-message-row{transform:translateX(-104px)}
+.rivyza-conversation-swipe.is-private-open>.rivyza-alerts-message-row{transform:translateX(114px)}
+
+/* RIVYZA: galería de cambio de cuenta */
+.rivyza-account-switcher{padding:14px 6px 20px}.rivyza-account-hint{font-size:13px;opacity:.72;text-align:center;margin:10px 0 20px}.rivyza-account-gallery{display:flex;gap:17px;overflow-x:auto;padding:12px 6px 18px;scroll-snap-type:x proximity;align-items:flex-start}.rivyza-account-tile{display:flex;flex-direction:column;align-items:center;gap:7px;flex:0 0 95px;min-width:0;scroll-snap-align:start}.rivyza-account-avatar-button{width:78px;height:78px;border:2px solid rgba(180,180,200,.4);border-radius:50%;background:#26212f;color:white;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0;cursor:pointer}.rivyza-account-avatar-button.active{border:3px solid #ad49ff;box-shadow:0 0 0 3px rgba(173,73,255,.18)}.rivyza-account-avatar-button img{width:100%;height:100%;object-fit:cover}.rivyza-account-add{border-style:dashed}.rivyza-account-name{font-size:12px;font-weight:650;text-align:center;max-width:95px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rivyza-account-active{font-size:10px;color:#bba0ff}.rivyza-account-remove{font-size:11px;border:0;background:transparent;color:#bcb4c8;padding:4px;cursor:pointer}
+
+/* Panel de moderación del propietario */
+.rivyza-admin-dots{background:transparent;color:inherit;border:0;padding:8px;display:flex;align-items:center}
+.rivyza-admin-overlay{position:fixed;inset:0;z-index:99999;background:#000b;display:flex;align-items:center;justify-content:center;padding:16px}
+.rivyza-admin-card{background:#191622;color:#fff;border:1px solid #524663;border-radius:18px;width:min(100%,520px);max-height:90dvh;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:10px}
+.rivyza-admin-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:18px}
+.rivyza-admin-head button{background:transparent;color:#fff;border:0;font-size:22px}
+.rivyza-admin-card textarea,.rivyza-admin-item textarea{width:100%;min-height:75px;border-radius:10px;padding:10px;color:#fff;background:#292334;border:1px solid #6b5878;resize:vertical}
+.rivyza-admin-card button:not(.rivyza-admin-head button),.rivyza-admin-item button{background:#7533b9;color:#fff;border:0;border-radius:9px;padding:10px;cursor:pointer}
+.rivyza-admin-card button:disabled{opacity:.45;cursor:not-allowed}
+.rivyza-admin-item{border:1px solid #51465c;padding:12px;border-radius:12px;display:flex;flex-direction:column;gap:8px}
+.rivyza-admin-item p{overflow-wrap:anywhere;margin:0}.rivyza-admin-item small{color:#aaa}
+.rivyza-admin-error{color:#ff9292}.rivyza-admin-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* RIVYZA 13.19.43: infracciones públicas y avisos oficiales */
+.rivyza-public-strikes{display:flex;align-items:center;justify-content:center;gap:5px;margin:5px auto;color:#ff405c;font-weight:800}.rivyza-public-strikes>span{font-size:22px}.rivyza-public-strikes small{font-size:11px;color:#d4cbd5;font-weight:500;margin-left:5px}.rivyza-moderation-alert{display:flex;flex-direction:column;gap:5px;text-align:left;width:100%;border:1px solid #663349;background:#251923;color:white;padding:12px;border-radius:12px;margin-top:8px;overflow-wrap:anywhere}.rivyza-moderation-alert strong{color:#ff6681}.rivyza-moderation-alert small{opacity:.7}
+
+/* v13.19.45 — bandeja independiente de notificaciones oficiales */
+.rivyza-official-row{border-bottom:1px solid rgba(255,255,255,.12);padding:4px 0 12px}
+.rivyza-official-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:0 12px}
+.rivyza-official-actions button{border:1px solid rgba(255,255,255,.25);border-radius:9px;padding:8px 10px;background:transparent;color:inherit;font-size:12px}
+/* RIVYZA v13.19.48: LIVE de hasta diez cámaras */
+.rivyza-live-studio{position:fixed;inset:0;background:#07050e;color:#fff;z-index:1000;overflow-y:auto;display:flex;flex-direction:column;font-family:inherit}
+.rivyza-live-top{display:flex;align-items:center;justify-content:space-between;padding:14px 15px;background:#120a1d;gap:10px}
+.rivyza-live-top button{background:transparent;border:0;color:#fff;font-size:16px}
+.rivyza-live-top strong{font-size:18px;letter-spacing:1px}
+.rivyza-live-top strong span{background:#ef204d;border-radius:4px;padding:2px 5px}
+.rivyza-live-top small{color:#b6a9c8}
+.rivyza-live-message{margin:10px 14px;padding:10px;border:1px solid #784366;border-radius:10px;background:#2c1830;color:#ffd0e0}
+.rivyza-live-lobby{padding:20px 15px;display:flex;flex-direction:column;gap:12px}
+.rivyza-live-start{display:block;margin:15px auto;background:linear-gradient(110deg,#f60055,#a73cff);color:white;font-weight:800;border:0;border-radius:30px;padding:14px 20px;max-width:95%;cursor:pointer}
+.rivyza-live-room-card{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:17px;border:1px solid #472955;border-radius:12px;color:white;background:#1a1028}
+.rivyza-live-room-card small{margin-left:auto;color:#e2bff8}
+.rivyza-live-red-dot{height:10px;width:10px;border-radius:50%;background:#f03}
+.rivyza-live-stage{flex:1;display:flex;flex-direction:column;gap:10px;padding:6px;min-height:0}
+.rivyza-live-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(5,minmax(85px,1fr));gap:3px;height:min(74dvh,850px);width:100%;overflow:hidden}
+.rivyza-live-tile{position:relative;overflow:hidden;background:linear-gradient(140deg,#211333,#080811);border:1px solid #382646;border-radius:7px;min-width:0}
+.rivyza-live-tile video{object-fit:cover!important;width:100%;height:100%}
+.rivyza-live-tile>span{position:absolute;bottom:6px;left:7px;font-size:11px;text-shadow:0 1px 3px #000}
+.rivyza-live-vacant{display:flex;align-items:center;justify-content:center;color:#9d8cae;font-size:13px}
+.rivyza-live-vacant span{position:static;text-shadow:none}
+.rivyza-live-controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:9px}
+.rivyza-live-controls button,.rivyza-live-join-camera,.rivyza-live-request-list button{color:#fff;background:#40245d;border:1px solid #a850d6;border-radius:22px;padding:9px 12px}
+.rivyza-live-join-camera{display:block;margin:auto}
+.rivyza-live-request-list{background:#1a1028;border-radius:10px;padding:12px;margin:8px}
+.rivyza-live-request-list h3{margin:0 0 8px;font-size:15px}
+.rivyza-live-request-list>div{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0}
+.rivyza-live-request-list small{color:#b9acc8}
+@media (min-width:700px){.rivyza-live-grid{grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));height:min(75vh,680px)}}
+
+/* RIVYZA v13.19.50 — LIVE 2+4+4 square layout */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square {display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:3px!important;width:100%!important;height:auto!important;max-width:100%!important;align-items:stretch!important}
+.rivyza-live-grid-square .rivyza-live-tile.rivyza-live-square {grid-column:span 1!important;position:relative!important;display:block!important;width:100%!important;min-width:0!important;height:auto!important;aspect-ratio:1/1!important;overflow:hidden!important;border-radius:5px!important;background:#1b1526!important}
+.rivyza-live-grid-square .rivyza-live-tile.rivyza-live-square:nth-child(-n+2){grid-column:span 2!important}
+.rivyza-live-grid-square .rivyza-live-square .lk-participant-tile{width:100%!important;height:100%!important;aspect-ratio:auto!important;overflow:hidden!important}
+.rivyza-live-grid-square .rivyza-live-square video{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center center!important;transform:none!important}
+.rivyza-live-grid-square .rivyza-live-camera-name{position:absolute!important;bottom:4px!important;left:4px!important;z-index:5!important;background:#0009!important;color:white!important;font-size:11px!important;padding:2px 5px!important;border-radius:4px!important}
+.rivyza-live-grid-square .rivyza-live-picked{outline:3px solid #e22cf8!important;outline-offset:-3px!important}
+.rivyza-live-grid-square .rivyza-live-vacant{display:flex!important;align-items:center!important;justify-content:center!important}
+.rivyza-live-bottom-bar{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:10px 0}
+.rivyza-live-bottom-bar button,.rivyza-live-bottom-drawer button{background:#31243d;color:white;border:1px solid #574369;border-radius:10px;padding:10px;font-size:13px}
+.rivyza-live-bottom-drawer{position:relative;background:#211629;color:#fff;border-radius:18px 18px 8px 8px;padding:14px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -4px 20px #0006}
+.rivyza-live-drawer-handle{width:45px;height:4px;background:#9d8ca8;border-radius:6px;align-self:center}
+.rivyza-live-bottom-drawer .rivyza-live-power-row{display:flex;align-items:center;gap:12px;text-align:left}
+.rivyza-live-power-icon{display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;background:#ff102d;color:white;border-radius:12px;font-size:32px;box-shadow:0 0 15px #ff102d99}
+.rivyza-live-hint{font-size:12px;color:#f0d7ff;text-align:center}
+.rivyza-live-confirm-overlay{position:fixed;inset:0;z-index:99999;background:#000b;display:flex;align-items:center;justify-content:center;padding:20px}
+.rivyza-live-confirm-box{background:#251a32;color:#fff;border-radius:16px;padding:22px;width:min(100%,370px);text-align:center;display:flex;flex-direction:column;gap:22px}
+.rivyza-live-confirm-box>div{display:flex;gap:10px;justify-content:center}
+.rivyza-live-confirm-box button{padding:11px 14px;border-radius:9px;background:#52415c;color:white}
+.rivyza-live-confirm-box .rivyza-live-confirm-yes{background:#ff102d;color:#fff}
+
+/* v13.19.51 camera-stage enhancements */
+.rivyza-live-avatar-fallback{width:100%;height:100%;display:grid;place-items:center;background:radial-gradient(circle at center,#563568,#191022);font-size:45px}
+.rivyza-live-grid-square.rivyza-live-solo{grid-template-columns:1fr!important}
+.rivyza-live-grid-square.rivyza-live-solo .rivyza-live-tile.rivyza-live-square:first-child{grid-column:span 1!important;aspect-ratio:9/16!important;max-height:72dvh!important}
+.rivyza-live-slot-picker{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rivyza-live-slot-picker select{background:#251c32;color:white;border:1px solid #776088;border-radius:9px;padding:8px}
+.rivyza-live-guest-exit{display:flex;justify-content:center;gap:8px;margin:8px 0}
+.rivyza-live-guest-exit button{background:#30243e;color:#fff;border:1px solid #6b5278;padding:9px;border-radius:10px}
+
+/* v13.19.51b: eight lower cameras slightly smaller, TikTok-inspired.
+   Keep two main cameras unchanged; preserve square video crops. */
+.rivyza-live-grid-square .rivyza-live-tile.rivyza-live-square:nth-child(n+3){
+  width:86%!important;
+  justify-self:center!important;
+  align-self:center!important;
+  aspect-ratio:1/1!important;
+}
+
+/* v13.19.51c — TikTok-inspired compact 2+4+4 layout, no giant blank rows */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square:not(.rivyza-live-solo){
+ grid-template-columns:repeat(4,minmax(0,1fr))!important;
+ grid-template-rows:none!important;
+ grid-auto-rows:max-content!important;
+ align-content:start!important;
+ gap:4px!important;
+ height:auto!important;
+ min-height:0!important;
+}
+.rivyza-live-grid-square .rivyza-live-tile.rivyza-live-square:nth-child(n+3){
+ width:100%!important;justify-self:stretch!important;align-self:start!important;
+ aspect-ratio:1/1!important;
+}
+.rivyza-live-stage{gap:5px!important;padding:5px!important;}
+.rivyza-live-request-list{position:fixed;left:8px;right:8px;bottom:max(12px,env(safe-area-inset-bottom));z-index:1010;
+ margin:0!important;padding:7px 10px!important;background:#21152ff5!important;border:1px solid #8056a4;
+ box-shadow:0 5px 24px #000b;max-height:35dvh;overflow:auto;}
+.rivyza-live-request-toggle{display:block;width:100%;text-align:left;background:#482368!important;color:#fff!important;border:0!important;font-weight:800;padding:10px!important;border-radius:8px!important;}
+.rivyza-live-request-body{padding:7px 3px 2px;}
+.rivyza-live-request-actions{display:flex;gap:5px;flex-shrink:0;}
+.rivyza-live-request-actions button{font-size:12px;padding:8px!important;}
+.rivyza-live-bottom-bar{margin-bottom:76px!important;}
+.rivyza-live-grid-square .rivyza-live-square .lk-participant-tile{min-height:0!important;}
+@media (max-width:390px){.rivyza-live-grid-square .rivyza-live-camera-name{font-size:9px!important;}}

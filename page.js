@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
+import LiveRoom from "./LiveRoom";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
   AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send
@@ -49,7 +50,7 @@ function formatPostDateTime(value){
 }
 
 
-const RIVYZA_EN={"Eliminar para mí":"Delete for me","Eliminar para todos":"Delete for everyone","¿Eliminar este mensaje para todos?":"Delete this message for everyone?","Solo puedes eliminar para todos tus mensajes durante los primeros 3 minutos.":"You can delete your messages for everyone only within the first 3 minutes.","No se pudo eliminar para todos.":"Could not delete for everyone.","Eliminar":"Delete","¿Eliminar este mensaje solo para ti?":"Delete this message only for you?","No se pudo eliminar el mensaje. Ejecuta el SQL de esta actualización en Supabase.":"Unable to delete the message. Run this update’s SQL in Supabase.","Seguridad y contraseña":"Security & password","Información de cuenta":"Account information","Cuenta privada":"Private account","Cuentas bloqueadas":"Blocked accounts","Estado en línea":"Online status","Quién puede enviarme mensajes":"Who can message me","Quién puede comentar":"Who can comment","Menciones y etiquetas":"Mentions & tags","Publicaciones que me gustan":"Liked posts","Lista de seguidos":"Following list","Apariencia":"Appearance","Preferencias de notificaciones":"Notification preferences","Cambiar de cuenta":"Switch account","Próximamente":"Coming soon","Ver perfil":"View profile","Enlace copiado":"Link copied","Cuenta":"Account","Compartir perfil":"Share profile","Preferencias":"Preferences","Notificaciones":"Notifications","Sesión":"Session","Cerrar sesión":"Log out","¿Quieres cerrar sesión?":"Do you want to log out?","Inicio": "Home", "Amigos": "Friends", "Alertas": "Notifications", "Perfil": "Profile", "Para ti": "For You", "Conexiones": "Connections", "Todos los usuarios": "All users", "Comunidad": "Community", "Buscar conexiones": "Search connections", "Buscar usuarios": "Search users", "Siguiendo": "Following", "Seguidores": "Followers", "Te sigue": "Follows you", "Seguir": "Follow", "Enviar mensaje": "Send message", "Editar perfil": "Edit profile", "Me gusta": "Liked posts", "Privacidad": "Privacy", "Configuración y privacidad": "Settings & privacy", "Mostrar cuando estoy en línea": "Show when I am online", "Cuando esté desactivado, nadie verá tu punto verde.": "When disabled, nobody will see your green dot.", "Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.": "Your preference is saved. When enabled, others can see your green dot while you are online.", "Actividad y seguidores": "Activity & followers", "Mensajes": "Messages", "Buscar personas para enviar un mensaje": "Find people to message", "Buscar personas": "Find people", "Ver todos ›": "See all ›", "Publicación": "Post", "Compartir": "Share", "Más": "More", "Publicar": "Post", "Publicando…": "Posting…", "Guardar": "Save", "Cancelar": "Cancel", "Eliminar": "Delete", "Volver": "Back", "Cerrar": "Close", "Foto": "Photo", "Video": "Video", "Fotos": "Photos", "Videos": "Videos", "Buscar": "Search", "Nombre": "Name", "Usuario": "User", "Usuarios registrados": "Registered users", "En línea": "Online", "Solo tú puedes ver las publicaciones a las que les has dado like.": "Only you can see the posts you have liked.", "Tus fotos y videos aparecerán aquí": "Your photos and videos will appear here", "Aún no has dado me gusta a ninguna publicación.": "You have not liked any posts yet.", "Cargando tus me gusta…": "Loading your liked posts…", "No se pudieron cargar tus me gusta.": "Could not load your liked posts.", "Idioma de la aplicación": "App language", "Idioma": "Language", "Español": "Spanish", "Inglés": "English", "Configuración": "Settings", "Continuar con Google": "Continue with Google", "Escribe un mensaje…": "Write a message…", "Enviar": "Send", "Amigos, personas que sigues y personas que te siguen.": "Friends, people you follow, and people who follow you.", "No hay resultados.": "No results.", "No hay usuarios.": "No users.", "Comentarios": "Comments", "Comentar": "Comment", "Publicaciones": "Posts", "Cambiar idioma": "Change language", "Mis me gusta": "My liked posts", "Solo yo": "Only me", "No hay conexiones.": "No connections."};
+const RIVYZA_EN={"Eliminar para mí":"Delete for me","Eliminar para todos":"Delete for everyone","¿Eliminar este mensaje para todos?":"Delete this message for everyone?","Solo puedes eliminar para todos tus mensajes durante los primeros 3 minutos.":"You can delete your messages for everyone only within the first 3 minutes.","No se pudo eliminar para todos.":"Could not delete for everyone.","Eliminar":"Delete","¿Eliminar este mensaje solo para ti?":"Delete this message only for you?","No se pudo eliminar el mensaje. Ejecuta el SQL de esta actualización en Supabase.":"Unable to delete the message. Run this update’s SQL in Supabase.","Seguridad y contraseña":"Security & password","Información de cuenta":"Account information","Cuenta privada":"Private account","Cuentas bloqueadas":"Blocked accounts","Estado en línea":"Online status","Quién puede enviarme mensajes":"Who can message me","Todos":"Everyone","Nadie":"Nobody","Solo personas que se siguen mutuamente.":"Only people who follow each other.","Cualquier usuario puede enviarte mensajes.":"Anyone can message you.","Nadie puede enviarte mensajes nuevos.":"Nobody can send you new messages.","Quién puede comentar":"Who can comment","Cualquiera puede comentar tus publicaciones.":"Anyone can comment on your posts.","Solo tus amigos pueden comentar.":"Only mutual followers can comment.","Nadie puede comentar tus publicaciones.":"Nobody can comment on your posts.","Menciones y etiquetas":"Mentions & tags","Publicaciones que me gustan":"Liked posts","Lista de seguidos":"Following list","Apariencia":"Appearance","Preferencias de notificaciones":"Notification preferences","Cambiar de cuenta":"Switch account","Próximamente":"Coming soon","Ver perfil":"View profile","Enlace copiado":"Link copied","Cuenta":"Account","Compartir perfil":"Share profile","Preferencias":"Preferences","Notificaciones":"Notifications","Sesión":"Session","Cerrar sesión":"Log out","¿Quieres cerrar sesión?":"Do you want to log out?","Inicio": "Home", "Amigos": "Friends", "Alertas": "Notifications", "Perfil": "Profile", "Para ti": "For You", "Conexiones": "Connections", "Todos los usuarios": "All users", "Comunidad": "Community", "Buscar conexiones": "Search connections", "Buscar usuarios": "Search users", "Siguiendo": "Following", "Seguidores": "Followers", "Te sigue": "Follows you", "Seguir": "Follow", "Enviar mensaje": "Send message", "Editar perfil": "Edit profile", "Me gusta": "Liked posts", "Privacidad": "Privacy", "Configuración y privacidad": "Settings & privacy", "Mostrar cuando estoy en línea": "Show when I am online", "Cuando esté desactivado, nadie verá tu punto verde.": "When disabled, nobody will see your green dot.", "Esta opción guarda tu preferencia. Cuando actives esta opción, tus conexiones podrán ver tu punto verde mientras estés en línea.": "Your preference is saved. When enabled, others can see your green dot while you are online.", "Actividad y seguidores": "Activity & followers", "Mensajes": "Messages", "Buscar personas para enviar un mensaje": "Find people to message", "Buscar personas": "Find people", "Ver todos ›": "See all ›", "Publicación": "Post", "Compartir": "Share", "Más": "More", "Publicar": "Post", "Publicando…": "Posting…", "Guardar": "Save", "Cancelar": "Cancel", "Eliminar": "Delete", "Volver": "Back", "Cerrar": "Close", "Foto": "Photo", "Video": "Video", "Fotos": "Photos", "Videos": "Videos", "Buscar": "Search", "Nombre": "Name", "Usuario": "User", "Usuarios registrados": "Registered users", "En línea": "Online", "Solo tú puedes ver las publicaciones a las que les has dado like.": "Only you can see the posts you have liked.", "Tus fotos y videos aparecerán aquí": "Your photos and videos will appear here", "Aún no has dado me gusta a ninguna publicación.": "You have not liked any posts yet.", "Cargando tus me gusta…": "Loading your liked posts…", "No se pudieron cargar tus me gusta.": "Could not load your liked posts.", "Idioma de la aplicación": "App language", "Idioma": "Language", "Español": "Spanish", "Inglés": "English", "Configuración": "Settings", "Continuar con Google": "Continue with Google", "Escribe un mensaje…": "Write a message…", "Enviar": "Send", "Amigos, personas que sigues y personas que te siguen.": "Friends, people you follow, and people who follow you.", "No hay resultados.": "No results.", "No hay usuarios.": "No users.", "Comentarios": "Comments", "Comentar": "Comment", "Publicaciones": "Posts", "Cambiar idioma": "Change language", "Mis me gusta": "My liked posts", "Quién puede ver mis Me gusta":"Who can see my likes", "Solo mis amigos pueden ver las publicaciones que me gustan.":"Only my friends can see posts I like.", "Cualquier usuario puede ver las publicaciones que me gustan.":"Anyone can see posts I like.", "Nadie más puede ver las publicaciones que me gustan.":"Only you can see posts you like.", "Solo yo": "Only me", "No hay conexiones.": "No connections."};
 
 export default function HomePage(){
   const countryCodes=["AD","AE","AF","AG","AI","AL","AM","AO","AQ","AR","AS","AT","AU","AW","AX","AZ","BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR","BS","BT","BV","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM","CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ","EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR","GA","GB","GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GS","GT","GU","GW","GY","HK","HM","HN","HR","HT","HU","ID","IE","IL","IM","IN","IO","IQ","IR","IS","IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY","KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD","ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU","MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR","NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT","PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SH","SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ","TC","TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ","UA","UG","UM","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE","YT","ZA","ZM","ZW"];
@@ -75,6 +76,63 @@ export default function HomePage(){
     }):null;
   },[]);
 
+  // Cuenta seleccionada: cada sesión se guarda en el navegador de este dispositivo.
+  // Nunca guardar contraseñas; Supabase administra los tokens y su renovación.
+  const ACCOUNTS_KEY="rivyza-device-accounts-v1";
+  const ACTIVE_KEY="rivyza-device-active-v1";
+  const AUTH_KEY=`sb-${(process.env.NEXT_PUBLIC_SUPABASE_URL||"").split("//").pop().split(".")[0]}-auth-token`;
+  const [savedAccounts,setSavedAccounts]=useState([]);
+  const [accountBusy,setAccountBusy]=useState(false);
+  const [accountError,setAccountError]=useState("");
+  const readAccounts=()=>{try{return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)||"[]").filter(a=>a&&a.id&&a.session);}catch{return [];}};
+  const rememberAccount=(session)=>{
+    if(!session?.user?.id||!session?.refresh_token)return;
+    try{
+      const existing=readAccounts();
+      const u=session.user;
+      const entry={id:u.id,name:u.user_metadata?.full_name||u.user_metadata?.name||u.email?.split("@")[0]||"Cuenta",email:u.email||"",avatar:u.user_metadata?.avatar_url||u.user_metadata?.picture||"",session};
+      const updated=[...existing.filter(a=>a.id!==u.id),entry].slice(-5);
+      localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(updated));
+      localStorage.setItem(ACTIVE_KEY,u.id);
+      setSavedAccounts(updated);
+    }catch(e){console.warn("No se pudo recordar cuenta",e);}
+  };
+  useEffect(()=>{
+    setSavedAccounts(readAccounts());
+    if(!supabase)return;
+    supabase.auth.getSession().then(({data})=>{if(data?.session)rememberAccount(data.session);});
+    const {data}=supabase.auth.onAuthStateChange((event,session)=>{
+      if(session && ["SIGNED_IN","TOKEN_REFRESHED","USER_UPDATED","INITIAL_SESSION"].includes(event))rememberAccount(session);
+    });
+    return()=>data.subscription.unsubscribe();
+  },[supabase]);
+  async function switchSavedAccount(item){
+    if(!supabase||accountBusy)return;
+    setAccountBusy(true);setAccountError("");
+    try{
+      const {data,error}=await supabase.auth.setSession({access_token:item.session.access_token,refresh_token:item.session.refresh_token});
+      if(error||data?.user?.id!==item.id)throw error||new Error("No se pudo verificar esta cuenta");
+      rememberAccount(data.session);
+      // Reiniciar estado de perfiles, mensajes y suscripciones de la cuenta anterior.
+      window.location.reload();
+    }catch(e){setAccountError("La sesión de esta cuenta venció. Agrégala nuevamente iniciando sesión.");setAccountBusy(false);}
+  }
+  async function addSavedAccount(){
+    if(accountBusy)return;
+    try{
+      const {data}=await supabase.auth.getSession();
+      if(data?.session)rememberAccount(data.session);
+      // Salir de la sesión activa del navegador sin revocar las sesiones guardadas.
+      localStorage.removeItem(AUTH_KEY);
+      localStorage.removeItem(ACTIVE_KEY);
+      window.location.reload();
+    }catch(e){setAccountError("No se pudo abrir el inicio de sesión.");}
+  }
+  function removeSavedAccount(item){
+    if(item.id===user?.id){setAccountError("Para quitar la cuenta activa, primero cambia a otra cuenta.");return;}
+    const updated=readAccounts().filter(a=>a.id!==item.id);
+    localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(updated));setSavedAccounts(updated);
+  }
   const [appLanguage,setAppLanguage]=useState("es");
   useEffect(()=>{try{setAppLanguage(localStorage.getItem("rivyza-language")==="en"?"en":"es");}catch(e){}},[]);
   const changeAppLanguage=(value)=>{setAppLanguage(value);try{localStorage.setItem("rivyza-language",value);}catch(e){}};
@@ -88,14 +146,56 @@ export default function HomePage(){
   const [hiddenMessageIds,setHiddenMessageIds]=useState([]);
   const [conversationCutoffs,setConversationCutoffs]=useState({});
   const [swipedConversationId,setSwipedConversationId]=useState(null);
+  const [privatePeers,setPrivatePeers]=useState([]);
+  const [privateUnlocked,setPrivateUnlocked]=useState(false);
+  const [privatePin,setPrivatePin]=useState("");
+  const [privateConfirm,setPrivateConfirm]=useState("");
+  const [privateMode,setPrivateMode]=useState("unlock");
+  const [privateStatus,setPrivateStatus]=useState({configured:false,locked_until:null});
+  const [privateError,setPrivateError]=useState("");
+  const [privateSwipeId,setPrivateSwipeId]=useState(null);
   const conversationSwipeStartRef=useRef(null);
   const [swipedMessageId,setSwipedMessageId]=useState(null);
   const swipeStartRef=useRef(null);
   const [socialPeer,setSocialPeer]=useState(null);
+  // Compartir v13.19.26: estado independiente del visor y de los mensajes.
+  const [sharePost,setSharePost]=useState(null);
+  const [sharePeople,setSharePeople]=useState([]);
+  const [shareSearch,setShareSearch]=useState("");
+  const [shareSelected,setShareSelected]=useState([]);
+  const [shareLoading,setShareLoading]=useState(false);
+  const [shareSending,setShareSending]=useState(false);
+  const [shareError,setShareError]=useState("");
+  const [shareSuccess,setShareSuccess]=useState("");
+  const sharePrivate=sharePost?.visibility && sharePost.visibility!=="public";
+  const shareUrl=sharePost?.id && typeof window!=="undefined"?`${window.location.origin}/?post=${encodeURIComponent(sharePost.id)}`:"";
+
   const [socialChatReturnView,setSocialChatReturnView]=useState("alerts");
   const [socialInboxReturnView,setSocialInboxReturnView]=useState("alerts");
   const [profileReturnToChat,setProfileReturnToChat]=useState(false);
   const [settingsSheet,setSettingsSheet]=useState("");
+  const [communityPrivacy,setCommunityPrivacy]=useState({followers:"everyone",following:"only_me",mentions:"everyone"});
+  const [communityPrivacyError,setCommunityPrivacyError]=useState("");
+  const [reportTarget,setReportTarget]=useState(null);
+  const [reportReason,setReportReason]=useState("harassment");
+  const [reportDetails,setReportDetails]=useState("");
+  const [reportBusy,setReportBusy]=useState(false);
+  const [reportFeedback,setReportFeedback]=useState("");
+  const [helpQuery,setHelpQuery]=useState("");
+  const [messagePrivacy,setMessagePrivacy]=useState("everyone");
+  const [messagePrivacyBusy,setMessagePrivacyBusy]=useState(false);
+  const [messagePrivacyError,setMessagePrivacyError]=useState("");
+  const [commentPrivacy,setCommentPrivacy]=useState("everyone");
+  const [likesPrivacy,setLikesPrivacy]=useState("only_me");
+  const [likesPrivacyBusy,setLikesPrivacyBusy]=useState(false);
+  const [likesPrivacyError,setLikesPrivacyError]=useState("");
+  const [viewedLikedPosts,setViewedLikedPosts]=useState([]);
+  const [viewedLikesAllowed,setViewedLikesAllowed]=useState(false);
+  const [viewedLikesLoading,setViewedLikesLoading]=useState(false);
+  const [viewedProfileTab,setViewedProfileTab]=useState("posts");
+  const [commentPrivacyBusy,setCommentPrivacyBusy]=useState(false);
+  const [commentPrivacyError,setCommentPrivacyError]=useState("");
+  const [postCommentPrivacy,setPostCommentPrivacy]=useState("everyone");
   const [blockedUsers,setBlockedUsers]=useState([]);
   const [blockedProfiles,setBlockedProfiles]=useState({});
   const [blockedProfilesLoading,setBlockedProfilesLoading]=useState(false);
@@ -110,8 +210,7 @@ export default function HomePage(){
   const [phoneBusy,setPhoneBusy]=useState(false);
   const [phoneError,setPhoneError]=useState("");
   const [passwordEmail,setPasswordEmail]=useState("");
-  const [savedAccounts,setSavedAccounts]=useState([]);
-  useEffect(()=>{try{setAppearance(localStorage.getItem("rivyza-appearance")||"dark");setSavedAccounts(JSON.parse(localStorage.getItem("rivyza-saved-accounts")||"[]"));}catch(e){}},[]);
+  useEffect(()=>{try{const saved=localStorage.getItem("rivyza-appearance");setAppearance(["dark","light","auto"].includes(saved)?saved:"dark");}catch(e){}},[]);
   useEffect(()=>{if(typeof document!=="undefined")document.documentElement.dataset.rivyzaAppearance=appearance;},[appearance]);
   const changeAppearance=(next)=>{setAppearance(next);try{localStorage.setItem("rivyza-appearance",next);}catch(e){}};
   const dialingCodes={US:"1",DO:"1",PR:"1",CA:"1",MX:"52",CO:"57",ES:"34",AR:"54",BR:"55",CL:"56",PE:"51",VE:"58",EC:"593",GB:"44",FR:"33",DE:"49",IT:"39",IN:"91",PK:"92",ID:"62",PH:"63",AU:"61",JP:"81",KR:"82",NG:"234",ZA:"27",HT:"509",JM:"1",PA:"507",CR:"506",GT:"502",SV:"503",HN:"504",NI:"505",CU:"53",UY:"598",PY:"595",BO:"591"};
@@ -157,6 +256,67 @@ export default function HomePage(){
   const socialThreadRef=useRef(null);
   const unreadSocial=socialNotices.filter(n=>!n.read_at).length;
   const [user,setUser]=useState(null);
+  // Moderación: las acciones reales se autorizan en funciones SQL, nunca por este botón.
+  const [adminOwner,setAdminOwner]=useState(false);
+  const [adminPanel,setAdminPanel]=useState(false);
+  const [adminTarget,setAdminTarget]=useState(null);
+  const [adminStrikes,setAdminStrikes]=useState([]);
+  const [adminLiveStatus,setAdminLiveStatus]=useState(null);
+  const [adminSuspended,setAdminSuspended]=useState([]);
+  const [adminCases,setAdminCases]=useState([]);
+  const [adminReason,setAdminReason]=useState("");
+  const [adminReply,setAdminReply]=useState("");
+  const [adminBusy,setAdminBusy]=useState(false);
+  const [adminError,setAdminError]=useState("");
+  const [adminInbox,setAdminInbox]=useState(false);
+  const [adminUnread,setAdminUnread]=useState(0);
+  const [myInfractions,setMyInfractions]=useState([]);
+  const [publicStrikeCount,setPublicStrikeCount]=useState(0);
+  const [moderationLoadError,setModerationLoadError]=useState("");
+  const [appealDrafts,setAppealDrafts]=useState({});
+  const [adminNotice,setAdminNotice]=useState([]);
+  async function adminRpc(fn,args={}){const {data,error}=await supabase.rpc(fn,args);if(error)throw error;return data;}
+  async function adminRefresh(target=adminTarget){
+    if(!supabase||!target?.id)return;
+    const [strikes,cases]=await Promise.all([adminRpc("rivyza_admin_strikes",{p_target:target.id}),adminRpc("rivyza_admin_cases",{p_target:target.id})]);
+    setAdminStrikes(strikes||[]);setAdminCases(cases||[]);
+    try{setAdminLiveStatus(await adminRpc("rivyza_admin_live_status",{p_target:target.id}));}catch(e){setAdminLiveStatus(null);setAdminError("Control LIVE no disponible: ejecuta el SQL v13.19.42.");}
+  }
+  async function adminOpen(target){setAdminError("");setAdminTarget(target);setAdminPanel(true);setAdminInbox(false);try{await adminRefresh(target);}catch(e){setAdminError(e.message||"Error cargando moderación");}}
+  async function adminDo(fn,args){setAdminBusy(true);setAdminError("");try{await adminRpc(fn,args);if(adminInbox){const cases=await adminRpc("rivyza_admin_cases",{});setAdminCases(cases||[]);}else await adminRefresh();setAdminReason("");setAdminReply("");}catch(e){setAdminError(e.message||"No se pudo completar");}finally{setAdminBusy(false);}}
+  async function adminOpenInbox(){setAdminError("");setAdminTarget(null);setAdminPanel(true);setAdminInbox(true);try{const rows=await adminRpc("rivyza_admin_cases",{});setAdminCases(rows||[]);try{setAdminSuspended(await adminRpc("rivyza_admin_suspended_live"));}catch(e){setAdminSuspended([]);}}catch(e){setAdminError(e.message||"No se pudo cargar la bandeja");}}
+  useEffect(()=>{if(!supabase||!user?.id){setAdminOwner(false);return;}let live=true;
+    supabase.rpc("rivyza_is_owner").then(({data,error})=>{if(live)setAdminOwner(!error&&data===true);});
+    return()=>{live=false;};
+  },[supabase,user?.id]);
+  useEffect(()=>{if(!supabase||!user?.id)return;let live=true;
+    const refresh=async()=>{const [a,b,c]=await Promise.all([
+      supabase.from("rivyza_moderation_notices").select("id,body,created_at,read_at,strike_id").eq("recipient_id",user.id).is("hidden_at",null).order("created_at",{ascending:false}).limit(40),
+      supabase.rpc("rivyza_my_strikes"),
+      adminOwner?supabase.rpc("rivyza_admin_unread_count"):Promise.resolve({data:0,error:null})
+    ]);if(live){if(!a.error)setAdminNotice(a.data||[]);if(!b.error)setMyInfractions(b.data||[]);setModerationLoadError(a.error?.message||b.error?.message||"");if(!c.error)setAdminUnread(Number(c.data||0));}};
+    refresh();const id=setInterval(refresh,30000);return()=>{live=false;clearInterval(id);};
+  },[supabase,user?.id,adminOwner]);
+  async function markModerationRead(id){
+    // Actualizar lectura mediante RPC: la tabla no concede UPDATE directo al cliente.
+    const {error}=await supabase.rpc("rivyza_mark_moderation_notice_read",{p_notice:id});
+    if(!error)setAdminNotice(rows=>rows.map(n=>n.id===id?{...n,read_at:new Date().toISOString()}:n));
+    setSettingsSheet("Estado de cuenta");setView("settings");
+  }
+  async function hideModerationNotice(id){
+    if(!supabase||!user?.id)return;
+    if(!window.confirm("¿Eliminar este aviso de tu bandeja? La infracción y su historial permanecerán."))return;
+    const {data,error}=await supabase.rpc("rivyza_hide_moderation_notice",{p_notice:id});
+    if(error||data!==true){alert("No se pudo eliminar el aviso. Verifica que ejecutaste el SQL v13.19.45.");return;}
+    setAdminNotice(rows=>rows.filter(n=>n.id!==id));
+  }
+  async function readOfficialNotice(id){
+    const {error}=await supabase.rpc("rivyza_mark_moderation_notice_read",{p_notice:id});
+    if(!error)setAdminNotice(rows=>rows.map(n=>n.id===id?{...n,read_at:new Date().toISOString()}:n));
+  }
+  async function submitAppeal(id){const message=(appealDrafts[id]||"").trim();if(message.length<10){alert("Explica tu apelación (mínimo 10 caracteres).");return;}
+    try{await adminRpc("rivyza_appeal_strike",{p_strike:id,p_message:message});alert("Apelación enviada. Estado: En revisión.");setAppealDrafts(v=>({...v,[id]:""}));const {data}=await supabase.rpc("rivyza_my_strikes");setMyInfractions(data||[]);}catch(e){alert(e.message||"No se pudo enviar la apelación");}}
+
   useEffect(()=>{
     if(settingsSheet!=="Cuentas bloqueadas"||!supabase||!user?.id)return;
     let cancelled=false;
@@ -199,12 +359,20 @@ export default function HomePage(){
   const [commentsOpen,setCommentsOpen]=useState(false);
   const [commentRows,setCommentRows]=useState([]);
   const [commentDraft,setCommentDraft]=useState("");
+  const [mentionMatches,setMentionMatches]=useState([]);
+  const [mentionContext,setMentionContext]=useState(null);
+  const [mentionNotices,setMentionNotices]=useState([]);
   const [commentsLoading,setCommentsLoading]=useState(false);
   const [commentSending,setCommentSending]=useState(false);
   const [commentError,setCommentError]=useState("");
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
   const [viewedProfile,setViewedProfile]=useState(null);
+  useEffect(()=>{if(!supabase||!viewedProfile?.id||view!=="otherProfile")return;let active=true;
+    setPublicStrikeCount(0);
+    supabase.rpc("rivyza_public_strike_count",{p_target:viewedProfile.id}).then(({data,error})=>{if(active&&!error)setPublicStrikeCount(Number(data||0));});
+    return()=>{active=false;};
+  },[supabase,view,viewedProfile?.id]);
   const [viewedProfilePosts,setViewedProfilePosts]=useState([]);
   const [peopleSearchOpen,setPeopleSearchOpen]=useState(false);
   const [peopleSearch,setPeopleSearch]=useState("");
@@ -268,6 +436,10 @@ export default function HomePage(){
   const [recordSeconds,setRecordSeconds]=useState(0);
   const [recordLimit,setRecordLimit]=useState(60);
   const cameraVideoRef=useRef(null);
+  const [cameraZoom,setCameraZoom]=useState(1);
+  const [cameraZoomRange,setCameraZoomRange]=useState(null);
+  const cameraZoomGestureRef=useRef(null);
+  const cameraZoomTrackRef=useRef(null);
   const mediaRecorderRef=useRef(null);
   const recordedChunksRef=useRef([]);
   const recordTimerRef=useRef(null);
@@ -555,12 +727,42 @@ export default function HomePage(){
   }
   function openConnections(){setConnectionsSearch("");setConnectionsTab("mine");setView("connections");loadConnections();loadCommunity();}
 
+  useEffect(()=>{
+    if(!supabase||!user?.id)return;
+    let alive=true;
+    supabase.from("rivyza_community_preferences").select("followers,following,mentions").eq("user_id",user.id).maybeSingle().then(({data,error})=>{
+      if(alive&&!error&&data)setCommunityPrivacy({followers:data.followers,following:data.following,mentions:data.mentions});
+    });
+    return ()=>{alive=false;};
+  },[supabase,user?.id]);
+  async function saveCommunityPrivacy(key,value){
+    if(!supabase||!user?.id)return;
+    setCommunityPrivacyError("");
+    const {error}=await supabase.from("rivyza_community_preferences").upsert({user_id:user.id,[key]:value},{onConflict:"user_id"});
+    if(error){setCommunityPrivacyError("No se pudo guardar. Primero ejecuta el SQL v13.19.37.");return;}
+    setCommunityPrivacy(v=>({...v,[key]:value}));
+  }
+  function startReport(kind,id){
+    if(!user?.id){alert("Inicia sesión para reportar.");return;}
+    setReportTarget({kind,id});setReportReason("harassment");setReportDetails("");setReportFeedback("");setPostMenuOpen(false);
+  }
+  async function submitReport(){
+    if(!reportTarget||!supabase||!user?.id||reportBusy)return;
+    setReportBusy(true);setReportFeedback("");
+    const {error}=await supabase.from("rivyza_reports").insert({reporter_id:user.id,target_type:reportTarget.kind,target_id:reportTarget.id,reason:reportReason,details:reportDetails.trim().slice(0,1000)});
+    setReportBusy(false);
+    if(error){setReportFeedback("No se pudo enviar. Revisa el SQL de reportes. "+error.message);return;}
+    setReportTarget(null);alert("Reporte recibido. Gracias por ayudar a proteger RIVYZA.");
+  }
   async function openSocialList(profileId,type){
     if(!supabase || !profileId)return;
     setSocialListOpen(true);
     setSocialListTitle(type==="followers"?"Seguidores":"Siguiendo");
     setSocialListRows([]); setSocialListLoading(true);
     try{
+      // Verificar privacidad en el servidor antes de cargar perfiles.
+      const {data:allowed,error:permissionError}=await supabase.rpc("rivyza_can_view_social_list",{target_user:profileId,list_kind:type});
+      if(permissionError||!allowed){setSocialListRows([]);setSocialListTitle("Lista privada");return;}
       const filterColumn=type==="followers"?"following_id":"follower_id";
       const personColumn=type==="followers"?"follower_id":"following_id";
       const {data:links,error}=await supabase.from("follows").select(personColumn).eq(filterColumn,profileId);
@@ -945,7 +1147,42 @@ export default function HomePage(){
     setSelectedPost(post);setPostMenuOpen(false);setCommentsOpen(true);
     setCommentDraft("");setCommentRows([]);setCommentError("");
     setPostCommentCount(Number(post.comment_count||0));
+    setPostCommentPrivacy("everyone");
+    if(supabase&&post.user_id){
+      supabase.from("rivyza_comment_preferences").select("who_can_comment").eq("user_id",post.user_id).maybeSingle()
+        .then(({data})=>setPostCommentPrivacy(data?.who_can_comment||"everyone"));
+    }
     loadComments(post.id);
+  }
+  // Menciones: sugerencias en descripciones y comentarios, respetando privacidad.
+  useEffect(()=>{
+    if(!supabase||!user?.id||!mentionContext){setMentionMatches([]);return;}
+    const source=mentionContext==="comment"?commentDraft:uploadCaption;
+    const match=source.match(/(?:^|\s)@([a-zA-Z0-9_.]{1,30})$/);
+    if(!match){setMentionMatches([]);return;}
+    let active=true;
+    const timer=setTimeout(async()=>{
+      const {data,error}=await supabase.rpc("rivyza_search_mentionable",{search_term:match[1]});
+      if(active)setMentionMatches(error?[]:(data||[]));
+    },220);
+    return()=>{active=false;clearTimeout(timer);};
+  },[supabase,user?.id,mentionContext,commentDraft,uploadCaption]);
+  function pickMention(person){
+    if(!person?.username)return;
+    const update=old=>old.replace(/(^|\s)@[a-zA-Z0-9_.]{1,30}$/,(_,prefix)=>prefix+"@"+person.username+" ");
+    if(mentionContext==="comment")setCommentDraft(update);
+    else setUploadCaption(update);
+    setMentionMatches([]);
+    setMentionContext(null);
+  }
+  function mentionSuggestions(context){
+    return mentionContext===context&&mentionMatches.length>0?<div className="rivyza-mention-suggestions" role="listbox" aria-label="Usuarios para mencionar">{mentionMatches.map(person=><button type="button" role="option" aria-selected="false" key={person.id} onClick={()=>pickMention(person)}>@{person.username} <small>{person.display_name||""}</small></button>)}</div>:null;
+  }
+  function renderMentionText(value){
+    return String(value||"").split(/(@[a-zA-Z0-9_.]+)/g).map((part,index)=>{
+      if(!/^@[a-zA-Z0-9_.]+$/.test(part))return part;
+      return <button key={index} type="button" className="rivyza-mention-link" onClick={async(e)=>{e.stopPropagation();const {data}=await supabase.from("profiles").select("id,username,display_name,avatar_url").ilike("username",part.slice(1)).limit(1).maybeSingle();if(data&&data.username.toLowerCase()===part.slice(1).toLowerCase())openUserProfile(data);}}>{part}</button>;
+    });
   }
   async function sendComment(e){
     e?.preventDefault?.();
@@ -954,7 +1191,7 @@ export default function HomePage(){
     setCommentSending(true);setCommentError("");
     const postId=selectedPost.id;
     const {error}=await supabase.from("post_comments").insert({post_id:postId,user_id:user.id,body});
-    if(error){setCommentError("No se pudo enviar. Verifica que la tabla post_comments esté creada.");}
+    if(error){setCommentError(error.message?.includes("mención")?error.message:"No se pudo enviar el comentario. Es posible que el autor haya restringido quién puede comentar.");}
     else{setCommentDraft("");await loadComments(postId);}
     setCommentSending(false);
   }
@@ -976,15 +1213,17 @@ export default function HomePage(){
           {!commentsLoading&&!commentRows.length&&!commentError&&<p>Sé la primera persona en comentar.</p>}
           {commentRows.map(c=><div className="rivyza-comment" key={c.id}>
             <button type="button" className="rivyza-comment-avatar rivyza-comment-profile-link rivyza-presence-anchor" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id} aria-label={`Ver perfil de ${c.author?.display_name||c.author?.username||"usuario"}`}>{c.author?.avatar_url?<img src={c.author.avatar_url} alt=""/>:(c.author?.display_name||c.author?.username||"U").slice(0,1).toUpperCase()}{onlineDot(c.author?.id)}</button>
-            <div className="rivyza-comment-content"><button type="button" className="rivyza-comment-name rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id}>{c.author?.display_name||c.author?.username||"Usuario"}</button><span>{c.body}</span><small>{formatPostDate(c.created_at)}</small></div>
+            <div className="rivyza-comment-content"><button type="button" className="rivyza-comment-name rivyza-comment-profile-link" onClick={()=>openCommentAuthor(c.author)} disabled={!c.author?.id}>{c.author?.display_name||c.author?.username||"Usuario"}</button><span>{renderMentionText(c.body)}</span><small>{formatPostDate(c.created_at)}</small></div>
             {(c.user_id===user?.id||selectedPost?.user_id===user?.id)&&<button type="button" className="rivyza-comment-delete" onClick={()=>deleteComment(c.id)} aria-label="Eliminar comentario">{t("Eliminar")}</button>}
           </div>)}
         </div>
         {commentError&&<p className="rivyza-comment-error">{commentError}</p>}
+        {postCommentPrivacy==="nobody"&&selectedPost?.user_id!==user?.id?<p className="rivyza-comment-error">El autor desactivó los comentarios.</p>:null}
         <form className="rivyza-comment-compose" onSubmit={sendComment}>
-          <input aria-label="Escribir comentario" placeholder="Escribe un comentario…" value={commentDraft} maxLength={1000} onChange={e=>setCommentDraft(e.target.value)}/>
-          <button type="submit" disabled={!commentDraft.trim()||commentSending}>{commentSending?"Enviando…":"Enviar"}</button>
+          <input aria-label="Escribir comentario" placeholder="Escribe un comentario…" disabled={postCommentPrivacy==="nobody"&&selectedPost?.user_id!==user?.id} value={commentDraft} maxLength={1000} onChange={e=>{setCommentDraft(e.target.value);setMentionContext("comment");}}/>
+          <button type="submit" disabled={!commentDraft.trim()||commentSending||(postCommentPrivacy==="nobody"&&selectedPost?.user_id!==user?.id)}>{commentSending?"Enviando…":"Enviar"}</button>
         </form>
+        {mentionSuggestions("comment")}
       </div>
     </div>
   );}
@@ -1091,6 +1330,109 @@ export default function HomePage(){
       else if(viewedProfile?.id===selectedPost.user_id)loadProfileLikeCount(viewedProfile.id);
     }catch(e){setPostActionMessage("Los likes necesitan activar el SQL incluido en el paquete.");}
     finally{postLikeBusyRef.current=false;}
+  }
+
+  async function openShare(post){
+    if(!post?.id)return;
+    setSharePost(post);setShareSearch("");setShareSelected([]);setShareError("");setShareSuccess("");setSharePeople([]);
+    setPostMenuOpen(false);
+    if(!supabase || !user?.id)return;
+    setShareLoading(true);
+    try{
+      // Amigos: seguimiento mutuo. Consultamos los perfiles reales.
+      const [{data:following,error:e1},{data:followers,error:e2}]=await Promise.all([
+        supabase.from("follows").select("following_id").eq("follower_id",user.id),
+        supabase.from("follows").select("follower_id").eq("following_id",user.id)
+      ]);
+      if(e1||e2)throw e1||e2;
+      const incoming=new Set((followers||[]).map(x=>x.follower_id));
+      const friendIds=(following||[]).map(x=>x.following_id).filter(id=>incoming.has(id) && id!==user.id && !blockedUsers.includes(id));
+      if(friendIds.length){
+        const {data,error}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",friendIds.slice(0,150));
+        if(error)throw error;
+        setSharePeople((data||[]).sort((a,b)=>(a.display_name||a.username||"").localeCompare(b.display_name||b.username||"")));
+      }
+    }catch(e){setShareError("No se pudo cargar la lista de amigos: "+(e.message||"Error"));}
+    finally{setShareLoading(false);}
+  }
+  function toggleShareRecipient(id){setShareSelected(old=>old.includes(id)?old.filter(x=>x!==id):[...old,id]);setShareError("");}
+  async function sendSharedPost(){
+    if(!supabase||!user?.id||!sharePost?.id||!shareSelected.length||shareSending)return;
+    setShareSending(true);setShareError("");setShareSuccess("");
+    try{
+      // Revalidar la relación antes de enviar, y no permitir destinatarios bloqueados.
+      const [{data:out,error:outError},{data:incoming,error:inError}]=await Promise.all([
+        supabase.from("follows").select("following_id").eq("follower_id",user.id).in("following_id",shareSelected),
+        supabase.from("follows").select("follower_id").eq("following_id",user.id).in("follower_id",shareSelected)
+      ]);
+      if(outError||inError)throw outError||inError;
+      const a=new Set((out||[]).map(x=>x.following_id));
+      const b=new Set((incoming||[]).map(x=>x.follower_id));
+      const recipients=shareSelected.filter(id=>a.has(id)&&b.has(id)&&!blockedUsers.includes(id));
+      if(recipients.length!==shareSelected.length)throw new Error("Algún destinatario ya no está disponible como amigo.");
+      const rows=recipients.map(id=>({sender_id:user.id,recipient_id:id,body:"Te compartió una publicación",shared_post_id:sharePost.id}));
+      const {error}=await supabase.from("rivyza_messages").insert(rows);
+      if(error)throw error;
+      setShareSuccess(`Publicación enviada a ${recipients.length} ${recipients.length===1?"amigo":"amigos"}.`);
+      setShareSelected([]);
+      await loadSocial();
+    }catch(e){setShareError("No se pudo enviar: "+(e.message||"Error"));}
+    finally{setShareSending(false);}
+  }
+  async function shareOutside(){
+    if(!sharePost?.id)return;
+    if(sharePrivate){setShareError("Esta publicación no es pública. No se puede compartir fuera de RIVYZA.");return;}
+    const url=`${window.location.origin}/?post=${encodeURIComponent(sharePost.id)}`;
+    if(navigator.share){
+      try{await navigator.share({title:"RIVYZA",text:"Mira esta publicación en RIVYZA",url});}
+      catch(e){if(e?.name!=="AbortError")setShareError("No se pudo abrir el menú de compartir.");}
+    }else{
+      try{await navigator.clipboard.writeText(url);setShareSuccess("Enlace copiado. Puedes pegarlo en otra aplicación.");}
+      catch{setShareError("Tu navegador no permite compartir ni copiar el enlace.");}
+    }
+  }
+  async function copyShareLink(){
+    if(!sharePost?.id)return;
+    if(sharePrivate){setShareError("Esta publicación no es pública.");return;}
+    try{await navigator.clipboard.writeText(`${window.location.origin}/?post=${encodeURIComponent(sharePost.id)}`);setShareSuccess("Enlace copiado.");setShareError("");}
+    catch{setShareError("No se pudo copiar el enlace.");}
+  }
+  useEffect(()=>{
+    if(!user?.id||!supabase||typeof window==="undefined")return;
+    const postId=new URLSearchParams(window.location.search).get("post");
+    if(!postId)return;
+    let cancelled=false;
+    (async()=>{
+      const {data,error}=await supabase.from("posts").select("*").eq("id",postId).maybeSingle();
+      if(cancelled)return;
+      if(!error&&data){setView("home");openPost(data);}
+      else setPostActionMessage("La publicación no está disponible o no tienes permiso para verla.");
+      window.history.replaceState({},"",window.location.pathname);
+    })();
+    return()=>{cancelled=true;};
+  },[user?.id,supabase]);
+
+  function renderShareSheet(){
+    if(!sharePost)return null;
+    const people=sharePeople.filter(p=>`${p.display_name||""} ${p.username||""}`.toLocaleLowerCase().includes(shareSearch.trim().toLocaleLowerCase()));
+    return createPortal(<div className="rivyza-share-backdrop" onClick={()=>{if(!shareSending)setSharePost(null);}}>
+      <section className="rivyza-share-sheet" role="dialog" aria-modal="true" aria-label="Compartir publicación" onClick={e=>e.stopPropagation()}>
+        <div className="rivyza-share-grip"/><header><strong>Compartir publicación</strong><button type="button" onClick={()=>setSharePost(null)} aria-label="Cerrar"><X size={22}/></button></header>
+        <div className="rivyza-share-search"><Search size={19}/><input placeholder="Buscar amigos de RIVYZA" value={shareSearch} onChange={e=>setShareSearch(e.target.value)}/></div>
+        <h4>ENVIAR A AMIGOS</h4>
+        {shareLoading?<p className="rivyza-share-hint">Buscando amigos…</p>:people.length?<div className="rivyza-share-friends">{people.map(person=><button key={person.id} type="button" className={shareSelected.includes(person.id)?"chosen":""} onClick={()=>toggleShareRecipient(person.id)}><span className="rivyza-share-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:(person.display_name||person.username||"R").slice(0,1).toUpperCase()}{shareSelected.includes(person.id)&&<span className="rivyza-share-check"><Check size={13}/></span>}</span><small>{person.display_name||person.username||"Usuario"}</small></button>)}</div>:<p className="rivyza-share-hint">{shareSearch?"No hay amigos con ese nombre.":"Tus amigos (seguimiento mutuo) aparecerán aquí."}</p>}
+        {shareSelected.length>0&&<button type="button" className="rivyza-share-send" disabled={shareSending} onClick={sendSharedPost}><Send size={18}/>{shareSending?"Enviando…":`Enviar a ${shareSelected.length} ${shareSelected.length===1?"amigo":"amigos"}`}</button>}
+        <h4>COMPARTIR EN OTRAS APLICACIONES</h4>
+        <div className="rivyza-share-external">
+          <button type="button" onClick={shareOutside}><span className="rivyza-share-round"><Share2/></span><small>Más aplicaciones</small></button>
+          <button type="button" onClick={copyShareLink}><span className="rivyza-share-round"><LinkIcon/></span><small>Copiar enlace</small></button>
+        </div>
+        <p className="rivyza-share-hint">Al tocar «Más aplicaciones», tu teléfono mostrará WhatsApp, Facebook, Mensajes y otras aplicaciones compatibles que tengas instaladas.</p>
+        {sharePrivate&&<p className="rivyza-share-warning">Esta publicación no es pública. Los enlaces externos están desactivados.</p>}
+        {shareError&&<p className="rivyza-share-warning" role="alert">{shareError}</p>}
+        {shareSuccess&&<p className="rivyza-share-success" role="status">{shareSuccess}</p>}
+      </section>
+    </div>,document.body);
   }
 
   async function copyPostLink(){
@@ -1221,7 +1563,35 @@ export default function HomePage(){
   
 
 
+ async function applyCameraZoom(next){
+   const track=cameraZoomTrackRef.current;
+   const range=cameraZoomRange;
+   if(!track || !range)return;
+   const value=Math.max(range.min,Math.min(range.max,Number(next)));
+   try{
+     await track.applyConstraints({advanced:[{zoom:value}]});
+     setCameraZoom(value);
+   }catch(err){console.warn("Zoom no disponible:",err);}
+ }
+ function zoomGestureStart(e){
+   if(!cameraZoomRange)return;
+   const y=e.touches?.[0]?.clientY;
+   if(y!==undefined)cameraZoomGestureRef.current={y,zoom:cameraZoom};
+ }
+ function zoomGestureMove(e){
+   const start=cameraZoomGestureRef.current;
+   if(!start || !cameraZoomRange)return;
+   e.preventDefault();
+   const y=e.touches?.[0]?.clientY;
+   if(y===undefined)return;
+   const delta=(start.y-y)/240*(cameraZoomRange.max-cameraZoomRange.min);
+   applyCameraZoom(start.zoom+delta);
+ }
+
  async function stopCamera(){
+   cameraZoomTrackRef.current=null;
+   setCameraZoomRange(null);
+   setCameraZoom(1);
    if(cameraStream){
      cameraStream.getTracks().forEach(t=>t.stop());
    }
@@ -1248,6 +1618,18 @@ export default function HomePage(){
        audio:cameraMode==="video"
      });
 
+     const track=stream.getVideoTracks()[0];
+     cameraZoomTrackRef.current=track || null;
+     const caps=track?.getCapabilities?.();
+     const range=caps?.zoom;
+     if(range && Number.isFinite(range.min) && Number.isFinite(range.max) && range.max>range.min){
+       setCameraZoomRange({min:range.min,max:range.max});
+       const current=track.getSettings?.().zoom ?? Math.max(1,range.min);
+       setCameraZoom(current);
+     }else{
+       setCameraZoomRange(null);
+       setCameraZoom(1);
+     }
      setCameraStream(stream);
      setTimeout(()=>{
        if(cameraVideoRef.current){
@@ -1487,6 +1869,28 @@ export default function HomePage(){
                playsInline
              />
 
+             <div className="rivyza-camera-zoom" aria-label="Zoom de cámara">
+               {!cameraPanelCollapsed ? (
+                 <div className="rivyza-zoom-presets">
+                   {[0.5,1,2,4,8].map(level=>(
+                     <button key={level} type="button"
+                       disabled={!cameraZoomRange || level<cameraZoomRange.min || level>cameraZoomRange.max}
+                       className={Math.abs(cameraZoom-level)<0.12?"active":""}
+                       onClick={()=>applyCameraZoom(level)}>{level}×</button>
+                   ))}
+                 </div>
+               ) : cameraZoomRange ? (
+                 <div className="rivyza-zoom-swipe"
+                   onTouchStart={zoomGestureStart}
+                   onTouchMove={zoomGestureMove}
+                   onTouchEnd={()=>{cameraZoomGestureRef.current=null;}}
+                   onTouchCancel={()=>{cameraZoomGestureRef.current=null;}}
+                   aria-label="Desliza hacia arriba para acercar y abajo para alejar">
+                   <span>↕ {cameraZoom.toFixed(1)}×</span>
+                 </div>
+               ) : <span className="rivyza-zoom-unavailable">Zoom no disponible en este navegador</span>}
+             </div>
+
              <div className="camera-topbar">
                <button className="camera-icon-btn" onClick={async()=>{await stopCamera();setUploadOpen(false);}}>
                  <X size={30}/>
@@ -1591,7 +1995,7 @@ export default function HomePage(){
                <div className="camera-create-tabs">
                  <button className="active" type="button">POST</button>
                  <button type="button" onClick={()=>setUploadMessage("Crear estará disponible próximamente.")}>CREAR</button>
-                 <button type="button" onClick={()=>setUploadMessage("LIVE estará disponible próximamente.")}>LIVE</button>
+                 <button type="button" onClick={()=>{stopCamera();setUploadOpen(false);setView("liveStudio");}}>LIVE</button>
                </div>
              </div>
            </div>
@@ -1615,11 +2019,12 @@ export default function HomePage(){
              <span>Descripción</span>
              <textarea
                value={uploadCaption}
-               onChange={(e)=>setUploadCaption(e.target.value.slice(0,220))}
+               onChange={(e)=>{setUploadCaption(e.target.value.slice(0,220));setMentionContext("caption");}}
                placeholder="Escribe algo sobre tu publicación…"
                rows={3}
              />
              <small>{uploadCaption.length}/220</small>
+             {mentionSuggestions("caption")}
            </label>
 
            <label className="upload-field">
@@ -1747,6 +2152,61 @@ export default function HomePage(){
     }
   }
 
+  async function loadMentionNotices(){
+    if(!supabase||!user?.id)return;
+    const {data,error}=await supabase.from("rivyza_mention_notifications").select("id,actor_id,post_id,source_type,created_at,read_at").eq("recipient_id",user.id).order("created_at",{ascending:false}).limit(80);
+    if(error)return;
+    const actors=[...new Set((data||[]).map(n=>n.actor_id))];
+    const {data:profiles}=actors.length?await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",actors):{data:[]};
+    const byId=Object.fromEntries((profiles||[]).map(x=>[x.id,x]));
+    setMentionNotices((data||[]).map(n=>({...n,kind:"mention",actor:byId[n.actor_id]})));
+  }
+  async function openMentionNotice(notice){
+    const {error}=await supabase.from("rivyza_mention_notifications").update({read_at:new Date().toISOString()}).eq("id",notice.id).eq("recipient_id",user.id);
+    if(!error)setMentionNotices(old=>old.map(n=>n.id===notice.id?{...n,read_at:new Date().toISOString()}:n));
+    const {data:post}=await supabase.from("posts").select("*").eq("id",notice.post_id).maybeSingle();
+    if(!post){setSocialError("La publicación mencionada ya no está disponible.");return;}
+    setPostOpenedFromAlert(true);setProfileTab("posts");setView("publicProfile");await openPost(post);
+    if(notice.source_type==="comment")openComments(post);
+  }
+  async function loadPrivateStatus(){
+    if(!supabase||!user?.id)return;
+    const {data,error}=await supabase.rpc("rivyza_private_status");
+    if(!error&&data){setPrivateStatus(data);setPrivateMode(data.configured?"unlock":"create");}
+  }
+  async function unlockPrivate(){
+    setPrivateError("");
+    if(!/^\d{4}$/.test(privatePin)){setPrivateError("Introduce cuatro números.");return;}
+    if(privateMode==="create"){
+      if(privatePin!==privateConfirm){setPrivateError("Los PIN no coinciden.");return;}
+      const {error}=await supabase.rpc("rivyza_private_create_pin",{p_pin:privatePin});
+      if(error){
+        if(/Ya tienes un PIN configurado/i.test(error.message||"")){setPrivateMode("unlock");setPrivateConfirm("");await loadPrivateStatus();setPrivateError("Ya tienes un PIN. Introduce tus cuatro números para entrar.");return;}
+        setPrivateError(error.message);return;
+      }
+      const {data:createdUnlock,error:createdUnlockError}=await supabase.rpc("rivyza_private_unlock",{p_pin:privatePin});
+      if(createdUnlockError||!createdUnlock?.ok){setPrivateError("PIN creado, pero no se pudo desbloquear. Inténtalo de nuevo.");setPrivateMode("unlock");return;}
+    }else{
+      const {data,error}=await supabase.rpc("rivyza_private_unlock",{p_pin:privatePin});
+      if(error||!data?.ok){setPrivateError(data?.message||error?.message||"PIN incorrecto");await loadPrivateStatus();setPrivatePin("");return;}
+    }
+    setPrivatePin("");setPrivateConfirm("");setPrivateUnlocked(true);await loadPrivatePeers();setView("privateInbox");
+  }
+  async function loadPrivatePeers(){
+    const {data,error}=await supabase.rpc("rivyza_private_peers");
+    if(!error)setPrivatePeers((data||[]).map(x=>x.peer_id));
+  }
+  async function openPrivateInbox(){
+    setPrivateError("");setPrivatePin("");setPrivateConfirm("");setPrivateUnlocked(false);
+    await loadPrivateStatus();setView("privateGate");
+  }
+  async function togglePrivatePeer(peerId,makePrivate){
+    if(!window.confirm(makePrivate?"¿Mover toda esta conversación a Mensajes privados?":"¿Devolver esta conversación a Mensajes normales?"))return;
+    const {error}=await supabase.rpc("rivyza_private_set_peer",{p_peer_id:peerId,p_private:makePrivate});
+    if(error){setSocialError(error.message);return;}
+    setPrivatePeers(old=>makePrivate?[...new Set([...old,peerId])]:old.filter(id=>id!==peerId));
+    setPrivateSwipeId(null);setSwipedConversationId(null);
+  }
   async function loadSocial(){
     if(!supabase || !user?.id || socialPollBusy.current)return;
     socialPollBusy.current=true;
@@ -1769,6 +2229,8 @@ export default function HomePage(){
       if(!hidden.error)setHiddenMessageIds((hidden.data||[]).map(x=>x.message_id));
       if(!cleared.error)setConversationCutoffs(Object.fromEntries((cleared.data||[]).map(x=>[x.peer_id,x.cleared_at])));
       setSocialError("");
+      await loadMentionNotices();
+      await loadPrivatePeers();
     }catch(e){console.warn("RIVYZA social:",e);}finally{socialPollBusy.current=false;}
   }
   useEffect(()=>{
@@ -1929,7 +2391,7 @@ export default function HomePage(){
   },[]);
   async function openSocialPeer(person){
     if(!person?.id || person.id===user?.id)return;
-    setSocialChatReturnView(view==="alerts"?"alerts":view==="inbox"?"inbox":view==="messages"?socialChatReturnView:view==="otherProfile"?"otherProfile":view==="publicProfile"?"publicProfile":"alerts");
+    setSocialChatReturnView(view==="alerts"?"alerts":view==="inbox"?"inbox":view==="privateInbox"?"privateInbox":view==="messages"?socialChatReturnView:view==="otherProfile"?"otherProfile":view==="publicProfile"?"publicProfile":"alerts");
     resetVoice();setVoiceLinks({});setProfileReturnToChat(false);setSocialPeer(person);setSocialDraft("");setSocialError("");setView("messages");
     await markSocialRead(socialNotices.filter(n=>n.kind==="message" && n.actor_id===person.id && !n.read_at).map(n=>n.id));
     await loadSocial();
@@ -1949,7 +2411,7 @@ export default function HomePage(){
   function conversationSwipeProps(peerId){
     return {
       onTouchStart:e=>{conversationSwipeStartRef.current={id:peerId,x:e.touches[0].clientX,y:e.touches[0].clientY};},
-      onTouchEnd:e=>{const start=conversationSwipeStartRef.current;conversationSwipeStartRef.current=null;if(!start||start.id!==peerId)return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.abs(dy)>Math.abs(dx))return;if(dx< -55)setSwipedConversationId(peerId);else if(dx>35)setSwipedConversationId(null);}
+      onTouchEnd:e=>{const start=conversationSwipeStartRef.current;conversationSwipeStartRef.current=null;if(!start||start.id!==peerId)return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.abs(dy)>Math.abs(dx))return;if(dx< -55){setSwipedConversationId(peerId);setPrivateSwipeId(null);}else if(dx>55){setPrivateSwipeId(peerId);setSwipedConversationId(null);}}
     };
   }
   async function deleteSocialMessageForEveryone(message){
@@ -1981,6 +2443,15 @@ export default function HomePage(){
     else{setSocialDraft("");await loadSocial();}
     setSocialBusy(false);
   }
+  async function openSharedPostFromChat(postId){
+    if(!postId||!supabase)return;
+    setSocialError("");
+    const {data,error}=await supabase.from("posts").select("*").eq("id",postId).maybeSingle();
+    if(error||!data){setSocialError("La publicación no está disponible o no tienes permiso para verla.");return;}
+    setProfileReturnToChat(true);
+    setView("publicProfile");
+    await openPost(data);
+  }
   async function openNotificationPost(notice){
     if(!notice?.post_id || !supabase)return;
     setSocialError("");
@@ -1997,7 +2468,7 @@ export default function HomePage(){
   }
   function closeNotificationPost(){
     setCommentsOpen(false);setSelectedPost(null);setPostMenuOpen(false);
-    setPostOpenedFromAlert(false);setView("alerts");
+    setPostOpenedFromAlert(false);setView("activity");
   }
   function openSocialInbox(fromView){
     setSocialInboxReturnView(fromView === "alerts" ? "alerts" : "home");
@@ -2006,6 +2477,74 @@ export default function HomePage(){
   async function openSocialAlerts(){
     setView("alerts");await loadSocial();
   }
+  useEffect(()=>{
+    if(!supabase||!user?.id){setMessagePrivacy("everyone");return;}
+    let active=true;
+    supabase.from("rivyza_message_preferences").select("who_can_message").eq("user_id",user.id).maybeSingle()
+      .then(({data,error})=>{if(!active)return;if(error){setMessagePrivacyError("Configura primero el SQL de privacidad en Supabase.");return;}setMessagePrivacy(data?.who_can_message||"everyone");});
+    return ()=>{active=false;};
+  },[supabase,user?.id]);
+  async function saveMessagePrivacy(value){
+    if(!supabase||!user?.id||messagePrivacyBusy)return;
+    const previous=messagePrivacy;
+    setMessagePrivacy(value);setMessagePrivacyBusy(true);setMessagePrivacyError("");
+    const {error}=await supabase.from("rivyza_message_preferences").upsert({user_id:user.id,who_can_message:value,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+    if(error){setMessagePrivacy(previous);setMessagePrivacyError("No se pudo guardar. Ejecuta el archivo SQL en Supabase antes de usar esta opción.");}
+    setMessagePrivacyBusy(false);
+  }
+  useEffect(()=>{
+    if(!supabase||!user?.id){setCommentPrivacy("everyone");return;}
+    let active=true;
+    supabase.from("rivyza_comment_preferences").select("who_can_comment").eq("user_id",user.id).maybeSingle()
+      .then(({data,error})=>{if(!active)return;if(error){setCommentPrivacyError("Configura primero el SQL de comentarios en Supabase.");return;}setCommentPrivacy(data?.who_can_comment||"everyone");});
+    return ()=>{active=false;};
+  },[supabase,user?.id]);
+  async function saveCommentPrivacy(value){
+    if(!supabase||!user?.id||commentPrivacyBusy)return;
+    const previous=commentPrivacy;
+    setCommentPrivacy(value);setCommentPrivacyBusy(true);setCommentPrivacyError("");
+    const {error}=await supabase.from("rivyza_comment_preferences").upsert({user_id:user.id,who_can_comment:value,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+    if(error){setCommentPrivacy(previous);setCommentPrivacyError("No se pudo guardar. Ejecuta el SQL de comentarios en Supabase.");}
+    setCommentPrivacyBusy(false);
+  }
+  useEffect(()=>{
+    if(!supabase||!user?.id){setLikesPrivacy("only_me");return;}
+    let active=true;
+    supabase.from("rivyza_likes_preferences").select("who_can_see_likes").eq("user_id",user.id).maybeSingle().then(({data,error})=>{
+      if(!active)return;
+      if(error){setLikesPrivacyError("Ejecuta primero el SQL de privacidad de Me gusta.");return;}
+      setLikesPrivacy(data?.who_can_see_likes||"only_me");
+    });
+    return ()=>{active=false;};
+  },[supabase,user?.id]);
+  async function saveLikesPrivacy(value){
+    if(!supabase||!user?.id||likesPrivacyBusy)return;
+    const previous=likesPrivacy;
+    setLikesPrivacy(value);setLikesPrivacyBusy(true);setLikesPrivacyError("");
+    const {error}=await supabase.from("rivyza_likes_preferences").upsert({user_id:user.id,who_can_see_likes:value,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+    if(error){setLikesPrivacy(previous);setLikesPrivacyError("No se pudo guardar. Ejecuta el SQL de esta versión en Supabase.");}
+    setLikesPrivacyBusy(false);
+  }
+  useEffect(()=>{
+    if(view!=="otherProfile"||!viewedProfile?.id||!user?.id||!supabase)return;
+    let active=true;
+    setViewedLikedPosts([]);setViewedLikesAllowed(false);setViewedProfileTab("posts");setViewedLikesLoading(true);
+    supabase.rpc("rivyza_visible_liked_post_ids",{target_user:viewedProfile.id}).then(async({data,error})=>{
+      if(!active)return;
+      if(error){setViewedLikesLoading(false);return;}
+      setViewedLikesAllowed((data||[]).some(x=>x.post_id===null));
+      const ids=(data||[]).map(x=>x.post_id).filter(Boolean);
+      if(!ids.length){setViewedLikesLoading(false);return;}
+      const posts=[];
+      for(let i=0;i<ids.length;i+=100){
+        const {data:rows,error:pe}=await supabase.from("posts").select("*").in("id",ids.slice(i,i+100));
+        if(pe)break;
+        posts.push(...(rows||[]));
+      }
+      if(active){const byId=new Map(posts.map(x=>[x.id,x]));setViewedLikedPosts(ids.map(id=>byId.get(id)).filter(x=>x&&x.visibility==="public"));setViewedLikesLoading(false);}
+    });
+    return ()=>{active=false;};
+  },[view,viewedProfile?.id,user?.id,supabase]);
   async function saveOnlinePreference(value){
     const {error}=await supabase.from("rivyza_presence_preferences").upsert({user_id:user.id,show_online:value,updated_at:new Date().toISOString()});
     if(!error)setOnlinePreference(value);else setSocialError(error.message);
@@ -2059,12 +2598,14 @@ export default function HomePage(){
   }
 
   
-  if(["alerts","activity","inbox","messages","socialSettings"].includes(view)){
+  if(["alerts","activity","officialNotices","inbox","privateInbox","privateGate","messages","socialSettings"].includes(view)){
     const conversations=new Map();
-    socialMessages.filter(m=>!hiddenMessageIds.includes(m.id)).forEach(m=>{const peer=m.sender_id===user.id?m.recipient:m.sender;if(peer?.id && (!conversationCutoffs[peer.id] || new Date(m.created_at)>new Date(conversationCutoffs[peer.id])) && !conversations.has(peer.id))conversations.set(peer.id,{peer,last:m});});
+    [...socialMessages].filter(m=>!hiddenMessageIds.includes(m.id)).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).forEach(m=>{const peer=m.sender_id===user.id?m.recipient:m.sender;if(peer?.id && (!conversationCutoffs[peer.id] || new Date(m.created_at)>new Date(conversationCutoffs[peer.id])) && !conversations.has(peer.id))conversations.set(peer.id,{peer,last:m});});
     // Mensajes y actividad son dos bandejas independientes.
     // Cada remitente ocupa una sola fila; el último mensaje decide su posición.
-    const recentConversations=[...conversations.values()].sort((a,b)=>new Date(b.last.created_at)-new Date(a.last.created_at));
+    const allConversations=[...conversations.values()].sort((a,b)=>new Date(b.last.created_at)-new Date(a.last.created_at));
+    const recentConversations=allConversations.filter(x=>!privatePeers.includes(x.peer.id));
+    const privateConversations=allConversations.filter(x=>privatePeers.includes(x.peer.id));
     const unreadBySender=new Map();
     socialNotices.forEach(n=>{
       if(n.kind==="message" && n.actor_id && !n.read_at){
@@ -2072,8 +2613,11 @@ export default function HomePage(){
       }
     });
     const unreadMessages=[...unreadBySender.values()].reduce((sum,count)=>sum+count,0);
-    const activityAlerts=socialNotices.filter(n=>n.kind!=="message");
-    const activityUnread=activityAlerts.filter(n=>!n.read_at).length;
+    // Solo cuenta notificaciones no leídas de conversaciones clasificadas como privadas.
+    const privateUnreadCount=[...unreadBySender.entries()].reduce((total,[peerId,count])=>total+(privatePeers.includes(peerId)?count:0),0);
+    const activityAlerts=socialNotices.filter(n=>n.kind!=="message").sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    const activityUnread=activityAlerts.filter(n=>!n.read_at).length+mentionNotices.filter(n=>!n.read_at).length;
+    const officialUnread=adminNotice.filter(n=>!n.read_at).length;
     async function openActivityNotice(n){
       if(n.kind==="like"||n.kind==="comment"){await openNotificationPost(n);return;}
       await markSocialRead([n.id]);
@@ -2081,26 +2625,68 @@ export default function HomePage(){
     }
     const thread=socialMessages.filter(m=>!hiddenMessageIds.includes(m.id) && socialPeer && (!conversationCutoffs[socialPeer.id] || new Date(m.created_at)>new Date(conversationCutoffs[socialPeer.id])) && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     return <main className="social-screen">
-      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"?"alerts":view==="inbox"?socialInboxReturnView:"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="inbox"?"Mensajes":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>openSocialInbox(view)} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
+      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"||view==="officialNotices"?"alerts":view==="inbox"?socialInboxReturnView:view==="privateInbox"||view==="privateGate"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="officialNotices"?"Notificaciones de RIVYZA":view==="inbox"?"Mensajes":view==="privateInbox"||view==="privateGate"?"Mensajes privados":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>openSocialInbox(view)} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
       {socialError&&<p className="social-error">{socialError}</p>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
-        <section className="rivyza-alert-messages" aria-label="Mensajes privados">
-          <div className="rivyza-alert-section-heading"><span><MessageCircle size={20}/> <strong>{t("Mensajes")}</strong></span>{unreadMessages>0&&<b className="rivyza-message-count">{unreadMessages>99?"99+":unreadMessages} nuevos</b>}<button type="button" onClick={()=>openSocialInbox(view)}>{t("Ver todos ›")}</button></div>
-          {recentConversations.length===0?<button className="rivyza-alert-empty-chat" onClick={()=>openSocialInbox(view)}>Todavía no tienes mensajes. Abrir bandeja ›</button>:recentConversations.map(({peer,last})=><div className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")} key={peer.id} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button className="rivyza-alert-conversation" onClick={()=>{if(swipedConversationId===peer.id){setSwipedConversationId(null);return;}openSocialPeer(peer);}}>
-            <span className="rivyza-alert-avatar rivyza-presence-anchor">{peer.avatar_url?<img src={peer.avatar_url} alt=""/>:<span>{(peer.display_name||peer.username||"U").slice(0,1).toUpperCase()}</span>}{onlineDot(peer.id)}</span>
-            <span className="rivyza-alert-chat-copy"><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.sender_id===user.id?"Tú: ":""}{last.body}</small></span>
-            <span className="rivyza-alert-chat-meta"><small>{formatPostDateTime(last.created_at)}</small>{unreadBySender.get(peer.id)>0&&<b>{unreadBySender.get(peer.id)>99?"99+":unreadBySender.get(peer.id)}</b>}</span>
-          </button></div>)}
-        </section>
+        
+
+        <div className="rivyza-alerts-messages-heading"><strong>Mensajes</strong><button type="button" onClick={()=>openSocialInbox("alerts")}>Ver todos ›</button></div>
+        {recentConversations.length===0?<p className="social-empty">Todavía no tienes mensajes normales.</p>:recentConversations.map(({peer,last})=><div key={"alert-message-"+peer.id} className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")+(privateSwipeId===peer.id?" is-private-open":"")} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button type="button" className="rivyza-conversation-make-private" onClick={()=>togglePrivatePeer(peer.id,true)}>Privado 🔒</button><button type="button" className={"rivyza-alerts-message-row"+(unreadBySender.has(peer.id)?" is-unread":"")} onClick={()=>{if(swipedConversationId===peer.id||privateSwipeId===peer.id){setSwipedConversationId(null);setPrivateSwipeId(null);return;}openSocialPeer(peer);}}>
+          <span className="rivyza-alerts-message-avatar">{peer.avatar_url?<img src={peer.avatar_url} alt="" loading="lazy"/>:<User size={22}/>}</span>
+          <span className="rivyza-alerts-message-info"><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.audio_path?"🎤 Mensaje de voz":last.body||"Mensaje"}</small></span>
+          {unreadBySender.has(peer.id)?<b className="rivyza-message-count">{Math.min(unreadBySender.get(peer.id),99)}{unreadBySender.get(peer.id)>99?"+":""}</b>:<span className="rivyza-alerts-message-time">{formatPostDateTime(last.created_at)}</span>}
+        </button></div>)}
+        <button type="button" className="rivyza-activity-entry" onClick={openPrivateInbox}>
+          <span className="rivyza-activity-logo"><Lock size={21}/></span>
+          <span className="rivyza-activity-copy"><strong>Mensajes privados</strong><small>Acceso con PIN de 4 dígitos</small></span>{privateUnreadCount>0&&<b className="rivyza-message-count" aria-label={`${privateUnreadCount} mensajes privados sin leer`}>{privateUnreadCount>99?"99+":privateUnreadCount}</b>}<span aria-hidden="true">›</span>
+        </button>
         <button type="button" className="rivyza-activity-entry" onClick={()=>setView("activity")}>
           <span className="rivyza-activity-logo"><Heart size={20}/><User size={16}/></span>
           <span className="rivyza-activity-copy"><strong>{t("Actividad y seguidores")}</strong><small>Likes, comentarios y seguidores</small></span>
           {activityUnread>0&&<b className="rivyza-message-count">{activityUnread>99?"99+":activityUnread}</b>}
           <span aria-hidden="true">›</span>
         </button>
+        <button type="button" className="rivyza-activity-entry" onClick={()=>setView("officialNotices")}>
+          <span className="rivyza-activity-logo">🛡️</span>
+          <span className="rivyza-activity-copy"><strong>Notificaciones de RIVYZA</strong><small>Infracciones, apelaciones y avisos oficiales</small></span>
+          {officialUnread>0&&<b className="rivyza-message-count">{officialUnread>99?"99+":officialUnread}</b>}
+          <span aria-hidden="true">›</span>
+        </button>
+      </div>}
+      {view==="privateGate"&&<section className="rivyza-private-gate">
+        <Lock size={36}/><h3>{privateMode==="create"?"Crear PIN privado":"Introduce tu PIN"}</h3>
+        <p>Protege tus conversaciones con cuatro números.</p>
+        {privateStatus.locked_until&&new Date(privateStatus.locked_until)>new Date()&&<p className="social-error">Acceso bloqueado hasta {new Date(privateStatus.locked_until).toLocaleString()}.</p>}
+        <input type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} placeholder="PIN de 4 números" value={privatePin} onChange={e=>setPrivatePin(e.target.value.replace(/\D/g,"").slice(0,4))}/>
+        {privateMode==="create"&&<input type="password" inputMode="numeric" maxLength={4} placeholder="Confirma el PIN" value={privateConfirm} onChange={e=>setPrivateConfirm(e.target.value.replace(/\D/g,"").slice(0,4))}/>}
+        {privateError&&<p className="social-error">{privateError}</p>}
+        <button type="button" disabled={privatePin.length!==4||(privateMode==="create"&&privateConfirm.length!==4)||(privateStatus.locked_until&&new Date(privateStatus.locked_until)>new Date())} onClick={unlockPrivate}> {privateMode==="create"?"Crear y entrar":"Desbloquear"}</button>
+        <p className="rivyza-private-hint">¿Olvidaste tu PIN? Por ahora solicita recuperación verificada al soporte de RIVYZA. No compartas tu contraseña ni tu PIN.</p>
+      </section>}
+      {view==="privateInbox"&&privateUnlocked&&<div className="social-list">
+        {privateConversations.map(({peer,last})=><div className="rivyza-conversation-swipe" key={peer.id}>
+          <button className="social-item" onClick={()=>openSocialPeer(peer)}><span className="social-icon"><Lock size={19}/></span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.audio_path?"🎤 Mensaje de voz":last.body}</small></span></button>
+          <button type="button" className="rivyza-private-restore" onClick={()=>togglePrivatePeer(peer.id,false)}>Devolver a normales</button>
+        </div>)}
+        {!privateConversations.length&&<p className="social-empty">Todavía no tienes conversaciones privadas.</p>}
+      </div>}
+      {view==="officialNotices"&&<div className="social-list rivyza-activity-list">
+        {adminNotice.length===0&&<p className="social-empty">No tienes notificaciones oficiales de RIVYZA.</p>}
+        {[...adminNotice].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(n=><div key={"official-"+n.id} className="rivyza-official-row">
+          <div className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")}>
+            <span className="rivyza-notice-avatar">🛡️</span>
+            <span className="rivyza-notice-copy"><strong>{n.read_at?"RIVYZA · Aviso oficial":"🔴 RIVYZA · Nuevo aviso"}</strong><span>{n.body}</span><small>{formatPostDateTime(n.created_at)}</small></span>
+          </div>
+          <div className="rivyza-official-actions">
+            {!n.read_at&&<button type="button" onClick={()=>readOfficialNotice(n.id)}>Marcar como leído</button>}
+            {n.strike_id&&<button type="button" onClick={()=>{readOfficialNotice(n.id);setSettingsSheet("Estado de cuenta");setView("settings");}}>Ver estado de cuenta</button>}
+            <button type="button" onClick={()=>hideModerationNotice(n.id)}>Eliminar</button>
+          </div>
+        </div>)}
       </div>}
       {view==="activity"&&<div className="social-list rivyza-activity-list">
-        {activityAlerts.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
+        {activityAlerts.length===0&&mentionNotices.length===0&&<p className="social-empty">Todavía no tienes actividad.</p>}
+        {[...mentionNotices].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(n=><button key={"mention-"+n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openMentionNotice(n)}><span className="rivyza-notice-avatar">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt=""/>:<AtSign size={23}/>}</span><span className="rivyza-notice-copy"><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong><span>Te mencionó en {n.source_type==="comment"?"un comentario":"una publicación"}.</span><small>{formatPostDateTime(n.created_at)}</small></span><AtSign size={21}/></button>)}
         {activityAlerts.map(n=><button key={n.id} type="button" className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")} onClick={()=>openActivityNotice(n)}>
           <span className="rivyza-notice-avatar rivyza-presence-anchor">{n.actor?.avatar_url?<img src={n.actor.avatar_url} alt="" loading="lazy"/>:<User size={24}/>}{onlineDot(n.actor?.id)}</span>
           <span className="rivyza-notice-copy"><strong>{n.actor?.display_name||n.actor?.username||"Usuario"}</strong><span>{n.kind==="like"?"Le dio like a tu publicación.":n.kind==="comment"?"Comentó tu publicación.":n.kind==="follow"?"Comenzó a seguirte.":n.kind==="unfollow"?"Dejó de seguirte.":"Nueva actividad."}</span><small>{formatPostDateTime(n.created_at)}</small></span>
@@ -2109,8 +2695,8 @@ export default function HomePage(){
       </div>}
       {view==="inbox"&&<div className="social-list">
         <button className="social-quick" onClick={()=>{setView("home");setPeopleSearchOpen(true);}}>+ Buscar personas para enviar un mensaje</button>
-        {recentConversations.map(({peer,last})=><div className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")} key={peer.id} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button className="social-item" onClick={()=>{if(swipedConversationId===peer.id){setSwipedConversationId(null);return;}openSocialPeer(peer);}}><span className="social-icon rivyza-presence-anchor">{peer.avatar_url?<img className="rivyza-inbox-photo" src={peer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(peer.id)}</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.audio_path?"🎤 Mensaje de voz":last.body}</small></span></button></div>)}
-        {conversations.size===0&&<p className="social-empty">Aún no tienes conversaciones. Visita el perfil de una persona y toca «Enviar mensaje».</p>}
+        {recentConversations.map(({peer,last})=><div className={"rivyza-conversation-swipe"+(swipedConversationId===peer.id?" is-open":"")+(privateSwipeId===peer.id?" is-private-open":"")} key={peer.id} {...conversationSwipeProps(peer.id)}><button type="button" className="rivyza-conversation-delete" onClick={()=>clearSocialConversation(peer.id)}>{t("Eliminar")}</button><button type="button" className="rivyza-conversation-make-private" onClick={()=>togglePrivatePeer(peer.id,true)}>Privado 🔒</button><button className="social-item" onClick={()=>{if(swipedConversationId===peer.id||privateSwipeId===peer.id){setSwipedConversationId(null);setPrivateSwipeId(null);return;}openSocialPeer(peer);}}><span className="social-icon rivyza-presence-anchor">{peer.avatar_url?<img className="rivyza-inbox-photo" src={peer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(peer.id)}</span><span><strong>{peer.display_name||peer.username||"Usuario"}</strong><small>{last.audio_path?"🎤 Mensaje de voz":last.body}</small></span></button></div>)}
+        {recentConversations.length===0&&<p className="social-empty">Aún no tienes conversaciones. Visita el perfil de una persona y toca «Enviar mensaje».</p>}
       </div>}
       {view==="messages"&&<section className="social-chat-layout"><button type="button" className="rivyza-chat-peer rivyza-chat-peer-link" onClick={()=>{if(socialPeer?.id){setProfileReturnToChat(true);openUserProfile(socialPeer);}}} aria-label={t("Ver perfil")}><span className="rivyza-chat-peer-avatar rivyza-presence-anchor">{socialPeer?.avatar_url?<img src={socialPeer.avatar_url} alt=""/>:<User size={21}/>} {onlineDot(socialPeer?.id)}</span><strong>{socialPeer?.display_name||socialPeer?.username||"Usuario"}</strong><span className="rivyza-chat-chevron">›</span></button><div className="social-thread" ref={socialThreadRef}>
         {thread.map(m=><div key={m.id} className={"rivyza-swipe-row "+(m.sender_id===user.id?"mine":"theirs")+ (swipedMessageId===m.id?" is-open":"")}
@@ -2119,7 +2705,7 @@ export default function HomePage(){
           <div className="rivyza-swipe-actions"><button type="button" onClick={()=>hideSocialMessage(m.id)}>{t("Eliminar para mí")}</button>{m.sender_id===user.id&&Date.now()-new Date(m.created_at).getTime()<180000&&<button type="button" className="rivyza-delete-everyone" onClick={()=>deleteSocialMessageForEveryone(m)}>{t("Eliminar para todos")}</button>}</div>
           <div className={"social-bubble"+(m.audio_path?" rivyza-audio-message":"")}>{m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
             {Array.from({length:30},(_,i)=><span key={i} className={i/30<=(voiceProgress[m.id]||0)?"played":""} style={{height:(6+Math.round(Math.abs(Math.sin((i+1)*1.71)*Math.cos((i+2)*.49))*18))+"px"}}/>)}
-          </div><small>{Math.min(60,m.audio_duration||0)}s</small></div>:<p>{m.body}</p>}{m.shared_post_id&&<small>Publicación compartida</small>}<small>{formatPostDateTime(m.created_at)}</small></div>
+          </div><small>{Math.min(60,m.audio_duration||0)}s</small></div>:<p>{m.body}</p>}{m.shared_post_id&&<button type="button" className="rivyza-shared-post-open" onClick={()=>openSharedPostFromChat(m.shared_post_id)}><Share2 size={16}/> Ver publicación compartida</button>}<small>{formatPostDateTime(m.created_at)}</small></div>
         </div>)}
         {thread.length===0&&<p className="social-empty">Inicia una conversación.</p>}
       </div><div className="rivyza-voice-composer">{voiceStage==="idle"?<form className="social-compose" onSubmit={e=>{e.preventDefault();sendSocialMessage();}}><div className="rivyza-voice-input"><input value={socialDraft} onChange={e=>setSocialDraft(e.target.value)} placeholder={t("Escribe un mensaje…")} maxLength={2000}/><button type="button" className="rivyza-mic-button" onClick={startVoice} aria-label="Grabar mensaje de voz"><Mic size={22}/></button></div><button type="submit" disabled={!socialDraft.trim()||socialBusy}>{t("Enviar")}</button></form>:<div className="rivyza-record-panel"><div className="rivyza-record-wave"><span className={voiceStage==="recording"?"rivyza-record-dot":""}>{voiceStage==="recording"?"●":"🎤"}</span><span className="rivyza-record-levels" aria-label="Nivel de voz">{voiceLevels.map((height,i)=><span key={i} style={{height:(voiceStage==="recording"?height:6+Math.round(Math.abs(Math.sin(i*1.73))*17))+"px"}}/>)}</span><strong>{String(Math.floor(voiceSeconds/60)).padStart(2,"0")}:{String(voiceSeconds%60).padStart(2,"0")}</strong><small>/ 1:00</small></div>{voiceStage==="preview"&&voiceUrl&&<div className="rivyza-voice-preview-custom"><audio ref={voicePreviewRef} preload="metadata" src={voiceUrl} onLoadedMetadata={e=>setVoicePreviewDuration(Number.isFinite(e.currentTarget.duration)?e.currentTarget.duration:voiceSeconds)} onDurationChange={e=>{if(Number.isFinite(e.currentTarget.duration))setVoicePreviewDuration(e.currentTarget.duration);}} onTimeUpdate={e=>setVoicePreviewTime(e.currentTarget.currentTime)} onPlay={()=>setVoicePreviewPlaying(true)} onPause={()=>setVoicePreviewPlaying(false)} onEnded={()=>{setVoicePreviewPlaying(false);setVoicePreviewTime(0);}}/><button type="button" className="rivyza-preview-play" aria-label={voicePreviewPlaying?"Pausar audio":"Reproducir audio"} onClick={()=>{const a=voicePreviewRef.current;if(!a)return;if(a.paused){a.play().catch(()=>setVoicePreviewPlaying(false));}else a.pause();}}>{voicePreviewPlaying?<Pause size={19}/>:<Play size={19}/>}</button><span className="rivyza-preview-time">{String(Math.floor(voicePreviewTime/60)).padStart(2,"0")}:{String(Math.floor(voicePreviewTime%60)).padStart(2,"0")}</span><input type="range" min="0" max={Math.max(.1,voicePreviewDuration||voiceSeconds)} step="0.1" value={Math.min(voicePreviewTime,Math.max(.1,voicePreviewDuration||voiceSeconds))} aria-label="Adelantar o retroceder audio" onChange={e=>{const a=voicePreviewRef.current;if(a){a.currentTime=Number(e.target.value);setVoicePreviewTime(a.currentTime);}}}/><span className="rivyza-preview-time">{String(Math.floor((voicePreviewDuration||voiceSeconds)/60)).padStart(2,"0")}:{String(Math.floor((voicePreviewDuration||voiceSeconds)%60)).padStart(2,"0")}</span></div>}<div className="rivyza-record-actions"><button type="button" onClick={resetVoice} disabled={voiceSending}><Trash2 size={17}/> {t("Cancelar")}</button>{voiceStage==="recording"?<><button type="button" onClick={stopVoice}><Square size={16}/> Stop</button></>:<button type="button" onClick={sendVoice} disabled={voiceSending}><Send size={17}/> {voiceSending?"Enviando…":t("Enviar")}</button>}</div></div>}</div></section>}
@@ -2131,34 +2717,97 @@ export default function HomePage(){
         <div className="rivyza-settings-section-title">{t("Privacidad")}</div>
         <div className="rivyza-settings-group">
           {[["Cuenta privada",Lock],["Cuentas bloqueadas",Ban]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
-          <label className="rivyza-settings-toggle"><span><strong>{t("Estado en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></label>
-          {[["Quién puede enviarme mensajes",MessageCircle],["Quién puede comentar",MessageSquare],["Menciones y etiquetas",AtSign],["Publicaciones que me gustan",Heart],["Lista de seguidos",Users]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
+          <div className="rivyza-settings-toggle rivyza-online-row"><span><strong>{t("Estado en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" aria-label={t("Estado en línea")} checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></div>
+          {[["Quién puede enviarme mensajes",MessageCircle],["Quién puede comentar",MessageSquare],["Quién puede mencionarme",AtSign],["Quién puede ver mis Me gusta",Heart],["Quién puede ver quién me sigue",Users],["Quién puede ver a quién sigo",Users]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
         </div>
         <div className="rivyza-settings-section-title">{t("Preferencias")}</div>
         <div className="rivyza-settings-group">
           <button type="button" onClick={()=>setSettingsSheet("language")}><Languages size={21}/><span>{t("Idioma")}</span><em>{appLanguage==="es"?"Español":"English"}</em><b>›</b></button>
-          {[["Apariencia",Moon],["Preferencias de notificaciones",Bell]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
+          {[["Apariencia",Moon],["Preferencias de notificaciones",Bell]].map(([label,Icon])=><button type="button" key={label} onClick={e=>{e.stopPropagation();setSettingsSheet(label);}}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
         </div>
+        {adminOwner&&<div className="rivyza-settings-group"><button type="button" onClick={adminOpenInbox}><ShieldCheck size={21}/><span>Panel de administración {adminUnread>0?`(${adminUnread} pendientes)`:""}</span><b>›</b></button></div>}
+        <div className="rivyza-settings-section-title">Ayuda y comunidad</div>
+        <div className="rivyza-settings-group"><button type="button" onClick={()=>setSettingsSheet("Centro de Ayuda")}><ShieldCheck size={21}/><span>Centro de Ayuda y normas</span><b>›</b></button><button type="button" onClick={()=>setSettingsSheet("Estado de cuenta")}><ShieldCheck size={21}/><span>Estado de cuenta y sanciones</span><b>›</b></button></div>
         <div className="rivyza-settings-section-title">{t("Sesión")}</div>
         <div className="rivyza-settings-group">
           <button type="button" onClick={()=>setSettingsSheet("Cambiar de cuenta")}><RefreshCw size={21}/><span>{t("Cambiar de cuenta")}</span><b>›</b></button>
           <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={21}/><span>{t("Cerrar sesión")}</span></button>
         </div>
-        <p className="rivyza-settings-version">RIVYZA v13.19.20</p>
+        <p className="rivyza-settings-version">RIVYZA v13.19.37 (base)</p>
+
+      {adminPanel&&<div className="rivyza-admin-overlay" role="presentation" onClick={()=>setAdminPanel(false)}><div className="rivyza-admin-card" role="dialog" aria-modal="true" aria-label="Panel de administración" onClick={e=>e.stopPropagation()}>
+        <div className="rivyza-admin-head"><strong>{adminInbox?"Bandeja administrativa":`Administrar ${adminTarget?.display_name||adminTarget?.username||"usuario"}`}</strong><button type="button" onClick={()=>setAdminPanel(false)}>✕</button></div>
+        {adminError&&<p role="alert" className="rivyza-admin-error">{adminError}</p>}
+        {!adminInbox&&<><h3>Infracciones X ({adminStrikes.filter(x=>x.status==="active").length}/3)</h3>
+          <p>Las sanciones se registran con motivo y fecha. Tres X activas restringen LIVE.</p>
+          <textarea placeholder="Motivo obligatorio para poner una X (mínimo 10 caracteres)" value={adminReason} onChange={e=>setAdminReason(e.target.value)} />
+          <button disabled={adminBusy||adminReason.trim().length<10||adminStrikes.filter(x=>x.status==="active").length>=3} onClick={()=>{if(window.confirm("¿Asignar una X y notificar oficialmente al usuario?"))adminDo("rivyza_admin_add_strike",{p_target:adminTarget.id,p_reason:adminReason.trim()});}}>Poner X y enviar aviso RIVYZA</button>
+          <div className="rivyza-admin-actions"><button type="button" disabled={adminBusy||!adminStrikes.some(x=>x.status==="active")} onClick={()=>{const active=adminStrikes.filter(x=>x.status==="active");if(active.length===1){const reason=window.prompt("Motivo para quitar la X (mínimo 5 caracteres):");if(reason?.trim().length>=5&&window.confirm("¿Retirar esta X y avisar al usuario?"))adminDo("rivyza_admin_remove_strike",{p_strike:active[0].id,p_reason:reason.trim()});}else if(active.length>1){document.getElementById("rivyza-active-strikes")?.scrollIntoView({behavior:"smooth",block:"center"});}}}>Quitar X{adminStrikes.filter(x=>x.status==="active").length>1?" (elige cuál abajo)":""}</button></div>
+          {adminStrikes.every(x=>x.status!=="active")&&<p>No hay X activas para retirar en esta cuenta.</p>}
+          <div id="rivyza-active-strikes"><strong>Historial de infracciones</strong></div>
+          {adminStrikes.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"❌ X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p><small>{new Date(x.created_at).toLocaleString()}</small>{x.status==="active"&&<button disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo para retirar esta X:");if(reason?.trim().length>=5)adminDo("rivyza_admin_remove_strike",{p_strike:x.id,p_reason:reason.trim()});}}>Quitar X</button>}</div>)}
+          <div className="rivyza-admin-item"><h3>Control de LIVE</h3>
+            {adminLiveStatus?<><p><strong>Estado: {adminLiveStatus.allowed?"Permitido":"Suspendido"}</strong></p>
+            <p>{adminLiveStatus.manual_suspended?"Suspensión manual activa":adminLiveStatus.active_strikes>=3?"Suspensión por 3 X activas":"Sin suspensión"}</p>
+            {adminLiveStatus.manual_suspended?<button type="button" disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo para restaurar LIVE (mínimo 10 caracteres):");if(reason?.trim().length>=10&&window.confirm("¿Restaurar permiso manual de LIVE? Las 3 X activas siguen aplicando."))adminDo("rivyza_admin_set_live_suspension",{p_target:adminTarget.id,p_suspend:false,p_reason:reason.trim()});}}>Restaurar LIVE</button>
+            :<button type="button" disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo de suspensión LIVE (mínimo 10 caracteres):");if(reason?.trim().length>=10&&window.confirm("¿Suspender LIVE y notificar oficialmente a esta cuenta?"))adminDo("rivyza_admin_set_live_suspension",{p_target:adminTarget.id,p_suspend:true,p_reason:reason.trim()});}}>Suspender LIVE</button>}</>
+            :<p>Consulta de estado no disponible. Ejecuta el SQL de esta versión antes de utilizar estos controles.</p>}
+            <small>Esta suspensión debe verificarse también en el servidor que autoriza la entrada a LIVE y a invitados.</small></div>
+          <h3>Enviar mensaje oficial</h3><textarea value={adminReply} onChange={e=>setAdminReply(e.target.value)} placeholder="Mensaje de RIVYZA para este usuario"/><button disabled={adminBusy||adminReply.trim().length<2} onClick={()=>adminDo("rivyza_admin_send_notice",{p_target:adminTarget.id,p_body:adminReply.trim()})}>Enviar como RIVYZA</button>
+        </>}
+        {adminInbox&&<div className="rivyza-admin-item"><h3>Usuarios suspendidos de LIVE</h3>{adminSuspended.length===0?<p>No hay suspensiones registradas o no se pudo cargar la lista.</p>:adminSuspended.map(u=><div key={u.user_id}><strong>{u.username||u.user_id}</strong> · {u.reason||"3 X activas"} · {u.manual_suspended?"Manual":"Por infracciones"}</div>)}</div>}<h3>{adminInbox?"Reportes y apelaciones":"Apelaciones de esta cuenta"}</h3>
+        {adminCases.length===0&&<p>No hay casos pendientes.</p>}
+        {adminCases.map(c=><div className="rivyza-admin-item" key={c.id}><strong>{c.kind==="appeal"?"Apelación":"Reporte"} · {c.status==="in_review"?"En revisión":c.status}</strong><p>{c.body}</p><small>{new Date(c.created_at).toLocaleString()}</small>{adminInbox&&<p>Usuario: {c.user_id}</p>}{c.status==="in_review"&&<div className="rivyza-admin-actions"><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Respuesta oficial (motivo):");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:true,p_reply:note.trim()});}}>Aceptar apelación / quitar X</button><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Motivo de la decisión:");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:false,p_reply:note.trim()});}}>Mantener X</button></div>}</div>)}
+      </div></div>}
+
         {settingsSheet&&<div className="rivyza-sheet-overlay" onClick={()=>setSettingsSheet("")} role="presentation"><div className="rivyza-sheet-panel" role="dialog" aria-modal="true" aria-label={settingsSheet==="language"?t("Idioma"):t(settingsSheet)} onClick={e=>e.stopPropagation()}>
           <div className="rivyza-sheet-handle"/>
           <div className="rivyza-sheet-heading"><strong>{settingsSheet==="language"?t("Idioma"):t(settingsSheet)}</strong><button type="button" onClick={()=>setSettingsSheet("")} aria-label={t("Cerrar")}>×</button></div>
-          {settingsSheet==="language"?<div className="rivyza-sheet-options">{[["es","Español"],["en","English"]].map(([code,label])=><button type="button" key={code} onClick={()=>{changeAppLanguage(code);setSettingsSheet("");}}>{label}<span>{appLanguage===code?"✓":""}</span></button>)}</div> :settingsSheet==="Cuenta privada"?<div className="rivyza-feature-settings"><label className="rivyza-feature-toggle">Cuenta privada <input type="checkbox" checked={privateAccount} onChange={e=>togglePrivateAccount(e.target.checked)}/></label><p>Oculta tu estado en línea. En los LIVE, solo el anfitrión debe poder identificarte; esta regla también requiere integración en el servicio LIVE.</p></div>
+          {settingsSheet==="language"?<div className="rivyza-sheet-options">{[["es","Español"],["en","English"]].map(([code,label])=><button type="button" key={code} onClick={()=>{changeAppLanguage(code);setSettingsSheet("");}}>{label}<span>{appLanguage===code?"✓":""}</span></button>)}</div>  :settingsSheet==="Quién puede enviarme mensajes"?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Elige quién puede enviarte mensajes privados.</p>{[["everyone","Todos","Cualquier usuario puede enviarte mensajes."],["friends","Amigos","Solo personas que se siguen mutuamente."],["nobody","Nadie","Nadie puede enviarte mensajes nuevos."]].map(([value,label,description])=><button type="button" key={value} className={"rivyza-privacy-choice"+(messagePrivacy===value?" selected":"")} disabled={messagePrivacyBusy} onClick={()=>saveMessagePrivacy(value)}><span><strong>{t(label)}</strong><small>{t(description)}</small></span><span aria-hidden="true">{messagePrivacy===value?"✓":""}</span></button>)}{messagePrivacyError&&<p role="alert" className="rivyza-privacy-error">{messagePrivacyError}</p>}</div>
+          :settingsSheet==="Quién puede comentar"?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Elige quién puede comentar tus fotos y videos.</p>{[["everyone","Todos","Cualquiera puede comentar tus publicaciones."],["friends","Amigos","Solo tus amigos pueden comentar."],["nobody","Nadie","Nadie puede comentar tus publicaciones."]].map(([value,label,description])=><button type="button" key={value} className={"rivyza-privacy-choice"+(commentPrivacy===value?" selected":"")} disabled={commentPrivacyBusy} onClick={()=>saveCommentPrivacy(value)}><span><strong>{t(label)}</strong><small>{t(description)}</small></span><span aria-hidden="true">{commentPrivacy===value?"✓":""}</span></button>)}{commentPrivacyError&&<p role="alert" className="rivyza-privacy-error">{commentPrivacyError}</p>}</div>
+          :settingsSheet==="Quién puede ver mis Me gusta"?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Elige quién puede ver la pestaña del corazón de tu perfil.</p>{[["only_me","Solo yo","Nadie más puede ver las publicaciones que me gustan."],["everyone","Todos","Cualquier usuario puede ver las publicaciones que me gustan."],["friends","Amigos","Solo mis amigos pueden ver las publicaciones que me gustan."]].map(([value,label,description])=><button type="button" key={value} className={"rivyza-privacy-choice"+(likesPrivacy===value?" selected":"")} disabled={likesPrivacyBusy} onClick={()=>saveLikesPrivacy(value)}><span><strong>{t(label)}</strong><small>{t(description)}</small></span><span aria-hidden="true">{likesPrivacy===value?"✓":""}</span></button>)}{likesPrivacyError&&<p role="alert" className="rivyza-privacy-error">{likesPrivacyError}</p>}</div>
+          :["Quién puede ver quién me sigue","Quién puede ver a quién sigo","Quién puede mencionarme"].includes(settingsSheet)?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Configura quién puede acceder a esta información.</p>{[...(["Quién puede mencionarme"].includes(settingsSheet)?[["everyone","Todos"],["friends","Amigos"],["nobody","Nadie"]]:[["everyone","Todos"],["friends","Amigos"],["only_me","Solo yo"]])].map(([value,label])=>{const key=settingsSheet==="Quién puede mencionarme"?"mentions":settingsSheet==="Quién puede ver quién me sigue"?"followers":"following";return <button type="button" className={"rivyza-privacy-choice"+(communityPrivacy[key]===value?" selected":"")} key={value} onClick={()=>saveCommunityPrivacy(key,value)}><span><strong>{t(label)}</strong></span><span>{communityPrivacy[key]===value?"✓":""}</span></button>})}{communityPrivacyError&&<p role="alert">{communityPrivacyError}</p>}</div>
+          :settingsSheet==="Centro de Ayuda"?<div className="rivyza-feature-settings rivyza-help"><input aria-label="Buscar ayuda" placeholder="Buscar en Ayuda..." value={helpQuery} onChange={e=>setHelpQuery(e.target.value)}/>{[
+            ["¿Qué es RIVYZA?","RIVYZA es una comunidad para compartir fotos, videos, mensajes y conectar con otras personas."],
+            ["Privacidad","En Configuración puedes gestionar quién te envía mensajes, comenta, ve tus Me gusta y consulta tus listas de seguidores y seguidos."],
+            ["Reportes","Puedes reportar contenido inapropiado desde las opciones de una publicación. Un reporte no supone automáticamente una sanción."],
+            ["Normas de la comunidad","No se permiten amenazas, acoso, explotación sexual infantil, captación de menores ni contenido que ponga en peligro a otras personas. Las expresiones artísticas se evalúan según su contexto."],
+            ["Advertencias: 3 X","Las advertencias se revisan por la administración. La política propuesta restringe iniciar LIVE o participar como invitado al alcanzar tres X; la duración y la automatización están pendientes de implementación."],
+            ["Protección de menores","Cero tolerancia a la explotación y abuso sexual de menores. Los casos graves pueden conllevar restricciones preventivas y revisión urgente."],
+            ["Apelaciones","El procedimiento de apelación y el centro de moderación aún están en desarrollo. No se asignan X automáticamente desde esta versión."],
+            ["LIVE y creadores","La moderación debe tener en cuenta el contexto de música, DJ, baile, efectos visuales y actuaciones artísticas."],
+            ["Moderación por IA","La moderación automática es una función planificada, no activa en esta versión. La IA no debe sancionar únicamente por palabras aisladas."],
+            ["Privacidad y términos","Los textos legales completos y el canal de soporte oficial se publicarán antes del lanzamiento público."]
+          ].filter(([a,b])=>(a+" "+b).toLowerCase().includes(helpQuery.toLowerCase())).map(([a,b])=><div key={a} className="rivyza-help-article"><strong>{a}</strong><p>{b}</p></div>)}</div>
+          :settingsSheet==="Estado de cuenta"?<div className="rivyza-feature-settings"><h3>Estado de cuenta</h3>{moderationLoadError&&<p role="alert" className="social-error">No se pudo consultar el estado de cuenta: {moderationLoadError}</p>}<p>Infracciones activas: {myInfractions.filter(x=>x.status==="active").length} de 3. Con tres X activas se restringe LIVE.</p>{myInfractions.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p>{x.status==="active"&&!x.appeal_status&&<><textarea placeholder="Explica por qué deseas apelar" value={appealDrafts[x.id]||""} onChange={e=>setAppealDrafts(v=>({...v,[x.id]:e.target.value}))}/><button onClick={()=>submitAppeal(x.id)}>Apelar infracción</button></>}</div>)}<h3>Mensajes oficiales de RIVYZA</h3>{adminNotice.map(n=><div className="rivyza-admin-item" key={n.id}><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString()}</small>{n.strike_id&&<button onClick={()=>{setSettingsSheet("Estado de cuenta");}}>Ver infracción y apelar</button>}</div>)}<p>Para sanciones graves contra menores se prevé suspensión total con revisión urgente y un proceso de apelación limitado.</p></div>
+          :settingsSheet==="Cuenta privada"?<div className="rivyza-feature-settings"><label className="rivyza-feature-toggle">Cuenta privada <input type="checkbox" checked={privateAccount} onChange={e=>togglePrivateAccount(e.target.checked)}/></label><p>Oculta tu estado en línea. En los LIVE, solo el anfitrión debe poder identificarte; esta regla también requiere integración en el servicio LIVE.</p></div>
           :settingsSheet==="Cuentas bloqueadas"?<div className="rivyza-feature-settings rivyza-blocked-list">{blockedProfilesLoading?<p>Cargando cuentas bloqueadas…</p>:blockedUsers.length?blockedUsers.map(id=>{const person=blockedProfiles[id];const name=person?.display_name||person?.username||"Cuenta bloqueada";return <div className="rivyza-blocked-person" key={id}><span className="rivyza-blocked-avatar">{person?.avatar_url?<img src={person.avatar_url} alt=""/>:<User size={21}/>}</span><span className="rivyza-blocked-details"><strong>{name}</strong><small>{person?.username?"@"+person.username:"Perfil no disponible"}</small></span><button type="button" className="rivyza-blocked-unblock" onClick={()=>{if(window.confirm(`¿Desbloquear a ${name}?`))setBlocked(id,false);}}>Desbloquear</button></div>}):<p>No tienes cuentas bloqueadas.</p>}</div>
-          :settingsSheet==="Información de cuenta"?<div className="rivyza-feature-settings"><div className="rivyza-account-logo">R</div><h3>RIVYZA</h3><div className="rivyza-feature-row"><span>Usuario</span><strong>@{profile?.username||"usuario"}</strong></div><div className="rivyza-feature-row"><span>Registro</span><strong>{formatPostDateTime(user?.created_at||profile?.created_at)||"Sin fecha"}</strong></div><div className="rivyza-feature-row"><span>Estado</span><strong>Activa</strong></div><div className="rivyza-feature-row"><span>Infracciones</span><div className="rivyza-strikes"><span>×</span><span>×</span><span>×</span></div></div><p>Las infracciones requieren revisión administrativa. Estas X son informativas hasta integrar el sistema de sanciones.</p></div>
-          :settingsSheet==="Apariencia"?<div className="rivyza-feature-settings">{[["dark","Oscuro"],["light","Claro"],["auto","Automático"]].map(([value,label])=><button className="rivyza-feature-row" key={value} onClick={()=>changeAppearance(value)}>{label}<strong>{appearance===value?"✓":""}</strong></button>)}</div>
+          :settingsSheet==="Información de cuenta"?<div className="rivyza-feature-settings"><div className="rivyza-account-logo">R</div><h3>RIVYZA</h3><div className="rivyza-feature-row"><span>Usuario</span><strong>@{profile?.username||"usuario"}</strong></div><div className="rivyza-feature-row"><span>Registro</span><strong>{formatPostDateTime(user?.created_at||profile?.created_at)||"Sin fecha"}</strong></div><div className="rivyza-feature-row"><span>Estado</span><strong>Activa</strong></div><div className="rivyza-feature-row"><span>Infracciones</span><div className="rivyza-strikes">{[0,1,2].map(i=><span key={i} style={{color:i<myInfractions.filter(x=>x.status==="active").length?"#ff405c":"#777"}}>×</span>)}</div></div><p>Las infracciones requieren revisión administrativa. Las X rojas reflejan infracciones activas registradas en RIVYZA.</p></div>
+          :settingsSheet==="Apariencia"?<div className="rivyza-feature-settings rivyza-appearance-panel"><p className="rivyza-appearance-intro">Personaliza los colores de RIVYZA. Los videos y la cámara conservarán su fondo oscuro para que el contenido se vea correctamente.</p>{[["dark","Oscuro","Fondo oscuro"],["light","Claro","Fondo claro"],["auto","Automático","Según el teléfono"]].map(([value,label,description])=><button type="button" className={"rivyza-appearance-choice"+(appearance===value?" selected":"")} key={value} aria-pressed={appearance===value} onClick={()=>changeAppearance(value)}><span className={"rivyza-appearance-icon "+value}>{value==="dark"?<Moon size={19}/>:value==="light"?<span aria-hidden="true">☀</span>:<span aria-hidden="true">◐</span>}</span><span className="rivyza-appearance-description"><strong>{label}</strong><small>{description}</small></span><span className="rivyza-appearance-check">{appearance===value?"✓":""}</span></button>)}<p className="rivyza-appearance-saved">La selección se guarda automáticamente en este dispositivo.</p></div>
           :settingsSheet==="Seguridad y contraseña"?<div className="rivyza-feature-settings"><h3>Recuperar o cambiar contraseña</h3><p>Te enviaremos un enlace de recuperación. Si usas Google, cambia la contraseña desde Google.</p><input type="email" value={passwordEmail} onChange={e=>setPasswordEmail(e.target.value)} placeholder={user?.email||"Correo electrónico"}/><button onClick={sendPasswordReset}>Enviar enlace</button><p>La verificación en dos pasos y la gestión de dispositivos requieren configuración adicional en Supabase Auth.</p></div>
-          :settingsSheet==="Cambiar de cuenta"?<div className="rivyza-feature-settings"><p>Cuenta actual: {user?.email||profile?.username||"RIVYZA"}</p><p>Para proteger las sesiones, primero se debe iniciar sesión con la otra cuenta. No se conservarán contraseñas ni tokens manualmente.</p><button onClick={async()=>{await signOut();setSettingsSheet("");}}>Entrar con otra cuenta</button></div>
+           :settingsSheet==="Cambiar de cuenta"?<div className="rivyza-feature-settings rivyza-account-switcher">
+            <p className="rivyza-account-hint">Toca la foto para cambiar de cuenta.</p>
+            <div className="rivyza-account-gallery">
+              {savedAccounts.map(a=><div key={a.id} className="rivyza-account-tile">
+                <button type="button" disabled={accountBusy} onClick={()=>a.id===user?.id?setSettingsSheet(""):switchSavedAccount(a)} className={"rivyza-account-avatar-button"+(a.id===user?.id?" active":"")} aria-label={"Cambiar a "+a.name}>
+                  {a.avatar?<img src={a.avatar} alt=""/>:<User size={31}/>}
+                </button>
+                <span className="rivyza-account-name">{a.id===user?.id?(profile?.display_name||profile?.username||a.name):a.name}</span>
+                {a.id===user?.id?<small className="rivyza-account-active">✓ Activa</small>:<button className="rivyza-account-remove" type="button" onClick={()=>{if(window.confirm("¿Quitar esta cuenta guardada del dispositivo?"))removeSavedAccount(a);}}>Quitar</button>}
+              </div>)}
+              <div className="rivyza-account-tile"><button type="button" className="rivyza-account-avatar-button rivyza-account-add" onClick={addSavedAccount} disabled={accountBusy||savedAccounts.length>=5} aria-label="Agregar otra cuenta"><Plus size={32}/></button><span className="rivyza-account-name">Agregar cuenta</span></div>
+            </div>
+            <p className="rivyza-account-hint">Hasta 5 cuentas en este dispositivo. Si una sesión caduca, tendrás que iniciar sesión de nuevo.</p>
+            {accountError&&<p role="alert" className="rivyza-privacy-error">{accountError}</p>}
+          </div>
           :<p className="rivyza-sheet-soon">{t("Próximamente")}</p>}
         </div></div>}
       </section>}
       {socialNav()}
     </main>;
+  }
+  if(view==="liveStudio"){
+    return <LiveRoom supabase={supabase} user={user} onExit={()=>setView("livePreview")}/>;
   }
   if(view==="livePreview"){
     return <main className="live-preview-shell">
@@ -2174,6 +2823,8 @@ export default function HomePage(){
           <span>Aquí aparecerán las personas que sigues cuando estén EN VIVO</span>
         </div>
       </div>
+
+      <button type="button" className="rivyza-live-start" onClick={()=>setView("liveStudio")}>🔴 Entrar a RIVYZA LIVE · Iniciar o mirar</button>
 
       <section className="live-discovery-feed">
         <article className="live-preview-card live-preview-empty-card">
@@ -2194,6 +2845,7 @@ export default function HomePage(){
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
+      {renderShareSheet()}
     </main>;
   }
 
@@ -2252,7 +2904,7 @@ export default function HomePage(){
                 <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
               </button>
               <div className="handle">@{post.creator?.username||"usuario"}</div>
-              {post.caption&&<div className="caption">{post.caption}</div>}
+              {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
               <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
               <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
             </div>
@@ -2269,7 +2921,7 @@ export default function HomePage(){
                 <span>{post.like_count||0}</span>
               </button>
               <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
-              <button onClick={()=>openPost(post)}><Share2/><span>{t("Compartir")}</span></button>
+              <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
               <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
             </div>
           </article>
@@ -2285,6 +2937,7 @@ export default function HomePage(){
       </nav>
       {renderUploadModal()}
       {commentsOpen && renderCommentsSheet()}
+      {renderShareSheet()}
     </main>;
   }
 
@@ -2293,15 +2946,41 @@ export default function HomePage(){
       <header className="profile-topbar compact">
         <button className="profile-back" onClick={()=>{setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else setView("home");}}>←</button>
         <div className="profile-top-title">RIVYZA</div>
-        <button className="profile-menu" aria-label="Opciones"><MoreHorizontal size={24}/></button>
+        {adminOwner&&<button type="button" className="rivyza-admin-dots" aria-label="Administrar este perfil" onClick={()=>adminOpen(viewedProfile)}><MoreHorizontal size={25}/></button>}
       </header>
+
+
+      {adminPanel&&<div className="rivyza-admin-overlay" role="presentation" onClick={()=>setAdminPanel(false)}><div className="rivyza-admin-card" role="dialog" aria-modal="true" aria-label="Panel de administración" onClick={e=>e.stopPropagation()}>
+        <div className="rivyza-admin-head"><strong>{adminInbox?"Bandeja administrativa":`Administrar ${adminTarget?.display_name||adminTarget?.username||"usuario"}`}</strong><button type="button" onClick={()=>setAdminPanel(false)}>✕</button></div>
+        {adminError&&<p role="alert" className="rivyza-admin-error">{adminError}</p>}
+        {!adminInbox&&<><h3>Infracciones X ({adminStrikes.filter(x=>x.status==="active").length}/3)</h3>
+          <p>Las sanciones se registran con motivo y fecha. Tres X activas restringen LIVE.</p>
+          <textarea placeholder="Motivo obligatorio para poner una X (mínimo 10 caracteres)" value={adminReason} onChange={e=>setAdminReason(e.target.value)} />
+          <button disabled={adminBusy||adminReason.trim().length<10||adminStrikes.filter(x=>x.status==="active").length>=3} onClick={()=>{if(window.confirm("¿Asignar una X y notificar oficialmente al usuario?"))adminDo("rivyza_admin_add_strike",{p_target:adminTarget.id,p_reason:adminReason.trim()});}}>Poner X y enviar aviso RIVYZA</button>
+          <div className="rivyza-admin-actions"><button type="button" disabled={adminBusy||!adminStrikes.some(x=>x.status==="active")} onClick={()=>{const active=adminStrikes.filter(x=>x.status==="active");if(active.length===1){const reason=window.prompt("Motivo para quitar la X (mínimo 5 caracteres):");if(reason?.trim().length>=5&&window.confirm("¿Retirar esta X y avisar al usuario?"))adminDo("rivyza_admin_remove_strike",{p_strike:active[0].id,p_reason:reason.trim()});}else if(active.length>1){document.getElementById("rivyza-active-strikes")?.scrollIntoView({behavior:"smooth",block:"center"});}}}>Quitar X{adminStrikes.filter(x=>x.status==="active").length>1?" (elige cuál abajo)":""}</button></div>
+          {adminStrikes.every(x=>x.status!=="active")&&<p>No hay X activas para retirar en esta cuenta.</p>}
+          <div id="rivyza-active-strikes"><strong>Historial de infracciones</strong></div>
+          {adminStrikes.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"❌ X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p><small>{new Date(x.created_at).toLocaleString()}</small>{x.status==="active"&&<button disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo para retirar esta X:");if(reason?.trim().length>=5)adminDo("rivyza_admin_remove_strike",{p_strike:x.id,p_reason:reason.trim()});}}>Quitar X</button>}</div>)}
+          <div className="rivyza-admin-item"><h3>Control de LIVE</h3>
+            {adminLiveStatus?<><p><strong>Estado: {adminLiveStatus.allowed?"Permitido":"Suspendido"}</strong></p>
+            <p>{adminLiveStatus.manual_suspended?"Suspensión manual activa":adminLiveStatus.active_strikes>=3?"Suspensión por 3 X activas":"Sin suspensión"}</p>
+            {adminLiveStatus.manual_suspended?<button type="button" disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo para restaurar LIVE (mínimo 10 caracteres):");if(reason?.trim().length>=10&&window.confirm("¿Restaurar permiso manual de LIVE? Las 3 X activas siguen aplicando."))adminDo("rivyza_admin_set_live_suspension",{p_target:adminTarget.id,p_suspend:false,p_reason:reason.trim()});}}>Restaurar LIVE</button>
+            :<button type="button" disabled={adminBusy} onClick={()=>{const reason=window.prompt("Motivo de suspensión LIVE (mínimo 10 caracteres):");if(reason?.trim().length>=10&&window.confirm("¿Suspender LIVE y notificar oficialmente a esta cuenta?"))adminDo("rivyza_admin_set_live_suspension",{p_target:adminTarget.id,p_suspend:true,p_reason:reason.trim()});}}>Suspender LIVE</button>}</>
+            :<p>Consulta de estado no disponible. Ejecuta el SQL de esta versión antes de utilizar estos controles.</p>}
+            <small>Esta suspensión debe verificarse también en el servidor que autoriza la entrada a LIVE y a invitados.</small></div>
+          <h3>Enviar mensaje oficial</h3><textarea value={adminReply} onChange={e=>setAdminReply(e.target.value)} placeholder="Mensaje de RIVYZA para este usuario"/><button disabled={adminBusy||adminReply.trim().length<2} onClick={()=>adminDo("rivyza_admin_send_notice",{p_target:adminTarget.id,p_body:adminReply.trim()})}>Enviar como RIVYZA</button>
+        </>}
+        {adminInbox&&<div className="rivyza-admin-item"><h3>Usuarios suspendidos de LIVE</h3>{adminSuspended.length===0?<p>No hay suspensiones registradas o no se pudo cargar la lista.</p>:adminSuspended.map(u=><div key={u.user_id}><strong>{u.username||u.user_id}</strong> · {u.reason||"3 X activas"} · {u.manual_suspended?"Manual":"Por infracciones"}</div>)}</div>}<h3>{adminInbox?"Reportes y apelaciones":"Apelaciones de esta cuenta"}</h3>
+        {adminCases.length===0&&<p>No hay casos pendientes.</p>}
+        {adminCases.map(c=><div className="rivyza-admin-item" key={c.id}><strong>{c.kind==="appeal"?"Apelación":"Reporte"} · {c.status==="in_review"?"En revisión":c.status}</strong><p>{c.body}</p><small>{new Date(c.created_at).toLocaleString()}</small>{adminInbox&&<p>Usuario: {c.user_id}</p>}{c.status==="in_review"&&<div className="rivyza-admin-actions"><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Respuesta oficial (motivo):");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:true,p_reply:note.trim()});}}>Aceptar apelación / quitar X</button><button disabled={adminBusy} onClick={()=>{const note=window.prompt("Motivo de la decisión:");if(note?.trim().length>=5)adminDo("rivyza_admin_resolve_case",{p_case:c.id,p_approve:false,p_reply:note.trim()});}}>Mantener X</button></div>}</div>)}
+      </div></div>}
 
       <div className="social-profile-message"><button onClick={()=>openSocialPeer(viewedProfile)}><MessageCircle size={18}/> {t("Enviar mensaje")}</button></div>
       <section className="profile-hero compact-profile">
         <div className="profile-heading-row">
           <div className="profile-heading-copy">
             <h1>{viewedProfile.display_name||viewedProfile.username||"Usuario"}</h1>
-            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>
+            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>{publicStrikeCount>0&&<div className="rivyza-public-strikes" title="Infracciones activas de las normas de RIVYZA">{Array.from({length:Math.min(3,publicStrikeCount)},(_,i)=><span key={i}>✖</span>)} <small>{publicStrikeCount} infracción{publicStrikeCount===1?"":"es"} activa{publicStrikeCount===1?"":"s"} de RIVYZA</small></div>}
             {viewedProfile.show_country && viewedProfile.country_code && (
               <div className="profile-country">
                 <img
@@ -2350,9 +3029,10 @@ export default function HomePage(){
 
       <section className="profile-content-section">
         <div className="profile-content-tabs visitor-tabs">
-          <button className="active"><Grid3X3 size={20}/></button>
+          <button className={viewedProfileTab==="posts"?"active":""} onClick={()=>setViewedProfileTab("posts")}><Grid3X3 size={20}/></button>
+          {viewedLikesAllowed&&<button className={viewedProfileTab==="likes"?"active":""} onClick={()=>setViewedProfileTab("likes")} aria-label="Me gusta"><Heart size={20}/></button>}
         </div>
-        <div className="posts-grid">
+        {viewedProfileTab==="likes"&&viewedLikesAllowed?<div className="posts-grid">{viewedLikesLoading?<p>Cargando Me gusta…</p>:viewedLikedPosts.length?viewedLikedPosts.map(post=><button type="button" className="profile-post-card" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||"Publicación"}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>):<p>No hay publicaciones que mostrar.</p>}</div>:<div className="posts-grid">
           {viewedProfilePosts.length > 0 ? viewedProfilePosts.map(post=>(
             <div className="profile-post-card" key={post.id} onClick={()=>openPost(post)}>
               {post.media_type==="photo"
@@ -2362,7 +3042,7 @@ export default function HomePage(){
               {post.pinned_position && <span className="post-pin">📌</span>}
             </div>
           )) : <div className="empty-grid-card first">Este usuario todavía no tiene publicaciones públicas.</div>}
-        </div>
+        </div>}
       </section>
 
       {socialListOpen && (
@@ -2398,7 +3078,7 @@ export default function HomePage(){
       {selectedPost && (
         <div className="post-detail-overlay">
           <header className="post-detail-topbar">
-            <button type="button" onClick={()=>{setSelectedPost(null);setPostMenuOpen(false);}} aria-label="Volver">←</button>
+            <button type="button" onClick={()=>{if(postOpenedFromAlert)closeNotificationPost();else{setSelectedPost(null);setPostMenuOpen(false);}}} aria-label="Volver">←</button>
             <strong>{t("Publicación")}</strong>
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
@@ -2409,25 +3089,27 @@ export default function HomePage(){
             }
           </div>
           <div className="post-detail-info">
-            {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
+            {selectedPost.caption && <p className="post-detail-caption">{renderMentionText(selectedPost.caption)}</p>}
             <div className="post-public-stamp">Publicado · {formatPostDate(selectedPost.created_at)}</div>
             <div className="post-detail-actions">
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
-              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>{t("Compartir")}</span></button>
+              <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={23}/><span>{t("Compartir")}</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
           {postMenuOpen && (
             <div className="post-menu-backdrop" onClick={()=>setPostMenuOpen(false)}>
               <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
-                <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={20}/>Compartir en RIVYZA</button>
+                <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={20}/>Compartir en RIVYZA</button>
                 <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
+                {selectedPost?.user_id!==user?.id&&<button type="button" onClick={()=>startReport("post",selectedPost.id)}><ShieldCheck size={20}/>Reportar publicación</button>}
                 <button type="button" onClick={()=>setPostMenuOpen(false)}>{t("Cancelar")}</button>
               </div>
             </div>
           )}
+      {reportTarget&&<div className="post-menu-backdrop" style={{zIndex:10000}} onClick={()=>setReportTarget(null)}><div className="post-menu-sheet rivyza-report-sheet" onClick={e=>e.stopPropagation()}><h3>Reportar contenido</h3><p>Elige el motivo. Tu identidad no se mostrará al usuario reportado.</p><select aria-label="Motivo del reporte" value={reportReason} onChange={e=>setReportReason(e.target.value)}>{[["harassment","Acoso o insultos"],["threats","Amenazas"],["child_safety","Explotación o riesgo sexual de menores"],["sexual","Contenido sexual inapropiado"],["violence","Violencia"],["hate","Discriminación u odio"],["spam","Spam o estafa"],["privacy","Violación de privacidad"],["other","Otro"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select><textarea aria-label="Detalles opcionales" placeholder="Detalles (opcional)" maxLength={1000} value={reportDetails} onChange={e=>setReportDetails(e.target.value)}/>{reportFeedback&&<p role="alert">{reportFeedback}</p>}<button type="button" disabled={reportBusy} onClick={submitReport}>{reportBusy?"Enviando...":"Enviar reporte"}</button><button type="button" onClick={()=>setReportTarget(null)}>Cancelar</button></div></div>}
           {commentsOpen && renderCommentsSheet()}
         </div>
       )}
@@ -2440,6 +3122,7 @@ export default function HomePage(){
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
+      {renderShareSheet()}
     </main>;
   }
 
@@ -2542,8 +3225,8 @@ export default function HomePage(){
           </div>
         ) : (
           <section className="rivyza-liked-private">
-            <div className="rivyza-liked-heading"><Heart size={19}/><strong>{t("Mis me gusta")}</strong><span>🔒 {t("Solo yo")}</span></div>
-            <p className="rivyza-liked-note">{t("Solo tú puedes ver las publicaciones a las que les has dado like.")}</p>
+            <div className="rivyza-liked-heading"><Heart size={19}/><strong>{t("Mis me gusta")}</strong><span>{likesPrivacy==="only_me"?"🔒 "+t("Solo yo"):likesPrivacy==="friends"?t("Amigos"):t("Todos")}</span></div>
+            <p className="rivyza-liked-note">{likesPrivacy==="only_me"?t("Solo tú puedes ver las publicaciones a las que les has dado like."):likesPrivacy==="friends"?t("Solo mis amigos pueden ver las publicaciones que me gustan."):t("Cualquier usuario puede ver las publicaciones que me gustan.")}</p>
             {likedPostsLoading?<p className="rivyza-liked-note">{t("Cargando tus me gusta…")}</p>:likedPostsError?<p className="rivyza-liked-note">{t(likedPostsError)}</p>:likedPosts.length===0?<p className="rivyza-liked-note">{t("Aún no has dado me gusta a ninguna publicación.")}</p>:<div className="posts-grid">{likedPosts.map(post=><button type="button" className="profile-post-card rivyza-liked-post" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||t("Publicación")}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>)}</div>}
           </section>
         )}
@@ -2571,7 +3254,7 @@ export default function HomePage(){
           </div>
 
           <div className="post-detail-info">
-            {selectedPost.caption && <p className="post-detail-caption">{selectedPost.caption}</p>}
+            {selectedPost.caption && <p className="post-detail-caption">{renderMentionText(selectedPost.caption)}</p>}
             <div className="post-public-stamp" data-rivyza-stamp="v13.6">
               Publicado · {formatPostDate(selectedPost.created_at)}
             </div>
@@ -2579,7 +3262,7 @@ export default function HomePage(){
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
-              <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={23}/><span>{t("Compartir")}</span></button>
+              <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={23}/><span>{t("Compartir")}</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
           </div>
@@ -2587,8 +3270,9 @@ export default function HomePage(){
           {postMenuOpen && (
             <div className="post-menu-backdrop" onClick={()=>setPostMenuOpen(false)}>
               <div className="post-menu-sheet" onClick={e=>e.stopPropagation()}>
-                <button type="button" onClick={()=>setPostActionMessage("Compartir dentro de RIVYZA estará disponible con Mensajes.")}><Share2 size={20}/>Compartir en RIVYZA</button>
+                <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={20}/>Compartir en RIVYZA</button>
                 <button type="button" onClick={copyPostLink}><LinkIcon size={20}/>Copiar enlace</button>
+                {selectedPost?.user_id!==user?.id&&<button type="button" onClick={()=>startReport("post",selectedPost.id)}><ShieldCheck size={20}/>Reportar publicación</button>}
                 {selectedPost.user_id===user?.id && <>
                   <button type="button" onClick={()=>setPostPin(1)}>📌 Fijar en posición 1</button>
                   <button type="button" onClick={()=>setPostPin(2)}>📌 Fijar en posición 2</button>
@@ -2600,6 +3284,7 @@ export default function HomePage(){
             </div>
           )}
 
+      {reportTarget&&<div className="post-menu-backdrop" style={{zIndex:10000}} onClick={()=>setReportTarget(null)}><div className="post-menu-sheet rivyza-report-sheet" onClick={e=>e.stopPropagation()}><h3>Reportar contenido</h3><p>Elige el motivo. Tu identidad no se mostrará al usuario reportado.</p><select aria-label="Motivo del reporte" value={reportReason} onChange={e=>setReportReason(e.target.value)}>{[["harassment","Acoso o insultos"],["threats","Amenazas"],["child_safety","Explotación o riesgo sexual de menores"],["sexual","Contenido sexual inapropiado"],["violence","Violencia"],["hate","Discriminación u odio"],["spam","Spam o estafa"],["privacy","Violación de privacidad"],["other","Otro"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select><textarea aria-label="Detalles opcionales" placeholder="Detalles (opcional)" maxLength={1000} value={reportDetails} onChange={e=>setReportDetails(e.target.value)}/>{reportFeedback&&<p role="alert">{reportFeedback}</p>}<button type="button" disabled={reportBusy} onClick={submitReport}>{reportBusy?"Enviando...":"Enviar reporte"}</button><button type="button" onClick={()=>setReportTarget(null)}>Cancelar</button></div></div>}
           {deleteConfirmOpen && (
             <div className="post-menu-backdrop delete-confirm-backdrop" onClick={()=>setDeleteConfirmOpen(false)}>
               <div className="delete-confirm-card" onClick={e=>e.stopPropagation()}>
@@ -2912,7 +3597,7 @@ export default function HomePage(){
               <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
             </button>
             <div className="handle">@{post.creator?.username||"usuario"}</div>
-            {post.caption&&<div className="caption">{post.caption}</div>}
+            {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
             <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
               <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
           </div>
@@ -2930,7 +3615,7 @@ export default function HomePage(){
               <span>{post.like_count||0}</span>
             </button>
             <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
-            <button onClick={()=>openPost(post)}><Share2/><span>{t("Compartir")}</span></button>
+            <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
             <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
           </div>
         </article>
@@ -2987,5 +3672,6 @@ export default function HomePage(){
 
     {renderUploadModal()}
     {commentsOpen && renderCommentsSheet()}
+    {renderShareSheet()}
   </main>;
 }
