@@ -73,6 +73,11 @@ export async function POST(req) {
       // completa de 3 X / suspensión manual al servidor de LiveKit.
       const { data: owner, error: ownerError } = await auth.client.rpc('rivyza_is_owner');
       if (ownerError || owner !== true) return json({ error: 'Por ahora solo el administrador puede iniciar LIVE de prueba' }, 403);
+      // Rejoin an existing LIVE instead of violating the one-LIVE-per-host constraint.
+      const { data: existing, error: existingError } = await db.from('rivyza_live_rooms')
+        .select('id').eq('host_id', uid).eq('status', 'live').order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (existingError) throw existingError;
+      if (existing) return json({ roomId: existing.id, resumed: true });
       const { data, error } = await db.from('rivyza_live_rooms')
         .insert({ host_id: uid, title: String(input.title || 'RIVYZA LIVE').slice(0, 80) })
         .select('id').single();

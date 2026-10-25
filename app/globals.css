@@ -3087,28 +3087,24 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-live-request-list small{color:#b9acc8}
 @media (min-width:700px){.rivyza-live-grid{grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));height:min(75vh,680px)}}
 
-/* RIVYZA v13.19.49 LIVE beta: 2 large square cameras + 2 rows of 4 */
-.rivyza-live-grid.rivyza-live-grid-squares {
-  display:grid!important; grid-template-columns:repeat(4,minmax(0,1fr))!important;
-  grid-template-rows:none!important; gap:3px!important;
-  height:auto!important; max-height:none!important; width:100%!important;
-  overflow:visible!important; align-items:stretch!important;
-}
-.rivyza-live-grid-squares .rivyza-live-tile {
-  grid-column:span 1!important; aspect-ratio:1 / 1!important;
-  height:auto!important; min-height:0!important; width:100%!important;
-  position:relative; overflow:hidden; border-radius:5px;
-}
-.rivyza-live-grid-squares .rivyza-live-tile:nth-child(-n+2) {grid-column:span 2!important}
-.rivyza-live-grid-squares .rivyza-live-tile .lk-participant-tile {width:100%!important;height:100%!important;aspect-ratio:auto!important}
-.rivyza-live-grid-squares .rivyza-live-tile video {
-  display:block!important;width:100%!important;height:100%!important;
-  object-fit:cover!important;object-position:center center!important;
-}
-.rivyza-live-grid-squares .rivyza-live-tile>span {
-  position:absolute;bottom:4px;left:4px;z-index:2;
-  color:white;background:#0008;border-radius:3px;padding:2px 4px;font-size:10px;
-}
-.rivyza-live-grid-squares .rivyza-live-vacant>span {position:static;background:transparent;text-align:center}
-.rivyza-live-grid-squares .rivyza-live-selected {outline:3px solid #e34cfd!important;outline-offset:-3px;z-index:2}
-.rivyza-live-position-hint {font-size:12px;text-align:center;color:#dec6f2;margin:5px 4px}
+/* RIVYZA v13.19.50 — LIVE 2+4+4 square layout */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square {display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:3px!important;width:100%!important;height:auto!important;max-width:100%!important;align-items:stretch!important}
+.rivyza-live-grid-square .rivyza-live-tile.rivyza-live-square {grid-column:span 1!important;position:relative!important;display:block!important;width:100%!important;min-width:0!important;height:auto!important;aspect-ratio:1/1!important;overflow:hidden!important;border-radius:5px!important;background:#1b1526!important}
+.rivyza-live-grid-square .rivyza-live-tile.rivyza-live-square:nth-child(-n+2){grid-column:span 2!important}
+.rivyza-live-grid-square .rivyza-live-square .lk-participant-tile{width:100%!important;height:100%!important;aspect-ratio:auto!important;overflow:hidden!important}
+.rivyza-live-grid-square .rivyza-live-square video{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center center!important;transform:none!important}
+.rivyza-live-grid-square .rivyza-live-camera-name{position:absolute!important;bottom:4px!important;left:4px!important;z-index:5!important;background:#0009!important;color:white!important;font-size:11px!important;padding:2px 5px!important;border-radius:4px!important}
+.rivyza-live-grid-square .rivyza-live-picked{outline:3px solid #e22cf8!important;outline-offset:-3px!important}
+.rivyza-live-grid-square .rivyza-live-vacant{display:flex!important;align-items:center!important;justify-content:center!important}
+.rivyza-live-bottom-bar{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:10px 0}
+.rivyza-live-bottom-bar button,.rivyza-live-bottom-drawer button{background:#31243d;color:white;border:1px solid #574369;border-radius:10px;padding:10px;font-size:13px}
+.rivyza-live-bottom-drawer{position:relative;background:#211629;color:#fff;border-radius:18px 18px 8px 8px;padding:14px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -4px 20px #0006}
+.rivyza-live-drawer-handle{width:45px;height:4px;background:#9d8ca8;border-radius:6px;align-self:center}
+.rivyza-live-bottom-drawer .rivyza-live-power-row{display:flex;align-items:center;gap:12px;text-align:left}
+.rivyza-live-power-icon{display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;background:#ff102d;color:white;border-radius:12px;font-size:32px;box-shadow:0 0 15px #ff102d99}
+.rivyza-live-hint{font-size:12px;color:#f0d7ff;text-align:center}
+.rivyza-live-confirm-overlay{position:fixed;inset:0;z-index:99999;background:#000b;display:flex;align-items:center;justify-content:center;padding:20px}
+.rivyza-live-confirm-box{background:#251a32;color:#fff;border-radius:16px;padding:22px;width:min(100%,370px);text-align:center;display:flex;flex-direction:column;gap:22px}
+.rivyza-live-confirm-box>div{display:flex;gap:10px;justify-content:center}
+.rivyza-live-confirm-box button{padding:11px 14px;border-radius:9px;background:#52415c;color:white}
+.rivyza-live-confirm-box .rivyza-live-confirm-yes{background:#ff102d;color:#fff}
