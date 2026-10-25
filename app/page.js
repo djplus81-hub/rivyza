@@ -4,6 +4,7 @@ import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import LiveRoom from "./LiveRoom";
+import LivePreviewPlayer from "./LivePreviewPlayer";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
   AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send
@@ -203,6 +204,28 @@ export default function HomePage(){
   const [discoverLiveRooms,setDiscoverLiveRooms]=useState([]);
   const [discoverLiveError,setDiscoverLiveError]=useState('');
   const [selectedLiveRoom,setSelectedLiveRoom]=useState(null);
+  const [liveFriendIds,setLiveFriendIds]=useState([]);
+  const [activeLivePreview,setActiveLivePreview]=useState(0);
+  const [livePreviewInvite,setLivePreviewInvite]=useState(false);
+  useEffect(()=>{
+    if(view!=="livePreview" || !supabase || !user?.id)return;
+    let cancelled=false;
+    const load=async()=>{
+      const [out,incoming]=await Promise.all([
+        supabase.from('follows').select('following_id').eq('follower_id',user.id),
+        supabase.from('follows').select('follower_id').eq('following_id',user.id)
+      ]);
+      if(out.error||incoming.error)return;
+      const mutual=new Set((incoming.data||[]).map(r=>r.follower_id));
+      if(!cancelled)setLiveFriendIds((out.data||[]).map(r=>r.following_id).filter(id=>mutual.has(id)));
+    };load();return()=>{cancelled=true};
+  },[view,supabase,user?.id]);
+  useEffect(()=>{
+    if(view!=="livePreview" || !discoverLiveRooms.length)return;
+    setLivePreviewInvite(false);
+    const timeout=setTimeout(()=>setLivePreviewInvite(true),15000);
+    return()=>clearTimeout(timeout);
+  },[view,activeLivePreview,discoverLiveRooms.length]);
   useEffect(()=>{
     if(view!=="livePreview" || !supabase || !user?.id)return;
     let active=true;
@@ -2837,23 +2860,29 @@ export default function HomePage(){
         <span className="live-preview-spacer"></span>
       </header>
 
-      <div className="live-following-strip" aria-label="Transmisiones activas">
-        <span className="live-dot"></span>
-        <span>{discoverLiveRooms.length} {discoverLiveRooms.length===1?'transmisión activa':'transmisiones activas'}</span>
-      </div>
-
-      <button type="button" className="rivyza-live-start" onClick={()=>{setSelectedLiveRoom(null);setView("liveStudio");}}>🔴 Iniciar mi LIVE</button>
-
-      <section className="live-discovery-feed" aria-label="LIVE activos">
-        {discoverLiveError && <p role="alert" className="rivyza-live-message">{discoverLiveError}</p>}
-        {!discoverLiveError && discoverLiveRooms.length===0 && <p className="rivyza-live-empty">Ahora mismo no hay transmisiones en vivo.</p>}
-        {discoverLiveRooms.map(room=><button type="button" className="rivyza-live-discover-card" key={room.id} onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}}>
-          {room.host_avatar?<img className="rivyza-live-discover-avatar" src={room.host_avatar} alt=""/>:<span className="rivyza-live-discover-avatar rivyza-live-avatar-letter">{(room.host_name||'U').slice(0,1).toUpperCase()}</span>}
-          <span className="rivyza-live-discover-name">{room.host_name||'Usuario RIVYZA'}</span>
-          <span className="rivyza-live-discover-badge">● LIVE</span>
+      <div className="live-following-strip" aria-label="Amigos en vivo">
+        {discoverLiveRooms.filter(room=>liveFriendIds.includes(room.host_id)).map(room=><button type="button" key={room.id} className="rivyza-live-friend" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
+          <span className="rivyza-live-friend-ring">{room.host_avatar?<img src={room.host_avatar} alt=""/>:<span>{(room.host_name||'U').slice(0,1).toUpperCase()}</span>}</span>
+          <span className="rivyza-live-friend-name">{room.host_name||'Usuario'}</span>
         </button>)}
+        {!discoverLiveRooms.some(room=>liveFriendIds.includes(room.host_id))&&<span className="live-following-empty">Tus amigos no están en vivo ahora</span>}
+      </div>
+      <section className="live-discovery-feed" aria-label="Vistas previas de LIVE" onScroll={e=>{
+        const h=e.currentTarget.clientHeight||1;
+        const next=Math.round(e.currentTarget.scrollTop/h);
+        if(next!==activeLivePreview)setActiveLivePreview(next);
+      }}>
+        {discoverLiveError&&<div className="live-preview-card live-preview-empty-card"><p role="alert">{discoverLiveError}</p></div>}
+        {!discoverLiveError&&discoverLiveRooms.length===0&&<div className="live-preview-card live-preview-empty-card"><div className="live-preview-empty-copy"><span className="live-preview-badge">● LIVE</span><h2>No hay transmisiones ahora</h2><p>Cuando alguien comience un LIVE, podrás verlo aquí.</p></div></div>}
+        {discoverLiveRooms.map((room,index)=><div key={room.id} className="live-preview-card">
+          {index===activeLivePreview&&<LivePreviewPlayer key={room.id} roomId={room.id} supabase={supabase}/>}
+          <button type="button" className="rivyza-live-preview-enter" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
+            <span className="rivyza-live-preview-host">{room.host_avatar&&<img src={room.host_avatar} alt=""/>}<strong>{room.host_name||'Usuario RIVYZA'}</strong><em>● LIVE</em></span>
+            <span className="rivyza-live-preview-entry">Toca para entrar al LIVE</span>
+          </button>
+          {index===activeLivePreview&&livePreviewInvite&&<button type="button" className="rivyza-live-preview-invite" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}}>¿Quieres entrar al LIVE de {room.host_name||'este usuario'}? Entrar</button>}
+        </div>)}
       </section>
-
       <nav className="bottom-nav live-preview-bottom-nav">
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
         <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>

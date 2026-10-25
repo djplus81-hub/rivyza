@@ -3173,3 +3173,21 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-live-discover-badge{color:#ff4256;font-size:13px;font-weight:800;white-space:nowrap}
 .rivyza-live-empty{padding:24px 12px;text-align:center;color:#bbb}
 .rivyza-live-list-avatar{width:28px;height:28px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:6px}
+
+/* v13.19.51h: pinned friends and vertically swiped muted LIVE previews */
+.live-preview-shell .live-following-strip{z-index:51;top:calc(env(safe-area-inset-top) + 53px);height:96px;background:linear-gradient(#101018 65%,rgba(16,16,24,.88));align-items:flex-start;padding-top:7px}
+.rivyza-live-friend{border:0;background:none;color:#fff;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:62px;max-width:72px;flex:none;padding:0}
+.rivyza-live-friend-ring{width:56px;height:56px;border:3px solid #ff334a;border-radius:50%;padding:3px;display:grid;place-items:center;background:#31243a;overflow:hidden}
+.rivyza-live-friend-ring img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.rivyza-live-friend-name{font-size:11px;white-space:nowrap;max-width:70px;overflow:hidden;text-overflow:ellipsis}
+.live-preview-shell .live-discovery-feed{height:100dvh;position:relative}
+.live-preview-shell .live-preview-card{height:100dvh;position:relative;overflow:hidden}
+.rivyza-live-preview-video{position:absolute;inset:0;background:#08070c;display:grid;place-items:center}
+.rivyza-live-preview-video video{height:100%;width:100%;object-fit:contain}
+.rivyza-live-preview-wait{position:absolute;inset:0;display:grid;place-items:center;background:#14101d;color:#bbb;font-size:13px}
+.rivyza-live-preview-enter{position:absolute;inset:0;width:100%;border:0;background:transparent;color:#fff;text-align:left;z-index:2}
+.rivyza-live-preview-host{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 110px);left:15px;display:flex;gap:8px;align-items:center;text-shadow:0 1px 5px #000}
+.rivyza-live-preview-host img{width:36px;height:36px;border-radius:50%;object-fit:cover}
+.rivyza-live-preview-host em{color:#ff334a;font-size:12px;font-style:normal;font-weight:bold}
+.rivyza-live-preview-entry{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 88px);left:15px;font-size:12px}
+.rivyza-live-preview-invite{position:absolute;z-index:5;top:calc(env(safe-area-inset-top) + 158px);left:12%;width:76%;background:#e52345;color:#fff;border:0;border-radius:14px;padding:13px;font-weight:700}
