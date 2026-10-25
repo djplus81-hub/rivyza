@@ -3086,3 +3086,29 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-live-request-list>div{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0}
 .rivyza-live-request-list small{color:#b9acc8}
 @media (min-width:700px){.rivyza-live-grid{grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));height:min(75vh,680px)}}
+
+/* RIVYZA v13.19.49 LIVE beta: 2 large square cameras + 2 rows of 4 */
+.rivyza-live-grid.rivyza-live-grid-squares {
+  display:grid!important; grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-template-rows:none!important; gap:3px!important;
+  height:auto!important; max-height:none!important; width:100%!important;
+  overflow:visible!important; align-items:stretch!important;
+}
+.rivyza-live-grid-squares .rivyza-live-tile {
+  grid-column:span 1!important; aspect-ratio:1 / 1!important;
+  height:auto!important; min-height:0!important; width:100%!important;
+  position:relative; overflow:hidden; border-radius:5px;
+}
+.rivyza-live-grid-squares .rivyza-live-tile:nth-child(-n+2) {grid-column:span 2!important}
+.rivyza-live-grid-squares .rivyza-live-tile .lk-participant-tile {width:100%!important;height:100%!important;aspect-ratio:auto!important}
+.rivyza-live-grid-squares .rivyza-live-tile video {
+  display:block!important;width:100%!important;height:100%!important;
+  object-fit:cover!important;object-position:center center!important;
+}
+.rivyza-live-grid-squares .rivyza-live-tile>span {
+  position:absolute;bottom:4px;left:4px;z-index:2;
+  color:white;background:#0008;border-radius:3px;padding:2px 4px;font-size:10px;
+}
+.rivyza-live-grid-squares .rivyza-live-vacant>span {position:static;background:transparent;text-align:center}
+.rivyza-live-grid-squares .rivyza-live-selected {outline:3px solid #e34cfd!important;outline-offset:-3px;z-index:2}
+.rivyza-live-position-hint {font-size:12px;text-align:center;color:#dec6f2;margin:5px 4px}

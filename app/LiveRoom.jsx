@@ -11,14 +11,51 @@ function CameraGrid({ publish, isHost }) {
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(true);
   const shown = tracks.slice(0, 10);
+  // Beta: positions are local to the host's screen, not yet synchronized to viewers.
+  const [slotByIdentity, setSlotByIdentity] = useState({});
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const slots = Array(10).fill(null);
+  const assigned = new Set();
+  for (const track of shown) {
+    const index = slotByIdentity[track.participant.identity];
+    if (Number.isInteger(index) && index >= 0 && index < 10 && !slots[index]) {
+      slots[index] = track;
+      assigned.add(track.participant.identity);
+    }
+  }
+  for (const track of shown) {
+    if (assigned.has(track.participant.identity)) continue;
+    const free = slots.findIndex(slot => !slot);
+    if (free >= 0) slots[free] = track;
+  }
+  function selectSlot(index) {
+    if (!isHost) return;
+    if (selectedSlot === null) { setSelectedSlot(index); return; }
+    if (selectedSlot === index) { setSelectedSlot(null); return; }
+    const first = slots[selectedSlot], second = slots[index];
+    setSlotByIdentity(previous => {
+      const next = { ...previous };
+      if (first) next[first.participant.identity] = index;
+      if (second) next[second.participant.identity] = selectedSlot;
+      return next;
+    });
+    setSelectedSlot(null);
+  }
   return <>
-    <div className="rivyza-live-grid">
-      {shown.map(t => <div className="rivyza-live-tile" key={t.participant.identity}>
-        <ParticipantTile trackRef={t} />
-        <span>{t.participant.name || (t.participant.isLocal ? 'Tú' : 'Invitado')}</span>
-      </div>)}
-      {Array.from({ length: 10 - shown.length }, (_, i) => <div className="rivyza-live-tile rivyza-live-vacant" key={`empty-${i}`}>
-        <span>+ Cámara {shown.length + i + 1}</span>
+    {isHost && <p className="rivyza-live-position-hint">
+      {selectedSlot === null ? 'Toca dos cámaras para intercambiarlas (solo tu vista por ahora).' : 'Toca la cámara de destino o la misma para cancelar.'}
+    </p>}
+    <div className="rivyza-live-grid rivyza-live-grid-squares">
+      {slots.map((t, index) => <div
+        className={`rivyza-live-tile ${!t ? 'rivyza-live-vacant' : ''} ${selectedSlot === index ? 'rivyza-live-selected' : ''}`}
+        key={index}
+        onClick={() => selectSlot(index)}
+        role={isHost ? 'button' : undefined}
+        tabIndex={isHost ? 0 : undefined}
+        onKeyDown={isHost ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSlot(index); } } : undefined}
+        aria-label={isHost ? `Posición ${index + 1}` : undefined}
+      >
+        {t ? <><ParticipantTile trackRef={t}/><span>{t.participant.name || (t.participant.isLocal ? 'Tú' : 'Invitado')}</span></> : <span>+ Cámara {index + 1}</span>}
       </div>)}
     </div>
     {publish && <div className="rivyza-live-controls">
