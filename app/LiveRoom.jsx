@@ -181,9 +181,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   </>;
 }
 
-export default function LiveRoom({ supabase, user, onExit }) {
+export default function LiveRoom({ supabase, user, onExit, initialRoomId = null }) {
   const [rooms, setRooms] = useState([]);
-  const [roomId, setRoomId] = useState(null);
+  const [roomId, setRoomId] = useState(initialRoomId);
   const [session, setSession] = useState(null);
   const [requests, setRequests] = useState([]);
   const [requestsOpen, setRequestsOpen] = useState(true);
@@ -244,7 +244,7 @@ export default function LiveRoom({ supabase, user, onExit }) {
     if (busy) return;
     setBusy(true); setError('');
     try {
-      const result = await api('start', { title: 'RIVYZA LIVE' });
+      const result = await api('start', { title: 'LIVE' });
       setRoomId(result.roomId);
       await refreshSession(result.roomId);
     } catch (e) { setError(e.message); }
@@ -295,7 +295,7 @@ export default function LiveRoom({ supabase, user, onExit }) {
       <h2>Transmisiones en vivo</h2>
       {rooms.length === 0 && <p>Ahora mismo no hay transmisiones. ¡Sé el primero!</p>}
       {rooms.map(r => <button type="button" className="rivyza-live-room-card" key={r.id} onClick={() => join(r.id)}>
-        <span className="rivyza-live-red-dot" /> {r.title} <small>Entrar</small>
+        <span className="rivyza-live-red-dot" /> {r.host_avatar && <img src={r.host_avatar} alt="" className="rivyza-live-list-avatar" />} {r.host_name || r.title} <small>Entrar</small>
       </button>)}
     </section> : <section className="rivyza-live-stage">
       {session ? <LiveKitRoom key={`${roomId}-${session.publish}`} token={session.token} serverUrl={session.serverUrl}

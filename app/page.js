@@ -200,6 +200,26 @@ export default function HomePage(){
   const [blockedProfiles,setBlockedProfiles]=useState({});
   const [blockedProfilesLoading,setBlockedProfilesLoading]=useState(false);
   const [liveBellIds,setLiveBellIds]=useState([]);
+  const [discoverLiveRooms,setDiscoverLiveRooms]=useState([]);
+  const [discoverLiveError,setDiscoverLiveError]=useState('');
+  const [selectedLiveRoom,setSelectedLiveRoom]=useState(null);
+  useEffect(()=>{
+    if(view!=="livePreview" || !supabase || !user?.id)return;
+    let active=true;
+    const refresh=async()=>{
+      try{
+        const {data}=await supabase.auth.getSession();
+        if(!data.session)return;
+        const response=await fetch('/api/live',{headers:{Authorization:`Bearer ${data.session.access_token}`},cache:'no-store'});
+        const payload=await response.json();
+        if(!response.ok)throw new Error(payload.error||'No se pudieron cargar los LIVE');
+        if(active){setDiscoverLiveRooms(payload.rooms||[]);setDiscoverLiveError('');}
+      }catch(e){if(active)setDiscoverLiveError(e.message||'No se pudieron cargar los LIVE');}
+    };
+    refresh();const timer=setInterval(refresh,8000);
+    return()=>{active=false;clearInterval(timer);};
+  },[view,supabase,user?.id]);
+
   const [privateAccount,setPrivateAccount]=useState(false);
   const [appearance,setAppearance]=useState("dark");
   const [settingsError,setSettingsError]=useState("");
@@ -2807,7 +2827,7 @@ export default function HomePage(){
     </main>;
   }
   if(view==="liveStudio"){
-    return <LiveRoom supabase={supabase} user={user} onExit={()=>setView("livePreview")}/>;
+    return <LiveRoom key={selectedLiveRoom || "lobby"} initialRoomId={selectedLiveRoom} supabase={supabase} user={user} onExit={()=>{setSelectedLiveRoom(null);setView("livePreview");}}/>;
   }
   if(view==="livePreview"){
     return <main className="live-preview-shell">
@@ -2817,24 +2837,21 @@ export default function HomePage(){
         <span className="live-preview-spacer"></span>
       </header>
 
-      <div className="live-following-strip" aria-label="Personas que sigues en vivo">
-        <div className="live-following-empty">
-          <span className="live-dot"></span>
-          <span>Aquí aparecerán las personas que sigues cuando estén EN VIVO</span>
-        </div>
+      <div className="live-following-strip" aria-label="Transmisiones activas">
+        <span className="live-dot"></span>
+        <span>{discoverLiveRooms.length} {discoverLiveRooms.length===1?'transmisión activa':'transmisiones activas'}</span>
       </div>
 
-      <button type="button" className="rivyza-live-start" onClick={()=>setView("liveStudio")}>🔴 Entrar a RIVYZA LIVE · Iniciar o mirar</button>
+      <button type="button" className="rivyza-live-start" onClick={()=>{setSelectedLiveRoom(null);setView("liveStudio");}}>🔴 Iniciar mi LIVE</button>
 
-      <section className="live-discovery-feed">
-        <article className="live-preview-card live-preview-empty-card">
-          <div className="live-preview-empty-copy">
-            <span className="live-preview-badge">EN VIVO</span>
-            <h2>RIVYZA LIVE</h2>
-            <p>Cuando haya transmisiones activas, podrás deslizar hacia arriba o hacia abajo para recorrerlas.</p>
-            <small>Los LIVE más recientes aparecerán primero.</small>
-          </div>
-        </article>
+      <section className="live-discovery-feed" aria-label="LIVE activos">
+        {discoverLiveError && <p role="alert" className="rivyza-live-message">{discoverLiveError}</p>}
+        {!discoverLiveError && discoverLiveRooms.length===0 && <p className="rivyza-live-empty">Ahora mismo no hay transmisiones en vivo.</p>}
+        {discoverLiveRooms.map(room=><button type="button" className="rivyza-live-discover-card" key={room.id} onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}}>
+          {room.host_avatar?<img className="rivyza-live-discover-avatar" src={room.host_avatar} alt=""/>:<span className="rivyza-live-discover-avatar rivyza-live-avatar-letter">{(room.host_name||'U').slice(0,1).toUpperCase()}</span>}
+          <span className="rivyza-live-discover-name">{room.host_name||'Usuario RIVYZA'}</span>
+          <span className="rivyza-live-discover-badge">● LIVE</span>
+        </button>)}
       </section>
 
       <nav className="bottom-nav live-preview-bottom-nav">

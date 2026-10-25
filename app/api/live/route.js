@@ -69,7 +69,20 @@ export async function GET(req) {
       .select('id,host_id,title,created_at').eq('status', 'live')
       .order('created_at', { ascending: false }).limit(50);
     if (error) throw error;
-    return json({ rooms: data });
+    const ids = [...new Set((data || []).map(r => r.host_id))];
+    let profiles = [];
+    if (ids.length) {
+      const { data: rows, error: profileError } = await db.from('profiles')
+        .select('id,display_name,username,avatar_url').in('id', ids);
+      if (profileError) throw profileError;
+      profiles = rows || [];
+    }
+    const byId = new Map(profiles.map(p => [p.id, p]));
+    return json({ rooms: (data || []).map(r => ({
+      ...r,
+      host_name: byId.get(r.host_id)?.display_name || byId.get(r.host_id)?.username || 'Usuario RIVYZA',
+      host_avatar: byId.get(r.host_id)?.avatar_url || null,
+    })) });
   } catch (e) { return json({ error: e.message || 'Error de LIVE' }, 500); }
 }
 
@@ -182,8 +195,9 @@ export async function POST(req) {
       const secret = process.env.LIVEKIT_API_SECRET;
       const serverUrl = process.env.LIVEKIT_URL;
       if (!key || !secret || !serverUrl) return json({ error: 'Faltan las claves de LiveKit en Vercel' }, 503);
+      const { data: publicProfile } = await db.from('profiles').select('display_name,username').eq('id', uid).maybeSingle();
       const token = new AccessToken(key, secret, {
-        identity: uid, name: auth.user.user_metadata?.display_name || auth.user.user_metadata?.username || auth.user.user_metadata?.full_name || auth.user.email?.split('@')[0] || 'RIVYZA', ttl: '15m',
+        identity: uid, name: publicProfile?.display_name || publicProfile?.username || 'Usuario RIVYZA', ttl: '15m',
       });
       token.addGrant({ roomJoin: true, room: `rivyza-${room.id}`, canPublish: publish, canSubscribe: true, canPublishData: publish });
       return json({ token: await token.toJwt(), serverUrl, publish, host: room.host_id === uid, hostId: room.host_id, moderator: mod, moderatorIds });
