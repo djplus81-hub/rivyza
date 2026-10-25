@@ -3117,3 +3117,12 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-live-slot-picker select{background:#251c32;color:white;border:1px solid #776088;border-radius:9px;padding:8px}
 .rivyza-live-guest-exit{display:flex;justify-content:center;gap:8px;margin:8px 0}
 .rivyza-live-guest-exit button{background:#30243e;color:#fff;border:1px solid #6b5278;padding:9px;border-radius:10px}
+
+/* v13.19.51b: eight lower cameras slightly smaller, TikTok-inspired.
+   Keep two main cameras unchanged; preserve square video crops. */
+.rivyza-live-grid-square .rivyza-live-tile.rivyza-live-square:nth-child(n+3){
+  width:86%!important;
+  justify-self:center!important;
+  align-self:center!important;
+  aspect-ratio:1/1!important;
+}
