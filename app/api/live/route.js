@@ -69,10 +69,8 @@ export async function POST(req) {
     const db = adminClient();
     const uid = auth.user.id;
     if (input.action === 'start') {
-      // Pruebas restringidas al administrador mientras se conecta la moderación
-      // completa de 3 X / suspensión manual al servidor de LiveKit.
-      const { data: owner, error: ownerError } = await auth.client.rpc('rivyza_is_owner');
-      if (ownerError || owner !== true) return json({ error: 'Por ahora solo el administrador puede iniciar LIVE de prueba' }, 403);
+      // Todos los usuarios autenticados pueden iniciar su propio LIVE.
+      // Las sanciones LIVE deberán validarse aquí cuando se habilite el control disciplinario.
       // Rejoin an existing LIVE instead of violating the one-LIVE-per-host constraint.
       const { data: existing, error: existingError } = await db.from('rivyza_live_rooms')
         .select('id').eq('host_id', uid).eq('status', 'live').order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -103,7 +101,14 @@ export async function POST(req) {
     if (input.action === 'leave_camera') {
       if (room.host_id === uid) return json({ error: 'El anfitrión no puede bajar de cámara' }, 403);
       const { error } = await db.from('rivyza_live_camera_requests')
-        .update({ status: 'left' }).eq('room_id', room.id).eq('user_id', uid);
+        .update({ status: 'rejected' }).eq('room_id', room.id).eq('user_id', uid);
+      if (error) throw error;
+      return json({ ok: true });
+    }
+    if (input.action === 'reject') {
+      if (room.host_id !== uid) return json({ error: 'No autorizado' }, 403);
+      const { error } = await db.from('rivyza_live_camera_requests').update({ status: 'rejected' })
+        .eq('room_id', room.id).eq('user_id', input.guestId).eq('status', 'pending');
       if (error) throw error;
       return json({ ok: true });
     }

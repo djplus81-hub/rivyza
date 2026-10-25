@@ -3126,3 +3126,29 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
   align-self:center!important;
   aspect-ratio:1/1!important;
 }
+
+/* v13.19.51c — TikTok-inspired compact 2+4+4 layout, no giant blank rows */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square:not(.rivyza-live-solo){
+ grid-template-columns:repeat(4,minmax(0,1fr))!important;
+ grid-template-rows:none!important;
+ grid-auto-rows:max-content!important;
+ align-content:start!important;
+ gap:4px!important;
+ height:auto!important;
+ min-height:0!important;
+}
+.rivyza-live-grid-square .rivyza-live-tile.rivyza-live-square:nth-child(n+3){
+ width:100%!important;justify-self:stretch!important;align-self:start!important;
+ aspect-ratio:1/1!important;
+}
+.rivyza-live-stage{gap:5px!important;padding:5px!important;}
+.rivyza-live-request-list{position:fixed;left:8px;right:8px;bottom:max(12px,env(safe-area-inset-bottom));z-index:1010;
+ margin:0!important;padding:7px 10px!important;background:#21152ff5!important;border:1px solid #8056a4;
+ box-shadow:0 5px 24px #000b;max-height:35dvh;overflow:auto;}
+.rivyza-live-request-toggle{display:block;width:100%;text-align:left;background:#482368!important;color:#fff!important;border:0!important;font-weight:800;padding:10px!important;border-radius:8px!important;}
+.rivyza-live-request-body{padding:7px 3px 2px;}
+.rivyza-live-request-actions{display:flex;gap:5px;flex-shrink:0;}
+.rivyza-live-request-actions button{font-size:12px;padding:8px!important;}
+.rivyza-live-bottom-bar{margin-bottom:76px!important;}
+.rivyza-live-grid-square .rivyza-live-square .lk-participant-tile{min-height:0!important;}
+@media (max-width:390px){.rivyza-live-grid-square .rivyza-live-camera-name{font-size:9px!important;}}

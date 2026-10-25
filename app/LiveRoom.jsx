@@ -6,15 +6,15 @@ import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 
 const translations = {
-  es: { options:'Opciones', microphone:'Micrófono', unmute:'Activar micrófono', camera:'Cámara', cameraOn:'Activar cámara', rearrange:'Mover cámaras', finishMove:'Terminar movimiento', end:'Terminar LIVE', confirm:'¿Quieres terminar el LIVE para todos?', yes:'Sí, terminar LIVE', no:'No', close:'Cerrar bandeja', slots:'Cámaras visibles', leaveCamera:'Bajar de cámara', leaveLive:'Desconectar del LIVE', request:'Solicitar subir a cámara', guest:'Invitado', you:'Tú', pending:'Solicitud enviada. Espera la aprobación del anfitrión.' },
-  en: { options:'Options', microphone:'Microphone', unmute:'Unmute microphone', camera:'Camera', cameraOn:'Turn on camera', rearrange:'Rearrange cameras', finishMove:'Finish rearranging', end:'End LIVE', confirm:'Do you want to end LIVE for everyone?', yes:'Yes, end LIVE', no:'No', close:'Close panel', slots:'Visible cameras', leaveCamera:'Leave camera', leaveLive:'Leave LIVE', request:'Request to join camera', guest:'Guest', you:'You', pending:'Request sent. Wait for host approval.' }
+  es: { options:'Opciones', microphone:'Micrófono', unmute:'Activar micrófono', camera:'Cámara', cameraOn:'Activar cámara', rearrange:'Mover cámaras', finishMove:'Terminar movimiento', end:'Terminar LIVE', confirm:'¿Quieres terminar el LIVE para todos?', yes:'Sí, terminar LIVE', no:'No', close:'Cerrar bandeja', slots:'Cámaras visibles', leaveCamera:'Bajar de cámara', leaveLive:'Desconectar del LIVE', request:'Solicitar subir a cámara', guest:'Invitado', you:'Tú', pending:'Solicitud enviada. Espera la aprobación del anfitrión.', accept:'Aceptar', reject:'Rechazar', requests:'Solicitudes para subir', noRequests:'Sin solicitudes pendientes', requestError:'No se pudo cargar la solicitud'  },
+  en: { options:'Options', microphone:'Microphone', unmute:'Unmute microphone', camera:'Camera', cameraOn:'Turn on camera', rearrange:'Rearrange cameras', finishMove:'Finish rearranging', end:'End LIVE', confirm:'Do you want to end LIVE for everyone?', yes:'Yes, end LIVE', no:'No', close:'Close panel', slots:'Visible cameras', leaveCamera:'Leave camera', leaveLive:'Leave LIVE', request:'Request to join camera', guest:'Guest', you:'You', pending:'Request sent. Wait for host approval.', accept:'Accept', reject:'Decline', requests:'Camera requests', noRequests:'No pending requests', requestError:'Could not load request'  }
 };
 function getLanguage() {
   if (typeof window === 'undefined') return 'es';
   const stored = window.localStorage.getItem('rivyza_language') || window.localStorage.getItem('language') || '';
   return /^(en|english)/i.test(stored) || (!stored && navigator.language?.startsWith('en')) ? 'en' : 'es';
 }
-function CameraGrid({ publish, isHost, onStop, onLeaveCamera, onLeaveLive, lang }) {
+function CameraGrid({ publish, isHost, onStop, onLeaveCamera, onLeaveLive, onError, lang }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
@@ -22,6 +22,19 @@ function CameraGrid({ publish, isHost, onStop, onLeaveCamera, onLeaveLive, lang 
   const { localParticipant } = useLocalParticipant();
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(isHost);
+  useEffect(() => {
+    if (!localParticipant || !publish) return;
+    setMic(localParticipant.isMicrophoneEnabled);
+    setCam(localParticipant.isCameraEnabled);
+  }, [localParticipant, publish]);
+  async function toggleMic() {
+    try { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); setMic(localParticipant.isMicrophoneEnabled); }
+    catch (e) { onError(e?.message || 'No se pudo cambiar el micrófono'); }
+  }
+  async function toggleCam() {
+    try { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); setCam(localParticipant.isCameraEnabled); }
+    catch (e) { onError(e?.message || 'No se pudo encender la cámara. Comprueba los permisos del navegador.'); }
+  }
   const [drawer, setDrawer] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
   const [moveMode, setMoveMode] = useState(false);
@@ -68,8 +81,8 @@ function CameraGrid({ publish, isHost, onStop, onLeaveCamera, onLeaveLive, lang 
     {isHost && moveMode && <p className="rivyza-live-hint">{selected === null ? 'Toca una cámara y después la posición de destino' : 'Selecciona la posición de destino'}</p>}
     <div className="rivyza-live-bottom-bar">
       {publish && <>
-        <button type="button" onClick={async () => { await localParticipant.setMicrophoneEnabled(!mic); setMic(!mic); }}>{mic ? `🎙️ ${tr.microphone}` : `🔇 ${tr.unmute}`}</button>
-        <button type="button" onClick={async () => { await localParticipant.setCameraEnabled(!cam); setCam(!cam); }}>{cam ? `📷 ${tr.camera}` : `📷 ${tr.cameraOn}`}</button>
+        <button type="button" onClick={toggleMic}>{mic ? `🎙️ ${tr.microphone}` : `🔇 ${tr.unmute}`}</button>
+        <button type="button" onClick={toggleCam}>{cam ? `📷 ${tr.camera}` : `📷 ${tr.cameraOn}`}</button>
       </>}
       {isHost && <button type="button" onClick={() => setDrawer(x => !x)}>☰ {tr.options}</button>}
     </div>
@@ -101,6 +114,7 @@ export default function LiveRoom({ supabase, user, onExit }) {
   const [roomId, setRoomId] = useState(null);
   const [session, setSession] = useState(null);
   const [requests, setRequests] = useState([]);
+  const [requestsOpen, setRequestsOpen] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [lang, setLang] = useState("es");
@@ -195,8 +209,8 @@ export default function LiveRoom({ supabase, user, onExit }) {
   async function action(kind, payload) {
     try {
       await api(kind, { roomId, ...payload });
-      if (kind === 'approve') setRequests(r => r.map(x => x.user_id === payload.guestId ? { ...x, status: 'approved' } : x));
-      if (kind === 'request') setError('Solicitud enviada. Espera la aprobación del anfitrión.');
+      if (kind === 'approve' || kind === 'reject') setRequests(r => r.filter(x => x.user_id !== payload.guestId));
+      if (kind === 'request') setError(translations[lang].pending);
     } catch (e) { setError(e.message); }
   }
 
@@ -213,17 +227,18 @@ export default function LiveRoom({ supabase, user, onExit }) {
     </section> : <section className="rivyza-live-stage">
       {session ? <LiveKitRoom key={`${roomId}-${session.publish}`} token={session.token} serverUrl={session.serverUrl}
         connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid publish={session.publish} isHost={session.host} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} lang={lang} />
+        <CameraGrid publish={session.publish} isHost={session.host} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} lang={lang} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
       {session && !session.publish && <button type="button" className="rivyza-live-join-camera" onClick={() => action('request')}>✋ {translations[lang].request}</button>}
       {session?.host && <aside className="rivyza-live-request-list">
-        <h3>Solicitudes de invitados</h3>
-        {requests.filter(r => r.status === 'pending').length === 0 && <small>No hay solicitudes pendientes.</small>}
+        <button type="button" className="rivyza-live-request-toggle" onClick={() => setRequestsOpen(x => !x)}>✋ {translations[lang].requests} ({requests.filter(r => r.status === 'pending').length}) {requestsOpen ? '▾' : '▴'}</button>
+        {requestsOpen && <div className="rivyza-live-request-body">
+        {requests.filter(r => r.status === 'pending').length === 0 && <small>{translations[lang].noRequests}</small>}
         {requests.filter(r => r.status === 'pending').map(r => <div key={r.user_id}>
           <span>Usuario {r.user_id.slice(0, 8)}</span>
-          <button type="button" onClick={() => action('approve', { guestId: r.user_id })}>Aceptar cámara</button>
+          <span className="rivyza-live-request-actions"><button type="button" onClick={() => action('approve', { guestId: r.user_id })}>✓ {translations[lang].accept}</button><button type="button" onClick={() => action('reject', { guestId: r.user_id })}>✕ {translations[lang].reject}</button></span>
         </div>)}
-        <small>{requests.filter(r => r.status === 'approved').length} de 9 invitados aprobados</small>
+        </div>}
       </aside>}
     </section>}
   </main>;
