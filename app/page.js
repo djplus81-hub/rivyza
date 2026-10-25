@@ -207,6 +207,7 @@ export default function HomePage(){
   const [liveFriendIds,setLiveFriendIds]=useState([]);
   const [activeLivePreview,setActiveLivePreview]=useState(0);
   const [livePreviewInvite,setLivePreviewInvite]=useState(false);
+  const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
   useEffect(()=>{
     if(view!=="livePreview" || !supabase || !user?.id)return;
     let cancelled=false;
@@ -409,7 +410,6 @@ export default function HomePage(){
   const [commentSending,setCommentSending]=useState(false);
   const [commentError,setCommentError]=useState("");
   const [loading,setLoading]=useState(true);
-  const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
   const [viewedProfile,setViewedProfile]=useState(null);
   useEffect(()=>{if(!supabase||!viewedProfile?.id||view!=="otherProfile")return;let active=true;
     setPublicStrikeCount(0);
