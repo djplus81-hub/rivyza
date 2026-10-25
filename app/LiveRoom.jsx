@@ -14,7 +14,7 @@ function getLanguage() {
   const stored = window.localStorage.getItem('rivyza_language') || window.localStorage.getItem('language') || '';
   return /^(en|english)/i.test(stored) || (!stored && navigator.language?.startsWith('en')) ? 'en' : 'es';
 }
-function CameraGrid({ publish, isHost, onStop, onLeaveCamera, onLeaveLive, onError, lang }) {
+function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, lang }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
@@ -25,6 +25,11 @@ function CameraGrid({ publish, isHost, onStop, onLeaveCamera, onLeaveLive, onErr
     catch (e) { onError(e?.message || "Audio could not be enabled"); }
   }
   const [slots, setSlots] = useState(10);
+  const [target, setTarget] = useState(null);
+  const [expelling, setExpelling] = useState(false);
+  const [reason, setReason] = useState('Insultos o lenguaje ofensivo');
+  const [details, setDetails] = useState('');
+  const [moveTarget, setMoveTarget] = useState(null);
   const { localParticipant } = useLocalParticipant();
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(isHost);
@@ -68,12 +73,12 @@ function CameraGrid({ publish, isHost, onStop, onLeaveCamera, onLeaveLive, onErr
       await room.localParticipant.publishData(payload, {reliable:true});
     } catch (e) { onError(e?.message || 'Layout could not be shared'); }
   }
-  const shown = participants.slice(0, slots);
+  const shown = [...participants].sort((a,b) => (a.identity === hostId ? -1 : b.identity === hostId ? 1 : a.identity.localeCompare(b.identity))).slice(0, slots);
   const ordered = Array(slots).fill(null);
   const trackById = new Map(tracks.map(t => [t.participant.identity, t]));
   const placed = new Set();
   for (const t of shown) {
-    const index = positions[t.identity];
+    const index = t.identity === hostId ? 0 : positions[t.identity];
     if (Number.isInteger(index) && index >= 0 && index < slots && !ordered[index]) {
       ordered[index] = t; placed.add(t.identity);
     }
@@ -89,20 +94,40 @@ function CameraGrid({ publish, isHost, onStop, onLeaveCamera, onLeaveLive, onErr
     if (selected === index) { setSelected(null); return; }
     const from = ordered[selected], to = ordered[index];
     const next = { ...positions };
+    if (from?.identity === hostId || to?.identity === hostId) { setSelected(null); return; }
     if (from) next[from.identity] = index;
     if (to) next[to.identity] = selected;
     setPositions(next);
     broadcastLayout(next);
     setSelected(null);
   }
+  function chooseTile(t, i) {
+    if (moveTarget) {
+      if (i === 0) return;
+      const fromIndex = ordered.findIndex(p => p?.identity === moveTarget);
+      if (fromIndex < 0) { setMoveTarget(null); return; }
+      const from = ordered[fromIndex], to = ordered[i];
+      const next = {...positions, [from.identity]: i};
+      if (to) next[to.identity] = fromIndex;
+      setPositions(next); broadcastLayout(next); setMoveTarget(null); return;
+    }
+    if (isHost || isModerator) {
+      if (t && !t.isLocal && t.identity !== hostId) { setTarget(t); setExpelling(false); }
+    }
+  }
+  async function applyModeration(kind, extra = {}) {
+    if (!target) return;
+    try { await onModerate(kind, {guestId:target.identity, ...extra}); setTarget(null); setExpelling(false); }
+    catch(e) { onError(e.message); }
+  }
   return <>
     <div className={`rivyza-live-grid rivyza-live-grid-square ${slots === 1 ? "rivyza-live-solo" : ""}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''}`}
-        onClick={() => swap(i)} role={isHost && moveMode ? 'button' : undefined}
+        onClick={() => moveMode ? swap(i) : chooseTile(t,i)} role={(isHost || isModerator) ? 'button' : undefined}
         tabIndex={isHost && moveMode ? 0 : undefined}
         onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && isHost && moveMode) { e.preventDefault(); swap(i); } }}>
-        {t ? <>{trackById.has(t.identity) ? <ParticipantTile trackRef={trackById.get(t.identity)}/> : <div className="rivyza-live-avatar-fallback"><span>👤</span></div>}<span className="rivyza-live-camera-name">{t.isLocal ? tr.you : (t.name || tr.guest)}{isHost && t.isLocal ? ' 👑' : ''}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
+        {t ? <>{trackById.has(t.identity) ? <ParticipantTile trackRef={trackById.get(t.identity)}/> : <div className="rivyza-live-avatar-fallback"><span>👤</span></div>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
       </div>)}
     </div>
     {isHost && moveMode && <p className="rivyza-live-hint">{selected === null ? tr.moveHint : 'Selecciona la posición de destino'}</p>}
@@ -130,6 +155,25 @@ function CameraGrid({ publish, isHost, onStop, onLeaveCamera, onLeaveLive, onErr
       <div className="rivyza-live-confirm-box"><strong>{tr.confirm}</strong>
         <div><button type="button" onClick={() => setConfirmStop(false)}>{tr.no}</button>
         <button type="button" className="rivyza-live-confirm-yes" onClick={() => { setConfirmStop(false); onStop(); }}>{tr.yes}</button></div>
+      </div>
+    </div>}
+    {target && <div className="rivyza-live-mod-backdrop" onClick={() => setTarget(null)}>
+      <div className="rivyza-live-mod-menu" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+        <button className="rivyza-live-mod-x" type="button" onClick={() => {setTarget(null);setExpelling(false)}} aria-label="Cerrar">✕</button>
+        <strong>{target.name || tr.guest}</strong>
+        {!expelling ? <>
+          {isHost && <button type="button" onClick={() => applyModeration(moderatorIds?.includes(target.identity) ? 'moderator_remove' : 'moderator_add')}>{moderatorIds?.includes(target.identity) ? 'Quitar moderador' : '🛡️ Agregar como moderador'}</button>}
+          <button type="button" onClick={() => applyModeration('mute_guest')}>🔇 Silenciar micrófono</button>
+          <button type="button" onClick={() => applyModeration('camera_off_guest')}>📷 Apagar cámara</button>
+          <button type="button" onClick={() => {setMoveTarget(target.identity);setTarget(null)}}>↔️ Mover de posición</button>
+          <button type="button" onClick={() => applyModeration('lower_guest')}>⬇️ Bajar de cámara</button>
+          <button type="button" onClick={() => setExpelling(true)}>🚫 Expulsar del LIVE y reportar</button>
+        </> : <>
+          <label>Motivo de expulsión<select value={reason} onChange={e=>setReason(e.target.value)}>{['Insultos o lenguaje ofensivo','Acoso o amenazas','Contenido sexual inapropiado','Comportamiento violento','Spam o interrupciones','Otro motivo'].map(x=><option key={x}>{x}</option>)}</select></label>
+          <textarea value={details} onChange={e=>setDetails(e.target.value)} placeholder="Detalles opcionales" rows={2}/>
+          <button type="button" onClick={() => applyModeration('kick_guest',{reason,details})}>Confirmar expulsión y reporte</button>
+          <button type="button" onClick={() => setExpelling(false)}>Cancelar</button>
+        </>}
       </div>
     </div>}
     <RoomAudioRenderer />
@@ -187,14 +231,14 @@ export default function LiveRoom({ supabase, user, onExit }) {
         await refreshSession(roomId);
         if (roomId && user?.id) {
           const host = session?.host;
-          if (host) setRequests((await api(null, { mode: 'requests', room: roomId }, 'GET')).requests || []);
+          if (host || session?.moderator) setRequests((await api(null, { mode: 'requests', room: roomId }, 'GET')).requests || []);
         }
       } catch (e) { if (active) setError(e.message); }
     };
     tick();
     const interval = setInterval(tick, 5000);
     return () => { active = false; clearInterval(interval); };
-  }, [roomId, api, refreshSession, session?.host, user?.id]);
+  }, [roomId, api, refreshSession, session?.host, session?.moderator, user?.id]);
 
   async function start() {
     if (busy) return;
@@ -238,12 +282,13 @@ export default function LiveRoom({ supabase, user, onExit }) {
     try {
       await api(kind, { roomId, ...payload });
       if (kind === 'approve' || kind === 'reject') setRequests(r => r.filter(x => x.user_id !== payload.guestId));
+      if (kind === 'moderator_add' || kind === 'moderator_remove') await refreshSession(roomId);
       if (kind === 'request') setError(translations[lang].pending);
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError(e.message); throw e; }
   }
 
   return <main className="rivyza-live-studio">
-    <header className="rivyza-live-top"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong>RIVYZA <span>LIVE</span></strong><small>Hasta 10 cámaras</small></header>
+    <header className="rivyza-live-top"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong>RIVYZA <span>LIVE</span></strong><small>{roomId ? "🔴 EN VIVO" : "LIVE"}</small></header>
     {error && <p className="rivyza-live-message" role="alert">{error}</p>}
     {!roomId ? <section className="rivyza-live-lobby">
       <button type="button" className="rivyza-live-start" disabled={busy} onClick={start}>{busy ? 'Conectando…' : '🔴 Iniciar mi LIVE'}</button>
@@ -255,10 +300,10 @@ export default function LiveRoom({ supabase, user, onExit }) {
     </section> : <section className="rivyza-live-stage">
       {session ? <LiveKitRoom key={`${roomId}-${session.publish}`} token={session.token} serverUrl={session.serverUrl}
         connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid publish={session.publish} isHost={session.host} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} lang={lang} />
+        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} lang={lang} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
       {session && !session.publish && <button type="button" className="rivyza-live-join-camera" onClick={() => action('request')}>✋ {translations[lang].request}</button>}
-      {session?.host && <aside className="rivyza-live-request-list">
+      {(session?.host || session?.moderator) && <aside className="rivyza-live-request-list">
         <button type="button" className="rivyza-live-request-toggle" onClick={() => setRequestsOpen(x => !x)}>✋ {translations[lang].requests} ({requests.filter(r => r.status === 'pending').length}) {requestsOpen ? '▾' : '▴'}</button>
         {requestsOpen && <div className="rivyza-live-request-body">
         {requests.filter(r => r.status === 'pending').length === 0 && <small>{translations[lang].noRequests}</small>}

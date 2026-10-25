@@ -1,6 +1,6 @@
 {
   "name": "rivyza",
-  "version": "13.19.51dd-beta",
+  "version": "13.19.51f-beta",
   "private": true,
   "scripts": {
     "dev": "next dev",

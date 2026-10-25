@@ -3156,3 +3156,11 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 /* v13.19.51e: iOS audio unlock and visible camera arrangement control */
 .rivyza-live-enable-audio{align-self:center;border:1px solid #f0b5ff;background:#53247d;color:white;border-radius:22px;padding:11px 19px;font-weight:800;margin:5px auto 10px}
 .rivyza-live-bottom-bar button{min-height:43px}
+
+/* v13.19.51f LIVE moderation overlay */
+.rivyza-live-mod-backdrop{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.65);display:flex;align-items:flex-end;justify-content:center}
+.rivyza-live-mod-menu{position:relative;width:min(100%,480px);max-height:85dvh;overflow:auto;padding:24px 16px;background:#21172e;border-radius:20px 20px 0 0;display:flex;flex-direction:column;gap:10px;color:white}
+.rivyza-live-mod-menu button,.rivyza-live-mod-menu select,.rivyza-live-mod-menu textarea{padding:12px;border-radius:10px;border:1px solid #554768;background:#382747;color:white;font:inherit}
+.rivyza-live-mod-menu label{display:flex;flex-direction:column;gap:6px}
+.rivyza-live-mod-menu .rivyza-live-mod-x{position:absolute;right:12px;top:10px;width:40px;background:#4c365a}
+.rivyza-live-grid-square{grid-template-rows:none!important;grid-auto-rows:max-content!important;align-content:start!important}
