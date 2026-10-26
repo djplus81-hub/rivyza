@@ -1,1 +1,0 @@
-RIVYZA v13.19.51h — Descubrir LIVE: tira fija de amigos mutuos en vivo, anillos rojos, previews verticales con video LiveKit sin audio, entrada por toque, aviso 15 segundos. No SQL adicional. BETA: requiere prueba real con dos dispositivos; la vista previa usa conexión LiveKit de espectador y puede contar como participante técnico.\n
