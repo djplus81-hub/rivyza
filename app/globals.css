@@ -3270,3 +3270,50 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
  padding:7px 12px!important;font-size:12px!important;
 }
 .rivyza-live-stage .rivyza-live-request-body{max-height:33dvh!important;overflow:auto!important;min-width:min(80vw,300px);padding:8px!important;}
+
+/* RIVYZA v13.19.53 — camera layout: one large camera, uniform multiple tiles.
+   Visual-only change. Slot count, permissions and LIVE signaling remain untouched. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square:not(.rivyza-live-solo){
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  grid-template-rows:none!important;
+  grid-auto-rows:auto!important;
+  gap:4px!important;
+  height:auto!important;
+  min-height:0!important;
+  align-content:start!important;
+}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square:not(.rivyza-live-solo) > .rivyza-live-tile.rivyza-live-square{
+  grid-column:auto!important;
+  width:100%!important;
+  height:auto!important;
+  min-width:0!important;
+  max-height:none!important;
+  aspect-ratio:1/1!important;
+  justify-self:stretch!important;
+  align-self:stretch!important;
+}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-solo{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:none!important;
+  grid-auto-rows:auto!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-solo > .rivyza-live-tile.rivyza-live-square{
+  grid-column:1/-1!important;
+  width:100%!important;
+  height:min(72dvh,calc(100vw * 1.5))!important;
+  max-height:72dvh!important;
+  aspect-ratio:auto!important;
+  justify-self:stretch!important;
+}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square .rivyza-live-camera-name{
+  max-width:calc(100% - 8px)!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  font-size:clamp(9px,2.5vw,11px)!important;
+}
