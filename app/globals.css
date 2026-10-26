@@ -3191,3 +3191,37 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-live-preview-host em{color:#ff334a;font-size:12px;font-style:normal;font-weight:bold}
 .rivyza-live-preview-entry{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 88px);left:15px;font-size:12px}
 .rivyza-live-preview-invite{position:absolute;z-index:5;top:calc(env(safe-area-inset-top) + 158px);left:12%;width:76%;background:#e52345;color:#fff;border:0;border-radius:14px;padding:13px;font-weight:700}
+
+
+/* v13.19.51k: una sola etiqueta de nombre en cada camara.
+   Ocultar etiquetas nativas de LiveKit, conservar etiqueta RIVYZA. */
+.rivyza-live-grid .lk-participant-tile .lk-participant-metadata,
+.rivyza-live-grid .lk-participant-tile .lk-participant-name,
+.rivyza-live-grid .lk-participant-tile .lk-participant-metadata-item,
+.rivyza-live-grid .lk-participant-tile .lk-participant-placeholder .lk-participant-metadata {
+  display:none!important;
+}
+.rivyza-live-grid .rivyza-live-tile {
+  container-type:inline-size;
+}
+.rivyza-live-grid .rivyza-live-camera-name {
+  position:absolute!important;
+  bottom:3px!important;
+  left:3px!important;
+  right:auto!important;
+  z-index:15!important;
+  display:block!important;
+  box-sizing:border-box!important;
+  width:max-content!important;
+  max-width:calc(100% - 6px)!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  font-size:clamp(7px, 8cqw, 12px)!important;
+  line-height:1.25!important;
+  padding:2px 4px!important;
+  background:rgba(0,0,0,.64)!important;
+  color:#fff!important;
+  border-radius:4px!important;
+  pointer-events:none!important;
+}
