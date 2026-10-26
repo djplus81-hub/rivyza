@@ -121,7 +121,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     catch(e) { onError(e.message); }
   }
   return <>
-    <div className={`rivyza-live-grid rivyza-live-grid-square ${slots === 1 ? "rivyza-live-solo" : ""}`}>
+    <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''}`}
         onClick={() => moveMode ? swap(i) : t ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'

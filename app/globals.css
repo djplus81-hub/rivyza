@@ -3271,49 +3271,41 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 }
 .rivyza-live-stage .rivyza-live-request-body{max-height:33dvh!important;overflow:auto!important;min-width:min(80vw,300px);padding:8px!important;}
 
-/* RIVYZA v13.19.53 — camera layout: one large camera, uniform multiple tiles.
-   Visual-only change. Slot count, permissions and LIVE signaling remain untouched. */
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square:not(.rivyza-live-solo){
-  display:grid!important;
-  grid-template-columns:repeat(2,minmax(0,1fr))!important;
-  grid-template-rows:none!important;
-  grid-auto-rows:auto!important;
-  gap:4px!important;
-  height:auto!important;
-  min-height:0!important;
-  align-content:start!important;
+
+/* RIVYZA 13.19.55: layouts 1-10, a single mobile screen.
+   The camera-count selector and participant ordering are unchanged. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square{
+ display:grid!important; width:100%!important; height:min(48dvh,420px)!important;
+ max-height:48dvh!important; min-height:0!important;
+ grid-template-rows:none!important; grid-auto-rows:minmax(0,1fr)!important;
+ gap:3px!important; overflow:hidden!important; align-content:stretch!important;
 }
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square:not(.rivyza-live-solo) > .rivyza-live-tile.rivyza-live-square{
-  grid-column:auto!important;
-  width:100%!important;
-  height:auto!important;
-  min-width:0!important;
-  max-height:none!important;
-  aspect-ratio:1/1!important;
-  justify-self:stretch!important;
-  align-self:stretch!important;
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square .rivyza-live-tile.rivyza-live-square{
+ grid-column:auto!important;grid-row:auto!important; width:100%!important;
+ height:100%!important;min-height:0!important;max-height:none!important;
+ aspect-ratio:auto!important;justify-self:stretch!important;align-self:stretch!important;
 }
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-solo{
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr)!important;
-  grid-template-rows:none!important;
-  grid-auto-rows:auto!important;
-  width:100%!important;
-  height:auto!important;
-  min-height:0!important;
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square .lk-participant-tile,
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square video{
+ width:100%!important;height:100%!important;object-fit:cover!important;
 }
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-solo > .rivyza-live-tile.rivyza-live-square{
-  grid-column:1/-1!important;
-  width:100%!important;
-  height:min(72dvh,calc(100vw * 1.5))!important;
-  max-height:72dvh!important;
-  aspect-ratio:auto!important;
-  justify-self:stretch!important;
-}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square .rivyza-live-camera-name{
-  max-width:calc(100% - 8px)!important;
-  white-space:nowrap!important;
-  overflow:hidden!important;
-  text-overflow:ellipsis!important;
-  font-size:clamp(9px,2.5vw,11px)!important;
-}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-1{grid-template-columns:1fr!important;grid-template-rows:1fr!important;height:min(57dvh,530px)!important;max-height:57dvh!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-2{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:1fr!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-3{grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-template-rows:1fr!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-4{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-5{grid-template-columns:repeat(6,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-5 .rivyza-live-tile:nth-child(-n+2){grid-column:span 3!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-5 .rivyza-live-tile:nth-child(n+3){grid-column:span 2!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-6{grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-7{grid-template-columns:repeat(6,minmax(0,1fr))!important;grid-template-rows:repeat(3,minmax(0,1fr))!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-7 .rivyza-live-tile:first-child{grid-column:span 6!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-7 .rivyza-live-tile:nth-child(n+2){grid-column:span 2!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-8{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-9{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:repeat(4,minmax(0,1fr))!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-9 .rivyza-live-tile:first-child{grid-column:span 2!important;grid-row:span 4!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-10{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:repeat(4,minmax(0,1fr))!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-10 .rivyza-live-tile:nth-child(-n+2){grid-column:span 2!important;grid-row:span 2!important}
+/* The grid does not scroll; chat can keep its own independent scrolling. */
+.rivyza-live-stage{min-height:0!important;overflow:hidden!important;gap:4px!important}
+.rivyza-live-stage .rivyza-live-bottom-bar{flex-shrink:0!important;margin:3px 0!important}
+@media(max-height:700px){.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square{height:40dvh!important;max-height:40dvh!important}.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-1{height:52dvh!important;max-height:52dvh!important}}
