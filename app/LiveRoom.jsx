@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LiveKitRoom, RoomAudioRenderer, ParticipantTile, useTracks, useLocalParticipant, useParticipants, useRoomContext } from '@livekit/components-react';
 import { Track, RoomEvent } from 'livekit-client';
 import '@livekit/components-styles';
@@ -131,7 +132,11 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>)}
     </div>
     {isHost && moveMode && <p className="rivyza-live-hint">{selected === null ? tr.moveHint : 'Selecciona la posición de destino'}</p>}
-    <div className="rivyza-live-viewer-count" aria-label="Espectadores conectados">👁 {participants.length} viendo</div>
+    {typeof document !== 'undefined' && document.getElementById('rivyza-live-viewers-anchor') && createPortal(
+      <span className="rivyza-live-viewer-count" aria-label={`${participants.length} espectadores conectados`}>
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>{participants.length}</span>
+      </span>, document.getElementById('rivyza-live-viewers-anchor'))}
     <div className="rivyza-live-bottom-bar">
       {publish && <>
         <button type="button" onClick={toggleMic}>{mic ? `🎙️ ${tr.microphone}` : `🔇 ${tr.unmute}`}</button>
@@ -309,7 +314,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
   }
 
   return <main className="rivyza-live-studio">
-    <header className="rivyza-live-top"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong>RIVYZA <span>LIVE</span></strong><small>{roomId ? "🔴 EN VIVO" : "LIVE"}</small></header>
+    <header className="rivyza-live-top"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-brand">RIVYZA <span>LIVE</span><span id="rivyza-live-viewers-anchor" className="rivyza-live-viewers-anchor" /></strong><small>{roomId ? "🔴 EN VIVO" : "LIVE"}</small></header>
     {profileId && <div className="rivyza-live-profile-overlay"><button type="button" onClick={()=>setProfileId(null)}>← Volver al LIVE</button><div className="rivyza-live-profile-content">
       {profileDetails ? <>
         {profileDetails.avatar_url && <img src={profileDetails.avatar_url} alt="" style={{width:90,height:90,borderRadius:'50%',objectFit:'cover'}}/>}
