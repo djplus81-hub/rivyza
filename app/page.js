@@ -204,6 +204,7 @@ export default function HomePage(){
   const [discoverLiveRooms,setDiscoverLiveRooms]=useState([]);
   const [discoverLiveError,setDiscoverLiveError]=useState('');
   const [selectedLiveRoom,setSelectedLiveRoom]=useState(null);
+  const [user,setUser]=useState(null);
   const [liveFriendIds,setLiveFriendIds]=useState([]);
   const [activeLivePreview,setActiveLivePreview]=useState(0);
   const [livePreviewInvite,setLivePreviewInvite]=useState(false);
@@ -299,7 +300,6 @@ export default function HomePage(){
   const socialPollBusy=useRef(false);
   const socialThreadRef=useRef(null);
   const unreadSocial=socialNotices.filter(n=>!n.read_at).length;
-  const [user,setUser]=useState(null);
   // Moderación: las acciones reales se autorizan en funciones SQL, nunca por este botón.
   const [adminOwner,setAdminOwner]=useState(false);
   const [adminPanel,setAdminPanel]=useState(false);
