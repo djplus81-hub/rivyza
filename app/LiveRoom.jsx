@@ -122,7 +122,6 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     catch(e) { onError(e.message); }
   }
   return <>
-    {typeof document !== "undefined" && document.querySelector(".rivyza-live-top .rivyza-live-header-center") && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header" aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector(".rivyza-live-top .rivyza-live-header-center"))}
     <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''}`}
@@ -133,7 +132,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>)}
     </div>
     {isHost && moveMode && <p className="rivyza-live-hint">{selected === null ? tr.moveHint : 'Selecciona la posición de destino'}</p>}
-
+    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-header-center') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header" aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-header-center'))}
     <div className="rivyza-live-bottom-bar">
       {publish && <>
         <button type="button" onClick={toggleMic}>{mic ? `🎙️ ${tr.microphone}` : `🔇 ${tr.unmute}`}</button>
