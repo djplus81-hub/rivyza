@@ -3270,37 +3270,3 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
  padding:7px 12px!important;font-size:12px!important;
 }
 .rivyza-live-stage .rivyza-live-request-body{max-height:33dvh!important;overflow:auto!important;min-width:min(80vw,300px);padding:8px!important;}
-
-
-/* RIVYZA v13.19.59 - ONLY 5..10, preserving all camera rules for 1..4 */
-.rivyza-live-top .rivyza-live-header-center{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;min-width:0;font-size:clamp(12px,3.4vw,18px)}
-.rivyza-live-top .rivyza-live-header-center .rivyza-live-viewer-header{position:static!important;display:inline-flex;align-items:center;gap:4px;padding:4px 7px!important;font-size:11px!important;line-height:1!important;background:#30283f!important;color:#e7b9ff!important;border:1px solid #574369;border-radius:16px!important;white-space:nowrap;z-index:auto!important;font-weight:600}
-.rivyza-live-top .rivyza-live-header-center .rivyza-live-viewer-header span{color:white}
-/* Fixed track heights stop grid rows from collapsing to a thin line. */
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square[class*="rivyza-live-layout-"]:is(.rivyza-live-layout-5,.rivyza-live-layout-6,.rivyza-live-layout-7,.rivyza-live-layout-8,.rivyza-live-layout-9,.rivyza-live-layout-10){
- display:grid!important;box-sizing:border-box!important;width:100%!important;max-width:100%!important;
- height:clamp(260px,47dvh,440px)!important;max-height:55dvh!important;min-height:260px!important;
- grid-template-columns:repeat(12,minmax(0,1fr))!important;
- grid-template-rows:none!important;grid-auto-rows:minmax(0,1fr)!important;
- grid-auto-flow:row!important;align-content:stretch!important;align-items:stretch!important;
- gap:4px!important;overflow:hidden!important;
-}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square[class*="rivyza-live-layout-"]:is(.rivyza-live-layout-5,.rivyza-live-layout-6,.rivyza-live-layout-7,.rivyza-live-layout-8,.rivyza-live-layout-9,.rivyza-live-layout-10)>.rivyza-live-tile.rivyza-live-square{
- box-sizing:border-box!important;grid-column:span 4!important;grid-row:auto!important;
- display:block!important;position:relative!important;min-width:0!important;min-height:0!important;
- width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
- aspect-ratio:auto!important;justify-self:stretch!important;align-self:stretch!important;overflow:hidden!important;
-}
-/* First two large cameras; all remaining small cameras equal-sized. */
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square[class*="rivyza-live-layout-"]:is(.rivyza-live-layout-5,.rivyza-live-layout-6,.rivyza-live-layout-7,.rivyza-live-layout-8,.rivyza-live-layout-9,.rivyza-live-layout-10)>.rivyza-live-tile.rivyza-live-square:nth-child(-n+2){grid-column:span 6!important}
-/* For 10, four small tiles per row: 2 + 4 + 4 */
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-10>.rivyza-live-tile.rivyza-live-square:nth-child(n+3){grid-column:span 3!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square:is(.rivyza-live-layout-5,.rivyza-live-layout-6,.rivyza-live-layout-7,.rivyza-live-layout-8,.rivyza-live-layout-9,.rivyza-live-layout-10) .lk-participant-tile,
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square:is(.rivyza-live-layout-5,.rivyza-live-layout-6,.rivyza-live-layout-7,.rivyza-live-layout-8,.rivyza-live-layout-9,.rivyza-live-layout-10) video{
- width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;object-fit:cover!important;
-}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square:is(.rivyza-live-layout-5,.rivyza-live-layout-6,.rivyza-live-layout-7,.rivyza-live-layout-8,.rivyza-live-layout-9,.rivyza-live-layout-10) .rivyza-live-camera-name{
- max-width:calc(100% - 8px)!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:clamp(8px,2vw,11px)!important;
-}
-
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9>.rivyza-live-tile.rivyza-live-square:nth-child(n+3){grid-column:span 3!important}
