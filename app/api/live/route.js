@@ -186,9 +186,6 @@ export async function POST(req) {
       const {data: blocked,error: blockError}=await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',uid).maybeSingle();
       if(blockError) throw blockError;
       if(blocked) return json({error:'No tienes acceso a este LIVE'},403);
-      const {data:block,error:blockError}=await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',uid).maybeSingle();
-      if(blockError) throw blockError;
-      if(block) return json({error:'No puedes participar en este LIVE'},403);
       if (room.host_id === uid) return json({ error: 'Ya eres el anfitrión' }, 400);
       const { error } = await db.from('rivyza_live_camera_requests')
         .upsert({ room_id: room.id, user_id: uid, status: 'pending' }, { onConflict: 'room_id,user_id' });
@@ -219,9 +216,6 @@ export async function POST(req) {
       const {data: blocked,error: blockError}=await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',uid).maybeSingle();
       if(blockError) throw blockError;
       if(blocked) return json({error:'No tienes acceso a este LIVE'},403);
-      const {data:block,error:blockError}=await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',uid).maybeSingle();
-      if(blockError) throw blockError;
-      if(block) return json({error:'No puedes entrar a este LIVE'},403);
       const { data: guest, error } = await db.from('rivyza_live_camera_requests')
         .select('status').eq('room_id', room.id).eq('user_id', uid).maybeSingle();
       if (error) throw error;
