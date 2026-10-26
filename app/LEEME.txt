@@ -1,2 +1,0 @@
-RIVYZA v13.19.57
-Reemplazar SOLAMENTE app/LiveRoom.jsx y app/globals.css en GitHub. No subir el ZIP directamente. No modificar app/api/live/route.js.
