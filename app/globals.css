@@ -3272,40 +3272,49 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-live-stage .rivyza-live-request-body{max-height:33dvh!important;overflow:auto!important;min-width:min(80vw,300px);padding:8px!important;}
 
 
-/* RIVYZA 13.19.55: layouts 1-10, a single mobile screen.
-   The camera-count selector and participant ordering are unchanged. */
+/* RIVYZA v13.19.56 - distribuciones aprobadas; sin cambios de JS ni SQL. */
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square{
- display:grid!important; width:100%!important; height:min(48dvh,420px)!important;
- max-height:48dvh!important; min-height:0!important;
- grid-template-rows:none!important; grid-auto-rows:minmax(0,1fr)!important;
- gap:3px!important; overflow:hidden!important; align-content:stretch!important;
+ display:grid!important;box-sizing:border-box!important;width:100%!important;
+ height:min(45dvh,390px)!important;max-height:45dvh!important;min-height:0!important;
+ gap:3px!important;overflow:hidden!important;align-content:stretch!important;
+ grid-auto-flow:row!important;grid-auto-rows:minmax(0,1fr)!important;
 }
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square .rivyza-live-tile.rivyza-live-square{
- grid-column:auto!important;grid-row:auto!important; width:100%!important;
- height:100%!important;min-height:0!important;max-height:none!important;
- aspect-ratio:auto!important;justify-self:stretch!important;align-self:stretch!important;
+ box-sizing:border-box!important;position:relative!important;min-width:0!important;min-height:0!important;
+ width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
+ aspect-ratio:auto!important;align-self:stretch!important;justify-self:stretch!important;
+ grid-column:auto!important;grid-row:auto!important;
 }
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square .lk-participant-tile,
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square video{
- width:100%!important;height:100%!important;object-fit:cover!important;
+ width:100%!important;height:100%!important;min-height:0!important;object-fit:cover!important;
 }
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-1{grid-template-columns:1fr!important;grid-template-rows:1fr!important;height:min(57dvh,530px)!important;max-height:57dvh!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-2{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:1fr!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-3{grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-template-rows:1fr!important}
+/* 1: principal amplia; 2: lado a lado; 3: tres iguales; 4: dos por dos. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-1{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;height:min(57dvh,520px)!important;max-height:57dvh!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-2{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:minmax(0,1fr)!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-3{grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-template-rows:minmax(0,1fr)!important;height:min(39dvh,340px)!important;max-height:39dvh!important}
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-4{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
+/* 5: dos grandes, tres iguales debajo. */
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-5{grid-template-columns:repeat(6,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-5 .rivyza-live-tile:nth-child(-n+2){grid-column:span 3!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-5 .rivyza-live-tile:nth-child(n+3){grid-column:span 2!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-5 .rivyza-live-tile.rivyza-live-square:nth-child(-n+2){grid-column:span 3!important;grid-row:1!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-5 .rivyza-live-tile.rivyza-live-square:nth-child(n+3){grid-column:span 2!important;grid-row:2!important}
+/* 6: dos filas de tres iguales. */
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-6{grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-7{grid-template-columns:repeat(6,minmax(0,1fr))!important;grid-template-rows:repeat(3,minmax(0,1fr))!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-7 .rivyza-live-tile:first-child{grid-column:span 6!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-7 .rivyza-live-tile:nth-child(n+2){grid-column:span 2!important}
+/* 7: dos grandes arriba; 3-5 en fila; 6-7 alineadas debajo de 3-4. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-7{grid-template-columns:repeat(6,minmax(0,1fr))!important;grid-template-rows:1.35fr 1fr 1fr!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-7 .rivyza-live-tile.rivyza-live-square:nth-child(-n+2){grid-column:span 3!important;grid-row:1!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-7 .rivyza-live-tile.rivyza-live-square:nth-child(n+3):nth-child(-n+5){grid-column:span 2!important;grid-row:2!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-7 .rivyza-live-tile.rivyza-live-square:nth-child(n+6){grid-column:span 2!important;grid-row:3!important}
+/* 8: cuatro columnas, dos filas uniformes. */
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-8{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
+/* 9: una principal a la izquierda y ocho pequeñas (2 x 4) a la derecha. */
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-9{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:repeat(4,minmax(0,1fr))!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-9 .rivyza-live-tile:first-child{grid-column:span 2!important;grid-row:span 4!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-10{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:repeat(4,minmax(0,1fr))!important}
-.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-10 .rivyza-live-tile:nth-child(-n+2){grid-column:span 2!important;grid-row:span 2!important}
-/* The grid does not scroll; chat can keep its own independent scrolling. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-9 .rivyza-live-tile.rivyza-live-square:first-child{grid-column:1/span 2!important;grid-row:1/span 4!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-9 .rivyza-live-tile.rivyza-live-square:nth-child(n+2){grid-column:auto!important;grid-row:auto!important}
+/* 10: dos grandes arriba y ocho iguales abajo en dos filas de cuatro. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-10{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:1.25fr 1.25fr 1fr 1fr!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-10 .rivyza-live-tile.rivyza-live-square:nth-child(-n+2){grid-column:span 2!important;grid-row:1/span 2!important}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-10 .rivyza-live-tile.rivyza-live-square:nth-child(n+3){grid-column:auto!important;grid-row:auto!important}
 .rivyza-live-stage{min-height:0!important;overflow:hidden!important;gap:4px!important}
 .rivyza-live-stage .rivyza-live-bottom-bar{flex-shrink:0!important;margin:3px 0!important}
 @media(max-height:700px){.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square{height:40dvh!important;max-height:40dvh!important}.rivyza-live-stage .rivyza-live-grid.rivyza-live-layout-1{height:52dvh!important;max-height:52dvh!important}}
