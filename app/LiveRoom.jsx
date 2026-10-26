@@ -132,7 +132,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>)}
     </div>
     {isHost && moveMode && <p className="rivyza-live-hint">{selected === null ? tr.moveHint : 'Selecciona la posición de destino'}</p>}
-    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-header-center') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header" aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-header-center'))}
+    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-header-center') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-header-center'))}
     <div className="rivyza-live-bottom-bar">
       {publish && <>
         <button type="button" onClick={toggleMic}>{mic ? `🎙️ ${tr.microphone}` : `🔇 ${tr.unmute}`}</button>
@@ -310,7 +310,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
   }
 
   return <main className="rivyza-live-studio">
-    <header className="rivyza-live-top"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-header-center">RIVYZA <span>LIVE</span></strong><small>{roomId ? "🔴 EN VIVO" : "LIVE"}</small></header>
+    <header className="rivyza-live-top"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-header-center" style={{display:"inline-flex",alignItems:"center",whiteSpace:"nowrap",gap:"4px"}}>RIVYZA <span>LIVE</span></strong><small>{roomId ? "🔴 EN VIVO" : "LIVE"}</small></header>
     {profileId && <div className="rivyza-live-profile-overlay"><button type="button" onClick={()=>setProfileId(null)}>← Volver al LIVE</button><div className="rivyza-live-profile-content">
       {profileDetails ? <>
         {profileDetails.avatar_url && <img src={profileDetails.avatar_url} alt="" style={{width:90,height:90,borderRadius:'50%',objectFit:'cover'}}/>}
