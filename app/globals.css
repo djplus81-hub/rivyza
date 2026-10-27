@@ -3299,3 +3299,52 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-v32-toast button{background:transparent;border:0;color:white;font-size:16px;}
 .rivyza-v32-toolbar.rivyza-v32-typing .rivyza-v32-comment{width:100%;}
 @media(max-width:360px){.rivyza-live-stage .rivyza-v32-toolbar button.rivyza-v32-icon{width:31px!important;font-size:15px!important;}.rivyza-v32-header .rivyza-live-header-center{font-size:12px!important;}}
+
+/* RIVYZA v3.3 — Barra inferior adaptable y teclado iOS.
+   No se modifican las cuadriculas ni los tamanos de camaras. */
+.rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar {
+  box-sizing:border-box!important;
+  width:auto!important;
+  max-width:calc(100% - 16px)!important;
+  min-width:0!important;
+  gap:clamp(3px,1vw,6px)!important;
+  padding:6px!important;
+  overflow:hidden!important;
+}
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-comment {
+  box-sizing:border-box!important;
+  display:block!important;
+  flex:1 1 0%!important;
+  width:0!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:40px!important;
+  min-height:40px!important;
+  padding:0 9px!important;
+  margin:0!important;
+  font-size:16px!important; /* Safari: evita zoom automatico al enfocar */
+  line-height:40px!important;
+  border-radius:24px!important;
+  transform:none!important;
+}
+.rivyza-live-stage .rivyza-v32-toolbar.rivyza-v32-typing .rivyza-v32-comment,
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-comment:focus {
+  width:0!important;
+  flex:1 1 0%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  font-size:16px!important;
+}
+.rivyza-live-stage .rivyza-v32-toolbar button.rivyza-v32-icon {
+  box-sizing:border-box!important;
+  flex:0 0 clamp(28px,8vw,36px)!important;
+  width:clamp(28px,8vw,36px)!important;
+  min-width:0!important;
+  height:38px!important;
+  padding:0!important;
+  font-size:clamp(14px,4vw,17px)!important;
+}
+@media(max-width:390px) {
+  .rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar{gap:3px!important;padding:5px!important;}
+  .rivyza-live-stage .rivyza-v32-toolbar button.rivyza-v32-icon{flex-basis:29px!important;width:29px!important;}
+}
