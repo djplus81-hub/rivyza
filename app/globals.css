@@ -3270,3 +3270,32 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
  padding:7px 12px!important;font-size:12px!important;
 }
 .rivyza-live-stage .rivyza-live-request-body{max-height:33dvh!important;overflow:auto!important;min-width:min(80vw,300px);padding:8px!important;}
+
+/* RIVYZA v3.2 — Controles flotantes. No modificar reglas de distribución de cámaras. */
+.rivyza-live-studio{height:100dvh!important;max-height:100dvh!important;overflow:hidden!important;overscroll-behavior:none!important;}
+.rivyza-v32-header{position:relative!important;flex:none!important;min-height:60px!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;padding:10px 12px!important;}
+.rivyza-v32-header>button{position:relative;z-index:2;font-size:13px!important;white-space:nowrap;}
+.rivyza-v32-header .rivyza-live-header-center{position:absolute!important;left:50%!important;transform:translateX(-50%)!important;display:inline-flex!important;align-items:center!important;gap:5px!important;white-space:nowrap!important;font-size:clamp(13px,3.7vw,18px)!important;letter-spacing:0!important;}
+.rivyza-v32-viewers{position:absolute!important;left:auto!important;right:8px!important;top:50%!important;transform:translateY(-50%)!important;margin:0!important;padding:5px 7px!important;font-size:11px!important;z-index:3!important;}
+.rivyza-live-stage{position:relative!important;min-height:0!important;overflow:hidden!important;padding:5px!important;padding-bottom:calc(70px + env(safe-area-inset-bottom))!important;gap:2px!important;}
+.rivyza-live-stage>.lk-room-container{min-height:0!important;max-height:100%!important;overflow:hidden!important;}
+.rivyza-live-stage .rivyza-live-grid{max-height:calc(100dvh - 175px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;overflow:hidden!important;}
+.rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar{position:fixed!important;bottom:calc(6px + env(safe-area-inset-bottom))!important;left:8px!important;right:8px!important;z-index:1040!important;display:flex!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:space-between!important;gap:5px!important;margin:0!important;padding:6px!important;border-radius:18px!important;background:rgba(20,13,29,.94)!important;box-shadow:0 0 20px #0009!important;}
+.rivyza-v32-comment{flex:1;min-width:0;width:0;height:40px;border:1px solid #5d496b;border-radius:24px;background:#30263d;color:white;padding:0 10px;font-size:12px;outline:none;}
+.rivyza-live-stage .rivyza-v32-toolbar button.rivyza-v32-icon{position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;flex:none!important;width:36px!important;height:38px!important;min-height:38px!important;padding:0!important;border:0!important;border-radius:50%!important;background:#32273e!important;color:#fff!important;font-size:17px!important;}
+.rivyza-v32-toolbar button:disabled{opacity:.5;}
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-requests.has-pending{background:#b51d3b!important;box-shadow:0 0 0 2px #ff4b65!important;}
+.rivyza-v32-count{position:absolute;top:-6px;right:-4px;border-radius:12px;background:#ff244e;color:white;font-size:10px;min-width:17px;padding:1px 3px;}
+.rivyza-live-stage .rivyza-v32-popover{position:fixed!important;left:8px!important;right:8px!important;bottom:calc(67px + env(safe-area-inset-bottom))!important;top:auto!important;z-index:1039!important;max-height:min(52dvh,430px)!important;overflow-y:auto!important;overscroll-behavior:contain!important;background:#24182e!important;border:1px solid #594169!important;border-radius:17px!important;padding:12px!important;margin:0!important;box-shadow:0 -10px 35px #000a!important;}
+.rivyza-v32-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+.rivyza-v32-panel-heading button{border:0;border-radius:9px;background:#443052;color:white;padding:6px 10px;}
+.rivyza-v32-request-scroll{max-height:36dvh;overflow-y:auto;overscroll-behavior:contain;}
+.rivyza-v32-request-row{display:flex;align-items:center;gap:5px;padding:8px 0;border-top:1px solid #4a3656;font-size:12px;}
+.rivyza-v32-request-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;}
+.rivyza-v32-request-row button{border:1px solid #715683;background:#372642;color:#fff;border-radius:10px;padding:7px 8px;font-size:11px;}
+.rivyza-v32-request-row button:nth-of-type(1){background:#205b48;border-color:#3e9676;}
+.rivyza-v32-toast{position:fixed;top:calc(68px + env(safe-area-inset-top));left:12px;right:12px;z-index:1050;display:flex;align-items:center;gap:8px;background:#2a1b36e8;color:#fff;border:1px solid #745481;border-radius:12px;padding:8px 10px;font-size:12px;max-height:72px;overflow:auto;}
+.rivyza-v32-toast span{flex:1;min-width:0;}
+.rivyza-v32-toast button{background:transparent;border:0;color:white;font-size:16px;}
+.rivyza-v32-toolbar.rivyza-v32-typing .rivyza-v32-comment{width:100%;}
+@media(max-width:360px){.rivyza-live-stage .rivyza-v32-toolbar button.rivyza-v32-icon{width:31px!important;font-size:15px!important;}.rivyza-v32-header .rivyza-live-header-center{font-size:12px!important;}}

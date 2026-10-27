@@ -15,7 +15,7 @@ function getLanguage() {
   const stored = window.localStorage.getItem('rivyza_language') || window.localStorage.getItem('language') || '';
   return /^(en|english)/i.test(stored) || (!stored && navigator.language?.startsWith('en')) ? 'en' : 'es';
 }
-function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, lang }) {
+function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, lang }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
@@ -49,6 +49,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     catch (e) { onError(e?.message || 'No se pudo encender la cámara. Comprueba los permisos del navegador.'); }
   }
   const [drawer, setDrawer] = useState(false);
+  const [typing, setTyping] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
   const [moveMode, setMoveMode] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -132,16 +133,30 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>)}
     </div>
     {isHost && moveMode && <p className="rivyza-live-hint">{selected === null ? tr.moveHint : 'Selecciona la posición de destino'}</p>}
-    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-header-center') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-header-center'))}
-    <div className="rivyza-live-bottom-bar">
-      {publish && <>
-        <button type="button" onClick={toggleMic}>{mic ? `🎙️ ${tr.microphone}` : `🔇 ${tr.unmute}`}</button>
-        <button type="button" onClick={toggleCam}>{cam ? `📷 ${tr.camera}` : `📷 ${tr.cameraOn}`}</button>
+    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header rivyza-v32-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-top'))}
+    <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`}>
+      <input className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario (próximamente)" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} />
+      {!typing && <>
+        {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? '📹' : '📷'}</button>}
+        {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleMic} aria-label={mic ? 'Silenciar micrófono' : 'Activar micrófono'} title={mic ? 'Silenciar micrófono' : 'Activar micrófono'}>{mic ? '🎙️' : '🔇'}</button>}
+        {(isHost || isModerator) && <button type="button" className={`rivyza-v32-icon rivyza-v32-requests ${requests.some(r => r.status === 'pending') ? 'has-pending' : ''}`} onClick={() => { setDrawer(false); setRequestsOpen(x => !x); }} aria-label={`Solicitudes para subir: ${requests.filter(r => r.status === 'pending').length}`} aria-expanded={requestsOpen}>✋{requests.filter(r => r.status === 'pending').length > 0 && <span className="rivyza-v32-count">{requests.filter(r => r.status === 'pending').length}</span>}</button>}
+        <button type="button" className="rivyza-v32-icon" disabled title="Regalos: próximamente" aria-label="Regalos próximamente">🎁</button>
+        {(isHost || isModerator) && <button type="button" className="rivyza-v32-icon" onClick={() => { setRequestsOpen(false); setDrawer(x => !x); }} aria-label="Más opciones" aria-expanded={drawer}>•••</button>}
       </>}
-      {(isHost || isModerator) && <button type="button" onClick={() => setDrawer(x => !x)}>☰ {tr.options}</button>}
     </div>
+    {(isHost || isModerator) && requestsOpen && <div className="rivyza-v32-popover rivyza-v32-request-panel" role="dialog" aria-label="Solicitudes para subir">
+      <div className="rivyza-v32-panel-heading"><strong>✋ {tr.requests} ({requests.filter(r => r.status === 'pending').length})</strong><button type="button" onClick={() => setRequestsOpen(false)} aria-label="Cerrar">✕</button></div>
+      <div className="rivyza-v32-request-scroll">
+        {requests.filter(r => r.status === 'pending').length === 0 && <p>{tr.noRequests}</p>}
+        {requests.filter(r => r.status === 'pending').map(r => <div className="rivyza-v32-request-row" key={r.user_id}>
+          <span>👤 {lang === 'es' ? 'Usuario' : 'User'} {r.user_id.slice(0,8)}</span>
+          <button type="button" onClick={() => onRequestDecision('approve', r.user_id)}>✓ {tr.accept}</button>
+          <button type="button" onClick={() => onRequestDecision('reject', r.user_id)}>✕ {tr.reject}</button>
+        </div>)}
+      </div>
+    </div>}
     {!isHost && publish && <div className="rivyza-live-guest-exit"><button type="button" onClick={onLeaveCamera}>{tr.leaveCamera}</button><button type="button" onClick={onLeaveLive}>{tr.leaveLive}</button></div>}
-    {(isHost || isModerator) && drawer && <div className="rivyza-live-bottom-drawer">
+    {(isHost || isModerator) && drawer && <div className="rivyza-live-bottom-drawer rivyza-v32-popover">
       <div className="rivyza-live-drawer-handle" />
       <strong>{tr.options} LIVE</strong>
       {isHost && <label className="rivyza-live-slot-picker">{tr.slots}: <select value={slots} onChange={e => { const count = Number(e.target.value); setSlots(count); broadcastLayout(positions, count); }}>{Array.from({length:10},(_,i) => <option key={i} value={i+1}>{i+1}</option>)}</select></label>}
@@ -310,7 +325,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
   }
 
   return <main className="rivyza-live-studio">
-    <header className="rivyza-live-top"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-header-center" style={{display:"inline-flex",alignItems:"center",whiteSpace:"nowrap",gap:"4px"}}>RIVYZA <span>LIVE</span></strong><small>{roomId ? "🔴 EN VIVO" : "LIVE"}</small></header>
+    <header className="rivyza-live-top rivyza-v32-header"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-header-center">RIVYZA <span>LIVE</span></strong></header>
     {profileId && <div className="rivyza-live-profile-overlay"><button type="button" onClick={()=>setProfileId(null)}>← Volver al LIVE</button><div className="rivyza-live-profile-content">
       {profileDetails ? <>
         {profileDetails.avatar_url && <img src={profileDetails.avatar_url} alt="" style={{width:90,height:90,borderRadius:'50%',objectFit:'cover'}}/>}
@@ -319,7 +334,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
         <p>{profileDetails.bio || ''}</p>
       </> : <p>Cargando perfil…</p>}
       </div></div>}
-    {error && <p className="rivyza-live-message" role="alert">{error}</p>}
+    {error && <div className="rivyza-v32-toast" role="status"><span>{error}</span><button type="button" onClick={() => setError('')} aria-label="Cerrar aviso">✕</button></div>}
     {!roomId ? <section className="rivyza-live-lobby">
       <button type="button" className="rivyza-live-start" disabled={busy} onClick={start}>{busy ? 'Conectando…' : '🔴 Iniciar mi LIVE'}</button>
       <h2>Transmisiones en vivo</h2>
@@ -330,19 +345,9 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
     </section> : <section className="rivyza-live-stage">
       {session ? <LiveKitRoom key={`${roomId}-${session.publish}`} token={session.token} serverUrl={session.serverUrl}
         connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} lang={lang} />
+        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} lang={lang} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
       {session && !session.publish && <button type="button" className="rivyza-live-join-camera" onClick={() => action('request')}>✋ {translations[lang].request}</button>}
-      {(session?.host || session?.moderator) && <aside className="rivyza-live-request-list">
-        <button type="button" className="rivyza-live-request-toggle" onClick={() => setRequestsOpen(x => !x)}>✋ Solicitudes ({requests.filter(r => r.status === 'pending').length}) {requestsOpen ? '▾' : '▴'}</button>
-        {requestsOpen && <div className="rivyza-live-request-body">
-        {requests.filter(r => r.status === 'pending').length === 0 && <small>{translations[lang].noRequests}</small>}
-        {requests.filter(r => r.status === 'pending').map(r => <div key={r.user_id}>
-          <span>Usuario {r.user_id.slice(0, 8)}</span>
-          <span className="rivyza-live-request-actions"><button type="button" onClick={() => action('approve', { guestId: r.user_id })}>✓ {translations[lang].accept}</button><button type="button" onClick={() => action('reject', { guestId: r.user_id })}>✕ {translations[lang].reject}</button></span>
-        </div>)}
-        </div>}
-      </aside>}
     </section>}
   </main>;
 }
