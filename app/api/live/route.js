@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
+import { cleanupAbsentHosts } from './cleanup-hosts';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,8 +31,8 @@ function adminClient() {
   });
 }
 
-async function isModerator(db, roomId, uid) {
-  const { data, error } = await db.from('rivyza_live_moderators').select('user_id').eq('room_id', roomId).eq('user_id', uid).maybeSingle();
+async function isModerator(db, hostId, uid) {
+  const { data, error } = await db.from('rivyza_live_permanent_moderators').select('user_id').eq('host_id', hostId).eq('user_id', uid).maybeSingle();
   if (error) throw error;
   return Boolean(data);
 }
@@ -59,7 +60,7 @@ export async function GET(req) {
     const params = new URL(req.url).searchParams;
     if (params.get('mode') === 'blocked') {
       const room = await getRoom(db, params.get('room'));
-      if (!room || (room.host_id !== auth.user.id && !(await isModerator(db,room.id,auth.user.id)))) return json({error:'No autorizado'},403);
+      if (!room || (room.host_id !== auth.user.id && !(await isModerator(db,room.host_id,auth.user.id)))) return json({error:'No autorizado'},403);
       const {data: blocked,error} = await db.from('rivyza_live_blocks').select('user_id,created_at,reason,blocked_by').eq('host_id',room.host_id).order('created_at',{ascending:false});
       if(error) throw error;
       const ids=(blocked||[]).map(x=>x.user_id);
@@ -70,7 +71,7 @@ export async function GET(req) {
     }
     if (params.get('mode') === 'requests') {
       const room = await getRoom(db, params.get('room'));
-      if (!room || room.status !== 'live' || (room.host_id !== auth.user.id && !(await isModerator(db, room.id, auth.user.id)))) return json({ error: 'No autorizado' }, 403);
+      if (!room || room.status !== 'live' || (room.host_id !== auth.user.id && !(await isModerator(db, room.host_id, auth.user.id)))) return json({ error: 'No autorizado' }, 403);
       const { data, error } = await db.from('rivyza_live_camera_requests')
         .select('user_id,status,created_at').eq('room_id', room.id).order('created_at');
       if (error) throw error;
@@ -89,6 +90,7 @@ export async function GET(req) {
       }
       return json({ requests: data || [] });
     }
+    await cleanupAbsentHosts(db);
     const { data, error } = await db.from('rivyza_live_rooms')
       .select('id,host_id,title,created_at').eq('status', 'live')
       .order('created_at', { ascending: false }).limit(50);
@@ -136,7 +138,7 @@ export async function POST(req) {
     const room = await getRoom(db, input.roomId);
     if (!room || room.status !== 'live') return json({ error: 'El LIVE ya terminó' }, 404);
     const isHost = room.host_id === uid;
-    const moderator = !isHost && await isModerator(db, room.id, uid);
+    const moderator = !isHost && await isModerator(db, room.host_id, uid);
     const canModerate = isHost || moderator;
     if (input.action === 'block_guest' || input.action === 'unblock_guest') {
       if(!canModerate) return json({error:'No autorizado'},403);
@@ -158,10 +160,10 @@ export async function POST(req) {
       if (!isHost) return json({ error: 'Solo el anfitrión asigna moderadores' }, 403);
       if (!input.guestId || input.guestId === room.host_id) return json({ error: 'Usuario inválido' }, 400);
       if (input.action === 'moderator_add' ) {
-        const { error } = await db.from('rivyza_live_moderators').upsert({ room_id: room.id, user_id: input.guestId, assigned_by: uid }, { onConflict: 'room_id,user_id' });
+        const { error } = await db.from('rivyza_live_permanent_moderators').upsert({ host_id: room.host_id, user_id: input.guestId, assigned_by: uid }, { onConflict: 'host_id,user_id' });
         if (error) throw error;
       } else {
-        const { error } = await db.from('rivyza_live_moderators').delete().eq('room_id', room.id).eq('user_id', input.guestId);
+        const { error } = await db.from('rivyza_live_permanent_moderators').delete().eq('host_id', room.host_id).eq('user_id', input.guestId);
         if (error) throw error;
       }
       return json({ ok: true });
@@ -228,7 +230,11 @@ export async function POST(req) {
     }
     if (input.action === 'approve') {
       if (!canModerate) return json({ error: 'No autorizado' }, 403);
-      const { error } = await auth.client.rpc('rivyza_live_approve_camera', { p_room: room.id, p_guest: input.guestId });
+      if (!input.guestId) return json({ error: 'Usuario inválido' }, 400);
+      const connected = await liveParticipant(room.id, input.guestId);
+      if (!connected) return json({ error: 'La persona ya no está en el LIVE' }, 409);
+      // Authorization is verified above. The service-role-only RPC serializes approvals.
+      const { error } = await db.rpc('rivyza_live_approve_camera_server', { p_room: room.id, p_guest: input.guestId });
       if (error) throw error;
       return json({ ok: true });
     }
@@ -240,7 +246,7 @@ export async function POST(req) {
         .select('status').eq('room_id', room.id).eq('user_id', uid).maybeSingle();
       if (error) throw error;
       const publish = room.host_id === uid || guest?.status === 'approved';
-      const { data: moderators, error: modError } = await db.from('rivyza_live_moderators').select('user_id').eq('room_id', room.id);
+      const { data: moderators, error: modError } = await db.from('rivyza_live_permanent_moderators').select('user_id').eq('host_id', room.host_id);
       if (modError) throw modError;
       const moderatorIds = (moderators || []).map(x => x.user_id);
       const mod = moderatorIds.includes(uid);
