@@ -74,7 +74,20 @@ export async function GET(req) {
       const { data, error } = await db.from('rivyza_live_camera_requests')
         .select('user_id,status,created_at').eq('room_id', room.id).order('created_at');
       if (error) throw error;
-      return json({ requests: data });
+      // Pending requests are valid only while the requester is actually in the LiveKit room.
+      // LiveKit is the source of truth for presence; Supabase stores the request decision.
+      const pending = (data || []).filter(item => item.status === 'pending');
+      if (pending.length) {
+        const connected = new Set((await roomService().listParticipants(`rivyza-${room.id}`)).map(p => p.identity));
+        const absent = pending.filter(item => !connected.has(item.user_id)).map(item => item.user_id);
+        if (absent.length) {
+          const { error: cleanupError } = await db.from('rivyza_live_camera_requests')
+            .update({ status: 'rejected' }).eq('room_id', room.id).eq('status', 'pending').in('user_id', absent);
+          if (cleanupError) throw cleanupError;
+        }
+        return json({ requests: (data || []).filter(item => item.status !== 'pending' || connected.has(item.user_id)) });
+      }
+      return json({ requests: data || [] });
     }
     const { data, error } = await db.from('rivyza_live_rooms')
       .select('id,host_id,title,created_at').eq('status', 'live')
@@ -189,6 +202,13 @@ export async function POST(req) {
       if (room.host_id === uid) return json({ error: 'Ya eres el anfitrión' }, 400);
       const { error } = await db.from('rivyza_live_camera_requests')
         .upsert({ room_id: room.id, user_id: uid, status: 'pending' }, { onConflict: 'room_id,user_id' });
+      if (error) throw error;
+      return json({ ok: true });
+    }
+    if (input.action === 'cancel_request') {
+      // A viewer leaving the room withdraws their own pending request.
+      const { error } = await db.from('rivyza_live_camera_requests')
+        .update({ status: 'rejected' }).eq('room_id', room.id).eq('user_id', uid).eq('status', 'pending');
       if (error) throw error;
       return json({ ok: true });
     }
