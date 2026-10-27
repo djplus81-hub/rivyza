@@ -271,7 +271,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
 
   const refreshSession = useCallback(async (id) => {
     const next = await api('token', { roomId: id });
-    setSession(previous => (!previous || previous.publish !== next.publish) ? next : previous);
+    setSession(previous => (!previous || previous.publish !== next.publish || previous.moderator !== next.moderator || JSON.stringify(previous.moderatorIds) !== JSON.stringify(next.moderatorIds)) ? next : previous);
   }, [api]);
 
   useEffect(() => {
