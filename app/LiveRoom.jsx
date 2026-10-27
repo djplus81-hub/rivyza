@@ -321,6 +321,11 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
       if (!window.confirm('¿Salir del LIVE? Pulsa Aceptar para terminarlo para todos.')) return;
       try { await api('stop', { roomId }); } catch (e) { setError(e.message); return; }
     }
+    // Withdraw a pending camera request before disconnecting from this LIVE.
+    if (roomId && !session?.host) {
+      try { await api('cancel_request', { roomId }); }
+      catch (e) { console.warn('Could not cancel camera request on exit:', e); }
+    }
     setRoomId(null); setSession(null); setRequests([]); refreshRooms();
   }
 
