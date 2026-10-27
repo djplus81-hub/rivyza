@@ -138,7 +138,11 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       <input className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario (próximamente)" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} />
       {!typing && <>
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? '📹' : '📷'}</button>}
-        {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleMic} aria-label={mic ? 'Silenciar micrófono' : 'Activar micrófono'} title={mic ? 'Silenciar micrófono' : 'Activar micrófono'}>{mic ? '🎙️' : '🎙️🚫'}</button>}
+        {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleMic} aria-label={mic ? 'Silenciar micrófono' : 'Activar micrófono'} title={mic ? 'Silenciar micrófono' : 'Activar micrófono'}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mic ? "#FFFFFF" : "#FF3B45"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:"block",width:"22px",height:"22px",flexShrink:0,margin:"auto"}}>
+          <rect x="9" y="2" width="6" height="12" rx="3" />
+          <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" />
+          {!mic && <><circle cx="12" cy="12" r="10" stroke="#FF3B45" strokeWidth="1.6" /><path d="M5 5l14 14" stroke="#FF3B45" strokeWidth="2.3" /></>}
+        </svg></button>}
         {!publish && <button type="button" className="rivyza-v32-icon rivyza-v32-join-request" onClick={() => onRequest?.()} aria-label={tr.request} title={tr.request}>✋</button>}
         {(isHost || isModerator) && <button type="button" className={`rivyza-v32-icon rivyza-v32-requests ${requests.some(r => r.status === 'pending') ? 'has-pending' : ''}`} onClick={() => { setDrawer(false); setRequestsOpen(x => !x); }} aria-label={`Solicitudes para subir: ${requests.filter(r => r.status === 'pending').length}`} aria-expanded={requestsOpen}>✋{requests.filter(r => r.status === 'pending').length > 0 && <span className="rivyza-v32-count">{requests.filter(r => r.status === 'pending').length}</span>}</button>}
         <button type="button" className="rivyza-v32-icon" disabled title="Regalos: próximamente" aria-label="Regalos próximamente">🎁</button>
@@ -271,7 +275,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
 
   const refreshSession = useCallback(async (id) => {
     const next = await api('token', { roomId: id });
-    setSession(previous => (!previous || previous.publish !== next.publish || previous.moderator !== next.moderator || JSON.stringify(previous.moderatorIds) !== JSON.stringify(next.moderatorIds)) ? next : previous);
+    setSession(previous => (!previous || previous.publish !== next.publish) ? next : previous);
   }, [api]);
 
   useEffect(() => {
