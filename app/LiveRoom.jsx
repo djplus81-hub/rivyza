@@ -286,7 +286,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
       } catch (e) { if (active) setError(e.message); }
     };
     tick();
-    const interval = setInterval(tick, 5000);
+    const interval = setInterval(tick, 2000);
     return () => { active = false; clearInterval(interval); };
   }, [roomId, api, refreshSession, session?.host, session?.moderator, user?.id]);
 
