@@ -70,11 +70,29 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     } catch(e) { onError('No se pudo voltear la cámara: ' + e.message); }
     finally { setFlipping(false); }
   }
-  const [soundReady, setSoundReady] = useState(false);
-  async function activateAudio() {
-    try { await room.startAudio(); setSoundReady(true); }
-    catch (e) { onError(e?.message || "Audio could not be enabled"); }
-  }
+  // Unlock playback through a normal LIVE gesture instead of an overlay button.
+  useEffect(() => {
+    let disposed = false;
+    const unlockAudio = () => {
+      if (!disposed && !room.canPlaybackAudio) room.startAudio().catch(() => {});
+    };
+    const onGesture = event => {
+      const node = event.target;
+      if (node instanceof Element && node.closest('.rivyza-live-studio')) unlockAudio();
+    };
+    unlockAudio();
+    room.on(RoomEvent.Connected, unlockAudio);
+    document.addEventListener('click', onGesture, true);
+    document.addEventListener('touchend', onGesture, true);
+    document.addEventListener('keydown', onGesture, true);
+    return () => {
+      disposed = true;
+      room.off(RoomEvent.Connected, unlockAudio);
+      document.removeEventListener('click', onGesture, true);
+      document.removeEventListener('touchend', onGesture, true);
+      document.removeEventListener('keydown', onGesture, true);
+    };
+  }, [room]);
   useEffect(() => {
     const speaking = list => setSpeakers(list.map(p=>p.identity));
     const reconnected = async () => { if (!isHost) await onLeaveCamera(); };
@@ -169,7 +187,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if (to) next[to.identity] = fromIndex;
       broadcastLayout(next); setMoveTarget(null); return;
     }
-    if (t) { setTarget(t); setExpelling(false); }
+    if (t) { setDrawer(false); setRequestsOpen(false); setBlockedOpen(false); setTarget(t); setExpelling(false); }
   }
   async function applyModeration(kind, extra = {}) {
     if (!target) return;
@@ -190,7 +208,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header rivyza-v32-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-top'))}
     <div className="rivyza-v314-chat" aria-live="polite">{chat.slice(-5).map(m=><div key={m.id}>{m.name && <strong>{m.name}: </strong>}{m.text}</div>)}</div>
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
-    <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`}>
+    <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''} ${target || blockedOpen || confirmStop ? 'rivyza-v316-toolbar-hidden' : ''}`}>
       <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
       {!typing && <>
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? '📹' : '📷'}</button>}
@@ -281,7 +299,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>
     </div>}
     <RoomAudioRenderer />
-    {!soundReady && <button type="button" className="rivyza-live-enable-audio" onClick={activateAudio}>🔊 {tr.activateAudio}</button>}
+
   </>;
 }
 
@@ -451,13 +469,13 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
 .rivyza-live-bottom-drawer>button{min-height:38px!important;padding:8px 12px!important;margin:0!important;font-size:13px!important;border-radius:12px!important}
 .rivyza-live-bottom-drawer>strong{font-size:15px}.rivyza-live-slot-picker{margin:0!important;padding:5px!important;font-size:13px}
 .rivyza-live-bottom-drawer .rivyza-live-power-icon{width:30px!important;height:30px!important;font-size:23px!important}
-.rivyza-v313-overlay{position:fixed;inset:0;z-index:1000;background:#0008;display:flex;align-items:flex-end;justify-content:center}
-.rivyza-v313-sheet{width:min(100%,600px);background:#25192f;color:#fff;border:1px solid #60446e;border-radius:20px 20px 0 0;padding-bottom:calc(14px + env(safe-area-inset-bottom))!important}
+.rivyza-live-mod-backdrop.rivyza-v313-overlay{position:fixed!important;inset:0!important;z-index:1200!important;background:#0008;display:flex!important;align-items:flex-end!important;justify-content:center!important;padding:8px 8px calc(8px + env(safe-area-inset-bottom))!important;box-sizing:border-box}
+.rivyza-v313-sheet{width:min(100%,600px);background:#25192f;color:#fff;border:1px solid #60446e;border-radius:16px;box-sizing:border-box}
 .rivyza-v313-handle{width:40px;height:4px;border-radius:4px;background:#88748e;margin:0 auto 10px}
-.rivyza-v313-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}.rivyza-v313-avatar{font-size:26px}.rivyza-v313-person{display:flex;flex-direction:column;flex:1;min-width:0}.rivyza-v313-person strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rivyza-v313-person span{font-size:11px;color:#c8b5d3}.rivyza-v313-close{background:transparent;color:white;border:0;padding:10px}
+.rivyza-v313-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}.rivyza-v313-avatar{font-size:26px}.rivyza-v313-person{display:flex;flex-direction:column;flex:1;min-width:0}.rivyza-v313-person strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rivyza-v313-person span{font-size:11px;color:#c8b5d3}.rivyza-v313-close{background:transparent;color:white;border:0;padding:10px}
 .rivyza-v313-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.rivyza-v313-actions>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#382741;color:white;border:1px solid #5a4068;border-radius:12px}.rivyza-v313-glyph{font-size:19px}
 .rivyza-v313-danger{display:flex;gap:8px;margin-top:10px}.rivyza-v313-danger button,.rivyza-v313-report button{flex:1;padding:10px;background:#452335;color:#ffb1bc;border:1px solid #7f4459;border-radius:10px;font-size:12px}.rivyza-v313-report{display:grid;gap:8px}.rivyza-v313-report select,.rivyza-v313-report textarea{display:block;width:100%;padding:8px;background:#35253f;color:white;border:1px solid #60446e;border-radius:8px}
-.rivyza-v313-sheet{max-height:55dvh!important;overflow-y:auto;padding:14px!important}.rivyza-v313-actions{gap:7px!important}.rivyza-v313-actions>button{min-height:56px!important;padding:8px!important;font-size:12px!important}
+.rivyza-v313-sheet{max-height:calc(100dvh - 100px - env(safe-area-inset-bottom))!important;overflow-y:auto!important;overscroll-behavior:contain;padding:10px!important}.rivyza-v313-actions{gap:5px!important}.rivyza-v313-actions>button{min-height:44px!important;padding:5px!important;font-size:11px!important;line-height:1.2!important}.rivyza-v313-glyph{font-size:16px}.rivyza-v313-close{min-width:44px;min-height:44px}.rivyza-v313-danger button{min-height:44px}
 .rivyza-live-avatar-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#21172b;font-size:32px}
 .rivyza-v314-speaking{box-shadow:inset 0 0 0 3px #70e3a0!important}.rivyza-v314-speaking:after{content:'';position:absolute;inset:0;border:3px solid #70e3a0;border-radius:inherit;pointer-events:none;z-index:3}
 .rivyza-live-tile > svg.rivyza-v315-muted{position:absolute!important;inset:6px 6px auto auto!important;width:20px!important;height:20px!important;min-width:0!important;min-height:0!important;max-width:20px!important;max-height:20px!important;display:block!important;padding:0!important;margin:0!important;background:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;filter:drop-shadow(0 1px 2px #000);pointer-events:none;z-index:4}
@@ -465,6 +483,9 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
 .rivyza-v314-chat>div{background:#171021b8;border-radius:7px;margin:3px 0;padding:3px 7px;overflow-wrap:anywhere}
 .rivyza-v314-comment-form{display:flex;min-width:0;flex:1;align-items:center}.rivyza-v314-comment-form input{width:100%!important;min-width:0}.rivyza-v314-comment-form button{border:0;background:transparent;color:white;padding:5px}
 .rivyza-v314-request-status{position:fixed;bottom:calc(190px + env(safe-area-inset-bottom));left:12px;z-index:40;font-size:12px;background:#281c35;padding:7px;border-radius:10px}.rivyza-v314-request-status button{margin-left:8px}
+.rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar.rivyza-v316-toolbar-hidden{display:none!important;pointer-events:none!important}
+.rivyza-live-stage .rivyza-live-mod-backdrop{z-index:1200!important}
+.rivyza-live-stage .rivyza-live-confirm-overlay{z-index:1300!important}
 .rivyza-live-hint{position:fixed;top:90px;left:12px;right:12px;z-index:60;background:#281c35;padding:8px;border-radius:10px;font-size:13px}.rivyza-live-hint button{margin-left:10px}
 `}</style>
     <header className="rivyza-live-top rivyza-v32-header"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-header-center">RIVYZA <span>LIVE</span></strong></header>
