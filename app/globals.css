@@ -3348,3 +3348,34 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
   .rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar{gap:3px!important;padding:5px!important;}
   .rivyza-live-stage .rivyza-v32-toolbar button.rivyza-v32-icon{flex-basis:29px!important;width:29px!important;}
 }
+
+/* RIVYZA v3.7 — Campo de comentarios compacto; espacio reservado a todos los iconos.
+   Solo barra inferior. No modifica camaras ni paneles LIVE. */
+.rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar {
+  justify-content:flex-start!important;
+  gap:clamp(3px,1vw,6px)!important;
+  overflow:visible!important;
+}
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-comment,
+.rivyza-live-stage .rivyza-v32-toolbar.rivyza-v32-typing .rivyza-v32-comment,
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-comment:focus {
+  flex:0 1 clamp(72px,24vw,112px)!important;
+  width:clamp(72px,24vw,112px)!important;
+  max-width:clamp(72px,24vw,112px)!important;
+  min-width:0!important;
+  padding:0 8px!important;
+  text-overflow:ellipsis!important;
+}
+.rivyza-live-stage .rivyza-v32-toolbar button.rivyza-v32-icon {
+  flex:0 0 clamp(29px,8vw,36px)!important;
+  width:clamp(29px,8vw,36px)!important;
+}
+@media(max-width:390px){
+  .rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-comment,
+  .rivyza-live-stage .rivyza-v32-toolbar.rivyza-v32-typing .rivyza-v32-comment,
+  .rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-comment:focus {
+    flex-basis:clamp(68px,22vw,90px)!important;
+    width:clamp(68px,22vw,90px)!important;
+    max-width:clamp(68px,22vw,90px)!important;
+  }
+}
