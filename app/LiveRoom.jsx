@@ -15,7 +15,7 @@ function getLanguage() {
   const stored = window.localStorage.getItem('rivyza_language') || window.localStorage.getItem('language') || '';
   return /^(en|english)/i.test(stored) || (!stored && navigator.language?.startsWith('en')) ? 'en' : 'es';
 }
-function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, lang }) {
+function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, lang }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
@@ -149,7 +149,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       <div className="rivyza-v32-request-scroll">
         {requests.filter(r => r.status === 'pending').length === 0 && <p>{tr.noRequests}</p>}
         {requests.filter(r => r.status === 'pending').map(r => <div className="rivyza-v32-request-row" key={r.user_id}>
-          <span>👤 {lang === 'es' ? 'Usuario' : 'User'} {r.user_id.slice(0,8)}</span>
+          <span>👤 {requestNames[r.user_id] || (lang === 'es' ? 'Invitado' : 'Guest')}</span>
           <button type="button" onClick={() => onRequestDecision('approve', r.user_id)}>✓ {tr.accept}</button>
           <button type="button" onClick={() => onRequestDecision('reject', r.user_id)}>✕ {tr.reject}</button>
         </div>)}
@@ -210,6 +210,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
   const [roomId, setRoomId] = useState(initialRoomId);
   const [session, setSession] = useState(null);
   const [requests, setRequests] = useState([]);
+  const [requestNames, setRequestNames] = useState({});
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [profileId, setProfileId] = useState(null);
@@ -218,6 +219,28 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
   const [busy, setBusy] = useState(false);
   const [lang, setLang] = useState("es");
   useEffect(() => { setLang(getLanguage()); }, []);
+  // Resolve requesters to their public RIVYZA profile names without changing LIVE permissions.
+  const pendingRequesterIds = [...new Set(requests.filter(r => r.status === 'pending').map(r => r.user_id).filter(Boolean))].sort().join(',');
+  useEffect(() => {
+    if (!pendingRequesterIds) return;
+    let active = true;
+    const ids = pendingRequesterIds.split(',');
+    (async () => {
+      const { data, error: profileError } = await supabase.from('profiles')
+        .select('id,display_name,username').in('id', ids);
+      if (!active || profileError) return;
+      setRequestNames(previous => {
+        const next = { ...previous };
+        for (const profile of data || []) {
+          const displayName = (profile.display_name || '').trim();
+          const username = (profile.username || '').trim();
+          next[profile.id] = displayName || (username ? `@${username}` : 'Invitado');
+        }
+        return next;
+      });
+    })();
+    return () => { active = false; };
+  }, [pendingRequesterIds, supabase]);
 
   const api = useCallback(async (action, extra = {}, method = 'POST') => {
     const { data } = await supabase.auth.getSession();
@@ -345,7 +368,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
     </section> : <section className="rivyza-live-stage">
       {session ? <LiveKitRoom key={`${roomId}-${session.publish}`} token={session.token} serverUrl={session.serverUrl}
         connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} lang={lang} />
+        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} lang={lang} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
       {session && !session.publish && <button type="button" className="rivyza-live-join-camera" onClick={() => action('request')}>✋ {translations[lang].request}</button>}
     </section>}
