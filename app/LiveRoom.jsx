@@ -182,28 +182,39 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         <button type="button" className="rivyza-live-confirm-yes" onClick={() => { setConfirmStop(false); onStop(); }}>{tr.yes}</button></div>
       </div>
     </div>}
-    {target && <div className="rivyza-live-mod-backdrop" onClick={() => setTarget(null)}>
-      <div className="rivyza-live-mod-menu" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
-        <button className="rivyza-live-mod-x" type="button" onClick={() => {setTarget(null);setExpelling(false)}} aria-label="Cerrar">✕</button>
-        <strong>{target.name || tr.guest}</strong>
+    {target && <div className="rivyza-live-mod-backdrop rivyza-v313-overlay" onClick={() => {setTarget(null);setExpelling(false);}}>
+      <div className="rivyza-v313-sheet" role="dialog" aria-modal="true" aria-label="Opciones de participante"
+        onClick={e => e.stopPropagation()}
+        onTouchStart={e => { e.currentTarget.dataset.touchY = String(e.touches[0].clientY); }}
+        onTouchEnd={e => { const y = Number(e.currentTarget.dataset.touchY); if (y && e.changedTouches[0].clientY - y > 95) { setTarget(null); setExpelling(false); } }}>
+        <div className="rivyza-v313-handle" aria-hidden="true" />
+        <div className="rivyza-v313-head">
+          <div className="rivyza-v313-avatar" aria-hidden="true">👤</div>
+          <div className="rivyza-v313-person"><strong>{target.name || tr.guest}</strong><span>{target.identity === hostId ? (lang === 'es' ? 'Anfitrión' : 'Host') : moderatorIds?.includes(target.identity) ? (lang === 'es' ? 'Moderador' : 'Moderator') : (lang === 'es' ? 'Participante' : 'Participant')}</span></div>
+          <button className="rivyza-v313-close" type="button" onClick={() => {setTarget(null);setExpelling(false)}} aria-label="Cerrar">✕</button>
+        </div>
         {!expelling ? <>
-          {!isHost && <button type="button" onClick={() => { onViewProfile?.(target.identity); setTarget(null); }}>👤 Ver perfil</button>}
-          {(isHost || isModerator) && <>
-          {isHost && <button type="button" onClick={() => applyModeration(moderatorIds?.includes(target.identity) ? 'moderator_remove' : 'moderator_add')}>{moderatorIds?.includes(target.identity) ? 'Quitar moderador' : '🛡️ Agregar como moderador'}</button>}
-          <button type="button" onClick={() => applyModeration('mute_guest')}>🔇 Silenciar micrófono</button>
-          <button type="button" onClick={() => applyModeration('camera_off_guest')}>📷 Apagar cámara</button>
-          <button type="button" onClick={() => {setMoveTarget(target.identity);setTarget(null)}}>↔️ Mover de posición</button>
-          <button type="button" onClick={() => applyModeration('lower_guest')}>⬇️ Bajar de cámara</button>
-          <button type="button" onClick={() => setExpelling(true)}>🚫 Expulsar del LIVE y reportar</button>
-          <button type="button" onClick={() => applyModeration('block_guest')}>⛔ Bloquear del LIVE</button>
-          <button type="button" onClick={() => { setTarget(null); setBlockedOpen(true); onRefreshBlocked?.(); }}>📋 Usuarios bloqueados</button>
-          </>}
-        </> : <>
+          <div className="rivyza-v313-actions">
+            <button type="button" onClick={() => {onViewProfile?.(target.identity);setTarget(null);}}><span className="rivyza-v313-glyph">♙</span><span>{lang === 'es' ? 'Ver perfil' : 'View profile'}</span></button>
+            {(isHost || isModerator) && <>
+              <button type="button" onClick={() => applyModeration('mute_guest')}><span className="rivyza-v313-glyph">♩̸</span><span>{lang === 'es' ? 'Silenciar' : 'Mute'}</span></button>
+              <button type="button" onClick={() => applyModeration('camera_off_guest')}><span className="rivyza-v313-glyph">▣̸</span><span>{lang === 'es' ? 'Apagar cámara' : 'Turn off camera'}</span></button>
+              <button type="button" onClick={() => {setMoveTarget(target.identity);setTarget(null)}}><span className="rivyza-v313-glyph">⇄</span><span>{lang === 'es' ? 'Mover' : 'Move'}</span></button>
+              {isHost && <button type="button" onClick={() => applyModeration(moderatorIds?.includes(target.identity) ? 'moderator_remove' : 'moderator_add')}><span className="rivyza-v313-glyph">♢</span><span>{moderatorIds?.includes(target.identity) ? (lang === 'es' ? 'Quitar moderador' : 'Remove moderator') : (lang === 'es' ? 'Hacer moderador' : 'Make moderator')}</span></button>}
+              <button type="button" onClick={() => applyModeration('lower_guest')}><span className="rivyza-v313-glyph">↓</span><span>{lang === 'es' ? 'Bajar' : 'Leave camera'}</span></button>
+              <button type="button" onClick={() => {setTarget(null);setBlockedOpen(true);onRefreshBlocked?.();}}><span className="rivyza-v313-glyph">☷</span><span>{lang === 'es' ? 'Bloqueados' : 'Blocked users'}</span></button>
+            </>}
+          </div>
+          {(isHost || isModerator) && <div className="rivyza-v313-danger">
+            <button type="button" onClick={() => setExpelling(true)}>{lang === 'es' ? 'Expulsar y reportar' : 'Remove and report'}</button>
+            <button type="button" onClick={() => applyModeration('block_guest')}>{lang === 'es' ? 'Bloquear del LIVE' : 'Block from LIVE'}</button>
+          </div>}
+        </> : <div className="rivyza-v313-report">
           <label>Motivo de expulsión<select value={reason} onChange={e=>setReason(e.target.value)}>{['Insultos o lenguaje ofensivo','Acoso o amenazas','Contenido sexual inapropiado','Comportamiento violento','Spam o interrupciones','Otro motivo'].map(x=><option key={x}>{x}</option>)}</select></label>
           <textarea value={details} onChange={e=>setDetails(e.target.value)} placeholder="Detalles opcionales" rows={2}/>
           <button type="button" onClick={() => applyModeration('kick_guest',{reason,details})}>Confirmar expulsión y reporte</button>
           <button type="button" onClick={() => setExpelling(false)}>Cancelar</button>
-        </>}
+        </div>}
       </div>
     </div>}
     <RoomAudioRenderer />
