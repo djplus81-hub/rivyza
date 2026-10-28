@@ -15,7 +15,7 @@ function getLanguage() {
   const stored = window.localStorage.getItem('rivyza_language') || window.localStorage.getItem('language') || '';
   return /^(en|english)/i.test(stored) || (!stored && navigator.language?.startsWith('en')) ? 'en' : 'es';
 }
-function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user }) {
+function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
@@ -23,37 +23,110 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [profiles, setProfiles] = useState({});
   const recentEntries = useRef(new Map());
   const [speakers, setSpeakers] = useState([]);
-  // v3.22: local chat history per LIVE and account, including re-entry.
-  const historyKey = `rivyza-live-chat-v322:${room.name || 'live'}:${user?.id || 'viewer'}`;
+  // v3.23: Persistent chat by LIVE room, with local reading-position memory.
+  const historyKey = `rivyza-live-chat-v323:${liveRoomId}:${user?.id || 'viewer'}`;
   const scrollKey = `${historyKey}:scroll`;
   const chatRef = useRef(null);
   const readingOld = useRef(false);
   const restoringChat = useRef(true);
   const [chat, setChat] = useState(() => {
-    try { const rows = JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(rows) ? rows.slice(-500) : []; }
+    try { const rows = JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(rows) ? rows : []; }
     catch { return []; }
   });
+  const [chatNotice, setChatNotice] = useState('');
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasOlder, setHasOlder] = useState(true);
+  const previousHeight = useRef(null);
+  const chatBusy = useRef(false);
+  const appendChat = useCallback(entry => {
+    setChat(items => {
+      if (items.some(m => m.id === entry.id)) return items;
+      return [...items, {...entry, at:entry.at || Date.now()}]
+        .sort((a,b) => (a.at || 0) - (b.at || 0) || String(a.id).localeCompare(String(b.id))).slice(-5000);
+    });
+  }, []);
   useEffect(() => {
     try { localStorage.setItem(historyKey, JSON.stringify(chat.slice(-500))); } catch {}
   }, [chat, historyKey]);
   useEffect(() => {
     const node = chatRef.current;
     if (!node) return;
+    if (previousHeight.current !== null) {
+      node.scrollTop += node.scrollHeight - previousHeight.current;
+      previousHeight.current = null;
+      return;
+    }
     if (restoringChat.current) {
       restoringChat.current = false;
       try {
         const saved = JSON.parse(localStorage.getItem(scrollKey) || 'null');
-        if (saved?.atBottom === false) { node.scrollTop = Math.max(0, saved.top || 0); readingOld.current = true; }
-        else node.scrollTop = node.scrollHeight;
+        if (saved?.atBottom === false) {
+          node.scrollTop = Math.max(0, saved.top || 0);
+          readingOld.current = true;
+        } else node.scrollTop = node.scrollHeight;
       } catch { node.scrollTop = node.scrollHeight; }
     } else if (!readingOld.current) node.scrollTop = node.scrollHeight;
   }, [chat, scrollKey]);
   const onChatScroll = () => {
     const el = chatRef.current;
     if (!el) return;
-    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 25;
+    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 28;
     readingOld.current = !bottom;
     try { localStorage.setItem(scrollKey, JSON.stringify({atBottom:bottom, top:el.scrollTop})); } catch {}
+  };
+  const mapSaved = row => ({id:row.client_id, name:row.author_name,
+    text:row.body, system:row.kind === 'event', at:new Date(row.created_at).getTime()});
+  const mergeSaved = rows => setChat(items => {
+    const byId = new Map(items.map(m => [m.id, m]));
+    for (const row of rows) byId.set(row.client_id, mapSaved(row));
+    return [...byId.values()].sort((a,b) => (a.at || 0) - (b.at || 0) || String(a.id).localeCompare(String(b.id))).slice(-5000);
+  });
+  const saveEntry = async (entry, kind='message') => {
+    if (!user?.id || !liveRoomId) return false;
+    const {error} = await supabase.from('rivyza_live_chat').insert({
+      room_id:liveRoomId, client_id:entry.id, author_id:user.id,
+      author_name:(entry.name || room.localParticipant.name || 'Usuario').slice(0,100),
+      body:entry.text.slice(0,300),kind
+    });
+    if (error) { setChatNotice('El mensaje se ve localmente, pero no se guardó en Supabase. Comprueba el SQL v3.23.'); return false; }
+    setChatNotice(''); return true;
+  };
+  // The table is the cross-device source of truth; LiveKit packets remain the low-latency path.
+  useEffect(() => {
+    if (!supabase || !liveRoomId || !user?.id) return;
+    let alive = true;
+    const refresh = async () => {
+      if (chatBusy.current) return;
+      chatBusy.current = true;
+      try {
+        const {data,error} = await supabase.from('rivyza_live_chat')
+          .select('client_id,author_name,body,kind,created_at')
+          .eq('room_id',liveRoomId).order('created_at',{ascending:false}).limit(500);
+        if (error) throw error;
+        if (alive) { mergeSaved([...(data || [])].reverse()); setHasOlder((data || []).length === 500); }
+      } catch (e) {
+        if (alive) setChatNotice('No se pudo recuperar el historial. Verifica el SQL v3.23 y la conexión.');
+      } finally { chatBusy.current = false; }
+    };
+    refresh(); const timer = setInterval(refresh, 4500);
+    return () => { alive = false; clearInterval(timer); };
+  }, [supabase, liveRoomId, user?.id]);
+  const loadOlder = async () => {
+    if (loadingOlder || !chat.length) return;
+    setLoadingOlder(true);
+    try {
+      const oldest = new Date(Math.min(...chat.map(m => m.at || Date.now()))).toISOString();
+      const {data,error} = await supabase.from('rivyza_live_chat')
+        .select('client_id,author_name,body,kind,created_at')
+        .eq('room_id',liveRoomId).lt('created_at',oldest)
+        .order('created_at',{ascending:false}).limit(250);
+      if (error) throw error;
+      if (chatRef.current) previousHeight.current = chatRef.current.scrollHeight;
+      if (!data?.length) { previousHeight.current = null; setHasOlder(false); }
+      else mergeSaved(data);
+      if ((data || []).length < 250) setHasOlder(false);
+    } catch(e) { previousHeight.current = null; setChatNotice('No se pudieron cargar mensajes anteriores.'); }
+    finally { setLoadingOlder(false); }
   };
   const [comment, setComment] = useState('');
   const [flipping, setFlipping] = useState(false);
@@ -80,32 +153,50 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     profiles[t.identity]?.avatar_url ||
     (t.identity === user?.id || t.isLocal ? ownRivyzaAvatar : '') || '';
 
-  const appendChat = useCallback(entry => setChat(items => [...items.slice(-499), {...entry, at:entry.at || Date.now()}]), []);
   useEffect(() => {
     const entered = p => {
+      if (!isHost) return; // host records a single join/leave event for everyone
       const last = recentEntries.current.get(p.identity) || 0;
       recentEntries.current.set(p.identity, Date.now());
-      if (Date.now() - last > 15000) appendChat({id: crypto.randomUUID(), text: `${p.name || 'Usuario'} entró al LIVE`, system:true});
+      if (Date.now() - last < 15000) return;
+      const entry = {id:crypto.randomUUID(), name:'LIVE', text:`${p.name || 'Usuario'} entró al LIVE`, system:true};
+      appendChat(entry); saveEntry(entry,'event');
     };
     const receive = (bytes, sender, kind, topic) => {
       if (topic !== 'rivyza-chat' || !sender) return;
-      try { const m = JSON.parse(new TextDecoder().decode(bytes));
-        if (typeof m.text === 'string' && m.text.trim()) appendChat({id:crypto.randomUUID(), name:sender.name || 'Usuario', text:m.text.slice(0,300)});
+      try {
+        const m = JSON.parse(new TextDecoder().decode(bytes));
+        if (typeof m.text === 'string' && m.text.trim())
+          appendChat({id:m.id || crypto.randomUUID(), name:sender.name || 'Usuario', text:m.text.slice(0,300), at:m.at || Date.now()});
       } catch {}
     };
     const departed = p => {
-      appendChat({id:crypto.randomUUID(), text:`${p.name || 'Usuario'} salió del LIVE`, system:true});
+      if (!isHost) return;
+      const entry = {id:crypto.randomUUID(), name:'LIVE', text:`${p.name || 'Usuario'} salió del LIVE`, system:true};
+      appendChat(entry); saveEntry(entry,'event');
     };
     room.on(RoomEvent.ParticipantConnected, entered);
     room.on(RoomEvent.ParticipantDisconnected, departed);
     room.on(RoomEvent.DataReceived, receive);
-    return () => { room.off(RoomEvent.ParticipantConnected, entered); room.off(RoomEvent.ParticipantDisconnected, departed); room.off(RoomEvent.DataReceived, receive); };
-  }, [room, appendChat]);
+    return () => {
+      room.off(RoomEvent.ParticipantConnected, entered);
+      room.off(RoomEvent.ParticipantDisconnected, departed);
+      room.off(RoomEvent.DataReceived, receive);
+    };
+  }, [room, appendChat, isHost, liveRoomId, user?.id]);
   async function sendComment(e) {
     e.preventDefault(); const text = comment.trim().slice(0,300); if (!text) return;
-    try { await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({text})), {reliable:true,topic:'rivyza-chat'});
-      appendChat({id:crypto.randomUUID(),name:room.localParticipant.name || 'Tú',text}); setComment('');
-    } catch(e) { onError(e.message); }
+    // Closing the iOS keyboard must not disconnect or resize the LIVE.
+    commentInputRef.current?.blur();
+    setTyping(false);
+    const entry = {id:crypto.randomUUID(), name:room.localParticipant.name || 'Tú',text,at:Date.now()};
+    try {
+      appendChat(entry); setComment('');
+      await Promise.all([
+        saveEntry(entry),
+        room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({id:entry.id,text,at:entry.at})), {reliable:true,topic:'rivyza-chat'})
+      ]);
+    } catch(err) { onError(err.message); }
   }
   async function flipCamera() {
     if (flipping) return;
@@ -149,6 +240,25 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   }
   const [drawer, setDrawer] = useState(false);
   const [typing, setTyping] = useState(false);
+  const commentInputRef = useRef(null);
+  const [keyboardLift, setKeyboardLift] = useState(0);
+  // Keep the LIVE tiles in their normal position; lift only the typing bar.
+  useEffect(() => {
+    if (!typing) { setKeyboardLift(0); return; }
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const adjust = () => {
+      const hidden = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setKeyboardLift(hidden > 90 ? Math.round(hidden) : 0);
+    };
+    adjust();
+    viewport.addEventListener('resize', adjust);
+    viewport.addEventListener('scroll', adjust);
+    return () => {
+      viewport.removeEventListener('resize', adjust);
+      viewport.removeEventListener('scroll', adjust);
+    };
+  }, [typing]);
   const [confirmStop, setConfirmStop] = useState(false);
   const [moveMode, setMoveMode] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -237,10 +347,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     </div>
     {(moveMode || moveTarget) && <p className="rivyza-live-hint">{moveTarget || selected !== null ? 'Selecciona la posición de destino' : tr.moveHint}<button onClick={()=>{setMoveTarget(null);setMoveMode(false);setSelected(null)}}>Cancelar</button></p>}
     {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header rivyza-v32-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-top'))}
-    <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{chat.map(m=><div key={m.id} className={m.system ? 'rivyza-v322-event' : ''}>{m.name && <strong>{m.name}: </strong>}{m.text}</div>)}</div>
+    <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=><div key={m.id} className={m.system ? 'rivyza-v322-event' : ''}>{m.name && <strong>{m.name}: </strong>}{m.text}</div>)}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
-    <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`}>
-      <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
+    <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
+      <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
       {!typing && <>
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? '📹' : '📷'}</button>}
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleMic} aria-label={mic ? 'Silenciar micrófono' : 'Activar micrófono'} title={mic ? 'Silenciar micrófono' : 'Activar micrófono'}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mic ? "#FFFFFF" : "#FF3B45"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:"block",width:"22px",height:"22px",flexShrink:0,margin:"auto"}}>
@@ -518,8 +628,18 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-tile .lk-participant-metadata,.rivyza-live-tile .lk-participant-name,.rivyza-live-tile .lk-participant-media-control{display:none!important}
 .rivyza-v317-mic-off{position:absolute;right:8px;top:8px;bottom:auto;left:auto;z-index:12;display:flex;align-items:center;justify-content:center;width:19px;height:19px;padding:0;margin:0;border:0;border-radius:0;background:transparent!important;box-shadow:none!important;color:#ff3546;pointer-events:none;line-height:0}
 .rivyza-v317-mic-off svg{display:block;width:19px;height:19px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.75))}
-.rivyza-v314-chat{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom));left:12px;width:min(86vw,390px);z-index:35;pointer-events:auto;font-size:16px;line-height:1.3;font-weight:500;color:#fff;text-shadow:0 1px 3px #000;height:190px;max-height:25vh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;scrollbar-width:thin;mask-image:linear-gradient(to bottom,transparent 0%,black 17%,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 17%,black 100%)}
+.rivyza-v314-chat{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom));left:12px;width:min(86vw,390px);z-index:35;pointer-events:auto;font-size:16px;line-height:1.3;font-weight:500;color:#fff;text-shadow:0 1px 3px #000;height:165px;max-height:24vh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;scrollbar-width:thin;mask-image:linear-gradient(to bottom,transparent 0%,black 14%,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 14%,black 100%)}
 .rivyza-v314-chat>div{background:#171021aa;border-radius:8px;margin:4px 0;padding:5px 8px;overflow-wrap:anywhere}.rivyza-v314-chat .rivyza-v322-event{color:#e5cfeb;font-style:italic;background:rgba(30,20,38,.6)}
+.rivyza-v323-earlier{display:block;margin:4px auto;padding:4px 8px;border:1px solid #705579;background:#241731;color:white;border-radius:12px;font-size:12px}
+.rivyza-v323-chat-notice{position:fixed;bottom:calc(270px + env(safe-area-inset-bottom));left:12px;right:12px;background:#4d2539;color:white;font-size:11px;padding:6px;z-index:50;pointer-events:none;border-radius:8px}
+
+/* v3.24: compact LIVE chat and iOS keyboard overlay (no camera layout changes). */
+.rivyza-live-stage{min-height:0}
+.rivyza-v32-toolbar{position:fixed!important;left:12px!important;right:12px!important;z-index:70!important}
+.rivyza-v32-toolbar.rivyza-v32-typing{transform:none!important;transition:none!important;max-width:calc(100vw - 24px)!important}
+.rivyza-v314-comment-form{min-height:46px}
+.rivyza-v314-comment-form .rivyza-v32-comment{min-height:43px!important;height:43px!important;padding:9px 13px!important;font-size:16px!important;border-radius:24px!important}
+.rivyza-v314-comment-form button[type=submit]{min-height:43px;min-width:35px;font-size:21px}
 .rivyza-v314-comment-form{display:flex;min-width:0;flex:1;align-items:center}.rivyza-v314-comment-form input{width:100%!important;min-width:0}.rivyza-v314-comment-form button{border:0;background:transparent;color:white;padding:5px}
 .rivyza-v314-request-status{position:fixed;bottom:calc(190px + env(safe-area-inset-bottom));left:12px;z-index:40;font-size:12px;background:#281c35;padding:7px;border-radius:10px}.rivyza-v314-request-status button{margin-left:8px}
 .rivyza-live-hint{position:fixed;top:90px;left:12px;right:12px;z-index:60;background:#281c35;padding:8px;border-radius:10px;font-size:13px}.rivyza-live-hint button{margin-left:10px}
@@ -544,7 +664,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
           try { await api('leave_camera', {roomId}); await refreshSession(roomId); setConnectionKey(x=>x+1); }
           catch(e) { setError(e.message); setSession(null); }
         }} connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} />
+        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
 
     </section>}
