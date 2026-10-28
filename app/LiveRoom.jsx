@@ -349,7 +349,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header rivyza-v32-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-top'))}
     <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=><div key={m.id} className={m.system ? 'rivyza-v322-event' : ''}>{m.name && <strong>{m.name}: </strong>}{m.text}</div>)}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
-    <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
+    <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
       <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
       {!typing && <>
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? '📹' : '📷'}</button>}
@@ -610,7 +610,20 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-v313-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}.rivyza-v313-avatar{font-size:26px}.rivyza-v313-person{display:flex;flex-direction:column;flex:1;min-width:0}.rivyza-v313-person strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rivyza-v313-person span{font-size:11px;color:#c8b5d3}.rivyza-v313-close{background:transparent;color:white;border:0;padding:10px}
 .rivyza-v313-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.rivyza-v313-actions>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#382741;color:white;border:1px solid #5a4068;border-radius:12px}.rivyza-v313-glyph{font-size:19px}
 .rivyza-v313-danger{display:flex;gap:8px;margin-top:10px}.rivyza-v313-danger button,.rivyza-v313-report button{flex:1;padding:10px;background:#452335;color:#ffb1bc;border:1px solid #7f4459;border-radius:10px;font-size:12px}.rivyza-v313-report{display:grid;gap:8px}.rivyza-v313-report select,.rivyza-v313-report textarea{display:block;width:100%;padding:8px;background:#35253f;color:white;border:1px solid #60446e;border-radius:8px}
-.rivyza-v313-sheet{max-height:55dvh!important;overflow-y:auto;padding:14px!important}.rivyza-v313-actions{gap:7px!important}.rivyza-v313-actions>button{min-height:56px!important;padding:8px!important;font-size:12px!important}
+
+/* v3.25: participant options must be fully visible and above LIVE controls. */
+.rivyza-v313-overlay{z-index:2000!important;align-items:flex-end!important;padding:0!important}
+.rivyza-v313-sheet{box-sizing:border-box!important;max-height:min(72dvh,620px)!important;width:100%!important;max-width:600px!important;overflow-y:auto!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch!important;padding:10px 12px calc(12px + env(safe-area-inset-bottom))!important;border-radius:17px 17px 0 0!important}
+.rivyza-v313-head{gap:7px!important;margin-bottom:8px!important}
+.rivyza-v313-avatar{font-size:21px!important}
+.rivyza-v313-handle{margin-bottom:7px!important}
+.rivyza-v313-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}
+.rivyza-v313-actions>button{box-sizing:border-box!important;min-height:46px!important;padding:5px 3px!important;font-size:11px!important;line-height:1.15!important;gap:2px!important;overflow-wrap:anywhere!important}
+.rivyza-v313-glyph{font-size:16px!important}
+.rivyza-v313-danger{margin-top:6px!important}
+@media(max-height:650px){.rivyza-v313-sheet{max-height:78dvh!important}.rivyza-v313-actions>button{min-height:40px!important}}
+
+.rivyza-v313-sheet{overflow-y:auto}.rivyza-v313-actions{gap:7px!important}
 .rivyza-live-avatar-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#21172b;font-size:32px}
 .rivyza-v314-speaking{box-shadow:inset 0 0 0 3px #70e3a0!important}.rivyza-v314-speaking:after{content:'';position:absolute;inset:0;border:3px solid #70e3a0;border-radius:inherit;pointer-events:none;z-index:3}
 
