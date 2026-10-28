@@ -448,7 +448,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         body:`🎥 Invitación a RIVYZA LIVE\n👑 ${ownerName} te invita a su LIVE.\nEntra como espectador para ver y escuchar la transmisión.\n${link}`}));
       const {error}=await supabase.from('rivyza_messages').insert(rows);
       if(error)throw error;
-      setInternalShareOpen(false);setInviteStatus(`Invitación enviada a ${rows.length} ${rows.length===1?'persona':'personas'}.`);
+      setInternalShareOpen(false);setInviteStatus('');
     }catch(e){setInternalError('No se pudo enviar: '+(e.message||'Error'));}
     finally{setInternalBusy(false);}
   }
