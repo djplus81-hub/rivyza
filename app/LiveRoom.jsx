@@ -302,10 +302,11 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     saveEntry(entry,'event');
   };
   useEffect(() => {
+    const timers = new Set();
     const entered = p => {
       if (!isHost) return;
       // Allow the preview-only player to identify itself before counting/logging.
-      setTimeout(async()=>{
+      const timer = setTimeout(async()=>{
         if(previewIdsRef.current.has(p.identity) || !room.remoteParticipants.has(p.identity))return;
         const last=recentEntries.current.get(p.identity)||0;
         recentEntries.current.set(p.identity,Date.now());
@@ -320,6 +321,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         try{await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(data)),{reliable:true,topic:'rivyza-private-welcome',destinationIdentities:[p.identity]});}
         catch(e){welcomeSent.current.delete(p.identity);}
       },1800);
+      timers.add(timer);
     };
     const receive = (bytes, sender, kind, topic) => {
       if (topic !== 'rivyza-chat' || !sender) return;
@@ -335,15 +337,21 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if(!recentEntries.current.has(p.identity))return;
       publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${profiles[p.identity]?.display_name || p.name || 'Usuario'} salió del LIVE`,system:true,at:Date.now()});
     };
+    // Also welcome viewers already connected when the host listener becomes ready.
+    // This covers the initial join and the async loading of saved welcome settings.
+    if (isHost && (welcomeMessage || "").trim()) {
+      room.remoteParticipants.forEach(entered);
+    }
     room.on(RoomEvent.ParticipantConnected, entered);
     room.on(RoomEvent.ParticipantDisconnected, departed);
     room.on(RoomEvent.DataReceived, receive);
     return () => {
+      timers.forEach(clearTimeout);
       room.off(RoomEvent.ParticipantConnected, entered);
       room.off(RoomEvent.ParticipantDisconnected, departed);
       room.off(RoomEvent.DataReceived, receive);
     };
-  }, [room, appendChat, isHost, liveRoomId, user?.id, profiles]);
+  }, [room, appendChat, isHost, liveRoomId, user?.id, profiles, welcomeMessage]);
   async function sendComment(e) {
     e.preventDefault(); const text = comment.trim().slice(0,300); if (!text) return;
     // Closing the iOS keyboard must not disconnect or resize the LIVE.
