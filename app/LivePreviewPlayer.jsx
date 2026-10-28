@@ -1,7 +1,22 @@
 "use client";
 import {useEffect,useState} from 'react';
-import {LiveKitRoom,useTracks,VideoTrack} from '@livekit/components-react';
+import {LiveKitRoom,useTracks,VideoTrack,useRoomContext} from '@livekit/components-react';
 import {Track} from 'livekit-client';
+function PreviewPresence(){
+  const room=useRoomContext();
+  useEffect(()=>{
+    let active=true;
+    const announce=()=>{
+      if(!active)return;
+      room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({type:'preview',roomId:room.name})),{reliable:true,topic:'rivyza-preview-presence'}).catch(()=>{});
+    };
+    announce();
+    room.on('participantConnected',announce);
+    const interval=setInterval(announce,2500);
+    return()=>{active=false;clearInterval(interval);room.off('participantConnected',announce)};
+  },[room]);
+  return null;
+}
 function PreviewVideo(){
   const tracks=useTracks([{source:Track.Source.Camera,withPlaceholder:false}]);
   const visible=tracks.find(t=>t.participant?.isCameraEnabled)||tracks[0];
@@ -20,5 +35,5 @@ export default function LivePreviewPlayer({roomId,supabase}){
     return()=>{cancelled=true};
   },[roomId,supabase]);
   if(!session)return <div className="rivyza-live-preview-wait">Conectando vista previa…</div>;
-  return <LiveKitRoom key={roomId} token={session.token} serverUrl={session.serverUrl} connect={true} audio={false} video={false} options={{adaptiveStream:true,dynacast:true}}><PreviewVideo/></LiveKitRoom>;
+  return <LiveKitRoom key={roomId} token={session.token} serverUrl={session.serverUrl} connect={true} audio={false} video={false} options={{adaptiveStream:true,dynacast:true}}><PreviewPresence/><PreviewVideo/></LiveKitRoom>;
 }
