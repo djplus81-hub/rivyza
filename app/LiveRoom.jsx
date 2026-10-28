@@ -35,14 +35,20 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     });
     return () => { active = false; };
   }, [peopleIds, supabase]);
-  // Avatar from the public profile, with local account metadata as a fallback.
-  const avatarFor = (t) => {
-    const p = profiles[t.identity];
-    const meta = t.metadata ? (() => { try { return JSON.parse(t.metadata); } catch { return {}; } })() : {};
-    return p?.avatar_url || (t.identity === user?.id
-      ? (user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '')
-      : '') || meta?.avatar_url || meta?.picture || '';
-  };
+  // The LIVE avatar must come exclusively from the RIVYZA profile.
+  // Never use the Google/OAuth avatar or LiveKit metadata as a substitute.
+  const [ownRivyzaAvatar, setOwnRivyzaAvatar] = useState('');
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    supabase.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle()
+      .then(({ data }) => { if (active) setOwnRivyzaAvatar(data?.avatar_url || ''); });
+    return () => { active = false; };
+  }, [supabase, user?.id]);
+  const avatarFor = (t) =>
+    profiles[t.identity]?.avatar_url ||
+    (t.identity === user?.id || t.isLocal ? ownRivyzaAvatar : '') || '';
+
   const appendChat = useCallback(entry => setChat(items => [...items.slice(-39), entry]), []);
   useEffect(() => {
     const entered = p => {
