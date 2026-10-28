@@ -398,6 +398,52 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     try { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); }
     catch (e) { onError(e?.message || 'No se pudo encender la cámara. Comprueba los permisos del navegador.'); }
   }
+  // v3.35: invitations inside RIVYZA use existing follows, profiles and messages.
+  const [internalShareOpen,setInternalShareOpen]=useState(false);
+  const [internalPeople,setInternalPeople]=useState([]);
+  const [internalSearch,setInternalSearch]=useState('');
+  const [internalSelected,setInternalSelected]=useState([]);
+  const [internalBusy,setInternalBusy]=useState(false);
+  const [internalError,setInternalError]=useState('');
+  const [internalFollowing,setInternalFollowing]=useState([]);
+  async function openInternalShare(){
+    setDrawer(false);setInternalShareOpen(true);setInternalSearch('');setInternalSelected([]);setInternalError('');
+    setInternalBusy(true);
+    try {
+      const {data:links,error}=await supabase.from('follows').select('following_id').eq('follower_id',user.id);
+      if(error)throw error;
+      const ids=[...new Set((links||[]).map(x=>x.following_id).filter(id=>id&&id!==user.id))];
+      setInternalFollowing(ids);
+      if(!ids.length){setInternalPeople([]);return;}
+      const {data:people,error:pe}=await supabase.from('profiles').select('id,username,display_name,avatar_url').in('id',ids.slice(0,500));
+      if(pe)throw pe;
+      setInternalPeople((people||[]).sort((a,b)=>(a.display_name||a.username||'').localeCompare(b.display_name||b.username||'')));
+    }catch(e){setInternalError(e.message||'No se pudieron cargar los usuarios.');}
+    finally{setInternalBusy(false);}
+  }
+  useEffect(()=>{
+    if(!internalShareOpen||!internalSearch.trim()||!supabase)return;
+    let active=true;const timer=setTimeout(async()=>{
+      const q=internalSearch.trim().replace(/^@/,'').replace(/[%,()]/g,'').slice(0,60);
+      if(!q)return;
+      const {data,error}=await supabase.from('profiles').select('id,username,display_name,avatar_url')
+        .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).limit(40);
+      if(active){if(error)setInternalError(error.message);else setInternalPeople((data||[]).filter(p=>p.id!==user.id));}
+    },300);
+    return()=>{active=false;clearTimeout(timer)};
+  },[internalShareOpen,internalSearch,supabase,user?.id]);
+  async function sendInternalInvites(){
+    if(!internalSelected.length||internalBusy)return;
+    setInternalBusy(true);setInternalError('');
+    try{
+      const link=`${window.location.origin}/?live=${encodeURIComponent(liveRoomId)}`;
+      const rows=internalSelected.map(id=>({sender_id:user.id,recipient_id:id,body:`🎥 Te invito a ver mi LIVE en RIVYZA como espectador.\n${link}`}));
+      const {error}=await supabase.from('rivyza_messages').insert(rows);
+      if(error)throw error;
+      setInternalShareOpen(false);setInviteStatus(`Invitación enviada a ${rows.length} ${rows.length===1?'persona':'personas'}.`);
+    }catch(e){setInternalError('No se pudo enviar: '+(e.message||'Error'));}
+    finally{setInternalBusy(false);}
+  }
   const [drawer, setDrawer] = useState(false);
   async function shareLive() {
     const url = new URL(window.location.href);
@@ -603,7 +649,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     {drawer && <div className="rivyza-live-bottom-drawer rivyza-v32-popover">
       <div className="rivyza-live-drawer-handle" />
       <strong>{tr.options} LIVE</strong>
-      <button type="button" onClick={shareLive}>🔗 {lang === 'es' ? 'Compartir LIVE' : 'Share LIVE'}</button>
+      <button type="button" onClick={openInternalShare}>👥 Compartir en RIVYZA</button>
+       <button type="button" onClick={shareLive}>🔗 Compartir externamente</button>
       {isHost && <label className="rivyza-live-slot-picker">{tr.slots}: <select value={slots} onChange={e => { const count = Number(e.target.value); broadcastLayout(positions, count); }}>{Array.from({length:10},(_,i) => <option key={i} value={i+1}>{i+1}</option>)}</select></label>}
       {(isHost || isModerator) && <button type="button" onClick={() => { setMoveMode(x => !x); setMoveTarget(null); setSelected(null); setDrawer(false); }}>
         ↔️ {moveMode ? tr.finishMove : tr.rearrange}
@@ -616,6 +663,24 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       {!isHost && <button type="button" onClick={() => { setDrawer(false); onLeaveLive(); }}>🚪 {tr.leaveLive}</button>}
       <button type="button" onClick={() => setDrawer(false)}>{tr.close}</button>
     </div>}
+    {internalShareOpen && typeof document!=='undefined' && createPortal(
+      <div onClick={()=>setInternalShareOpen(false)} style={{position:'fixed',inset:0,zIndex:2147483001,background:'#000b',display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+        <section role="dialog" aria-modal="true" aria-label="Compartir en RIVYZA" onClick={e=>e.stopPropagation()} style={{background:'#24182e',color:'#fff',width:'100%',maxWidth:520,maxHeight:'75dvh',borderRadius:'18px 18px 0 0',padding:'16px 16px calc(18px + env(safe-area-inset-bottom))',display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><strong>👥 Compartir en RIVYZA</strong><button type="button" onClick={()=>setInternalShareOpen(false)} aria-label="Cerrar">✕</button></div>
+          <input type="search" value={internalSearch} onChange={e=>setInternalSearch(e.target.value)} placeholder="Buscar por nombre o @usuario" style={{padding:12,borderRadius:10,color:'#fff',background:'#392846',border:'1px solid #705581',fontSize:16}}/>
+          <small style={{color:'#d8c5e4'}}>{internalSearch?'Resultados de búsqueda':'Personas que sigues'}</small>
+          <div style={{overflowY:'auto',minHeight:80,flex:1}}>
+            {internalPeople.map(p=><button key={p.id} type="button" onClick={()=>setInternalSelected(prev=>prev.includes(p.id)?prev.filter(id=>id!==p.id):[...prev,p.id])} style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:9,border:0,borderBottom:'1px solid #ffffff20',background:'transparent',color:'#fff',textAlign:'left'}}>
+              {p.avatar_url?<img src={p.avatar_url} alt="" style={{width:38,height:38,borderRadius:'50%',objectFit:'cover'}}/>:<span style={{width:38,height:38,borderRadius:'50%',background:'#604475',display:'grid',placeItems:'center'}}>👤</span>}
+              <span style={{flex:1,minWidth:0}}><strong style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.display_name||p.username||'Usuario'}</strong><small>@{p.username||''}</small></span>
+              <span aria-label={internalSelected.includes(p.id)?'Seleccionado':'Sin seleccionar'}>{internalSelected.includes(p.id)?'☑':'□'}</span>
+            </button>)}
+            {!internalPeople.length&&!internalBusy&&<p style={{color:'#d8c5e4'}}>{internalSearch?'No hay resultados.':'Todavía no sigues a nadie.'}</p>}
+          </div>
+          {internalError&&<p role="alert" style={{color:'#ffabb9',fontSize:12}}>{internalError}</p>}
+          <button type="button" disabled={!internalSelected.length||internalBusy} onClick={sendInternalInvites} style={{padding:13,borderRadius:12,background:'#9734ce',color:'#fff',border:0,opacity:(!internalSelected.length||internalBusy)?0.5:1}}>{internalBusy?'Cargando…':`Enviar invitación (${internalSelected.length})`}</button>
+        </section>
+      </div>,document.body)}
     {blockedOpen && <div className="rivyza-live-mod-backdrop" onClick={() => setBlockedOpen(false)}><div className="rivyza-live-mod-menu" role="dialog" aria-modal="true" onClick={e=>e.stopPropagation()}><strong>Usuarios bloqueados</strong><button type="button" onClick={()=>setBlockedOpen(false)}>Cerrar</button>{blockedUsers.length === 0 ? <p>No hay usuarios bloqueados.</p> : blockedUsers.map(b=><div key={b.user_id} className="rivyza-live-block-row"><span>{b.display_name || b.username || b.user_id.slice(0,8)}</span><button type="button" onClick={()=>onUnblock(b.user_id)}>Desbloquear</button></div>)}</div></div>}
     {confirmStop && <div className="rivyza-live-confirm-overlay" role="dialog" aria-modal="true" aria-label="Confirmar fin del LIVE">
       <div className="rivyza-live-confirm-box"><strong>{tr.confirm}</strong>
