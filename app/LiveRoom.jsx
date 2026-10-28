@@ -181,6 +181,16 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   };
   const [comment, setComment] = useState('');
   const [flipping, setFlipping] = useState(false);
+  const [mirrorBusy, setMirrorBusy] = useState(false);
+  const mirrorEnabled = room.localParticipant.attributes?.['rivyza.cameraMirror'] === 'true';
+  async function toggleMirrorCamera() {
+    if (mirrorBusy) return;
+    setMirrorBusy(true);
+    try { await room.localParticipant.setAttributes({'rivyza.cameraMirror': mirrorEnabled ? 'false' : 'true'}); }
+    catch (e) { onError('No se pudo cambiar Mirror Camera: ' + (e?.message || 'Error')); }
+    finally { setMirrorBusy(false); }
+  }
+
   const [facing, setFacing] = useState('user');
   const peopleIds = participants.map(p => p.identity).sort().join(',');
   useEffect(() => {
@@ -301,6 +311,17 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     catch (e) { onError(e?.message || 'No se pudo encender la cámara. Comprueba los permisos del navegador.'); }
   }
   const [drawer, setDrawer] = useState(false);
+  async function shareLive() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('live', liveRoomId);
+    const link = url.toString();
+    try {
+      if (navigator.share) await navigator.share({title:'RIVYZA LIVE',text:'¡Únete a este LIVE en RIVYZA!',url:link});
+      else if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(link); setInviteStatus('Enlace del LIVE copiado'); }
+      else window.prompt('Copia el enlace del LIVE', link);
+      setDrawer(false);
+    } catch (e) { if (e?.name !== 'AbortError') onError('No se pudo compartir el LIVE: ' + (e?.message || 'Error')); }
+  }
   const [typing, setTyping] = useState(false);
   const commentInputRef = useRef(null);
   const [keyboardLift, setKeyboardLift] = useState(0);
@@ -404,7 +425,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'
         tabIndex={0}
         onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') ) { e.preventDefault(); if(moveMode) swap(i); else chooseTile(t,i); } }}>
-        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className="rivyza-v318-video" /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
+        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className={`rivyza-v318-video ${t.attributes?.['rivyza.cameraMirror'] === 'true' ? 'rivyza-v329-mirrored' : ''}`} /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
       </div>)}
     </div>
     {(moveMode || moveTarget) && <p className="rivyza-live-hint">{moveTarget || selected !== null ? 'Selecciona la posición de destino' : tr.moveHint}<button onClick={()=>{setMoveTarget(null);setMoveMode(false);setSelected(null)}}>Cancelar</button></p>}
@@ -489,9 +510,11 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         </div>)}
       </div>
     </div>}
+    {drawer && <div className="rivyza-v329-drawer-backdrop" onClick={() => setDrawer(false)} aria-hidden="true" />}
     {drawer && <div className="rivyza-live-bottom-drawer rivyza-v32-popover">
       <div className="rivyza-live-drawer-handle" />
       <strong>{tr.options} LIVE</strong>
+      <button type="button" onClick={shareLive}>🔗 {lang === 'es' ? 'Compartir LIVE' : 'Share LIVE'}</button>
       {isHost && <label className="rivyza-live-slot-picker">{tr.slots}: <select value={slots} onChange={e => { const count = Number(e.target.value); broadcastLayout(positions, count); }}>{Array.from({length:10},(_,i) => <option key={i} value={i+1}>{i+1}</option>)}</select></label>}
       {(isHost || isModerator) && <button type="button" onClick={() => { setMoveMode(x => !x); setMoveTarget(null); setSelected(null); setDrawer(false); }}>
         ↔️ {moveMode ? tr.finishMove : tr.rearrange}
@@ -527,6 +550,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
             <button type="button" onClick={() => {onViewProfile?.(target.identity);setTarget(null);}}><span className="rivyza-v313-glyph">♙</span><span>{lang === 'es' ? 'Ver perfil' : 'View profile'}</span></button>
             {target.identity === localParticipant.identity && publish && <>
               <button onClick={flipCamera} disabled={flipping}>🔄 Voltear cámara</button>
+              <button type="button" onClick={toggleMirrorCamera} disabled={mirrorBusy} aria-pressed={mirrorEnabled}>↔️ Mirror Camera {mirrorEnabled ? '✓' : ''}</button>
               <button onClick={toggleCam}>{cam ? 'Apagar cámara' : 'Encender cámara'}</button>
               <button onClick={toggleMic}>{mic ? 'Silenciar micrófono' : 'Activar micrófono'}</button>
               {isHost && <button onClick={()=>{setMoveTarget(target.identity);setTarget(null)}}>⇄ Mover mi cámara</button>}
@@ -741,6 +765,10 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-avatar-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#21172b;font-size:32px}
 .rivyza-v314-speaking{box-shadow:inset 0 0 0 3px #70e3a0!important}.rivyza-v314-speaking:after{content:'';position:absolute;inset:0;border:3px solid #70e3a0;border-radius:inherit;pointer-events:none;z-index:3}
 
+/* v3.29: Mirror Camera is synced through LiveKit participant attributes. */
+.rivyza-live-tile .rivyza-v329-mirrored {transform:scaleX(-1)!important}
+.rivyza-v329-drawer-backdrop {position:fixed;inset:0;z-index:1100;background:transparent}
+.rivyza-live-bottom-drawer.rivyza-v32-popover {z-index:1101!important}
 /* v3.18: render the camera track without LiveKit's full-tile mute/placeholder layer. */
 .rivyza-live-tile .rivyza-v318-video{
   display:block!important;
