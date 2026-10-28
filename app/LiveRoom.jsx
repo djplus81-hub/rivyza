@@ -23,7 +23,38 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [profiles, setProfiles] = useState({});
   const recentEntries = useRef(new Map());
   const [speakers, setSpeakers] = useState([]);
-  const [chat, setChat] = useState([]);
+  // v3.22: local chat history per LIVE and account, including re-entry.
+  const historyKey = `rivyza-live-chat-v322:${room.name || 'live'}:${user?.id || 'viewer'}`;
+  const scrollKey = `${historyKey}:scroll`;
+  const chatRef = useRef(null);
+  const readingOld = useRef(false);
+  const restoringChat = useRef(true);
+  const [chat, setChat] = useState(() => {
+    try { const rows = JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(rows) ? rows.slice(-500) : []; }
+    catch { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(historyKey, JSON.stringify(chat.slice(-500))); } catch {}
+  }, [chat, historyKey]);
+  useEffect(() => {
+    const node = chatRef.current;
+    if (!node) return;
+    if (restoringChat.current) {
+      restoringChat.current = false;
+      try {
+        const saved = JSON.parse(localStorage.getItem(scrollKey) || 'null');
+        if (saved?.atBottom === false) { node.scrollTop = Math.max(0, saved.top || 0); readingOld.current = true; }
+        else node.scrollTop = node.scrollHeight;
+      } catch { node.scrollTop = node.scrollHeight; }
+    } else if (!readingOld.current) node.scrollTop = node.scrollHeight;
+  }, [chat, scrollKey]);
+  const onChatScroll = () => {
+    const el = chatRef.current;
+    if (!el) return;
+    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 25;
+    readingOld.current = !bottom;
+    try { localStorage.setItem(scrollKey, JSON.stringify({atBottom:bottom, top:el.scrollTop})); } catch {}
+  };
   const [comment, setComment] = useState('');
   const [flipping, setFlipping] = useState(false);
   const [facing, setFacing] = useState('user');
@@ -49,7 +80,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     profiles[t.identity]?.avatar_url ||
     (t.identity === user?.id || t.isLocal ? ownRivyzaAvatar : '') || '';
 
-  const appendChat = useCallback(entry => setChat(items => [...items.slice(-39), entry]), []);
+  const appendChat = useCallback(entry => setChat(items => [...items.slice(-499), {...entry, at:entry.at || Date.now()}]), []);
   useEffect(() => {
     const entered = p => {
       const last = recentEntries.current.get(p.identity) || 0;
@@ -62,9 +93,13 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         if (typeof m.text === 'string' && m.text.trim()) appendChat({id:crypto.randomUUID(), name:sender.name || 'Usuario', text:m.text.slice(0,300)});
       } catch {}
     };
+    const departed = p => {
+      appendChat({id:crypto.randomUUID(), text:`${p.name || 'Usuario'} salió del LIVE`, system:true});
+    };
     room.on(RoomEvent.ParticipantConnected, entered);
+    room.on(RoomEvent.ParticipantDisconnected, departed);
     room.on(RoomEvent.DataReceived, receive);
-    return () => { room.off(RoomEvent.ParticipantConnected, entered); room.off(RoomEvent.DataReceived, receive); };
+    return () => { room.off(RoomEvent.ParticipantConnected, entered); room.off(RoomEvent.ParticipantDisconnected, departed); room.off(RoomEvent.DataReceived, receive); };
   }, [room, appendChat]);
   async function sendComment(e) {
     e.preventDefault(); const text = comment.trim().slice(0,300); if (!text) return;
@@ -202,7 +237,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     </div>
     {(moveMode || moveTarget) && <p className="rivyza-live-hint">{moveTarget || selected !== null ? 'Selecciona la posición de destino' : tr.moveHint}<button onClick={()=>{setMoveTarget(null);setMoveMode(false);setSelected(null)}}>Cancelar</button></p>}
     {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header rivyza-v32-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-top'))}
-    <div className="rivyza-v314-chat" aria-live="polite">{chat.slice(-5).map(m=><div key={m.id}>{m.name && <strong>{m.name}: </strong>}{m.text}</div>)}</div>
+    <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{chat.map(m=><div key={m.id} className={m.system ? 'rivyza-v322-event' : ''}>{m.name && <strong>{m.name}: </strong>}{m.text}</div>)}</div>
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`}>
       <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
@@ -483,8 +518,8 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-tile .lk-participant-metadata,.rivyza-live-tile .lk-participant-name,.rivyza-live-tile .lk-participant-media-control{display:none!important}
 .rivyza-v317-mic-off{position:absolute;right:8px;top:8px;bottom:auto;left:auto;z-index:12;display:flex;align-items:center;justify-content:center;width:19px;height:19px;padding:0;margin:0;border:0;border-radius:0;background:transparent!important;box-shadow:none!important;color:#ff3546;pointer-events:none;line-height:0}
 .rivyza-v317-mic-off svg{display:block;width:19px;height:19px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.75))}
-.rivyza-v314-chat{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom));left:14px;max-width:75%;z-index:35;pointer-events:none;font-size:12px;text-shadow:0 1px 3px #000;max-height:100px;overflow:hidden}
-.rivyza-v314-chat>div{background:#171021b8;border-radius:7px;margin:3px 0;padding:3px 7px;overflow-wrap:anywhere}
+.rivyza-v314-chat{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom));left:12px;width:min(86vw,390px);z-index:35;pointer-events:auto;font-size:16px;line-height:1.3;font-weight:500;color:#fff;text-shadow:0 1px 3px #000;height:190px;max-height:25vh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;scrollbar-width:thin;mask-image:linear-gradient(to bottom,transparent 0%,black 17%,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 17%,black 100%)}
+.rivyza-v314-chat>div{background:#171021aa;border-radius:8px;margin:4px 0;padding:5px 8px;overflow-wrap:anywhere}.rivyza-v314-chat .rivyza-v322-event{color:#e5cfeb;font-style:italic;background:rgba(30,20,38,.6)}
 .rivyza-v314-comment-form{display:flex;min-width:0;flex:1;align-items:center}.rivyza-v314-comment-form input{width:100%!important;min-width:0}.rivyza-v314-comment-form button{border:0;background:transparent;color:white;padding:5px}
 .rivyza-v314-request-status{position:fixed;bottom:calc(190px + env(safe-area-inset-bottom));left:12px;z-index:40;font-size:12px;background:#281c35;padding:7px;border-radius:10px}.rivyza-v314-request-status button{margin-left:8px}
 .rivyza-live-hint{position:fixed;top:90px;left:12px;right:12px;z-index:60;background:#281c35;padding:8px;border-radius:10px;font-size:13px}.rivyza-live-hint button{margin-left:10px}
