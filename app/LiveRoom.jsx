@@ -111,6 +111,20 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     readingOld.current = !bottom;
     try { localStorage.setItem(scrollKey, JSON.stringify({atBottom:bottom, top:el.scrollTop})); } catch {}
   };
+  // LIVE activity is stored as regular chat events so it remains in history.
+  const eventDetails = (entry) => {
+    if (!entry.system) return null;
+    const body = String(entry.text || '');
+    const entering = body.endsWith(' entró al LIVE');
+    const leaving = body.endsWith(' salió del LIVE');
+    if (!entering && !leaving) return null;
+    return { entering, person: body.slice(0, -(entering ? ' entró al LIVE' : ' salió del LIVE').length),
+      action: entering ? (lang === 'es' ? 'entró al LIVE' : 'joined LIVE') : (lang === 'es' ? 'salió del LIVE' : 'left LIVE') };
+  };
+  const eventTime = (at) => {
+    const d = new Date(at || Date.now());
+    return Number.isFinite(d.getTime()) ? d.toLocaleTimeString(lang === 'es' ? 'es-US' : 'en-US', {hour:'numeric',minute:'2-digit',hour12:true}) : '';
+  };
   const mapSaved = row => ({id:row.client_id, name:row.author_name,
     text:row.body, system:row.kind === 'event', at:new Date(row.created_at).getTime()});
   const mergeSaved = rows => setChat(items => {
@@ -190,27 +204,38 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     profiles[t.identity]?.avatar_url ||
     (t.identity === user?.id || t.isLocal ? ownRivyzaAvatar : '') || '';
 
+  const publishActivity = (entry) => {
+    appendChat(entry);
+    // LiveKit delivers the event immediately; Supabase persists it for reconnects.
+    try {
+      room.localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({id:entry.id,text:entry.text,at:entry.at,system:true})),
+        {reliable:true,topic:'rivyza-chat'}
+      ).catch(e => console.warn('LIVE activity broadcast',e));
+    } catch(e) { console.warn('LIVE activity broadcast',e); }
+    saveEntry(entry,'event');
+  };
   useEffect(() => {
     const entered = p => {
       if (!isHost) return; // host records a single join/leave event for everyone
       const last = recentEntries.current.get(p.identity) || 0;
       recentEntries.current.set(p.identity, Date.now());
       if (Date.now() - last < 15000) return;
-      const entry = {id:crypto.randomUUID(), name:'LIVE', text:`${p.name || 'Usuario'} entró al LIVE`, system:true};
-      appendChat(entry); saveEntry(entry,'event');
+      const entry = {id:crypto.randomUUID(), name:'LIVE', text:`${profiles[p.identity]?.display_name || p.name || 'Usuario'} entró al LIVE`, system:true,at:Date.now()};
+      publishActivity(entry);
     };
     const receive = (bytes, sender, kind, topic) => {
       if (topic !== 'rivyza-chat' || !sender) return;
       try {
         const m = JSON.parse(new TextDecoder().decode(bytes));
         if (typeof m.text === 'string' && m.text.trim())
-          appendChat({id:m.id || crypto.randomUUID(), name:sender.name || 'Usuario', text:m.text.slice(0,300), at:m.at || Date.now()});
+          appendChat({id:m.id || crypto.randomUUID(), name:m.system ? 'LIVE' : (sender.name || 'Usuario'), text:m.text.slice(0,300), system:m.system === true, at:m.at || Date.now()});
       } catch {}
     };
     const departed = p => {
       if (!isHost) return;
-      const entry = {id:crypto.randomUUID(), name:'LIVE', text:`${p.name || 'Usuario'} salió del LIVE`, system:true};
-      appendChat(entry); saveEntry(entry,'event');
+      const entry = {id:crypto.randomUUID(), name:'LIVE', text:`${profiles[p.identity]?.display_name || p.name || 'Usuario'} salió del LIVE`, system:true,at:Date.now()};
+      publishActivity(entry);
     };
     room.on(RoomEvent.ParticipantConnected, entered);
     room.on(RoomEvent.ParticipantDisconnected, departed);
@@ -220,7 +245,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       room.off(RoomEvent.ParticipantDisconnected, departed);
       room.off(RoomEvent.DataReceived, receive);
     };
-  }, [room, appendChat, isHost, liveRoomId, user?.id]);
+  }, [room, appendChat, isHost, liveRoomId, user?.id, profiles]);
   async function sendComment(e) {
     e.preventDefault(); const text = comment.trim().slice(0,300); if (!text) return;
     // Closing the iOS keyboard must not disconnect or resize the LIVE.
@@ -436,7 +461,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         </div>
       </div>
     </div>}
-    <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=><div key={m.id} className={m.system ? 'rivyza-v322-event' : ''}>{m.name && <strong>{m.name}: </strong>}{m.text}</div>)}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
+    <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.system ? 'rivyza-v322-event' : '')}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
       <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
@@ -732,6 +757,13 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-v317-mic-off svg{display:block;width:19px;height:19px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.75))}
 .rivyza-v314-chat{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom));left:12px;width:min(86vw,390px);z-index:35;pointer-events:auto;font-size:16px;line-height:1.3;font-weight:500;color:#fff;text-shadow:0 1px 3px #000;height:165px;max-height:24vh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;scrollbar-width:thin;mask-image:linear-gradient(to bottom,transparent 0%,black 14%,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 14%,black 100%)}
 .rivyza-v314-chat>div{background:#171021aa;border-radius:8px;margin:4px 0;padding:5px 8px;overflow-wrap:anywhere}.rivyza-v314-chat .rivyza-v322-event{color:#e5cfeb;font-style:italic;background:rgba(30,20,38,.6)}
+/* v3.28: subtle join/leave activity in the existing chat, with local time. */
+.rivyza-v314-chat .rivyza-v328-activity{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:7px;font-size:13px;line-height:1.3;font-weight:500;font-style:normal;text-shadow:0 1px 2px #0009;background:rgba(19,19,25,.43);}
+.rivyza-v328-enter{color:#89f0b7;}
+.rivyza-v328-exit{color:#c5becb;}
+.rivyza-v328-symbol{font-size:16px;font-weight:800;flex:none;line-height:1;}
+.rivyza-v328-activity-text{flex:1;min-width:0;overflow-wrap:anywhere;}
+.rivyza-v328-time{flex:none;color:#c7bed0;font-size:11px;font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums;}
 .rivyza-v323-earlier{display:block;margin:4px auto;padding:4px 8px;border:1px solid #705579;background:#241731;color:white;border-radius:12px;font-size:12px}
 .rivyza-v323-chat-notice{position:fixed;bottom:calc(270px + env(safe-area-inset-bottom));left:12px;right:12px;background:#4d2539;color:white;font-size:11px;padding:6px;z-index:50;pointer-events:none;border-radius:8px}
 
