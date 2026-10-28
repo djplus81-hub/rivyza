@@ -299,7 +299,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   </>;
 }
 
-export default function LiveRoom({ supabase, user, onExit, initialRoomId = null }) {
+export default function LiveRoom({ supabase, user, onExit, onViewProfile, initialRoomId = null }) {
   const enteredRoom = useRef(null);
   const [requestStatus, setRequestStatus] = useState(null);
   const [connectionKey, setConnectionKey] = useState(0);
@@ -310,8 +310,6 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
   const [requestNames, setRequestNames] = useState({});
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState([]);
-  const [profileId, setProfileId] = useState(null);
-  const [profileDetails, setProfileDetails] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [lang, setLang] = useState("es");
@@ -398,12 +396,8 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
 
   const refreshBlocked = useCallback(async () => { if (!roomId) return; try { setBlockedUsers((await api(null, {mode:"blocked",room:roomId},"GET")).blocked || []); } catch(e) { setError(e.message); } }, [roomId,api]);
   async function unblock(guestId) { try { await api("unblock_guest",{roomId,guestId}); await refreshBlocked(); } catch(e) { setError(e.message); } }
-  async function openLiveProfile(id) {
-    setProfileId(id); setProfileDetails(null);
-    const {data, error} = await supabase.from('profiles')
-      .select('id,display_name,username,avatar_url,bio').eq('id',id).maybeSingle();
-    if(error) setError(error.message);
-    else setProfileDetails(data);
+  function openLiveProfile(id) {
+    if (id) onViewProfile?.(id);
   }
   async function start() {
     if (busy) return;
@@ -496,14 +490,6 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
 .rivyza-live-hint{position:fixed;top:90px;left:12px;right:12px;z-index:60;background:#281c35;padding:8px;border-radius:10px;font-size:13px}.rivyza-live-hint button{margin-left:10px}
 `}</style>
     <header className="rivyza-live-top rivyza-v32-header"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-header-center">RIVYZA <span>LIVE</span></strong></header>
-    {profileId && <div className="rivyza-live-profile-overlay"><button type="button" onClick={()=>setProfileId(null)}>← Volver al LIVE</button><div className="rivyza-live-profile-content">
-      {profileDetails ? <>
-        {profileDetails.avatar_url && <img src={profileDetails.avatar_url} alt="" style={{width:90,height:90,borderRadius:'50%',objectFit:'cover'}}/>}
-        <h2>{profileDetails.display_name || profileDetails.username || 'Usuario'}</h2>
-        <p>@{profileDetails.username || 'usuario'}</p>
-        <p>{profileDetails.bio || ''}</p>
-      </> : <p>Cargando perfil…</p>}
-      </div></div>}
     {error && <div className="rivyza-v32-toast" role="status"><span>{error}</span><button type="button" onClick={() => setError('')} aria-label="Cerrar aviso">✕</button></div>}
     {!roomId ? <section className="rivyza-live-lobby">
       <button type="button" className="rivyza-live-start" disabled={busy} onClick={start}>{busy ? 'Conectando…' : '🔴 Iniciar mi LIVE'}</button>

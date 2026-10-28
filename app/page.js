@@ -204,6 +204,7 @@ export default function HomePage(){
   const [discoverLiveRooms,setDiscoverLiveRooms]=useState([]);
   const [discoverLiveError,setDiscoverLiveError]=useState('');
   const [selectedLiveRoom,setSelectedLiveRoom]=useState(null);
+  const [liveProfileReturn,setLiveProfileReturn]=useState(false);
   const [user,setUser]=useState(null);
   const [liveFriendIds,setLiveFriendIds]=useState([]);
   const [activeLivePreview,setActiveLivePreview]=useState(0);
@@ -835,6 +836,15 @@ export default function HomePage(){
       setSocialListRows(enriched);
     }catch(e){console.error("Social list error:",e);setSocialListRows([]);}
     finally{setSocialListLoading(false);}
+  }
+
+  async function openProfileFromLive(targetId){
+    if(!targetId || !supabase) return;
+    const {data,error}=await supabase.from("profiles").select("*").eq("id",targetId).maybeSingle();
+    if(error || !data){alert("No se pudo abrir el perfil de RIVYZA.");return;}
+    setLiveProfileReturn(true);
+    setProfileReturnToChat(false);
+    await openUserProfile(data);
   }
 
   async function openUserProfile(targetProfile){
@@ -2849,8 +2859,10 @@ export default function HomePage(){
       {socialNav()}
     </main>;
   }
+  const liveRoomElement=<LiveRoom key={selectedLiveRoom || "lobby"} initialRoomId={selectedLiveRoom} supabase={supabase} user={user} onViewProfile={openProfileFromLive} onExit={()=>{setLiveProfileReturn(false);setSelectedLiveRoom(null);setView("livePreview");}}/>;
+  const retainedLive=<div style={{display:"none"}}>{liveProfileReturn ? liveRoomElement : null}</div>;
   if(view==="liveStudio"){
-    return <LiveRoom key={selectedLiveRoom || "lobby"} initialRoomId={selectedLiveRoom} supabase={supabase} user={user} onExit={()=>{setSelectedLiveRoom(null);setView("livePreview");}}/>;
+    return <><div style={{display:"block"}}>{liveRoomElement}</div></>;
   }
   if(view==="livePreview"){
     return <main className="live-preview-shell">
@@ -2988,9 +3000,9 @@ export default function HomePage(){
   }
 
   if(view==="otherProfile" && viewedProfile){
-    return <main className="public-profile-shell other-profile-shell">
+    return <>{retainedLive}<main className="public-profile-shell other-profile-shell">
       <header className="profile-topbar compact">
-        <button className="profile-back" onClick={()=>{setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else setView("home");}}>←</button>
+        <button className="profile-back" onClick={()=>{setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else if(liveProfileReturn){setLiveProfileReturn(false);setView("liveStudio");}else setView("home");}}>←</button>
         <div className="profile-top-title">RIVYZA</div>
         {adminOwner&&<button type="button" className="rivyza-admin-dots" aria-label="Administrar este perfil" onClick={()=>adminOpen(viewedProfile)}><MoreHorizontal size={25}/></button>}
       </header>
@@ -3169,13 +3181,13 @@ export default function HomePage(){
       </nav>
       {renderUploadModal()}
       {renderShareSheet()}
-    </main>;
+    </main></>;
   }
 
   if(view==="publicProfile"){
-    return <main className="public-profile-shell">
+    return <>{retainedLive}<main className="public-profile-shell">
       <header className="profile-topbar compact">
-        <button className="profile-back" onClick={()=>{setUploadOpen(false);setView("home");}}>←</button>
+        <button className="profile-back" onClick={()=>{setUploadOpen(false);if(liveProfileReturn){setLiveProfileReturn(false);setView("liveStudio");}else setView("home");}}>←</button>
         <div className="profile-top-title">RIVYZA</div>
         <button className="profile-menu" onClick={()=>setView("socialSettings")} aria-label={t("Configuración")}><MoreHorizontal size={24}/></button>
       </header>
@@ -3439,7 +3451,7 @@ export default function HomePage(){
           </button>
         </div>
       </div>}
-    </main>;
+    </main></>;
   }
 
   if(view==="profile"){
