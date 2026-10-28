@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { LiveKitRoom, RoomAudioRenderer, ParticipantTile, useTracks, useLocalParticipant, useParticipants, useRoomContext } from '@livekit/components-react';
+import { LiveKitRoom, RoomAudioRenderer, VideoTrack, useTracks, useLocalParticipant, useParticipants, useRoomContext } from '@livekit/components-react';
 import { Track, RoomEvent, DisconnectReason } from 'livekit-client';
 import '@livekit/components-styles';
 
@@ -183,7 +183,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'
         tabIndex={0}
         onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') ) { e.preventDefault(); if(moveMode) swap(i); else chooseTile(t,i); } }}>
-        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <ParticipantTile trackRef={trackById.get(t.identity)}/> : <div className="rivyza-live-avatar-fallback">{profiles[t.identity]?.avatar_url ? <img src={profiles[t.identity].avatar_url} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none'}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v314-muted" aria-label="Micrófono silenciado">🎙️̸</span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
+        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className="rivyza-v318-video" /> : <div className="rivyza-live-avatar-fallback">{profiles[t.identity]?.avatar_url ? <img src={profiles[t.identity].avatar_url} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none'}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
       </div>)}
     </div>
     {(moveMode || moveTarget) && <p className="rivyza-live-hint">{moveTarget || selected !== null ? 'Selecciona la posición de destino' : tr.moveHint}<button onClick={()=>{setMoveTarget(null);setMoveMode(false);setSelected(null)}}>Cancelar</button></p>}
@@ -460,7 +460,21 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
 .rivyza-v313-sheet{max-height:55dvh!important;overflow-y:auto;padding:14px!important}.rivyza-v313-actions{gap:7px!important}.rivyza-v313-actions>button{min-height:56px!important;padding:8px!important;font-size:12px!important}
 .rivyza-live-avatar-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#21172b;font-size:32px}
 .rivyza-v314-speaking{box-shadow:inset 0 0 0 3px #70e3a0!important}.rivyza-v314-speaking:after{content:'';position:absolute;inset:0;border:3px solid #70e3a0;border-radius:inherit;pointer-events:none;z-index:3}
-.rivyza-v314-muted{position:absolute;right:5px;top:5px;background:#301d35;border-radius:10px;font-size:13px;padding:2px 5px;z-index:4}
+
+/* v3.18: render the camera track without LiveKit's full-tile mute/placeholder layer. */
+.rivyza-live-tile .rivyza-v318-video{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  position:absolute!important;
+  inset:0!important;
+  object-fit:cover!important;
+  background:transparent!important;
+}
+/* v3.17: mute is an icon, never a video-blocking overlay. */
+.rivyza-live-tile .lk-participant-metadata,.rivyza-live-tile .lk-participant-name,.rivyza-live-tile .lk-participant-media-control{display:none!important}
+.rivyza-v317-mic-off{position:absolute;right:6px;bottom:6px;top:auto;left:auto;z-index:12;display:flex;align-items:center;justify-content:center;width:19px;height:19px;padding:0;margin:0;border:0;border-radius:0;background:transparent!important;box-shadow:none!important;color:#ff3546;pointer-events:none;line-height:0}
+.rivyza-v317-mic-off svg{display:block;width:19px;height:19px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.75))}
 .rivyza-v314-chat{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom));left:14px;max-width:75%;z-index:35;pointer-events:none;font-size:12px;text-shadow:0 1px 3px #000;max-height:100px;overflow:hidden}
 .rivyza-v314-chat>div{background:#171021b8;border-radius:7px;margin:3px 0;padding:3px 7px;overflow-wrap:anywhere}
 .rivyza-v314-comment-form{display:flex;min-width:0;flex:1;align-items:center}.rivyza-v314-comment-form input{width:100%!important;min-width:0}.rivyza-v314-comment-form button{border:0;background:transparent;color:white;padding:5px}
