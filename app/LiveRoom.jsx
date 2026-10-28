@@ -181,13 +181,50 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   };
   const [comment, setComment] = useState('');
   const [flipping, setFlipping] = useState(false);
+  // v3.30: use LiveKit data messages instead of restricted participant metadata.
+  const [mirrorStates, setMirrorStates] = useState({});
+  const mirrorEnabled = mirrorStates[room.localParticipant.identity] === true;
   const [mirrorBusy, setMirrorBusy] = useState(false);
-  const mirrorEnabled = room.localParticipant.attributes?.['rivyza.cameraMirror'] === 'true';
+  useEffect(() => {
+    const receiveMirror = (payload, sender, _kind, topic) => {
+      if (topic !== 'rivyza-camera-mirror' || !sender?.identity) return;
+      try {
+        const data = JSON.parse(new TextDecoder().decode(payload));
+        if (data?.type === 'mirror-state' && typeof data.enabled === 'boolean') {
+          setMirrorStates(prev => ({...prev, [sender.identity]: data.enabled}));
+        }
+      } catch {}
+    };
+    const onConnected = p => {
+      // Share our current setting with anyone joining later.
+      room.localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({type:'mirror-state',enabled:mirrorEnabled})),
+        {reliable:true,topic:'rivyza-camera-mirror',destinationIdentities:[p.identity]}
+      ).catch(() => {});
+    };
+    const onDisconnected = p => setMirrorStates(prev => {
+      const next = {...prev}; delete next[p.identity]; return next;
+    });
+    room.on(RoomEvent.DataReceived, receiveMirror);
+    room.on(RoomEvent.ParticipantConnected, onConnected);
+    room.on(RoomEvent.ParticipantDisconnected, onDisconnected);
+    return () => {
+      room.off(RoomEvent.DataReceived, receiveMirror);
+      room.off(RoomEvent.ParticipantConnected, onConnected);
+      room.off(RoomEvent.ParticipantDisconnected, onDisconnected);
+    };
+  }, [room, mirrorEnabled]);
   async function toggleMirrorCamera() {
     if (mirrorBusy) return;
+    const enabled = !mirrorEnabled;
     setMirrorBusy(true);
-    try { await room.localParticipant.setAttributes({'rivyza.cameraMirror': mirrorEnabled ? 'false' : 'true'}); }
-    catch (e) { onError('No se pudo cambiar Mirror Camera: ' + (e?.message || 'Error')); }
+    try {
+      await room.localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({type:'mirror-state',enabled})),
+        {reliable:true,topic:'rivyza-camera-mirror'}
+      );
+      setMirrorStates(prev => ({...prev, [room.localParticipant.identity]: enabled}));
+    } catch (e) { onError('No se pudo cambiar Mirror Camera: ' + (e?.message || 'Error')); }
     finally { setMirrorBusy(false); }
   }
 
@@ -425,7 +462,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'
         tabIndex={0}
         onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') ) { e.preventDefault(); if(moveMode) swap(i); else chooseTile(t,i); } }}>
-        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className={`rivyza-v318-video ${t.attributes?.['rivyza.cameraMirror'] === 'true' ? 'rivyza-v329-mirrored' : ''}`} /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
+        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className={`rivyza-v318-video ${mirrorStates[t.identity] === true ? 'rivyza-v329-mirrored' : ''}`} /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
       </div>)}
     </div>
     {(moveMode || moveTarget) && <p className="rivyza-live-hint">{moveTarget || selected !== null ? 'Selecciona la posición de destino' : tr.moveHint}<button onClick={()=>{setMoveTarget(null);setMoveMode(false);setSelected(null)}}>Cancelar</button></p>}
@@ -765,7 +802,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-avatar-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#21172b;font-size:32px}
 .rivyza-v314-speaking{box-shadow:inset 0 0 0 3px #70e3a0!important}.rivyza-v314-speaking:after{content:'';position:absolute;inset:0;border:3px solid #70e3a0;border-radius:inherit;pointer-events:none;z-index:3}
 
-/* v3.29: Mirror Camera is synced through LiveKit participant attributes. */
+/* v3.30: Mirror Camera is synced through LiveKit data messages. */
 .rivyza-live-tile .rivyza-v329-mirrored {transform:scaleX(-1)!important}
 .rivyza-v329-drawer-backdrop {position:fixed;inset:0;z-index:1100;background:transparent}
 .rivyza-live-bottom-drawer.rivyza-v32-popover {z-index:1101!important}
