@@ -15,7 +15,7 @@ function getLanguage() {
   const stored = window.localStorage.getItem('rivyza_language') || window.localStorage.getItem('language') || '';
   return /^(en|english)/i.test(stored) || (!stored && navigator.language?.startsWith('en')) ? 'en' : 'es';
 }
-function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang }) {
+function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
@@ -35,6 +35,14 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     });
     return () => { active = false; };
   }, [peopleIds, supabase]);
+  // Avatar from the public profile, with local account metadata as a fallback.
+  const avatarFor = (t) => {
+    const p = profiles[t.identity];
+    const meta = t.metadata ? (() => { try { return JSON.parse(t.metadata); } catch { return {}; } })() : {};
+    return p?.avatar_url || (t.identity === user?.id
+      ? (user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '')
+      : '') || meta?.avatar_url || meta?.picture || '';
+  };
   const appendChat = useCallback(entry => setChat(items => [...items.slice(-39), entry]), []);
   useEffect(() => {
     const entered = p => {
@@ -183,7 +191,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'
         tabIndex={0}
         onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') ) { e.preventDefault(); if(moveMode) swap(i); else chooseTile(t,i); } }}>
-        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className="rivyza-v318-video" /> : <div className="rivyza-live-avatar-fallback">{profiles[t.identity]?.avatar_url ? <img src={profiles[t.identity].avatar_url} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none'}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
+        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className="rivyza-v318-video" /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
       </div>)}
     </div>
     {(moveMode || moveTarget) && <p className="rivyza-live-hint">{moveTarget || selected !== null ? 'Selecciona la posición de destino' : tr.moveHint}<button onClick={()=>{setMoveTarget(null);setMoveMode(false);setSelected(null)}}>Cancelar</button></p>}
@@ -473,7 +481,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
 }
 /* v3.17: mute is an icon, never a video-blocking overlay. */
 .rivyza-live-tile .lk-participant-metadata,.rivyza-live-tile .lk-participant-name,.rivyza-live-tile .lk-participant-media-control{display:none!important}
-.rivyza-v317-mic-off{position:absolute;right:6px;bottom:6px;top:auto;left:auto;z-index:12;display:flex;align-items:center;justify-content:center;width:19px;height:19px;padding:0;margin:0;border:0;border-radius:0;background:transparent!important;box-shadow:none!important;color:#ff3546;pointer-events:none;line-height:0}
+.rivyza-v317-mic-off{position:absolute;right:8px;top:8px;bottom:auto;left:auto;z-index:12;display:flex;align-items:center;justify-content:center;width:19px;height:19px;padding:0;margin:0;border:0;border-radius:0;background:transparent!important;box-shadow:none!important;color:#ff3546;pointer-events:none;line-height:0}
 .rivyza-v317-mic-off svg{display:block;width:19px;height:19px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.75))}
 .rivyza-v314-chat{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom));left:14px;max-width:75%;z-index:35;pointer-events:none;font-size:12px;text-shadow:0 1px 3px #000;max-height:100px;overflow:hidden}
 .rivyza-v314-chat>div{background:#171021b8;border-radius:7px;margin:3px 0;padding:3px 7px;overflow-wrap:anywhere}
@@ -509,7 +517,7 @@ export default function LiveRoom({ supabase, user, onExit, initialRoomId = null 
           try { await api('leave_camera', {roomId}); await refreshSession(roomId); setConnectionKey(x=>x+1); }
           catch(e) { setError(e.message); setSession(null); }
         }} connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} />
+        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
 
     </section>}
