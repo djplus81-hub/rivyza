@@ -25,7 +25,10 @@ export async function cleanupAbsentHosts(db) {
           .update({ status: 'ended', ended_at: new Date(now).toISOString() })
           .eq('id', live.id).eq('status', 'live').eq('host_absent_since', live.host_absent_since).select('id');
         if (endError) throw endError;
-        if (ended?.length) await roomService().deleteRoom(`rivyza-${live.id}`).catch(() => {});
+        if (ended?.length) {
+          try { await roomService().deleteRoom(`rivyza-${live.id}`); }
+          catch (e) { console.error('Could not delete expired LIVE room', live.id, e); }
+        }
       }
     } catch (e) { console.error('Host presence check failed', live.id, e); }
   }

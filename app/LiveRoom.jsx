@@ -800,6 +800,28 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
     enteredRoom.current = null; setRequestStatus(null);
   }
 
+  const exitToHome = useCallback(() => {
+    enteredRoom.current = null;
+    setRequestStatus(null);
+    setRoomId(null);
+    setSession(null);
+    setRequests([]);
+    setError('');
+    onExit?.();
+  }, [onExit]);
+  // Verify room status even if LiveKit's disconnect callback never arrives.
+  useEffect(() => {
+    if (!roomId || !session || session.host) return;
+    let active = true;
+    const check = async () => {
+      try {
+        const result = await api(null, {mode:'status',room:roomId}, 'GET');
+        if (active && result.live === false) exitToHome();
+      } catch (e) { console.warn('LIVE status check', e); }
+    };
+    const timer = setInterval(check, 5000);
+    return () => { active = false; clearInterval(timer); };
+  }, [roomId, session?.host, api, exitToHome]);
   async function leave() {
     if (session?.host && roomId) {
       if (!window.confirm('¿Salir del LIVE? Pulsa Aceptar para terminarlo para todos.')) return;
@@ -810,7 +832,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
       try { await api('leave_camera', { roomId }); }
       catch (e) { console.warn('Could not cancel camera request on exit:', e); }
     }
-    enteredRoom.current = null; setRequestStatus(null); setRoomId(null); setSession(null); setRequests([]); refreshRooms();
+    exitToHome();
   }
 
   async function leaveCamera() {
@@ -821,8 +843,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
     if (!roomId || !session?.host) return;
     try {
       await api('stop', { roomId });
-      setRoomId(null); setSession(null); setRequests([]); setError('');
-      refreshRooms();
+      exitToHome();
     } catch (e) { setError(e.message); }
   }
 
@@ -928,12 +949,16 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
       {session ? <LiveKitRoom key={`${roomId}-${session.publish}-${connectionKey}`} token={session.token} serverUrl={session.serverUrl}
         onDisconnected={async reason => {
           if (reason === DisconnectReason.CLIENT_INITIATED) return;
-          if (session.host) {setError('Se perdió la conexión del LIVE. Vuelve a entrar.');return;}
-          if (reason === DisconnectReason.PARTICIPANT_REMOVED || reason === DisconnectReason.DUPLICATE_IDENTITY) {
-            enteredRoom.current=null;setRoomId(null);setSession(null);setError('Has salido del LIVE.');return;
+          if (reason === DisconnectReason.PARTICIPANT_REMOVED || reason === DisconnectReason.ROOM_DELETED) {
+            exitToHome(); return;
           }
-          try { await api('leave_camera', {roomId}); await refreshSession(roomId); setConnectionKey(x=>x+1); }
-          catch(e) { setError(e.message); setSession(null); }
+          if (session.host) { setError('Se perdió la conexión. Tienes 3 minutos para volver a entrar.'); return; }
+          if (reason === DisconnectReason.DUPLICATE_IDENTITY) { exitToHome(); return; }
+          try {
+            const status = await api(null, {mode:'status',room:roomId}, 'GET');
+            if (status.live === false) { exitToHome(); return; }
+            await refreshSession(roomId); setConnectionKey(x=>x+1);
+          } catch(e) { setError(e.message); setSession(null); }
         }} connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
         <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}

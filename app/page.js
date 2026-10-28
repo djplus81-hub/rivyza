@@ -2862,7 +2862,7 @@ export default function HomePage(){
     </main>;
   }
   if(view==="liveStudio"){
-    return <LiveRoom key={selectedLiveRoom || "lobby"} initialRoomId={selectedLiveRoom} supabase={supabase} user={user} onExit={()=>{setSelectedLiveRoom(null);setView("livePreview");}}/>;
+    return <LiveRoom key={selectedLiveRoom || "lobby"} initialRoomId={selectedLiveRoom} supabase={supabase} user={user} onExit={()=>{setSelectedLiveRoom(null);setView("home");changeFeedTab("forYou");}}/>;
   }
   if(view==="livePreview"){
     return <main className="live-preview-shell">

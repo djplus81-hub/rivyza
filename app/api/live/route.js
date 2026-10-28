@@ -58,6 +58,11 @@ export async function GET(req) {
     if (!auth) return json({ error: 'Inicia sesión' }, 401);
     const db = adminClient();
     const params = new URL(req.url).searchParams;
+    if (params.get('mode') === 'status') {
+      await cleanupAbsentHosts(db);
+      const room = await getRoom(db, params.get('room'));
+      return json({ live: room?.status === 'live' });
+    }
     if (params.get('mode') === 'blocked') {
       const room = await getRoom(db, params.get('room'));
       if (!room || (room.host_id !== auth.user.id && !(await isModerator(db,room.host_id,auth.user.id)))) return json({error:'No autorizado'},403);
@@ -227,6 +232,8 @@ export async function POST(req) {
       if (room.host_id !== uid) return json({ error: 'No autorizado' }, 403);
       const { error } = await db.from('rivyza_live_rooms').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('id', room.id);
       if (error) throw error;
+      try { await roomService().deleteRoom(`rivyza-${room.id}`); }
+      catch (e) { console.error('Could not delete ended LiveKit room', room.id, e); }
       return json({ ok: true });
     }
     if (input.action === 'request') {
