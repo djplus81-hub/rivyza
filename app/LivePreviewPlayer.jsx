@@ -7,13 +7,18 @@ function PreviewPresence(){
   useEffect(()=>{
     let active=true;
     const announce=()=>{
-      if(!active)return;
-      room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({type:'preview',roomId:room.name})),{reliable:true,topic:'rivyza-preview-presence'}).catch(()=>{});
+      if(!active || room.state!=='connected')return;
+      room.localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({type:'preview',roomId:room.name})),
+        {reliable:true,topic:'rivyza-preview-presence'}
+      ).catch(()=>{});
     };
     announce();
-    room.on('participantConnected',announce);
-    const interval=setInterval(announce,2500);
-    return()=>{active=false;clearInterval(interval);room.off('participantConnected',announce)};
+    room.on('connected',announce);
+    room.on('reconnected',announce);
+    // Repeat briefly to recover from a listener mounting after the preview connects.
+    const timer=setInterval(announce,2000);
+    return()=>{active=false;clearInterval(timer);room.off('connected',announce);room.off('reconnected',announce)};
   },[room]);
   return null;
 }
