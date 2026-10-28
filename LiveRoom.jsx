@@ -15,12 +15,73 @@ function getLanguage() {
   const stored = window.localStorage.getItem('rivyza_language') || window.localStorage.getItem('language') || '';
   return /^(en|english)/i.test(stored) || (!stored && navigator.language?.startsWith('en')) ? 'en' : 'es';
 }
-function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId }) {
+function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
   const room = useRoomContext();
   const [profiles, setProfiles] = useState({});
+  const [viewersOpen, setViewersOpen] = useState(false);
+  const [viewerSelected, setViewerSelected] = useState(null);
+  const [incomingInvite, setIncomingInvite] = useState(null);
+  const [inviteStatus, setInviteStatus] = useState('');
+  // Invitations travel to the connected viewer through LiveKit. Accepting
+  // submits the EXISTING camera request; it does not bypass moderation.
+  useEffect(() => {
+    const receiveInvite = (payload, participant, _kind, topic) => {
+      if (topic !== 'rivyza-live-invite' || !participant || participant.identity === room.localParticipant.identity) return;
+      try {
+        const data = JSON.parse(new TextDecoder().decode(payload));
+        if (data?.type !== 'camera-invite' || data.roomId !== liveRoomId ||
+            data.to !== room.localParticipant.identity || publish) return;
+        setIncomingInvite({from: participant.name || 'Anfitrión', fromId: participant.identity});
+      } catch (e) { console.warn('Invalid LIVE invite',e); }
+    };
+    room.on(RoomEvent.DataReceived,receiveInvite);
+    return () => room.off(RoomEvent.DataReceived,receiveInvite);
+  }, [room,liveRoomId,publish]);
+  async function inviteViewer(id) {
+    if (!(isHost || isModerator) || !id || id === room.localParticipant.identity) return;
+    setInviteStatus('');
+    try {
+      const data = new TextEncoder().encode(JSON.stringify({type:'camera-invite',to:id,roomId:liveRoomId}));
+      await room.localParticipant.publishData(data, {
+        reliable:true, destinationIdentities:[id], topic:'rivyza-live-invite'
+      });
+      setViewerSelected(null);
+      setInviteStatus(lang==='es'?'Invitación enviada':'Invitation sent');
+    } catch (e) { setInviteStatus(lang==='es'?'No se pudo enviar la invitación.':'Could not send invitation.');onError?.(e.message); }
+  }
+
+  // Preview connections are media-only: never counted as LIVE attendees.
+  const [previewIds,setPreviewIds]=useState([]);
+  const previewIdsRef=useRef(new Set());
+  const [presenceRevision,setPresenceRevision]=useState(0);
+  const welcomeSent=useRef(new Set());
+  const markPreview=useCallback(id=>{
+    if(!id)return;
+    previewIdsRef.current.add(id);
+    setPreviewIds([...previewIdsRef.current]);
+  },[]);
+  useEffect(()=>{
+    const receive=(payload,sender,_kind,topic)=>{
+      if(topic!=='rivyza-preview-presence'||!sender?.identity)return;
+      markPreview(sender.identity);
+    };
+    const disconnect=p=>{
+      previewIdsRef.current.delete(p.identity);
+      setPreviewIds([...previewIdsRef.current]);
+    };
+    room.on(RoomEvent.DataReceived,receive);
+    room.on(RoomEvent.ParticipantDisconnected,disconnect);
+    return()=>{room.off(RoomEvent.DataReceived,receive);room.off(RoomEvent.ParticipantDisconnected,disconnect)};
+  },[room,markPreview]);
+  const realParticipants=participants.filter(p=>!previewIds.includes(p.identity));
+  const visibleViewers = [...realParticipants].sort((a,b) =>
+    Number(b.identity === hostId) - Number(a.identity === hostId) ||
+    (profiles[a.identity]?.display_name || a.name || '').localeCompare(profiles[b.identity]?.display_name || b.name || '')
+  );
+
   const recentEntries = useRef(new Map());
   const [speakers, setSpeakers] = useState([]);
   // v3.23: Persistent chat by LIVE room, with local reading-position memory.
@@ -73,6 +134,20 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 28;
     readingOld.current = !bottom;
     try { localStorage.setItem(scrollKey, JSON.stringify({atBottom:bottom, top:el.scrollTop})); } catch {}
+  };
+  // LIVE activity is stored as regular chat events so it remains in history.
+  const eventDetails = (entry) => {
+    if (!entry.system) return null;
+    const body = String(entry.text || '');
+    const entering = body.endsWith(' entró al LIVE');
+    const leaving = body.endsWith(' salió del LIVE');
+    if (!entering && !leaving) return null;
+    return { entering, person: body.slice(0, -(entering ? ' entró al LIVE' : ' salió del LIVE').length),
+      action: entering ? (lang === 'es' ? 'entró al LIVE' : 'joined LIVE') : (lang === 'es' ? 'salió del LIVE' : 'left LIVE') };
+  };
+  const eventTime = (at) => {
+    const d = new Date(at || Date.now());
+    return Number.isFinite(d.getTime()) ? d.toLocaleTimeString(lang === 'es' ? 'es-US' : 'en-US', {hour:'numeric',minute:'2-digit',hour12:true}) : '';
   };
   const mapSaved = row => ({id:row.client_id, name:row.author_name,
     text:row.body, system:row.kind === 'event', at:new Date(row.created_at).getTime()});
@@ -128,8 +203,70 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     } catch(e) { previousHeight.current = null; setChatNotice('No se pudieron cargar mensajes anteriores.'); }
     finally { setLoadingOlder(false); }
   };
+  useEffect(()=>{
+    const receive=(payload,_sender,_kind,topic)=>{
+      if(topic!=='rivyza-private-welcome')return;
+      try{
+        const data=JSON.parse(new TextDecoder().decode(payload));
+        if(data.type!=='welcome'||data.roomId!==liveRoomId||!data.text)return;
+        const key=`rivyza-welcome-seen:${liveRoomId}:${user?.id}`;
+        if(sessionStorage.getItem(key))return;
+        sessionStorage.setItem(key,'1');
+        appendChat({id:`private-welcome-${liveRoomId}-${user?.id}`,name:'💗 Bienvenida',text:data.text,privateWelcome:true,at:Date.now()});
+      }catch(e){console.warn('Welcome message',e)}
+    };
+    room.on(RoomEvent.DataReceived,receive);
+    return()=>room.off(RoomEvent.DataReceived,receive);
+  },[room,liveRoomId,user?.id,appendChat]);
   const [comment, setComment] = useState('');
   const [flipping, setFlipping] = useState(false);
+  // v3.30: use LiveKit data messages instead of restricted participant metadata.
+  const [mirrorStates, setMirrorStates] = useState({});
+  const mirrorEnabled = mirrorStates[room.localParticipant.identity] === true;
+  const [mirrorBusy, setMirrorBusy] = useState(false);
+  useEffect(() => {
+    const receiveMirror = (payload, sender, _kind, topic) => {
+      if (topic !== 'rivyza-camera-mirror' || !sender?.identity) return;
+      try {
+        const data = JSON.parse(new TextDecoder().decode(payload));
+        if (data?.type === 'mirror-state' && typeof data.enabled === 'boolean') {
+          setMirrorStates(prev => ({...prev, [sender.identity]: data.enabled}));
+        }
+      } catch {}
+    };
+    const onConnected = p => {
+      // Share our current setting with anyone joining later.
+      room.localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({type:'mirror-state',enabled:mirrorEnabled})),
+        {reliable:true,topic:'rivyza-camera-mirror',destinationIdentities:[p.identity]}
+      ).catch(() => {});
+    };
+    const onDisconnected = p => setMirrorStates(prev => {
+      const next = {...prev}; delete next[p.identity]; return next;
+    });
+    room.on(RoomEvent.DataReceived, receiveMirror);
+    room.on(RoomEvent.ParticipantConnected, onConnected);
+    room.on(RoomEvent.ParticipantDisconnected, onDisconnected);
+    return () => {
+      room.off(RoomEvent.DataReceived, receiveMirror);
+      room.off(RoomEvent.ParticipantConnected, onConnected);
+      room.off(RoomEvent.ParticipantDisconnected, onDisconnected);
+    };
+  }, [room, mirrorEnabled]);
+  async function toggleMirrorCamera() {
+    if (mirrorBusy) return;
+    const enabled = !mirrorEnabled;
+    setMirrorBusy(true);
+    try {
+      await room.localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({type:'mirror-state',enabled})),
+        {reliable:true,topic:'rivyza-camera-mirror'}
+      );
+      setMirrorStates(prev => ({...prev, [room.localParticipant.identity]: enabled}));
+    } catch (e) { onError('No se pudo cambiar Mirror Camera: ' + (e?.message || 'Error')); }
+    finally { setMirrorBusy(false); }
+  }
+
   const [facing, setFacing] = useState('user');
   const peopleIds = participants.map(p => p.identity).sort().join(',');
   useEffect(() => {
@@ -153,27 +290,50 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     profiles[t.identity]?.avatar_url ||
     (t.identity === user?.id || t.isLocal ? ownRivyzaAvatar : '') || '';
 
+  const publishActivity = (entry) => {
+    appendChat(entry);
+    // LiveKit delivers the event immediately; Supabase persists it for reconnects.
+    try {
+      room.localParticipant.publishData(
+        new TextEncoder().encode(JSON.stringify({id:entry.id,text:entry.text,at:entry.at,system:true})),
+        {reliable:true,topic:'rivyza-chat'}
+      ).catch(e => console.warn('LIVE activity broadcast',e));
+    } catch(e) { console.warn('LIVE activity broadcast',e); }
+    saveEntry(entry,'event');
+  };
   useEffect(() => {
     const entered = p => {
-      if (!isHost) return; // host records a single join/leave event for everyone
-      const last = recentEntries.current.get(p.identity) || 0;
-      recentEntries.current.set(p.identity, Date.now());
-      if (Date.now() - last < 15000) return;
-      const entry = {id:crypto.randomUUID(), name:'LIVE', text:`${p.name || 'Usuario'} entró al LIVE`, system:true};
-      appendChat(entry); saveEntry(entry,'event');
+      if (!isHost) return;
+      // Allow the preview-only player to identify itself before counting/logging.
+      setTimeout(async()=>{
+        if(previewIdsRef.current.has(p.identity) || !room.remoteParticipants.has(p.identity))return;
+        const last=recentEntries.current.get(p.identity)||0;
+        recentEntries.current.set(p.identity,Date.now());
+        if(Date.now()-last>=15000){
+          publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${profiles[p.identity]?.display_name || p.name || 'Usuario'} entró al LIVE`,system:true,at:Date.now()});
+        }
+        const text=(welcomeMessage||'').trim();
+        if(!text || welcomeSent.current.has(p.identity))return;
+        welcomeSent.current.add(p.identity);
+        const name=profiles[p.identity]?.display_name || p.name || 'Usuario';
+        const data={type:'welcome',roomId:liveRoomId,text:`${text}\n¡Bienvenido/a, ${name}! ❤️`};
+        try{await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(data)),{reliable:true,topic:'rivyza-private-welcome',destinationIdentities:[p.identity]});}
+        catch(e){welcomeSent.current.delete(p.identity);}
+      },1800);
     };
     const receive = (bytes, sender, kind, topic) => {
       if (topic !== 'rivyza-chat' || !sender) return;
       try {
         const m = JSON.parse(new TextDecoder().decode(bytes));
         if (typeof m.text === 'string' && m.text.trim())
-          appendChat({id:m.id || crypto.randomUUID(), name:sender.name || 'Usuario', text:m.text.slice(0,300), at:m.at || Date.now()});
+          appendChat({id:m.id || crypto.randomUUID(), name:m.system ? 'LIVE' : (sender.name || 'Usuario'), text:m.text.slice(0,300), system:m.system === true, at:m.at || Date.now()});
       } catch {}
     };
     const departed = p => {
-      if (!isHost) return;
-      const entry = {id:crypto.randomUUID(), name:'LIVE', text:`${p.name || 'Usuario'} salió del LIVE`, system:true};
-      appendChat(entry); saveEntry(entry,'event');
+      if (!isHost || previewIdsRef.current.has(p.identity)) return;
+      // A connection only qualifies as a departure after being admitted as an attendee.
+      if(!recentEntries.current.has(p.identity))return;
+      publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${profiles[p.identity]?.display_name || p.name || 'Usuario'} salió del LIVE`,system:true,at:Date.now()});
     };
     room.on(RoomEvent.ParticipantConnected, entered);
     room.on(RoomEvent.ParticipantDisconnected, departed);
@@ -183,9 +343,12 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       room.off(RoomEvent.ParticipantDisconnected, departed);
       room.off(RoomEvent.DataReceived, receive);
     };
-  }, [room, appendChat, isHost, liveRoomId, user?.id]);
+  }, [room, appendChat, isHost, liveRoomId, user?.id, profiles]);
   async function sendComment(e) {
     e.preventDefault(); const text = comment.trim().slice(0,300); if (!text) return;
+    // Closing the iOS keyboard must not disconnect or resize the LIVE.
+    commentInputRef.current?.blur();
+    setTyping(false);
     const entry = {id:crypto.randomUUID(), name:room.localParticipant.name || 'Tú',text,at:Date.now()};
     try {
       appendChat(entry); setComment('');
@@ -235,8 +398,84 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     try { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); }
     catch (e) { onError(e?.message || 'No se pudo encender la cámara. Comprueba los permisos del navegador.'); }
   }
+  // v3.35: invitations inside RIVYZA use existing follows, profiles and messages.
+  const [internalShareOpen,setInternalShareOpen]=useState(false);
+  const [internalPeople,setInternalPeople]=useState([]);
+  const [internalSearch,setInternalSearch]=useState('');
+  const [internalSelected,setInternalSelected]=useState([]);
+  const [internalBusy,setInternalBusy]=useState(false);
+  const [internalError,setInternalError]=useState('');
+  const [internalFollowing,setInternalFollowing]=useState([]);
+  async function openInternalShare(){
+    setDrawer(false);setInternalShareOpen(true);setInternalSearch('');setInternalSelected([]);setInternalError('');
+    setInternalBusy(true);
+    try {
+      const {data:links,error}=await supabase.from('follows').select('following_id').eq('follower_id',user.id);
+      if(error)throw error;
+      const ids=[...new Set((links||[]).map(x=>x.following_id).filter(id=>id&&id!==user.id))];
+      setInternalFollowing(ids);
+      if(!ids.length){setInternalPeople([]);return;}
+      const {data:people,error:pe}=await supabase.from('profiles').select('id,username,display_name,avatar_url').in('id',ids.slice(0,500));
+      if(pe)throw pe;
+      setInternalPeople((people||[]).sort((a,b)=>(a.display_name||a.username||'').localeCompare(b.display_name||b.username||'')));
+    }catch(e){setInternalError(e.message||'No se pudieron cargar los usuarios.');}
+    finally{setInternalBusy(false);}
+  }
+  useEffect(()=>{
+    if(!internalShareOpen||!internalSearch.trim()||!supabase)return;
+    let active=true;const timer=setTimeout(async()=>{
+      const q=internalSearch.trim().replace(/^@/,'').replace(/[%,()]/g,'').slice(0,60);
+      if(!q)return;
+      const {data,error}=await supabase.from('profiles').select('id,username,display_name,avatar_url')
+        .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).limit(40);
+      if(active){if(error)setInternalError(error.message);else setInternalPeople((data||[]).filter(p=>p.id!==user.id));}
+    },300);
+    return()=>{active=false;clearTimeout(timer)};
+  },[internalShareOpen,internalSearch,supabase,user?.id]);
+  async function sendInternalInvites(){
+    if(!internalSelected.length||internalBusy)return;
+    setInternalBusy(true);setInternalError('');
+    try{
+      const link=`${window.location.origin}/?live=${encodeURIComponent(liveRoomId)}`;
+      const rows=internalSelected.map(id=>({sender_id:user.id,recipient_id:id,body:`🎥 Te invito a ver mi LIVE en RIVYZA como espectador.\n${link}`}));
+      const {error}=await supabase.from('rivyza_messages').insert(rows);
+      if(error)throw error;
+      setInternalShareOpen(false);setInviteStatus(`Invitación enviada a ${rows.length} ${rows.length===1?'persona':'personas'}.`);
+    }catch(e){setInternalError('No se pudo enviar: '+(e.message||'Error'));}
+    finally{setInternalBusy(false);}
+  }
   const [drawer, setDrawer] = useState(false);
+  async function shareLive() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('live', liveRoomId);
+    const link = url.toString();
+    try {
+      if (navigator.share) await navigator.share({title:'RIVYZA LIVE',text:'¡Únete a este LIVE en RIVYZA!',url:link});
+      else if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(link); setInviteStatus('Enlace del LIVE copiado'); }
+      else window.prompt('Copia el enlace del LIVE', link);
+      setDrawer(false);
+    } catch (e) { if (e?.name !== 'AbortError') onError('No se pudo compartir el LIVE: ' + (e?.message || 'Error')); }
+  }
   const [typing, setTyping] = useState(false);
+  const commentInputRef = useRef(null);
+  const [keyboardLift, setKeyboardLift] = useState(0);
+  // Keep the LIVE tiles in their normal position; lift only the typing bar.
+  useEffect(() => {
+    if (!typing) { setKeyboardLift(0); return; }
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const adjust = () => {
+      const hidden = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setKeyboardLift(hidden > 90 ? Math.round(hidden) : 0);
+    };
+    adjust();
+    viewport.addEventListener('resize', adjust);
+    viewport.addEventListener('scroll', adjust);
+    return () => {
+      viewport.removeEventListener('resize', adjust);
+      viewport.removeEventListener('scroll', adjust);
+    };
+  }, [typing]);
   const [confirmStop, setConfirmStop] = useState(false);
   const [moveMode, setMoveMode] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -314,21 +553,74 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     catch(e) { onError(e.message); }
   }
   return <>
+    <style>{`.rivyza-live-grid-square .rivyza-live-square video.rivyza-camera-mirrored { transform: scaleX(-1) !important; -webkit-transform: scaleX(-1) !important; }`}</style>
     <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''} ${speakers.includes(t?.identity) ? 'rivyza-v314-speaking' : ''}`}
         onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'
         tabIndex={0}
         onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') ) { e.preventDefault(); if(moveMode) swap(i); else chooseTile(t,i); } }}>
-        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className="rivyza-v318-video" /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
+        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className={`rivyza-v318-video ${mirrorStates[t.identity] === true ? "rivyza-camera-mirrored" : ""}`} /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
       </div>)}
     </div>
     {(moveMode || moveTarget) && <p className="rivyza-live-hint">{moveTarget || selected !== null ? 'Selecciona la posición de destino' : tr.moveHint}<button onClick={()=>{setMoveTarget(null);setMoveMode(false);setSelected(null)}}>Cancelar</button></p>}
-    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header rivyza-v32-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-top'))}
-    <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=><div key={m.id} className={m.system ? 'rivyza-v322-event' : ''}>{m.name && <strong>{m.name}: </strong>}{m.text}</div>)}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
+    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<button type="button" onClick={() => setViewersOpen(true)} className="rivyza-live-viewer-count rivyza-live-viewer-header rivyza-v32-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Ver personas conectadas al LIVE" aria-expanded={viewersOpen}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{realParticipants.length}</span></button>, document.querySelector('.rivyza-live-top'))}
+
+    {viewersOpen && typeof document !== 'undefined' && createPortal(
+      <div role="presentation" onClick={() => {setViewersOpen(false);setViewerSelected(null);}}
+        style={{position:'fixed',inset:0,zIndex:2147483000,background:'rgba(0,0,0,.70)',display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+        <section role="dialog" aria-modal="true" aria-label="Personas en la sala" onClick={e=>e.stopPropagation()}
+          style={{background:'#201829',color:'#fff',borderRadius:'18px 18px 0 0',width:'100%',maxWidth:520,maxHeight:'min(66dvh,550px)',display:'flex',flexDirection:'column',padding:'16px 16px calc(18px + env(safe-area-inset-bottom))',boxSizing:'border-box'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <strong>{lang==='es'?'Personas en la sala':'People in the room'} ({visibleViewers.length})</strong>
+            <button type="button" aria-label="Cerrar" onClick={()=>setViewersOpen(false)} style={{background:'none',border:0,color:'#fff',fontSize:24,padding:'2px 10px'}}>×</button>
+          </div>
+          <div style={{overflowY:'auto',overscrollBehavior:'contain',WebkitOverflowScrolling:'touch'}}>
+            {visibleViewers.map(p=>{
+              const profile=profiles[p.identity];
+              const name=profile?.display_name || profile?.username || p.name || 'Usuario';
+              const avatar=avatarFor(p);
+              return <button key={p.identity} type="button" onClick={() => {setViewerSelected(p.identity);setInviteStatus('');}}
+                style={{display:'flex',alignItems:'center',gap:12,width:'100%',padding:'10px 4px',background:'none',border:0,borderBottom:'1px solid #ffffff18',color:'#fff',textAlign:'left',cursor:'pointer'}}>
+                {avatar ? <img src={avatar} alt="" style={{width:43,height:43,borderRadius:'50%',objectFit:'cover'}}/> : <span style={{width:43,height:43,borderRadius:'50%',display:'grid',placeItems:'center',background:'#49365c'}}>{name.slice(0,1).toUpperCase()}</span>}
+                <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{name}{p.identity===hostId ? ' 👑' : ''}</span>
+                <span style={{fontSize:12,color:'#d6b6fa'}}>{lang==='es'?'Opciones ›':'Options ›'}</span>
+              </button>;
+            })}
+            {viewerSelected && (() => {
+              const person = participants.find(p => p.identity === viewerSelected);
+              if (!person) return null;
+              const name=profiles[person.identity]?.display_name || person.name || 'Usuario';
+              return <div role="group" aria-label={name} style={{padding:'12px 5px',borderTop:'1px solid #ffffff30'}}>
+                <strong style={{display:'block',marginBottom:9}}>{name}</strong>
+                <div style={{display:'flex',gap:8}}>
+                  <button type="button" onClick={()=>{setViewerSelected(null);setViewersOpen(false);onViewProfile?.(person.identity);}}
+                    style={{flex:1,padding:12,borderRadius:10,border:'1px solid #6c527e',background:'#49315b',color:'#fff'}}>👤 {lang==='es'?'Ver perfil':'View profile'}</button>
+                  {(isHost || isModerator) && person.identity!==room.localParticipant.identity && person.identity!==hostId &&
+                    <button type="button" onClick={()=>inviteViewer(person.identity)}
+                      style={{flex:1,padding:12,borderRadius:10,border:'1px solid #6c527e',background:'#7131aa',color:'#fff'}}>✋ {lang==='es'?'Invitar al LIVE':'Invite to LIVE'}</button>}
+                </div>
+              </div>;
+            })()}
+            {!visibleViewers.length && <p style={{color:'#d4c7df'}}>{lang==='es'?'No hay participantes conectados.':'No participants connected.'}</p>}
+          </div>
+        </section>
+      </div>, document.body)}
+    {inviteStatus && <div role="status" style={{position:'fixed',left:16,right:16,bottom:'calc(90px + env(safe-area-inset-bottom))',zIndex:95,padding:'8px 12px',background:'#35213f',color:'white',borderRadius:12}} onClick={()=>setInviteStatus('')}>{inviteStatus}</div>}
+    {incomingInvite && !publish && <div role="dialog" aria-label="Invitación al LIVE" style={{position:'fixed',inset:0,zIndex:2147483000,display:'grid',placeItems:'center',background:'#000a',padding:16}}>
+      <div style={{width:'100%',maxWidth:360,background:'#261a33',color:'white',borderRadius:16,padding:20}}>
+        <strong>{incomingInvite.from} {lang==='es'?'te invita a subir al LIVE':'invites you to join LIVE'}</strong>
+        <p style={{fontSize:13}}>{lang==='es'?'Si aceptas, enviarás una solicitud para subir. El anfitrión o moderador deberá aprobarla.':'Accepting sends a camera request for host or moderator approval.'}</p>
+        <div style={{display:'flex',gap:10,marginTop:16}}>
+          <button type="button" style={{flex:1,padding:12,borderRadius:10}} onClick={()=>setIncomingInvite(null)}>{lang==='es'?'Rechazar':'Decline'}</button>
+          <button type="button" style={{flex:1,padding:12,borderRadius:10,background:'#8e38d0',color:'white'}} onClick={()=>{setIncomingInvite(null);onRequest?.();}}>{lang==='es'?'Aceptar':'Accept'}</button>
+        </div>
+      </div>
+    </div>}
+    <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
-    <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`}>
-      <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
+    <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
+      <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
       {!typing && <>
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? '📹' : '📷'}</button>}
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleMic} aria-label={mic ? 'Silenciar micrófono' : 'Activar micrófono'} title={mic ? 'Silenciar micrófono' : 'Activar micrófono'}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mic ? "#FFFFFF" : "#FF3B45"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:"block",width:"22px",height:"22px",flexShrink:0,margin:"auto"}}>
@@ -353,9 +645,12 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         </div>)}
       </div>
     </div>}
+    {drawer && <div className="rivyza-v329-drawer-backdrop" onClick={() => setDrawer(false)} aria-hidden="true" />}
     {drawer && <div className="rivyza-live-bottom-drawer rivyza-v32-popover">
       <div className="rivyza-live-drawer-handle" />
       <strong>{tr.options} LIVE</strong>
+      <button type="button" onClick={openInternalShare}>👥 Compartir en RIVYZA</button>
+       <button type="button" onClick={shareLive}>🔗 Compartir externamente</button>
       {isHost && <label className="rivyza-live-slot-picker">{tr.slots}: <select value={slots} onChange={e => { const count = Number(e.target.value); broadcastLayout(positions, count); }}>{Array.from({length:10},(_,i) => <option key={i} value={i+1}>{i+1}</option>)}</select></label>}
       {(isHost || isModerator) && <button type="button" onClick={() => { setMoveMode(x => !x); setMoveTarget(null); setSelected(null); setDrawer(false); }}>
         ↔️ {moveMode ? tr.finishMove : tr.rearrange}
@@ -368,6 +663,24 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       {!isHost && <button type="button" onClick={() => { setDrawer(false); onLeaveLive(); }}>🚪 {tr.leaveLive}</button>}
       <button type="button" onClick={() => setDrawer(false)}>{tr.close}</button>
     </div>}
+    {internalShareOpen && typeof document!=='undefined' && createPortal(
+      <div onClick={()=>setInternalShareOpen(false)} style={{position:'fixed',inset:0,zIndex:2147483001,background:'#000b',display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+        <section role="dialog" aria-modal="true" aria-label="Compartir en RIVYZA" onClick={e=>e.stopPropagation()} style={{background:'#24182e',color:'#fff',width:'100%',maxWidth:520,maxHeight:'75dvh',borderRadius:'18px 18px 0 0',padding:'16px 16px calc(18px + env(safe-area-inset-bottom))',display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><strong>👥 Compartir en RIVYZA</strong><button type="button" onClick={()=>setInternalShareOpen(false)} aria-label="Cerrar">✕</button></div>
+          <input type="search" value={internalSearch} onChange={e=>setInternalSearch(e.target.value)} placeholder="Buscar por nombre o @usuario" style={{padding:12,borderRadius:10,color:'#fff',background:'#392846',border:'1px solid #705581',fontSize:16}}/>
+          <small style={{color:'#d8c5e4'}}>{internalSearch?'Resultados de búsqueda':'Personas que sigues'}</small>
+          <div style={{overflowY:'auto',minHeight:80,flex:1}}>
+            {internalPeople.map(p=><button key={p.id} type="button" onClick={()=>setInternalSelected(prev=>prev.includes(p.id)?prev.filter(id=>id!==p.id):[...prev,p.id])} style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:9,border:0,borderBottom:'1px solid #ffffff20',background:'transparent',color:'#fff',textAlign:'left'}}>
+              {p.avatar_url?<img src={p.avatar_url} alt="" style={{width:38,height:38,borderRadius:'50%',objectFit:'cover'}}/>:<span style={{width:38,height:38,borderRadius:'50%',background:'#604475',display:'grid',placeItems:'center'}}>👤</span>}
+              <span style={{flex:1,minWidth:0}}><strong style={{display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.display_name||p.username||'Usuario'}</strong><small>@{p.username||''}</small></span>
+              <span aria-label={internalSelected.includes(p.id)?'Seleccionado':'Sin seleccionar'}>{internalSelected.includes(p.id)?'☑':'□'}</span>
+            </button>)}
+            {!internalPeople.length&&!internalBusy&&<p style={{color:'#d8c5e4'}}>{internalSearch?'No hay resultados.':'Todavía no sigues a nadie.'}</p>}
+          </div>
+          {internalError&&<p role="alert" style={{color:'#ffabb9',fontSize:12}}>{internalError}</p>}
+          <button type="button" disabled={!internalSelected.length||internalBusy} onClick={sendInternalInvites} style={{padding:13,borderRadius:12,background:'#9734ce',color:'#fff',border:0,opacity:(!internalSelected.length||internalBusy)?0.5:1}}>{internalBusy?'Cargando…':`Enviar invitación (${internalSelected.length})`}</button>
+        </section>
+      </div>,document.body)}
     {blockedOpen && <div className="rivyza-live-mod-backdrop" onClick={() => setBlockedOpen(false)}><div className="rivyza-live-mod-menu" role="dialog" aria-modal="true" onClick={e=>e.stopPropagation()}><strong>Usuarios bloqueados</strong><button type="button" onClick={()=>setBlockedOpen(false)}>Cerrar</button>{blockedUsers.length === 0 ? <p>No hay usuarios bloqueados.</p> : blockedUsers.map(b=><div key={b.user_id} className="rivyza-live-block-row"><span>{b.display_name || b.username || b.user_id.slice(0,8)}</span><button type="button" onClick={()=>onUnblock(b.user_id)}>Desbloquear</button></div>)}</div></div>}
     {confirmStop && <div className="rivyza-live-confirm-overlay" role="dialog" aria-modal="true" aria-label="Confirmar fin del LIVE">
       <div className="rivyza-live-confirm-box"><strong>{tr.confirm}</strong>
@@ -391,6 +704,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
             <button type="button" onClick={() => {onViewProfile?.(target.identity);setTarget(null);}}><span className="rivyza-v313-glyph">♙</span><span>{lang === 'es' ? 'Ver perfil' : 'View profile'}</span></button>
             {target.identity === localParticipant.identity && publish && <>
               <button onClick={flipCamera} disabled={flipping}>🔄 Voltear cámara</button>
+              <button type="button" onClick={toggleMirrorCamera} disabled={mirrorBusy} aria-pressed={mirrorEnabled}>↔️ Mirror Camera {mirrorEnabled ? 'ON' : 'OFF'}</button>
               <button onClick={toggleCam}>{cam ? 'Apagar cámara' : 'Encender cámara'}</button>
               <button onClick={toggleMic}>{mic ? 'Silenciar micrófono' : 'Activar micrófono'}</button>
               {isHost && <button onClick={()=>{setMoveTarget(target.identity);setTarget(null)}}>⇄ Mover mi cámara</button>}
@@ -435,6 +749,19 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [welcomeMessage,setWelcomeMessage]=useState('');
+  const [welcomeEnabled,setWelcomeEnabled]=useState(true);
+  useEffect(()=>{
+    if(!user?.id)return;
+    try{
+      const data=JSON.parse(localStorage.getItem(`rivyza-welcome-config:${user.id}`)||'{}');
+      setWelcomeMessage(data.text||'');setWelcomeEnabled(data.enabled!==false);
+    }catch{}
+  },[user?.id]);
+  const saveWelcome=(text,enabled)=>{
+    setWelcomeMessage(text);setWelcomeEnabled(enabled);
+    try{localStorage.setItem(`rivyza-welcome-config:${user.id}`,JSON.stringify({text,enabled}));}catch{}
+  };
   const [lang, setLang] = useState("es");
   useEffect(() => { setLang(getLanguage()); }, []);
   // Resolve requesters to their public RIVYZA profile names without changing LIVE permissions.
@@ -538,6 +865,28 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
     enteredRoom.current = null; setRequestStatus(null);
   }
 
+  const exitToHome = useCallback(() => {
+    enteredRoom.current = null;
+    setRequestStatus(null);
+    setRoomId(null);
+    setSession(null);
+    setRequests([]);
+    setError('');
+    onExit?.();
+  }, [onExit]);
+  // Verify room status even if LiveKit's disconnect callback never arrives.
+  useEffect(() => {
+    if (!roomId || !session || session.host) return;
+    let active = true;
+    const check = async () => {
+      try {
+        const result = await api(null, {mode:'status',room:roomId}, 'GET');
+        if (active && result.live === false) exitToHome();
+      } catch (e) { console.warn('LIVE status check', e); }
+    };
+    const timer = setInterval(check, 5000);
+    return () => { active = false; clearInterval(timer); };
+  }, [roomId, session?.host, api, exitToHome]);
   async function leave() {
     if (session?.host && roomId) {
       if (!window.confirm('¿Salir del LIVE? Pulsa Aceptar para terminarlo para todos.')) return;
@@ -548,7 +897,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
       try { await api('leave_camera', { roomId }); }
       catch (e) { console.warn('Could not cancel camera request on exit:', e); }
     }
-    enteredRoom.current = null; setRequestStatus(null); setRoomId(null); setSession(null); setRequests([]); refreshRooms();
+    exitToHome();
   }
 
   async function leaveCamera() {
@@ -559,8 +908,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
     if (!roomId || !session?.host) return;
     try {
       await api('stop', { roomId });
-      setRoomId(null); setSession(null); setRequests([]); setError('');
-      refreshRooms();
+      exitToHome();
     } catch (e) { setError(e.message); }
   }
 
@@ -588,10 +936,27 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-v313-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}.rivyza-v313-avatar{font-size:26px}.rivyza-v313-person{display:flex;flex-direction:column;flex:1;min-width:0}.rivyza-v313-person strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rivyza-v313-person span{font-size:11px;color:#c8b5d3}.rivyza-v313-close{background:transparent;color:white;border:0;padding:10px}
 .rivyza-v313-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.rivyza-v313-actions>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#382741;color:white;border:1px solid #5a4068;border-radius:12px}.rivyza-v313-glyph{font-size:19px}
 .rivyza-v313-danger{display:flex;gap:8px;margin-top:10px}.rivyza-v313-danger button,.rivyza-v313-report button{flex:1;padding:10px;background:#452335;color:#ffb1bc;border:1px solid #7f4459;border-radius:10px;font-size:12px}.rivyza-v313-report{display:grid;gap:8px}.rivyza-v313-report select,.rivyza-v313-report textarea{display:block;width:100%;padding:8px;background:#35253f;color:white;border:1px solid #60446e;border-radius:8px}
-.rivyza-v313-sheet{max-height:55dvh!important;overflow-y:auto;padding:14px!important}.rivyza-v313-actions{gap:7px!important}.rivyza-v313-actions>button{min-height:56px!important;padding:8px!important;font-size:12px!important}
+
+/* v3.25: participant options must be fully visible and above LIVE controls. */
+.rivyza-v313-overlay{z-index:2000!important;align-items:flex-end!important;padding:0!important}
+.rivyza-v313-sheet{box-sizing:border-box!important;max-height:min(72dvh,620px)!important;width:100%!important;max-width:600px!important;overflow-y:auto!important;overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch!important;padding:10px 12px calc(12px + env(safe-area-inset-bottom))!important;border-radius:17px 17px 0 0!important}
+.rivyza-v313-head{gap:7px!important;margin-bottom:8px!important}
+.rivyza-v313-avatar{font-size:21px!important}
+.rivyza-v313-handle{margin-bottom:7px!important}
+.rivyza-v313-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}
+.rivyza-v313-actions>button{box-sizing:border-box!important;min-height:46px!important;padding:5px 3px!important;font-size:11px!important;line-height:1.15!important;gap:2px!important;overflow-wrap:anywhere!important}
+.rivyza-v313-glyph{font-size:16px!important}
+.rivyza-v313-danger{margin-top:6px!important}
+@media(max-height:650px){.rivyza-v313-sheet{max-height:78dvh!important}.rivyza-v313-actions>button{min-height:40px!important}}
+
+.rivyza-v313-sheet{overflow-y:auto}.rivyza-v313-actions{gap:7px!important}
 .rivyza-live-avatar-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#21172b;font-size:32px}
 .rivyza-v314-speaking{box-shadow:inset 0 0 0 3px #70e3a0!important}.rivyza-v314-speaking:after{content:'';position:absolute;inset:0;border:3px solid #70e3a0;border-radius:inherit;pointer-events:none;z-index:3}
 
+/* v3.31: Apply the mirror transform directly to the LiveKit video element (including Safari). */
+
+.rivyza-v329-drawer-backdrop {position:fixed;inset:0;z-index:1100;background:transparent}
+.rivyza-live-bottom-drawer.rivyza-v32-popover {z-index:1101!important}
 /* v3.18: render the camera track without LiveKit's full-tile mute/placeholder layer. */
 .rivyza-live-tile .rivyza-v318-video{
   display:block!important;
@@ -606,10 +971,26 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-tile .lk-participant-metadata,.rivyza-live-tile .lk-participant-name,.rivyza-live-tile .lk-participant-media-control{display:none!important}
 .rivyza-v317-mic-off{position:absolute;right:8px;top:8px;bottom:auto;left:auto;z-index:12;display:flex;align-items:center;justify-content:center;width:19px;height:19px;padding:0;margin:0;border:0;border-radius:0;background:transparent!important;box-shadow:none!important;color:#ff3546;pointer-events:none;line-height:0}
 .rivyza-v317-mic-off svg{display:block;width:19px;height:19px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.75))}
-.rivyza-v314-chat{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom));left:12px;width:min(86vw,390px);z-index:35;pointer-events:auto;font-size:16px;line-height:1.3;font-weight:500;color:#fff;text-shadow:0 1px 3px #000;height:190px;max-height:25vh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;scrollbar-width:thin;mask-image:linear-gradient(to bottom,transparent 0%,black 14%,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 14%,black 100%)}
+.rivyza-v314-chat{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom));left:12px;width:min(86vw,390px);z-index:35;pointer-events:auto;font-size:16px;line-height:1.3;font-weight:500;color:#fff;text-shadow:0 1px 3px #000;height:165px;max-height:24vh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;scrollbar-width:thin;mask-image:linear-gradient(to bottom,transparent 0%,black 14%,black 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 14%,black 100%)}
 .rivyza-v314-chat>div{background:#171021aa;border-radius:8px;margin:4px 0;padding:5px 8px;overflow-wrap:anywhere}.rivyza-v314-chat .rivyza-v322-event{color:#e5cfeb;font-style:italic;background:rgba(30,20,38,.6)}
+/* v3.28: subtle join/leave activity in the existing chat, with local time. */
+.rivyza-v314-chat .rivyza-v328-activity{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:7px;font-size:13px;line-height:1.3;font-weight:500;font-style:normal;text-shadow:0 1px 2px #0009;background:rgba(19,19,25,.43);}
+.rivyza-v328-enter{color:#89f0b7;}
+.rivyza-v328-exit{color:#c5becb;}
+.rivyza-v328-symbol{font-size:16px;font-weight:800;flex:none;line-height:1;}
+.rivyza-v328-activity-text{flex:1;min-width:0;overflow-wrap:anywhere;}
+.rivyza-v328-time{flex:none;color:#c7bed0;font-size:11px;font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums;}
 .rivyza-v323-earlier{display:block;margin:4px auto;padding:4px 8px;border:1px solid #705579;background:#241731;color:white;border-radius:12px;font-size:12px}
 .rivyza-v323-chat-notice{position:fixed;bottom:calc(270px + env(safe-area-inset-bottom));left:12px;right:12px;background:#4d2539;color:white;font-size:11px;padding:6px;z-index:50;pointer-events:none;border-radius:8px}
+
+.rivyza-v314-chat .rivyza-private-welcome{white-space:pre-line;background:rgba(96,44,105,.85);border-left:3px solid #ff58b8;color:#fff}
+/* v3.24: compact LIVE chat and iOS keyboard overlay (no camera layout changes). */
+.rivyza-live-stage{min-height:0}
+.rivyza-v32-toolbar{position:fixed!important;left:12px!important;right:12px!important;z-index:70!important}
+.rivyza-v32-toolbar.rivyza-v32-typing{transform:none!important;transition:none!important;max-width:calc(100vw - 24px)!important}
+.rivyza-v314-comment-form{min-height:46px}
+.rivyza-v314-comment-form .rivyza-v32-comment{min-height:43px!important;height:43px!important;padding:9px 13px!important;font-size:16px!important;border-radius:24px!important}
+.rivyza-v314-comment-form button[type=submit]{min-height:43px;min-width:35px;font-size:21px}
 .rivyza-v314-comment-form{display:flex;min-width:0;flex:1;align-items:center}.rivyza-v314-comment-form input{width:100%!important;min-width:0}.rivyza-v314-comment-form button{border:0;background:transparent;color:white;padding:5px}
 .rivyza-v314-request-status{position:fixed;bottom:calc(190px + env(safe-area-inset-bottom));left:12px;z-index:40;font-size:12px;background:#281c35;padding:7px;border-radius:10px}.rivyza-v314-request-status button{margin-left:8px}
 .rivyza-live-hint{position:fixed;top:90px;left:12px;right:12px;z-index:60;background:#281c35;padding:8px;border-radius:10px;font-size:13px}.rivyza-live-hint button{margin-left:10px}
@@ -617,6 +998,12 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
     <header className="rivyza-live-top rivyza-v32-header"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-header-center">RIVYZA <span>LIVE</span></strong></header>
     {error && <div className="rivyza-v32-toast" role="status"><span>{error}</span><button type="button" onClick={() => setError('')} aria-label="Cerrar aviso">✕</button></div>}
     {!roomId ? <section className="rivyza-live-lobby">
+      <div style={{padding:'14px',margin:'8px 0 14px',background:'#21172b',borderRadius:14,color:'#fff'}}>
+        <label htmlFor="rivyza-welcome-text" style={{display:'block',fontWeight:700,marginBottom:8}}>💗 Mensaje de bienvenida privado</label>
+        <textarea id="rivyza-welcome-text" value={welcomeMessage} maxLength={250} rows={3} onChange={e=>saveWelcome(e.target.value,welcomeEnabled)} placeholder="Bienvenido a mi LIVE. Gracias por estar aquí. Disfruta de la música. 🎶" style={{width:'100%',boxSizing:'border-box',padding:10,borderRadius:9,background:'#120e18',color:'white',border:'1px solid #73557c',fontSize:16}} />
+        <label style={{display:'flex',alignItems:'center',gap:8,marginTop:9,fontSize:13}}><input type="checkbox" checked={welcomeEnabled} onChange={e=>saveWelcome(welcomeMessage,e.target.checked)}/> Activar bienvenida privada para cada espectador</label>
+        <small style={{display:'block',opacity:.75,marginTop:6}}>Se agregará automáticamente el nombre del espectador al final. Solo él verá el mensaje en su chat.</small>
+      </div>
       <button type="button" className="rivyza-live-start" disabled={busy} onClick={start}>{busy ? 'Conectando…' : '🔴 Iniciar mi LIVE'}</button>
       <h2>Transmisiones en vivo</h2>
       {rooms.length === 0 && <p>Ahora mismo no hay transmisiones. ¡Sé el primero!</p>}
@@ -627,14 +1014,18 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
       {session ? <LiveKitRoom key={`${roomId}-${session.publish}-${connectionKey}`} token={session.token} serverUrl={session.serverUrl}
         onDisconnected={async reason => {
           if (reason === DisconnectReason.CLIENT_INITIATED) return;
-          if (session.host) {setError('Se perdió la conexión del LIVE. Vuelve a entrar.');return;}
-          if (reason === DisconnectReason.PARTICIPANT_REMOVED || reason === DisconnectReason.DUPLICATE_IDENTITY) {
-            enteredRoom.current=null;setRoomId(null);setSession(null);setError('Has salido del LIVE.');return;
+          if (reason === DisconnectReason.PARTICIPANT_REMOVED || reason === DisconnectReason.ROOM_DELETED) {
+            exitToHome(); return;
           }
-          try { await api('leave_camera', {roomId}); await refreshSession(roomId); setConnectionKey(x=>x+1); }
-          catch(e) { setError(e.message); setSession(null); }
+          if (session.host) { setError('Se perdió la conexión. Tienes 3 minutos para volver a entrar.'); return; }
+          if (reason === DisconnectReason.DUPLICATE_IDENTITY) { exitToHome(); return; }
+          try {
+            const status = await api(null, {mode:'status',room:roomId}, 'GET');
+            if (status.live === false) { exitToHome(); return; }
+            await refreshSession(roomId); setConnectionKey(x=>x+1);
+          } catch(e) { setError(e.message); setSession(null); }
         }} connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} />
+        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={openLiveProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
 
     </section>}
