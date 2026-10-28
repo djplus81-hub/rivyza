@@ -437,10 +437,18 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     setInternalBusy(true);setInternalError('');
     try{
       const link=`${window.location.origin}/?live=${encodeURIComponent(liveRoomId)}`;
-      const rows=internalSelected.map(id=>({sender_id:user.id,recipient_id:id,body:`🎥 Te invito a ver mi LIVE en RIVYZA como espectador.\n${link}`}));
+      // Always identify the actual room owner, even when a moderator shares it.
+      if (!hostId) throw new Error('No se pudo identificar al dueño del LIVE.');
+      const {data:owner,error:ownerError}=await supabase.from('profiles')
+        .select('display_name,username').eq('id',hostId).maybeSingle();
+      if(ownerError)throw ownerError;
+      const ownerName=(owner?.display_name||owner?.username||'').trim();
+      if(!ownerName)throw new Error('No se pudo obtener el nombre del dueño del LIVE.');
+      const rows=internalSelected.map(id=>({sender_id:user.id,recipient_id:id,
+        body:`🎥 Invitación a RIVYZA LIVE\n👑 ${ownerName} te invita a su LIVE.\nEntra como espectador para ver y escuchar la transmisión.\n${link}`}));
       const {error}=await supabase.from('rivyza_messages').insert(rows);
       if(error)throw error;
-      setInternalShareOpen(false);setInviteStatus(`Invitación enviada a ${rows.length} ${rows.length===1?'persona':'personas'}.`);
+      setInternalShareOpen(false);setInviteStatus('');
     }catch(e){setInternalError('No se pudo enviar: '+(e.message||'Error'));}
     finally{setInternalBusy(false);}
   }
