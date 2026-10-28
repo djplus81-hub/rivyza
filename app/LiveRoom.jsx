@@ -22,6 +22,37 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const room = useRoomContext();
   const [profiles, setProfiles] = useState({});
   const [viewersOpen, setViewersOpen] = useState(false);
+  const [viewerSelected, setViewerSelected] = useState(null);
+  const [incomingInvite, setIncomingInvite] = useState(null);
+  const [inviteStatus, setInviteStatus] = useState('');
+  // Invitations travel to the connected viewer through LiveKit. Accepting
+  // submits the EXISTING camera request; it does not bypass moderation.
+  useEffect(() => {
+    const receiveInvite = (payload, participant, _kind, topic) => {
+      if (topic !== 'rivyza-live-invite' || !participant || participant.identity === room.localParticipant.identity) return;
+      try {
+        const data = JSON.parse(new TextDecoder().decode(payload));
+        if (data?.type !== 'camera-invite' || data.roomId !== liveRoomId ||
+            data.to !== room.localParticipant.identity || publish) return;
+        setIncomingInvite({from: participant.name || 'Anfitrión', fromId: participant.identity});
+      } catch (e) { console.warn('Invalid LIVE invite',e); }
+    };
+    room.on(RoomEvent.DataReceived,receiveInvite);
+    return () => room.off(RoomEvent.DataReceived,receiveInvite);
+  }, [room,liveRoomId,publish]);
+  async function inviteViewer(id) {
+    if (!(isHost || isModerator) || !id || id === room.localParticipant.identity) return;
+    setInviteStatus('');
+    try {
+      const data = new TextEncoder().encode(JSON.stringify({type:'camera-invite',to:id,roomId:liveRoomId}));
+      await room.localParticipant.publishData(data, {
+        reliable:true, destinationIdentities:[id], topic:'rivyza-live-invite'
+      });
+      setViewerSelected(null);
+      setInviteStatus(lang==='es'?'Invitación enviada':'Invitation sent');
+    } catch (e) { setInviteStatus(lang==='es'?'No se pudo enviar la invitación.':'Could not send invitation.');onError?.(e.message); }
+  }
+
   const visibleViewers = [...participants].sort((a,b) =>
     Number(b.identity === hostId) - Number(a.identity === hostId) ||
     (profiles[a.identity]?.display_name || a.name || '').localeCompare(profiles[b.identity]?.display_name || b.name || '')
@@ -355,7 +386,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<button type="button" onClick={() => setViewersOpen(true)} className="rivyza-live-viewer-count rivyza-live-viewer-header rivyza-v32-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Ver personas conectadas al LIVE" aria-expanded={viewersOpen}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></button>, document.querySelector('.rivyza-live-top'))}
 
     {viewersOpen && typeof document !== 'undefined' && createPortal(
-      <div role="presentation" onClick={() => setViewersOpen(false)}
+      <div role="presentation" onClick={() => {setViewersOpen(false);setViewerSelected(null);}}
         style={{position:'fixed',inset:0,zIndex:2147483000,background:'rgba(0,0,0,.70)',display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
         <section role="dialog" aria-modal="true" aria-label="Personas en la sala" onClick={e=>e.stopPropagation()}
           style={{background:'#201829',color:'#fff',borderRadius:'18px 18px 0 0',width:'100%',maxWidth:520,maxHeight:'min(66dvh,550px)',display:'flex',flexDirection:'column',padding:'16px 16px calc(18px + env(safe-area-inset-bottom))',boxSizing:'border-box'}}>
@@ -368,17 +399,43 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
               const profile=profiles[p.identity];
               const name=profile?.display_name || profile?.username || p.name || 'Usuario';
               const avatar=avatarFor(p);
-              return <button key={p.identity} type="button" onClick={() => {setViewersOpen(false);onViewProfile?.(p.identity);}}
+              return <button key={p.identity} type="button" onClick={() => {setViewerSelected(p.identity);setInviteStatus('');}}
                 style={{display:'flex',alignItems:'center',gap:12,width:'100%',padding:'10px 4px',background:'none',border:0,borderBottom:'1px solid #ffffff18',color:'#fff',textAlign:'left',cursor:'pointer'}}>
                 {avatar ? <img src={avatar} alt="" style={{width:43,height:43,borderRadius:'50%',objectFit:'cover'}}/> : <span style={{width:43,height:43,borderRadius:'50%',display:'grid',placeItems:'center',background:'#49365c'}}>{name.slice(0,1).toUpperCase()}</span>}
                 <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{name}{p.identity===hostId ? ' 👑' : ''}</span>
-                <span style={{fontSize:12,color:'#d6b6fa'}}>{lang==='es'?'Ver perfil ›':'View profile ›'}</span>
+                <span style={{fontSize:12,color:'#d6b6fa'}}>{lang==='es'?'Opciones ›':'Options ›'}</span>
               </button>;
             })}
+            {viewerSelected && (() => {
+              const person = participants.find(p => p.identity === viewerSelected);
+              if (!person) return null;
+              const name=profiles[person.identity]?.display_name || person.name || 'Usuario';
+              return <div role="group" aria-label={name} style={{padding:'12px 5px',borderTop:'1px solid #ffffff30'}}>
+                <strong style={{display:'block',marginBottom:9}}>{name}</strong>
+                <div style={{display:'flex',gap:8}}>
+                  <button type="button" onClick={()=>{setViewerSelected(null);setViewersOpen(false);onViewProfile?.(person.identity);}}
+                    style={{flex:1,padding:12,borderRadius:10,border:'1px solid #6c527e',background:'#49315b',color:'#fff'}}>👤 {lang==='es'?'Ver perfil':'View profile'}</button>
+                  {(isHost || isModerator) && person.identity!==room.localParticipant.identity && person.identity!==hostId &&
+                    <button type="button" onClick={()=>inviteViewer(person.identity)}
+                      style={{flex:1,padding:12,borderRadius:10,border:'1px solid #6c527e',background:'#7131aa',color:'#fff'}}>✋ {lang==='es'?'Invitar al LIVE':'Invite to LIVE'}</button>}
+                </div>
+              </div>;
+            })()}
             {!visibleViewers.length && <p style={{color:'#d4c7df'}}>{lang==='es'?'No hay participantes conectados.':'No participants connected.'}</p>}
           </div>
         </section>
       </div>, document.body)}
+    {inviteStatus && <div role="status" style={{position:'fixed',left:16,right:16,bottom:'calc(90px + env(safe-area-inset-bottom))',zIndex:95,padding:'8px 12px',background:'#35213f',color:'white',borderRadius:12}} onClick={()=>setInviteStatus('')}>{inviteStatus}</div>}
+    {incomingInvite && !publish && <div role="dialog" aria-label="Invitación al LIVE" style={{position:'fixed',inset:0,zIndex:2147483000,display:'grid',placeItems:'center',background:'#000a',padding:16}}>
+      <div style={{width:'100%',maxWidth:360,background:'#261a33',color:'white',borderRadius:16,padding:20}}>
+        <strong>{incomingInvite.from} {lang==='es'?'te invita a subir al LIVE':'invites you to join LIVE'}</strong>
+        <p style={{fontSize:13}}>{lang==='es'?'Si aceptas, enviarás una solicitud para subir. El anfitrión o moderador deberá aprobarla.':'Accepting sends a camera request for host or moderator approval.'}</p>
+        <div style={{display:'flex',gap:10,marginTop:16}}>
+          <button type="button" style={{flex:1,padding:12,borderRadius:10}} onClick={()=>setIncomingInvite(null)}>{lang==='es'?'Rechazar':'Decline'}</button>
+          <button type="button" style={{flex:1,padding:12,borderRadius:10,background:'#8e38d0',color:'white'}} onClick={()=>{setIncomingInvite(null);onRequest?.();}}>{lang==='es'?'Aceptar':'Accept'}</button>
+        </div>
+      </div>
+    </div>}
     <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=><div key={m.id} className={m.system ? 'rivyza-v322-event' : ''}>{m.name && <strong>{m.name}: </strong>}{m.text}</div>)}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
