@@ -21,6 +21,12 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const participants = useParticipants();
   const room = useRoomContext();
   const [profiles, setProfiles] = useState({});
+  const [viewersOpen, setViewersOpen] = useState(false);
+  const visibleViewers = [...participants].sort((a,b) =>
+    Number(b.identity === hostId) - Number(a.identity === hostId) ||
+    (profiles[a.identity]?.display_name || a.name || '').localeCompare(profiles[b.identity]?.display_name || b.name || '')
+  );
+
   const recentEntries = useRef(new Map());
   const [speakers, setSpeakers] = useState([]);
   // v3.23: Persistent chat by LIVE room, with local reading-position memory.
@@ -346,7 +352,33 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>)}
     </div>
     {(moveMode || moveTarget) && <p className="rivyza-live-hint">{moveTarget || selected !== null ? 'Selecciona la posición de destino' : tr.moveHint}<button onClick={()=>{setMoveTarget(null);setMoveMode(false);setSelected(null)}}>Cancelar</button></p>}
-    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<div className="rivyza-live-viewer-count rivyza-live-viewer-header rivyza-v32-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Espectadores conectados"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></div>, document.querySelector('.rivyza-live-top'))}
+    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<button type="button" onClick={() => setViewersOpen(true)} className="rivyza-live-viewer-count rivyza-live-viewer-header rivyza-v32-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"8px",verticalAlign:"middle",padding:"3px 8px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Ver personas conectadas al LIVE" aria-expanded={viewersOpen}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{participants.length}</span></button>, document.querySelector('.rivyza-live-top'))}
+
+    {viewersOpen && typeof document !== 'undefined' && createPortal(
+      <div role="presentation" onClick={() => setViewersOpen(false)}
+        style={{position:'fixed',inset:0,zIndex:2147483000,background:'rgba(0,0,0,.70)',display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+        <section role="dialog" aria-modal="true" aria-label="Personas en la sala" onClick={e=>e.stopPropagation()}
+          style={{background:'#201829',color:'#fff',borderRadius:'18px 18px 0 0',width:'100%',maxWidth:520,maxHeight:'min(66dvh,550px)',display:'flex',flexDirection:'column',padding:'16px 16px calc(18px + env(safe-area-inset-bottom))',boxSizing:'border-box'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <strong>{lang==='es'?'Personas en la sala':'People in the room'} ({visibleViewers.length})</strong>
+            <button type="button" aria-label="Cerrar" onClick={()=>setViewersOpen(false)} style={{background:'none',border:0,color:'#fff',fontSize:24,padding:'2px 10px'}}>×</button>
+          </div>
+          <div style={{overflowY:'auto',overscrollBehavior:'contain',WebkitOverflowScrolling:'touch'}}>
+            {visibleViewers.map(p=>{
+              const profile=profiles[p.identity];
+              const name=profile?.display_name || profile?.username || p.name || 'Usuario';
+              const avatar=avatarFor(p);
+              return <button key={p.identity} type="button" onClick={() => {setViewersOpen(false);onViewProfile?.(p.identity);}}
+                style={{display:'flex',alignItems:'center',gap:12,width:'100%',padding:'10px 4px',background:'none',border:0,borderBottom:'1px solid #ffffff18',color:'#fff',textAlign:'left',cursor:'pointer'}}>
+                {avatar ? <img src={avatar} alt="" style={{width:43,height:43,borderRadius:'50%',objectFit:'cover'}}/> : <span style={{width:43,height:43,borderRadius:'50%',display:'grid',placeItems:'center',background:'#49365c'}}>{name.slice(0,1).toUpperCase()}</span>}
+                <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{name}{p.identity===hostId ? ' 👑' : ''}</span>
+                <span style={{fontSize:12,color:'#d6b6fa'}}>{lang==='es'?'Ver perfil ›':'View profile ›'}</span>
+              </button>;
+            })}
+            {!visibleViewers.length && <p style={{color:'#d4c7df'}}>{lang==='es'?'No hay participantes conectados.':'No participants connected.'}</p>}
+          </div>
+        </section>
+      </div>, document.body)}
     <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=><div key={m.id} className={m.system ? 'rivyza-v322-event' : ''}>{m.name && <strong>{m.name}: </strong>}{m.text}</div>)}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
