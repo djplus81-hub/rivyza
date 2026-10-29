@@ -2905,7 +2905,7 @@ export default function HomePage(){
   }
   const renderExistingProfile = () => <main className="public-profile-shell other-profile-shell">
       <header className="profile-topbar compact">
-        <button className="profile-back" onClick={()=>{if(profileFromLive)returnToLive();else {setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else setView("home");}}}>←</button>
+        <button className="profile-back" onClick={()=>{if(profileFromLive){returnToLive();return;}setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else setView("home");}}>←</button>
         <div className="profile-top-title">RIVYZA</div>
         {adminOwner&&<button type="button" className="rivyza-admin-dots" aria-label="Administrar este perfil" onClick={()=>adminOpen(viewedProfile)}><MoreHorizontal size={25}/></button>}
       </header>
@@ -3088,7 +3088,7 @@ export default function HomePage(){
 
   const renderOwnOriginalProfile = () => <main className="public-profile-shell">
       <header className="profile-topbar compact">
-        <button className="profile-back" onClick={()=>{setUploadOpen(false);if(profileFromLive)returnToLive();setView("home");}}>←</button>
+        <button className="profile-back" onClick={()=>{setUploadOpen(false);if(profileFromLive){returnToLive();return;}setView("home");}}>←</button>
         <div className="profile-top-title">RIVYZA</div>
         <button className="profile-menu" onClick={()=>setView("socialSettings")} aria-label={t("Configuración")}><MoreHorizontal size={24}/></button>
       </header>
