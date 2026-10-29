@@ -204,6 +204,7 @@ export default function HomePage(){
   const [discoverLiveRooms,setDiscoverLiveRooms]=useState([]);
   const [discoverLiveError,setDiscoverLiveError]=useState('');
   const [selectedLiveRoom,setSelectedLiveRoom]=useState(null);
+  const [profileFromLive,setProfileFromLive]=useState(false);
   const [user,setUser]=useState(null);
   const [liveFriendIds,setLiveFriendIds]=useState([]);
   const [activeLivePreview,setActiveLivePreview]=useState(0);
@@ -847,6 +848,20 @@ export default function HomePage(){
       setSocialListRows(enriched);
     }catch(e){console.error("Social list error:",e);setSocialListRows([]);}
     finally{setSocialListLoading(false);}
+  }
+
+  async function openProfileFromLive(identity){
+    if(!identity || !supabase)return;
+    const {data,error}=await supabase.from('profiles').select('*').eq('id',identity).maybeSingle();
+    if(error || !data){console.warn('No se pudo abrir el perfil desde LIVE',error);return;}
+    setProfileFromLive(true);
+    await openUserProfile(data);
+  }
+  function returnToLive(){
+    setSelectedPost(null);
+    setProfileReturnToChat(false);
+    setProfileFromLive(false);
+    setView('liveStudio');
   }
 
   async function openUserProfile(targetProfile){
@@ -2872,148 +2887,9 @@ export default function HomePage(){
       {socialNav()}
     </main>;
   }
-  if(view==="liveStudio"){
-    return <LiveRoom key={selectedLiveRoom || "lobby"} initialRoomId={selectedLiveRoom} supabase={supabase} user={user} onExit={()=>{setSelectedLiveRoom(null);setView("home");changeFeedTab("forYou");}}/>;
-  }
-  if(view==="livePreview"){
-    return <main className="live-preview-shell">
-      <header className="live-preview-header">
-        <button className="live-preview-back" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">‹</button>
-        <strong>LIVE</strong>
-        <span className="live-preview-spacer"></span>
-      </header>
-
-      <div className="live-following-strip" aria-label="Amigos en vivo">
-        {discoverLiveRooms.filter(room=>liveFriendIds.includes(room.host_id)).map(room=><button type="button" key={room.id} className="rivyza-live-friend" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
-          <span className="rivyza-live-friend-ring">{room.host_avatar?<img src={room.host_avatar} alt=""/>:<span>{(room.host_name||'U').slice(0,1).toUpperCase()}</span>}</span>
-          <span className="rivyza-live-friend-name">{room.host_name||'Usuario'}</span>
-        </button>)}
-        {!discoverLiveRooms.some(room=>liveFriendIds.includes(room.host_id))&&<span className="live-following-empty">Tus amigos no están en vivo ahora</span>}
-      </div>
-      <section className="live-discovery-feed" aria-label="Vistas previas de LIVE" onScroll={e=>{
-        const h=e.currentTarget.clientHeight||1;
-        const next=Math.round(e.currentTarget.scrollTop/h);
-        if(next!==activeLivePreview)setActiveLivePreview(next);
-      }}>
-        {discoverLiveError&&<div className="live-preview-card live-preview-empty-card"><p role="alert">{discoverLiveError}</p></div>}
-        {!discoverLiveError&&discoverLiveRooms.length===0&&<div className="live-preview-card live-preview-empty-card"><div className="live-preview-empty-copy"><span className="live-preview-badge">● LIVE</span><h2>No hay transmisiones ahora</h2><p>Cuando alguien comience un LIVE, podrás verlo aquí.</p></div></div>}
-        {discoverLiveRooms.map((room,index)=><div key={room.id} className="live-preview-card">
-          {index===activeLivePreview&&<LivePreviewPlayer key={room.id} roomId={room.id} supabase={supabase}/>}
-          <button type="button" className="rivyza-live-preview-enter" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
-            <span className="rivyza-live-preview-host">{room.host_avatar&&<img src={room.host_avatar} alt=""/>}<strong>{room.host_name||'Usuario RIVYZA'}</strong><em>● LIVE</em></span>
-            <span className="rivyza-live-preview-entry">Toca para entrar al LIVE</span>
-          </button>
-          {index===activeLivePreview&&livePreviewInvite&&<button type="button" className="rivyza-live-preview-invite" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}}>¿Quieres entrar al LIVE de {room.host_name||'este usuario'}? Entrar</button>}
-        </div>)}
-      </section>
-      <nav className="bottom-nav live-preview-bottom-nav">
-        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
-        <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
-        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
-      </nav>
-      {renderUploadModal()}
-      {renderShareSheet()}
-    </main>;
-  }
-
-  if(view==="connections"){
-    const matches=(connectionsTab==="mine"?connectionsRows:communityRows).filter(p=>(`${p.display_name||""} ${p.username||""}`).toLowerCase().includes(connectionsSearch.toLowerCase()));
-    return <main className="feed-shell connections-screen">
-      <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>{t("Comunidad")}</h1><span></span></header>
-      <div className="rivyza-community-tabs"><button type="button" className={connectionsTab==="mine"?"active":""} onClick={()=>setConnectionsTab("mine")}>{t("Conexiones")}</button><button type="button" className={connectionsTab==="all"?"active":""} onClick={()=>{setConnectionsTab("all");loadCommunity();}}>{t("Todos los usuarios")}</button></div>
-      <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder={connectionsTab==="mine"?"Buscar conexiones":"Buscar usuarios registrados"} aria-label={t("Buscar usuarios")}/></div>
-      <p className="connections-hint">{connectionsTab==="mine"?"Amigos, personas que sigues y personas que te siguen.":"Cuentas registradas en RIVYZA · el punto verde indica quién está en línea."}</p>
-      <section className="connections-list">
-        {(connectionsTab==="mine"?connectionsLoading:communityLoading)&&<p className="connections-empty">Cargando usuarios…</p>}
-        {!(connectionsTab==="mine"?connectionsLoading:communityLoading)&&!matches.length&&<p className="connections-empty">No hay usuarios para mostrar.</p>}
-        {matches.map(person=><div className="connections-person" key={person.id}>
-          <button type="button" className="connections-identity" onClick={()=>openUserProfile(person)}>
-            <span className="rivyza-presence-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="connections-fallback">{(person.display_name||person.username||"R").slice(0,1).toUpperCase()}</span>}{onlineDot(person.id)}</span>
-            <span className="connections-names"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
-          </button>
-          {person.i_follow&&person.follows_me?<span className="connections-friends">{t("Amigos")}</span>:person.i_follow?<span className="connections-following">{t("Siguiendo")}</span>:<div className="connections-follow-back">{person.follows_me&&<small>{t("Te sigue")}</small>}<button type="button" onClick={()=>followFromConnections(person)}>{t("Seguir")}</button></div>}
-        </div>)}
-      </section>
-      <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>{t("Inicio")}</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button></nav>
-    </main>;
-  }
-
-  if(view==="friends"){
-    return <main className="feed-shell friends-feed-shell">
-      <header className="friends-topbar friends-feed-topbar">
-        <h1>{t("Amigos")}</h1>
-        <p>Solo personas que tú sigues y que también te siguen.</p>
-      </header>
-
-      <section className="video-feed home-real-feed">
-        {feedLoading && !feedPosts.length && (
-          <div className="feed-empty-state">Cargando amigos…</div>
-        )}
-
-        {!feedLoading && !feedPosts.length && (
-          <div className="friends-empty-state">
-            <AmigosIcon/>
-            <strong>{feedMessage||"Todavía no hay publicaciones de amigos."}</strong>
-          </div>
-        )}
-
-        {feedPosts.map(post=>(
-          <article className="video-card feed-post-card" key={post.id}>
-            <div className="feed-media-wrap">
-              {post.media_type==="video"
-                ? <video className="feed-media" src={`${post.media_path}#t=0.1`} controls playsInline preload="metadata"/>
-                : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
-              }
-            </div>
-
-            <div className="creator-copy">
-              <button className="creator-profile-link" onClick={()=>openFeedCreator(post)}>
-                <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
-              </button>
-              <div className="handle">@{post.creator?.username||"usuario"}</div>
-              {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
-              <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
-              <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
-            </div>
-
-            <div className="side-actions">
-              <button className="avatar-action" onClick={()=>openFeedCreator(post)}>
-                {post.creator?.avatar_url
-                  ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
-                  : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
-                            {onlineDot(post.creator?.id||post.user_id)}
-              </button>
-              <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
-                <Heart fill={post.liked_by_me?"currentColor":"none"}/>
-                <span>{post.like_count||0}</span>
-              </button>
-              <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
-              <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
-              <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
-            </div>
-          </article>
-        ))}
-      </section>
-
-      <nav className="bottom-nav">
-        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
-        <button className="active"><AmigosIcon/><span>{t("Amigos")}</span></button>
-        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
-        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
-      </nav>
-      {renderUploadModal()}
-      {commentsOpen && renderCommentsSheet()}
-      {renderShareSheet()}
-    </main>;
-  }
-
-  if(view==="otherProfile" && viewedProfile){
-    return <main className="public-profile-shell other-profile-shell">
+  const renderExistingProfile = () => <main className="public-profile-shell other-profile-shell">
       <header className="profile-topbar compact">
-        <button className="profile-back" onClick={()=>{setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else setView("home");}}>←</button>
+        <button className="profile-back" onClick={()=>{if(profileFromLive)returnToLive();else {setSelectedPost(null);if(profileReturnToChat){setProfileReturnToChat(false);setView("messages");}else setView("home");}}}>←</button>
         <div className="profile-top-title">RIVYZA</div>
         {adminOwner&&<button type="button" className="rivyza-admin-dots" aria-label="Administrar este perfil" onClick={()=>adminOpen(viewedProfile)}><MoreHorizontal size={25}/></button>}
       </header>
@@ -3191,6 +3067,155 @@ export default function HomePage(){
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
+      {renderShareSheet()}
+    </main>;
+
+  if(view==="liveStudio" || (profileFromLive && view==="otherProfile" && viewedProfile)){
+    const showingProfile=profileFromLive && view==="otherProfile" && viewedProfile;
+    return <>
+      <div style={showingProfile?{position:'fixed',inset:0,visibility:'hidden',pointerEvents:'none'}:undefined}>
+        <LiveRoom key={selectedLiveRoom || 'lobby'} initialRoomId={selectedLiveRoom} supabase={supabase} user={user}
+          onViewProfile={openProfileFromLive}
+          onExit={()=>{setProfileFromLive(false);setSelectedLiveRoom(null);setView('home');changeFeedTab('forYou');}} />
+      </div>
+      {showingProfile && <div style={{position:'fixed',inset:0,zIndex:2147483001,overflowY:'auto',background:'#000'}}>{renderExistingProfile()}</div>}
+    </>;
+  }
+  if(view==="otherProfile" && viewedProfile){return renderExistingProfile();}
+
+    return <LiveRoom key={selectedLiveRoom || "lobby"} initialRoomId={selectedLiveRoom} supabase={supabase} user={user} onExit={()=>{setSelectedLiveRoom(null);setView("home");changeFeedTab("forYou");}}/>;
+  }
+  if(view==="livePreview"){
+    return <main className="live-preview-shell">
+      <header className="live-preview-header">
+        <button className="live-preview-back" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">‹</button>
+        <strong>LIVE</strong>
+        <span className="live-preview-spacer"></span>
+      </header>
+
+      <div className="live-following-strip" aria-label="Amigos en vivo">
+        {discoverLiveRooms.filter(room=>liveFriendIds.includes(room.host_id)).map(room=><button type="button" key={room.id} className="rivyza-live-friend" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
+          <span className="rivyza-live-friend-ring">{room.host_avatar?<img src={room.host_avatar} alt=""/>:<span>{(room.host_name||'U').slice(0,1).toUpperCase()}</span>}</span>
+          <span className="rivyza-live-friend-name">{room.host_name||'Usuario'}</span>
+        </button>)}
+        {!discoverLiveRooms.some(room=>liveFriendIds.includes(room.host_id))&&<span className="live-following-empty">Tus amigos no están en vivo ahora</span>}
+      </div>
+      <section className="live-discovery-feed" aria-label="Vistas previas de LIVE" onScroll={e=>{
+        const h=e.currentTarget.clientHeight||1;
+        const next=Math.round(e.currentTarget.scrollTop/h);
+        if(next!==activeLivePreview)setActiveLivePreview(next);
+      }}>
+        {discoverLiveError&&<div className="live-preview-card live-preview-empty-card"><p role="alert">{discoverLiveError}</p></div>}
+        {!discoverLiveError&&discoverLiveRooms.length===0&&<div className="live-preview-card live-preview-empty-card"><div className="live-preview-empty-copy"><span className="live-preview-badge">● LIVE</span><h2>No hay transmisiones ahora</h2><p>Cuando alguien comience un LIVE, podrás verlo aquí.</p></div></div>}
+        {discoverLiveRooms.map((room,index)=><div key={room.id} className="live-preview-card">
+          {index===activeLivePreview&&<LivePreviewPlayer key={room.id} roomId={room.id} supabase={supabase}/>}
+          <button type="button" className="rivyza-live-preview-enter" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
+            <span className="rivyza-live-preview-host">{room.host_avatar&&<img src={room.host_avatar} alt=""/>}<strong>{room.host_name||'Usuario RIVYZA'}</strong><em>● LIVE</em></span>
+            <span className="rivyza-live-preview-entry">Toca para entrar al LIVE</span>
+          </button>
+          {index===activeLivePreview&&livePreviewInvite&&<button type="button" className="rivyza-live-preview-invite" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}}>¿Quieres entrar al LIVE de {room.host_name||'este usuario'}? Entrar</button>}
+        </div>)}
+      </section>
+      <nav className="bottom-nav live-preview-bottom-nav">
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
+        <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
+        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
+      </nav>
+      {renderUploadModal()}
+      {renderShareSheet()}
+    </main>;
+  }
+
+  if(view==="connections"){
+    const matches=(connectionsTab==="mine"?connectionsRows:communityRows).filter(p=>(`${p.display_name||""} ${p.username||""}`).toLowerCase().includes(connectionsSearch.toLowerCase()));
+    return <main className="feed-shell connections-screen">
+      <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>{t("Comunidad")}</h1><span></span></header>
+      <div className="rivyza-community-tabs"><button type="button" className={connectionsTab==="mine"?"active":""} onClick={()=>setConnectionsTab("mine")}>{t("Conexiones")}</button><button type="button" className={connectionsTab==="all"?"active":""} onClick={()=>{setConnectionsTab("all");loadCommunity();}}>{t("Todos los usuarios")}</button></div>
+      <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder={connectionsTab==="mine"?"Buscar conexiones":"Buscar usuarios registrados"} aria-label={t("Buscar usuarios")}/></div>
+      <p className="connections-hint">{connectionsTab==="mine"?"Amigos, personas que sigues y personas que te siguen.":"Cuentas registradas en RIVYZA · el punto verde indica quién está en línea."}</p>
+      <section className="connections-list">
+        {(connectionsTab==="mine"?connectionsLoading:communityLoading)&&<p className="connections-empty">Cargando usuarios…</p>}
+        {!(connectionsTab==="mine"?connectionsLoading:communityLoading)&&!matches.length&&<p className="connections-empty">No hay usuarios para mostrar.</p>}
+        {matches.map(person=><div className="connections-person" key={person.id}>
+          <button type="button" className="connections-identity" onClick={()=>openUserProfile(person)}>
+            <span className="rivyza-presence-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:<span className="connections-fallback">{(person.display_name||person.username||"R").slice(0,1).toUpperCase()}</span>}{onlineDot(person.id)}</span>
+            <span className="connections-names"><strong>{person.display_name||person.username||"Usuario"}</strong><small>@{person.username||"usuario"}</small></span>
+          </button>
+          {person.i_follow&&person.follows_me?<span className="connections-friends">{t("Amigos")}</span>:person.i_follow?<span className="connections-following">{t("Siguiendo")}</span>:<div className="connections-follow-back">{person.follows_me&&<small>{t("Te sigue")}</small>}<button type="button" onClick={()=>followFromConnections(person)}>{t("Seguir")}</button></div>}
+        </div>)}
+      </section>
+      <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>{t("Inicio")}</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button></nav>
+    </main>;
+  }
+
+  if(view==="friends"){
+    return <main className="feed-shell friends-feed-shell">
+      <header className="friends-topbar friends-feed-topbar">
+        <h1>{t("Amigos")}</h1>
+        <p>Solo personas que tú sigues y que también te siguen.</p>
+      </header>
+
+      <section className="video-feed home-real-feed">
+        {feedLoading && !feedPosts.length && (
+          <div className="feed-empty-state">Cargando amigos…</div>
+        )}
+
+        {!feedLoading && !feedPosts.length && (
+          <div className="friends-empty-state">
+            <AmigosIcon/>
+            <strong>{feedMessage||"Todavía no hay publicaciones de amigos."}</strong>
+          </div>
+        )}
+
+        {feedPosts.map(post=>(
+          <article className="video-card feed-post-card" key={post.id}>
+            <div className="feed-media-wrap">
+              {post.media_type==="video"
+                ? <video className="feed-media" src={`${post.media_path}#t=0.1`} controls playsInline preload="metadata"/>
+                : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
+              }
+            </div>
+
+            <div className="creator-copy">
+              <button className="creator-profile-link" onClick={()=>openFeedCreator(post)}>
+                <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
+              </button>
+              <div className="handle">@{post.creator?.username||"usuario"}</div>
+              {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
+              <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
+              <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
+            </div>
+
+            <div className="side-actions">
+              <button className="avatar-action" onClick={()=>openFeedCreator(post)}>
+                {post.creator?.avatar_url
+                  ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
+                  : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+                            {onlineDot(post.creator?.id||post.user_id)}
+              </button>
+              <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
+                <Heart fill={post.liked_by_me?"currentColor":"none"}/>
+                <span>{post.like_count||0}</span>
+              </button>
+              <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
+              <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
+              <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <nav className="bottom-nav">
+        <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
+        <button className="active"><AmigosIcon/><span>{t("Amigos")}</span></button>
+        <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
+      </nav>
+      {renderUploadModal()}
+      {commentsOpen && renderCommentsSheet()}
       {renderShareSheet()}
     </main>;
   }
