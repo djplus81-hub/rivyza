@@ -862,8 +862,28 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 
   const refreshBlocked = useCallback(async () => { if (!roomId) return; try { setBlockedUsers((await api(null, {mode:"blocked",room:roomId},"GET")).blocked || []); } catch(e) { setError(e.message); } }, [roomId,api]);
   async function unblock(guestId) { try { await api("unblock_guest",{roomId,guestId}); await refreshBlocked(); } catch(e) { setError(e.message); } }
-  function openLiveProfile(id) {
-    if (id) onViewProfile?.(id);
+  // Keep LiveKitRoom mounted while browsing a participant profile. Unmounting
+  // the room would disconnect the host and interrupt the LIVE.
+  const [liveProfile,setLiveProfile]=useState(null);
+  const [liveProfilePosts,setLiveProfilePosts]=useState([]);
+  const [liveProfileLoading,setLiveProfileLoading]=useState(false);
+  const [liveProfileError,setLiveProfileError]=useState('');
+  async function openLiveProfile(id) {
+    if (!id) return;
+    setLiveProfile({id});
+    setLiveProfilePosts([]);
+    setLiveProfileError('');
+    setLiveProfileLoading(true);
+    try {
+      const {data,error}=await supabase.from('profiles').select('*').eq('id',id).maybeSingle();
+      if(error) throw error;
+      if(!data) throw new Error(lang==='es'?'Este perfil no está disponible.':'This profile is unavailable.');
+      setLiveProfile(current=>current?.id===id?data:current);
+      const result=await supabase.from('posts').select('id,user_id,media_url,media_type,caption,created_at,visibility').eq('user_id',id).eq('visibility','public').order('created_at',{ascending:false}).limit(36);
+      if(result.error) console.warn('LIVE profile posts',result.error);
+      setLiveProfilePosts(current=>result.data||[]);
+    } catch(e) { setLiveProfileError(e.message||'No se pudo cargar el perfil'); }
+    finally {setLiveProfileLoading(false);}
   }
   async function start() {
     if (busy) return;
@@ -1012,6 +1032,34 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-hint{position:fixed;top:90px;left:12px;right:12px;z-index:60;background:#281c35;padding:8px;border-radius:10px;font-size:13px}.rivyza-live-hint button{margin-left:10px}
 `}</style>
     <header className="rivyza-live-top rivyza-v32-header"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-header-center">RIVYZA <span>LIVE</span></strong></header>
+    {liveProfile && typeof document !== 'undefined' && createPortal(
+      <div role="presentation" onClick={()=>setLiveProfile(null)} style={{position:'fixed',inset:0,zIndex:2147483001,background:'#08070d',color:'#fff',overflowY:'auto',overscrollBehavior:'contain'}}>
+        <section role="dialog" aria-modal="true" aria-label={lang==='es'?'Perfil de usuario':'User profile'} onClick={e=>e.stopPropagation()} style={{maxWidth:560,minHeight:'100dvh',margin:'0 auto',padding:'calc(16px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom))',boxSizing:'border-box'}}>
+          <header style={{display:'flex',alignItems:'center',gap:16,marginBottom:26}}>
+            <button type="button" onClick={()=>setLiveProfile(null)} aria-label={lang==='es'?'Volver al LIVE':'Back to LIVE'} style={{background:'none',border:0,color:'#fff',fontSize:28,cursor:'pointer'}}>‹</button>
+            <strong style={{flex:1,textAlign:'center',letterSpacing:3}}>RIVYZA</strong>
+            <span style={{color:'#ff4b78',fontSize:12,fontWeight:800}}>● LIVE</span>
+          </header>
+          {liveProfileLoading && <p>{lang==='es'?'Cargando perfil…':'Loading profile…'}</p>}
+          {liveProfileError && <p role="alert">{liveProfileError}</p>}
+          {!liveProfileLoading && liveProfile.display_name !== undefined && <>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:9,textAlign:'center'}}>
+              {liveProfile.avatar_url ? <img src={liveProfile.avatar_url} alt="" style={{width:104,height:104,borderRadius:'50%',objectFit:'cover',border:'2px solid #ba54e8'}}/> : <div style={{width:104,height:104,borderRadius:'50%',display:'grid',placeItems:'center',fontSize:38,background:'#332443'}}>👤</div>}
+              <strong style={{fontSize:22}}>{liveProfile.display_name||liveProfile.username||'Usuario'}</strong>
+              <span style={{color:'#c5b5ce'}}>@{liveProfile.username||'usuario'}</span>
+              {liveProfile.bio && <p style={{whiteSpace:'pre-wrap',margin:'8px 0 12px'}}>{liveProfile.bio}</p>}
+            </div>
+            <h3 style={{margin:'28px 0 12px',borderBottom:'1px solid #ffffff25',paddingBottom:10}}>{lang==='es'?'Publicaciones':'Posts'}</h3>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:3}}>
+              {liveProfilePosts.map(post=><div key={post.id} style={{aspectRatio:'3 / 4',background:'#211729',overflow:'hidden',display:'grid',placeItems:'center'}}>
+                {post.media_url ? (post.media_type==='video' ? <video src={post.media_url} muted playsInline preload="metadata" style={{width:'100%',height:'100%',objectFit:'cover'}}/> : <img src={post.media_url} alt={post.caption||''} style={{width:'100%',height:'100%',objectFit:'cover'}}/>) : <span style={{fontSize:12,padding:8}}>{post.caption||''}</span>}
+              </div>)}
+            </div>
+            {!liveProfilePosts.length && <p style={{color:'#b6a7bf',textAlign:'center'}}>{lang==='es'?'No hay publicaciones públicas.':'No public posts.'}</p>}
+          </>}
+        </section>
+      </div>,document.body
+    )}
     {error && <div className="rivyza-v32-toast" role="status"><span>{error}</span><button type="button" onClick={() => setError('')} aria-label="Cerrar aviso">✕</button></div>}
     {!roomId ? <section className="rivyza-live-lobby">
       <div style={{padding:'14px',margin:'8px 0 14px',background:'#21172b',borderRadius:14,color:'#fff'}}>
