@@ -818,7 +818,6 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
   const enteredRoom = useRef(null);
   const [requestStatus, setRequestStatus] = useState(null);
   const [connectionKey, setConnectionKey] = useState(0);
-  const [rooms, setRooms] = useState([]);
   const [roomId, setRoomId] = useState(initialRoomId);
   const [session, setSession] = useState(null);
   const [requests, setRequests] = useState([]);
@@ -878,18 +877,6 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
     return body;
   }, [supabase]);
 
-  const refreshRooms = useCallback(async () => {
-    try { setRooms((await api(null, {}, 'GET')).rooms || []); }
-    catch (e) { setError(e.message); }
-  }, [api]);
-
-  useEffect(() => {
-    if (roomId) return;
-    refreshRooms();
-    const interval = setInterval(refreshRooms, 8000);
-    return () => clearInterval(interval);
-  }, [roomId, refreshRooms]);
-
   const refreshSession = useCallback(async (id) => {
     const next = await api('token', { roomId: id });
     setRequestStatus(previous => next.requestStatus === 'rejected' && !previous ? null : next.requestStatus || null);
@@ -933,11 +920,6 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
-  }
-
-  async function join(id) {
-    setError(''); setSession(null); setRoomId(id);
-    enteredRoom.current = null; setRequestStatus(null);
   }
 
   const exitToHome = useCallback(() => {
@@ -1088,11 +1070,6 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
         <small style={{display:'block',opacity:.75,marginTop:6}}>Se agregará automáticamente el nombre del espectador al final. Solo él verá el mensaje en su chat.</small>
       </div>
       <button type="button" className="rivyza-live-start" disabled={busy} onClick={start}>{busy ? 'Conectando…' : '🔴 Iniciar mi LIVE'}</button>
-      <h2>Transmisiones en vivo</h2>
-      {rooms.length === 0 && <p>Ahora mismo no hay transmisiones. ¡Sé el primero!</p>}
-      {rooms.map(r => <button type="button" className="rivyza-live-room-card" key={r.id} onClick={() => join(r.id)}>
-        <span className="rivyza-live-red-dot" /> {r.host_avatar && <img src={r.host_avatar} alt="" className="rivyza-live-list-avatar" />} {r.host_name || r.title} <small>Entrar</small>
-      </button>)}
     </section> : <section className="rivyza-live-stage">
       {session ? <LiveKitRoom key={`${roomId}-${session.publish}-${connectionKey}`} token={session.token} serverUrl={session.serverUrl}
         onDisconnected={async reason => {
