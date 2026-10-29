@@ -3082,9 +3082,6 @@ export default function HomePage(){
     </>;
   }
   if(view==="otherProfile" && viewedProfile){return renderExistingProfile();}
-
-    return <LiveRoom key={selectedLiveRoom || "lobby"} initialRoomId={selectedLiveRoom} supabase={supabase} user={user} onExit={()=>{setSelectedLiveRoom(null);setView("home");changeFeedTab("forYou");}}/>;
-  }
   if(view==="livePreview"){
     return <main className="live-preview-shell">
       <header className="live-preview-header">
