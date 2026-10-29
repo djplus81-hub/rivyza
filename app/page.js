@@ -223,7 +223,7 @@ export default function HomePage(){
   }, [user?.id]);
 
   useEffect(()=>{
-    if(view!=="livePreview" || !supabase || !user?.id)return;
+    if(!["livePreview","alerts"].includes(view) || !supabase || !user?.id)return;
     let cancelled=false;
     const load=async()=>{
       const [out,incoming]=await Promise.all([
@@ -242,7 +242,7 @@ export default function HomePage(){
     return()=>clearTimeout(timeout);
   },[view,activeLivePreview,discoverLiveRooms.length]);
   useEffect(()=>{
-    if(view!=="livePreview" || !supabase || !user?.id)return;
+    if(!["livePreview","alerts"].includes(view) || !supabase || !user?.id)return;
     let active=true;
     const refresh=async()=>{
       try{
@@ -2697,6 +2697,22 @@ export default function HomePage(){
     return <main className="social-screen">
       <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"||view==="officialNotices"?"alerts":view==="inbox"?socialInboxReturnView:view==="privateInbox"||view==="privateGate"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="officialNotices"?"Notificaciones de RIVYZA":view==="inbox"?"Mensajes":view==="privateInbox"||view==="privateGate"?"Mensajes privados":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>openSocialInbox(view)} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
       {socialError&&<p className="social-error">{socialError}</p>}
+      {view==="alerts"&&<section aria-label="Amigos transmitiendo LIVE" style={{padding:'12px 12px 9px',borderBottom:'1px solid rgba(255,255,255,.10)'}}>
+        <div style={{display:'flex',gap:15,overflowX:'auto',overflowY:'hidden',WebkitOverflowScrolling:'touch',scrollbarWidth:'none',paddingBottom:5}}>
+          <button type="button" onClick={()=>{setSelectedLiveRoom(null);setView('liveStudio');}} aria-label="Crear mi LIVE" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,flex:'0 0 76px',width:76,background:'none',border:0,color:'inherit',padding:0,cursor:'pointer'}}>
+            <span style={{position:'relative',display:'block',width:66,height:66,borderRadius:'50%',border:'2px solid #777',padding:3,boxSizing:'border-box'}}>
+              {avatarUrl?<img src={avatarUrl} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}}/>:<span style={{width:'100%',height:'100%',borderRadius:'50%',display:'grid',placeItems:'center',background:'#49315b'}}><User size={25}/></span>}
+              <span aria-hidden="true" style={{position:'absolute',right:-3,bottom:-3,width:25,height:25,borderRadius:'50%',background:'#15c7e8',color:'#fff',display:'grid',placeItems:'center',fontSize:22,fontWeight:700,border:'2px solid #111'}}>+</span>
+            </span><span style={{fontSize:12,fontWeight:600,maxWidth:'100%',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>Crear</span>
+          </button>
+          {discoverLiveRooms.filter(room=>liveFriendIds.includes(room.host_id)&&room.host_id!==user?.id).map(room=><button type="button" key={room.id} onClick={()=>{setSelectedLiveRoom(room.id);setView('liveStudio');}} aria-label={`Entrar al LIVE de ${room.host_name||'Usuario'}`} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,flex:'0 0 76px',width:76,background:'none',border:0,color:'inherit',padding:0,cursor:'pointer'}}>
+            <span style={{position:'relative',display:'block',width:66,height:66,borderRadius:'50%',border:'3px solid #ff2693',padding:3,boxSizing:'border-box'}}>
+              {room.host_avatar?<img src={room.host_avatar} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}}/>:<span style={{width:'100%',height:'100%',borderRadius:'50%',display:'grid',placeItems:'center',background:'#49315b',fontWeight:700}}>{(room.host_name||'U').slice(0,1).toUpperCase()}</span>}
+              <span aria-hidden="true" style={{position:'absolute',right:-3,bottom:-2,borderRadius:12,background:'#ff2693',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 4px',border:'1px solid #111'}}>LIVE</span>
+            </span><span style={{fontSize:12,fontWeight:600,maxWidth:'100%',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{room.host_name||'Usuario'}</span>
+          </button>)}
+        </div>
+      </section>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
         
 
