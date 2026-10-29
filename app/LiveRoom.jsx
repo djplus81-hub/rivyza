@@ -628,7 +628,47 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     catch(e) { onError(e.message); }
   }
   return <>
-    <style>{`.rivyza-live-grid-square .rivyza-live-square video.rivyza-camera-mirrored { transform: scaleX(-1) !important; -webkit-transform: scaleX(-1) !important; }`}</style>
+    <style>{`.rivyza-live-grid-square .rivyza-live-square video.rivyza-camera-mirrored { transform: scaleX(-1) !important; -webkit-transform: scaleX(-1) !important; }
+/* v3.48: Nine cameras: fixed portrait spotlight on the left, eight guests on the right. */
+.rivyza-live-grid.rivyza-live-layout-9 {
+  display: grid !important;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
+  grid-auto-flow: row !important;
+  gap: 3px !important;
+  overflow: hidden !important;
+  align-content: stretch !important;
+  justify-content: stretch !important;
+}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  overflow: hidden !important;
+}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:first-child {
+  grid-column: 1 !important;
+  grid-row: 1 / 5 !important;
+}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(2) {grid-column:2 !important;grid-row:1 !important}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(3) {grid-column:3 !important;grid-row:1 !important}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(4) {grid-column:2 !important;grid-row:2 !important}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(5) {grid-column:3 !important;grid-row:2 !important}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(6) {grid-column:2 !important;grid-row:3 !important}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(7) {grid-column:3 !important;grid-row:3 !important}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(8) {grid-column:2 !important;grid-row:4 !important}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(9) {grid-column:3 !important;grid-row:4 !important}
+.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile video {
+  width:100% !important;height:100% !important;object-fit:cover !important;
+}
+`}</style>
     <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''} ${speakers.includes(t?.identity) ? 'rivyza-v314-speaking' : ''}`}
