@@ -629,10 +629,16 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   }
   return <>
     <style>{`.rivyza-live-grid-square .rivyza-live-square video.rivyza-camera-mirrored { transform: scaleX(-1) !important; -webkit-transform: scaleX(-1) !important; }
-/* v3.48: Nine cameras: fixed portrait spotlight on the left, eight guests on the right. */
+/* v3.49: Nine cameras fill the available stage width: 50% spotlight + 8 guests. */
 .rivyza-live-grid.rivyza-live-layout-9 {
   display: grid !important;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  box-sizing: border-box !important;
+  grid-template-columns: minmax(0, 50%) minmax(0, 25%) minmax(0, 25%) !important;
   grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
   grid-auto-flow: row !important;
   gap: 3px !important;
@@ -1093,9 +1099,9 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 @keyframes rivyza-v344-rise{0%{opacity:1;transform:translateY(0) scale(.75) rotate(-10deg)}65%{opacity:.9}100%{opacity:0;transform:translateY(-160px) scale(1.35) rotate(18deg)}}
 .rivyza-v32-toolbar{position:fixed!important;left:12px!important;right:12px!important;z-index:70!important}
 .rivyza-v32-toolbar.rivyza-v32-typing{transform:none!important;transition:none!important;max-width:calc(100vw - 24px)!important}
-.rivyza-v314-comment-form{min-height:46px}
-.rivyza-v314-comment-form .rivyza-v32-comment{min-height:43px!important;height:43px!important;padding:9px 13px!important;font-size:16px!important;border-radius:24px!important}
-.rivyza-v314-comment-form button[type=submit]{min-height:43px;min-width:35px;font-size:21px}
+.rivyza-v314-comment-form{min-height:50px}
+.rivyza-v314-comment-form .rivyza-v32-comment{min-height:48px!important;height:48px!important;padding:10px 14px!important;font-size:16px!important;border-radius:24px!important}
+.rivyza-v314-comment-form button[type=submit]{min-height:48px;min-width:35px;font-size:21px}
 .rivyza-v314-comment-form{display:flex;min-width:0;flex:1;align-items:center}.rivyza-v314-comment-form input{width:100%!important;min-width:0}.rivyza-v314-comment-form button{border:0;background:transparent;color:white;padding:5px}
 .rivyza-v314-request-status{position:fixed;bottom:calc(190px + env(safe-area-inset-bottom));left:12px;z-index:40;font-size:12px;background:#281c35;padding:7px;border-radius:10px}.rivyza-v314-request-status button{margin-left:8px}
 .rivyza-live-hint{position:fixed;top:90px;left:12px;right:12px;z-index:60;background:#281c35;padding:8px;border-radius:10px;font-size:13px}.rivyza-live-hint button{margin-left:10px}
