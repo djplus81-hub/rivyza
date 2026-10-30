@@ -523,8 +523,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const backgroundOptions = [
     ['original','👑','RIVYZA original'], ['hearts','❤️','Corazones pequeños'],
     ['stars','⭐','Estrellas brillantes'], ['butterflies','🦋','Mariposas luminosas'],
-    ['petals','🌸','Pétalos flotantes'], ['black','⚫','Negro elegante'],
-    ['blue','🔵','Azul profundo'], ['purple','🟣','Morado premium']
+    ['petals','🌸','Pétalos flotantes'], ['black','⚫','Negro dorado'],
+    ['blue','🔵','Azul profundo'], ['purple','🟣','Rosa púrpura']
   ];
   const allowedBackgrounds = new Set(backgroundOptions.map(option => option[0]));
   const [liveBackground,setLiveBackground] = useState('original');
@@ -732,12 +732,15 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
 `}</style>
     {typeof document !== 'undefined' && document.querySelector('.rivyza-live-stage') && liveBackground !== 'original' && createPortal(
       <div className={`rivyza-v358-art rivyza-v358-art-${liveBackground}`} aria-hidden="true">
-        {['hearts','stars','butterflies','petals'].includes(liveBackground) && Array.from({length:liveBackground==='butterflies'?9:liveBackground==='stars'?33:18},(_,i)=>{
-          const x=(13+i*47+(i*i*17)%71)%96+2;
-          const y=(7+i*29+(i*i*11)%43)%94+3;
-          const duration=liveBackground==='stars'?2.4+(i%9)*.7:9+(i%11)*1.9;
-          const symbol=liveBackground==='hearts'?(i%5===0?'♥':'♡'):liveBackground==='stars'?(i%4===0?'✦':'✧'):liveBackground==='butterflies'?'🦋':(i%3===0?'✿':'❀');
-          return <span key={i} className="rivyza-v358-particle" style={{left:`${x}%`,top:`${y}%`,fontSize:`${liveBackground==='butterflies'?12+i%4*2:liveBackground==='stars'?5+i%5*2:9+i%5*2}px`,animationDuration:`${duration}s`,animationDelay:`-${(i*1.73)%duration}s`,opacity:.35+(i%6)*.09}}>{symbol}</span>;
+        {['hearts','stars','butterflies','petals'].includes(liveBackground) && Array.from({length:liveBackground==='stars'?95:liveBackground==='hearts'?39:liveBackground==='butterflies'?22:37},(_,i)=>{
+          // Stable, non-grid low-discrepancy placement, with per-particle offsets.
+          const fract=n=>n-Math.floor(n);
+          const x=2+fract((i+1)*0.61803398875+0.137)*96;
+          const y=2+fract((i+1)*0.75487766625+0.283)*96;
+          const duration=liveBackground==='stars'?2.1+fract(i*0.317)*5.9:liveBackground==='hearts'?8+fract(i*.414)*11:liveBackground==='butterflies'?9+fract(i*.571)*12:8+fract(i*.419)*12;
+          const symbol=liveBackground==='hearts'?(i%4===0?'♥':'❤'):liveBackground==='stars'?(i%7===0?'✦':i%3===0?'✧':'•'):liveBackground==='butterflies'?'🦋':(i%3===0?'🌸':'❀');
+          const size=liveBackground==='hearts'?13+fract(i*.363)*16:liveBackground==='stars'?3+fract(i*.583)*12:liveBackground==='butterflies'?14+fract(i*.473)*14:10+fract(i*.391)*12;
+          return <span key={i} className="rivyza-v358-particle" style={{left:`${x}%`,top:`${y}%`,fontSize:`${size}px`,animationDuration:`${duration}s`,animationDelay:`-${fract(i*.731)*duration}s`,opacity:.5+fract(i*.293)*.48}}>{symbol}</span>;
         })}
       </div>,document.querySelector('.rivyza-live-stage'))}
     <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>

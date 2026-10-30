@@ -3659,3 +3659,18 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-v356-picker-options button span:first-child{font-size:19px}
 .rivyza-v356-picker-options button span:last-child:not(:nth-child(2)){margin-left:auto}
 @media(prefers-reduced-motion:reduce){.rivyza-v358-particle{animation:none!important}}
+
+/* ===== RIVYZA v3.59: approved richer backgrounds; no camera geometry changes ===== */
+/* Static designs are drawn on the LIVE stage, not on the video grid. */
+.rivyza-live-stage:has(.rivyza-v356-bg-black){background-color:#050407!important;background-image:linear-gradient(145deg,transparent 42%,rgba(255,184,62,.52) 42.13%,transparent 42.4%),linear-gradient(28deg,transparent 60%,rgba(243,163,42,.35) 60.15%,transparent 60.4%),linear-gradient(132deg,transparent 24%,rgba(225,150,44,.24) 24.2%,transparent 24.5%),radial-gradient(ellipse at 85% 76%,rgba(134,80,16,.28),transparent 55%),linear-gradient(135deg,#030306 0%,#201914 45%,#050509 46%,#151013 100%)!important;background-size:100% 100%!important;background-position:center!important;background-repeat:no-repeat!important}
+.rivyza-live-stage:has(.rivyza-v356-bg-blue){background-color:#020917!important;background-image:radial-gradient(ellipse at 95% 83%,rgba(0,146,255,.68),transparent 35%),radial-gradient(ellipse at 8% 20%,rgba(11,49,168,.65),transparent 52%),linear-gradient(125deg,transparent 44%,rgba(39,166,255,.55) 44.2%,transparent 44.6%),linear-gradient(35deg,transparent 69%,rgba(17,99,251,.48) 69.2%,transparent 69.5%),linear-gradient(160deg,#01040e,#071c51 58%,#010612)!important;background-size:100% 100%!important;background-position:center!important;background-repeat:no-repeat!important}
+.rivyza-live-stage:has(.rivyza-v356-bg-purple){background-color:#16071f!important;background-image:radial-gradient(ellipse at 87% 78%,rgba(255,32,143,.56),transparent 48%),radial-gradient(ellipse at 7% 21%,rgba(115,25,206,.7),transparent 53%),linear-gradient(145deg,transparent 32%,rgba(255,57,174,.55) 32.2%,transparent 32.55%),linear-gradient(32deg,transparent 64%,rgba(163,67,251,.56) 64.2%,transparent 64.55%),linear-gradient(150deg,#09051a,#351044 58%,#140517)!important;background-size:100% 100%!important;background-position:center!important;background-repeat:no-repeat!important}
+/* Decorative gradients frame the existing brand; no replacement SVG is introduced. */
+.rivyza-live-stage:has(.rivyza-v356-bg-black):before,.rivyza-live-stage:has(.rivyza-v356-bg-blue):before,.rivyza-live-stage:has(.rivyza-v356-bg-purple):before{content:none!important}
+/* Keep particles off the brand mark, and above the background but below video tiles. */
+.rivyza-v358-art{z-index:0!important;pointer-events:none!important;-webkit-mask-image:radial-gradient(ellipse 39% 29% at 50% 53%,transparent 76%,#000 112%)!important;mask-image:radial-gradient(ellipse 39% 29% at 50% 53%,transparent 76%,#000 112%)!important}
+.rivyza-v358-art-stars .rivyza-v358-particle{color:#d6e8ff;text-shadow:0 0 7px #68b9ff,0 0 13px #a96cff}
+.rivyza-v358-art-hearts .rivyza-v358-particle{color:#ff5aa7;text-shadow:0 0 7px #ff47b3,0 0 16px #ff228f}
+.rivyza-v358-art-butterflies .rivyza-v358-particle{filter:drop-shadow(0 0 6px #31a9ff) drop-shadow(0 0 9px #b94cff)}
+.rivyza-v358-art-petals .rivyza-v358-particle{color:#ff9ed0;text-shadow:0 0 8px #f35fb2}
+@media(prefers-reduced-motion:reduce){.rivyza-v358-particle{animation:none!important}}
