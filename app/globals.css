@@ -3648,3 +3648,37 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-v356-picker-options button span:first-child{font-size:19px}
 .rivyza-v356-picker-options button span:last-child:not(:nth-child(2)){margin-left:auto}
 @media(prefers-reduced-motion:reduce){.rivyza-live-grid[class*="rivyza-v356-bg-"]::before{animation:none!important}}
+
+
+/* RIVYZA v3.57 — Apply chosen theme to the actual LIVE stage.
+   The v3.56 picker attached its class to the grid, while the official
+   background lives on .rivyza-live-stage. Keep all tile layouts untouched. */
+.rivyza-live-stage:has(.rivyza-v356-bg-black){background:#08080e repeating-linear-gradient(145deg,#08080c 0 22px,#181922 23px 24px,#050509 25px 48px)!important}
+.rivyza-live-stage:has(.rivyza-v356-bg-blue){background:radial-gradient(ellipse at 70% 15%,#126ba2 0%,transparent 43%),radial-gradient(ellipse at 12% 83%,#0b386c 0%,transparent 48%),linear-gradient(125deg,#020d22,#071d45 58%,#010814)!important}
+.rivyza-live-stage:has(.rivyza-v356-bg-purple){background:radial-gradient(ellipse at 25% 18%,#742e8c 0%,transparent 36%),conic-gradient(from 130deg at 70% 55%,#1c082b,#3d155b,#150621,#6c2370,#1c082b)!important}
+.rivyza-live-stage:has(.rivyza-v356-bg-hearts){background:radial-gradient(circle at 50% 90%,#33172c,#0a0b19 72%)!important}
+.rivyza-live-stage:has(.rivyza-v356-bg-stars){background:radial-gradient(ellipse at 50% 100%,#172a4a,#050b1e 70%)!important}
+.rivyza-live-stage:has(.rivyza-v356-bg-butterflies){background:radial-gradient(ellipse at 15% 75%,#26385a,#150e30 67%)!important}
+.rivyza-live-stage:has(.rivyza-v356-bg-petals){background:linear-gradient(145deg,#301b36,#101728 65%,#1b1128)!important}
+/* Keep the grid transparent so the selected stage art is visible in gaps. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square[class*="rivyza-v356-bg-"]:not(.rivyza-v356-bg-original){background:transparent!important}
+/* Effects are in the stage's free space, always below the camera tiles. */
+.rivyza-live-stage:has(.rivyza-v356-bg-hearts),
+.rivyza-live-stage:has(.rivyza-v356-bg-stars),
+.rivyza-live-stage:has(.rivyza-v356-bg-butterflies),
+.rivyza-live-stage:has(.rivyza-v356-bg-petals){isolation:isolate}
+.rivyza-live-stage:has(.rivyza-v356-bg-hearts)::before,
+.rivyza-live-stage:has(.rivyza-v356-bg-stars)::before,
+.rivyza-live-stage:has(.rivyza-v356-bg-butterflies)::before,
+.rivyza-live-stage:has(.rivyza-v356-bg-petals)::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-repeat:repeat;opacity:.7}
+.rivyza-live-stage:has(.rivyza-v356-bg-hearts)::before{background-image:radial-gradient(circle,#ff85b4 1px,transparent 2px),radial-gradient(circle,#ff408c 2px,transparent 3px);background-size:57px 93px,109px 137px;animation:rivyza-v356-rise 19s linear infinite}
+.rivyza-live-stage:has(.rivyza-v356-bg-stars)::before{background-image:radial-gradient(circle,#fff 1px,transparent 2px),radial-gradient(circle,#b7d7ff 1px,transparent 2px);background-size:43px 67px,71px 91px;animation:rivyza-v356-twinkle 3.8s ease-in-out infinite alternate}
+.rivyza-live-stage:has(.rivyza-v356-bg-butterflies)::before{content:"🦋      🦋       🦋";font-size:13px;letter-spacing:28px;animation:rivyza-v356-drift 15s ease-in-out infinite alternate}
+.rivyza-live-stage:has(.rivyza-v356-bg-petals)::before{content:"❀       ✿       ❀       ✿";font-size:12px;color:#f8b8cf;letter-spacing:22px;animation:rivyza-v356-fall 17s linear infinite}
+.rivyza-live-stage:has(.rivyza-v356-bg-hearts)>.rivyza-live-grid,
+.rivyza-live-stage:has(.rivyza-v356-bg-stars)>.rivyza-live-grid,
+.rivyza-live-stage:has(.rivyza-v356-bg-butterflies)>.rivyza-live-grid,
+.rivyza-live-stage:has(.rivyza-v356-bg-petals)>.rivyza-live-grid{z-index:1}
+/* Prevent the old pseudo-element on the grid from drawing over empty slots. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square[class*="rivyza-v356-bg-"]::before{content:none!important}
+@media(prefers-reduced-motion:reduce){.rivyza-live-stage:has(.rivyza-v356-bg-hearts)::before,.rivyza-live-stage:has(.rivyza-v356-bg-stars)::before,.rivyza-live-stage:has(.rivyza-v356-bg-butterflies)::before,.rivyza-live-stage:has(.rivyza-v356-bg-petals)::before{animation:none!important}}
