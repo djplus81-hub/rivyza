@@ -629,67 +629,26 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   }
   return <>
     <style>{`.rivyza-live-grid-square .rivyza-live-square video.rivyza-camera-mirrored { transform: scaleX(-1) !important; -webkit-transform: scaleX(-1) !important; }
-/* v3.51: TikTok-style camera layouts (1, 3, 8), preserving other modes. */
-.rivyza-live-grid.rivyza-live-layout-1 {
-  display:grid!important;grid-template-columns:minmax(0,1fr)!important;
-  grid-template-rows:minmax(0,1fr)!important;gap:0!important;
-  width:100%!important;overflow:hidden!important;
-}
-.rivyza-live-grid.rivyza-live-layout-3 {
-  display:grid!important;
-  grid-template-columns:minmax(0,2fr) minmax(0,1fr)!important;
-  grid-template-rows:repeat(2,minmax(0,1fr))!important;
-  gap:3px!important;overflow:hidden!important;
-}
-.rivyza-live-grid.rivyza-live-layout-8 {
-  display:grid!important;
-  grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr)!important;
-  grid-template-rows:repeat(4,minmax(0,1fr))!important;
-  gap:3px!important;overflow:hidden!important;
-}
-.rivyza-live-grid.rivyza-live-layout-1 > .rivyza-live-tile,
-.rivyza-live-grid.rivyza-live-layout-3 > .rivyza-live-tile,
-.rivyza-live-grid.rivyza-live-layout-8 > .rivyza-live-tile {
-  position:relative!important;min-width:0!important;min-height:0!important;
-  width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
-  aspect-ratio:auto!important;grid-column:auto!important;grid-row:auto!important;
-  overflow:hidden!important;
-}
-.rivyza-live-grid.rivyza-live-layout-3 > .rivyza-live-tile:first-child {grid-column:1!important;grid-row:1 / 3!important}
-.rivyza-live-grid.rivyza-live-layout-3 > .rivyza-live-tile:nth-child(2) {grid-column:2!important;grid-row:1!important}
-.rivyza-live-grid.rivyza-live-layout-3 > .rivyza-live-tile:nth-child(3) {grid-column:2!important;grid-row:2!important}
-.rivyza-live-grid.rivyza-live-layout-8 > .rivyza-live-tile:first-child {grid-column:1!important;grid-row:1 / 5!important}
-.rivyza-live-grid.rivyza-live-layout-8 > .rivyza-live-tile:nth-child(2) {grid-column:2!important;grid-row:1!important}
-.rivyza-live-grid.rivyza-live-layout-8 > .rivyza-live-tile:nth-child(3) {grid-column:3!important;grid-row:1!important}
-.rivyza-live-grid.rivyza-live-layout-8 > .rivyza-live-tile:nth-child(4) {grid-column:2!important;grid-row:2!important}
-.rivyza-live-grid.rivyza-live-layout-8 > .rivyza-live-tile:nth-child(5) {grid-column:3!important;grid-row:2!important}
-.rivyza-live-grid.rivyza-live-layout-8 > .rivyza-live-tile:nth-child(6) {grid-column:2!important;grid-row:3!important}
-.rivyza-live-grid.rivyza-live-layout-8 > .rivyza-live-tile:nth-child(7) {grid-column:3!important;grid-row:3!important}
-.rivyza-live-grid.rivyza-live-layout-8 > .rivyza-live-tile:nth-child(8) {grid-column:2!important;grid-row:4!important}
-.rivyza-live-grid:is(.rivyza-live-layout-1,.rivyza-live-layout-3,.rivyza-live-layout-8,.rivyza-live-layout-9) > .rivyza-live-tile video {
-  width:100%!important;height:100%!important;object-fit:cover!important;
-}
-/* Transparent participant name labels, as in the supplied reference screenshots. */
-.rivyza-live-grid .rivyza-live-tile .rivyza-live-camera-name {
-  background:rgba(10,10,15,.28)!important;backdrop-filter:none!important;
-  -webkit-backdrop-filter:none!important;border:0!important;box-shadow:none!important;
-  color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.9)!important;
-  max-width:calc(100% - 8px)!important;overflow:hidden!important;
-  text-overflow:ellipsis!important;white-space:nowrap!important;
-}
-/* v3.48: Nine cameras: fixed portrait spotlight on the left, eight guests on the right. */
-.rivyza-live-grid.rivyza-live-layout-9 {
+/* v3.50: Override legacy square-camera layout ONLY for nine slots. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9:not(.rivyza-live-solo) {
   display: grid !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: min(66dvh, 690px) !important;
+  min-height: 0 !important;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) !important;
   grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
+  grid-auto-rows: minmax(0, 1fr) !important;
   grid-auto-flow: row !important;
-  gap: 3px !important;
-  overflow: hidden !important;
   align-content: stretch !important;
   justify-content: stretch !important;
+  gap: 3px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
 }
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile {
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square {
   position: relative !important;
+  display: block !important;
   width: 100% !important;
   height: 100% !important;
   min-width: 0 !important;
@@ -699,22 +658,26 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   aspect-ratio: auto !important;
   grid-column: auto !important;
   grid-row: auto !important;
+  justify-self: stretch !important;
+  align-self: stretch !important;
   overflow: hidden !important;
 }
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:first-child {
-  grid-column: 1 !important;
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square:first-child {
+  grid-column: 1 / 2 !important;
   grid-row: 1 / 5 !important;
 }
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(2) {grid-column:2 !important;grid-row:1 !important}
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(3) {grid-column:3 !important;grid-row:1 !important}
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(4) {grid-column:2 !important;grid-row:2 !important}
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(5) {grid-column:3 !important;grid-row:2 !important}
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(6) {grid-column:2 !important;grid-row:3 !important}
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(7) {grid-column:3 !important;grid-row:3 !important}
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(8) {grid-column:2 !important;grid-row:4 !important}
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile:nth-child(9) {grid-column:3 !important;grid-row:4 !important}
-.rivyza-live-grid.rivyza-live-layout-9 > .rivyza-live-tile video {
-  width:100% !important;height:100% !important;object-fit:cover !important;
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square:nth-child(2) { grid-column: 2 !important; grid-row: 1 !important; }
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square:nth-child(3) { grid-column: 3 !important; grid-row: 1 !important; }
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square:nth-child(4) { grid-column: 2 !important; grid-row: 2 !important; }
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square:nth-child(5) { grid-column: 3 !important; grid-row: 2 !important; }
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square:nth-child(6) { grid-column: 2 !important; grid-row: 3 !important; }
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square:nth-child(7) { grid-column: 3 !important; grid-row: 3 !important; }
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square:nth-child(8) { grid-column: 2 !important; grid-row: 4 !important; }
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square:nth-child(9) { grid-column: 3 !important; grid-row: 4 !important; }
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9 > .rivyza-live-tile.rivyza-live-square video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
 }
 `}</style>
     <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""}`}>
@@ -1141,9 +1104,9 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 @keyframes rivyza-v344-rise{0%{opacity:1;transform:translateY(0) scale(.75) rotate(-10deg)}65%{opacity:.9}100%{opacity:0;transform:translateY(-160px) scale(1.35) rotate(18deg)}}
 .rivyza-v32-toolbar{position:fixed!important;left:12px!important;right:12px!important;z-index:70!important}
 .rivyza-v32-toolbar.rivyza-v32-typing{transform:none!important;transition:none!important;max-width:calc(100vw - 24px)!important}
-.rivyza-v314-comment-form{min-height:46px}
-.rivyza-v314-comment-form .rivyza-v32-comment{min-height:43px!important;height:43px!important;padding:9px 13px!important;font-size:16px!important;border-radius:24px!important}
-.rivyza-v314-comment-form button[type=submit]{min-height:43px;min-width:35px;font-size:21px}
+.rivyza-v314-comment-form{min-height:50px}
+.rivyza-v314-comment-form .rivyza-v32-comment{min-height:48px!important;height:48px!important;padding:10px 14px!important;font-size:16px!important;border-radius:24px!important}
+.rivyza-v314-comment-form button[type=submit]{min-height:48px;min-width:35px;font-size:21px}
 .rivyza-v314-comment-form{display:flex;min-width:0;flex:1;align-items:center}.rivyza-v314-comment-form input{width:100%!important;min-width:0}.rivyza-v314-comment-form button{border:0;background:transparent;color:white;padding:5px}
 .rivyza-v314-request-status{position:fixed;bottom:calc(190px + env(safe-area-inset-bottom));left:12px;z-index:40;font-size:12px;background:#281c35;padding:7px;border-radius:10px}.rivyza-v314-request-status button{margin-left:8px}
 .rivyza-live-hint{position:fixed;top:90px;left:12px;right:12px;z-index:60;background:#281c35;padding:8px;border-radius:10px;font-size:13px}.rivyza-live-hint button{margin-left:10px}
