@@ -3502,3 +3502,89 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
   width:23px!important;
   padding:0!important;
 }
+
+
+/* RIVYZA v3.53: same approved chat and typing controls for all camera counts. Camera grids unchanged. */
+/* RIVYZA v3.53 — ALL 1–10 LIVE layouts: TikTok-style floating chat.
+   Scoped to the approved single-camera layout; no changes to 2–10 cameras. */
+.rivyza-live-stage .rivyza-v314-chat {
+  background: transparent !important;
+  color: #fff !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,.95), 0 0 6px rgba(0,0,0,.55) !important;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.12) 10%, rgba(0,0,0,.5) 23%, #000 43%, #000 100%) !important;
+  mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.12) 10%, rgba(0,0,0,.5) 23%, #000 43%, #000 100%) !important;
+}
+.rivyza-live-stage .rivyza-v314-chat > div,
+.rivyza-live-stage .rivyza-v314-chat .rivyza-v322-event,
+.rivyza-live-stage .rivyza-v314-chat .rivyza-v328-activity,
+.rivyza-live-stage .rivyza-v314-chat .rivyza-private-welcome {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 3px 0 !important;
+  margin: 3px 0 !important;
+  color: #fff !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,.95), 0 0 6px rgba(0,0,0,.6) !important;
+}
+.rivyza-live-stage .rivyza-v314-chat strong {
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+
+
+/* RIVYZA v3.53 — ALL 1–10 LIVE layouts: chat sin barras y campo de escribir mas ancho.
+   Mantiene intacto el tamano aprobado de la camara 1 y los layouts 2–10. */
+.rivyza-live-stage .rivyza-v314-chat {
+  background:transparent!important;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.10) 13%,rgba(0,0,0,.55) 30%,#000 52%,#000 100%)!important;
+  mask-image:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.10) 13%,rgba(0,0,0,.55) 30%,#000 52%,#000 100%)!important;
+}
+.rivyza-live-stage .rivyza-v314-chat > div,
+.rivyza-live-stage .rivyza-v314-chat > div > span,
+.rivyza-live-stage .rivyza-v314-chat > div > strong {
+  background:transparent!important;
+  background-color:transparent!important;
+  box-shadow:none!important;
+  border:none!important;
+  text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 7px rgba(0,0,0,.55)!important;
+}
+/* La barra inferior se conserva; ampliamos SOLO la entrada, sin ocultar botones. */
+.rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar {
+  gap:3px!important;
+  padding:5px!important;
+}
+.rivyza-live-stage .rivyza-v32-toolbar button.rivyza-v32-icon {
+  flex:0 0 clamp(27px,7.4vw,32px)!important;
+  width:clamp(27px,7.4vw,32px)!important;
+  min-width:0!important;
+}
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v314-comment-form {
+  display:flex!important;
+  flex:1 1 auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  align-items:center!important;
+  gap:3px!important;
+}
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-comment,
+.rivyza-live-stage .rivyza-v32-toolbar.rivyza-v32-typing .rivyza-v32-comment,
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-comment:focus {
+  flex:1 1 auto!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:44px!important;
+  min-height:44px!important;
+  font-size:16px!important;
+  line-height:normal!important;
+  padding:0 12px!important;
+  text-overflow:clip!important;
+}
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v314-comment-form button[type="submit"] {
+  flex:0 0 23px!important;
+  min-width:23px!important;
+  width:23px!important;
+  padding:0!important;
+}
