@@ -529,6 +529,44 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const allowedBackgrounds = new Set(backgroundOptions.map(option => option[0]));
   const [liveBackground,setLiveBackground] = useState('original');
   const [backgroundPickerOpen,setBackgroundPickerOpen] = useState(false);
+
+  // v3.61: apply static backgrounds directly to the LIVE stage.
+  // This bypasses older !important CSS rules that were hiding theme changes.
+  useEffect(() => {
+    const stage = document.querySelector('.rivyza-live-stage');
+    if (!stage) return;
+    const themes = {
+      black: [
+        'linear-gradient(145deg, transparent 39%, rgba(255,192,69,.76) 39.2%, transparent 39.5%)',
+        'linear-gradient(32deg, transparent 58%, rgba(231,157,38,.55) 58.2%, transparent 58.5%)',
+        'radial-gradient(ellipse at 86% 25%, rgba(130,84,18,.36), transparent 42%)',
+        'linear-gradient(145deg,#020204 0%,#1b1613 48%,#050406 100%)'
+      ],
+      blue: [
+        'radial-gradient(ellipse at 92% 76%,rgba(0,136,255,.8),transparent 45%)',
+        'radial-gradient(ellipse at 7% 20%,rgba(12,70,201,.65),transparent 46%)',
+        'linear-gradient(145deg,transparent 46%,rgba(55,169,255,.55) 46.2%,transparent 46.5%)',
+        'linear-gradient(165deg,#01040e,#071b49 58%,#020615)'
+      ],
+      purple: [
+        'radial-gradient(ellipse at 90% 76%,rgba(255,30,153,.8),transparent 45%)',
+        'radial-gradient(ellipse at 8% 18%,rgba(128,39,228,.72),transparent 46%)',
+        'linear-gradient(34deg,transparent 52%,rgba(251,79,198,.55) 52.2%,transparent 52.5%)',
+        'linear-gradient(150deg,#090315,#3d115b 54%,#17051e)'
+      ]
+    };
+    const layers = themes[liveBackground];
+    if (!layers) return; // The original and animated presets retain their existing styles.
+    const brand = 'url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20280%20350%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%221%22%20x2%3D%221%22%20y2%3D%220%22%3E%3Cstop%20stop-color%3D%22%231b65f4%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%237131c3%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23e3269d%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20opacity%3D%22.34%22%20d%3D%22M56%2076%2039%2022l51%2025L140%205l50%2042%2051-25-17%2054-84%2013z%22%2F%3E%3Cpath%20fill%3D%22url%28%23g%29%22%20opacity%3D%22.28%22%20d%3D%22M72%20109h100c53%200%2079%2026%2079%2068%200%2033-17%2055-47%2065l54%2093h-73l-48-83h-4v83H72zm61%2054v44h35c15%200%2023-8%2023-22s-8-22-23-22z%22%2F%3E%3C%2Fsvg%3E")';
+    stage.style.setProperty('background-image', [brand,...layers].join(','), 'important');
+    stage.style.setProperty('background-size', ['min(58vw,240px) auto',...layers.map(()=> '100% 100%')].join(','), 'important');
+    stage.style.setProperty('background-position', ['center 53%',...layers.map(()=> 'center')].join(','), 'important');
+    stage.style.setProperty('background-repeat', 'no-repeat', 'important');
+    return () => {
+      ['background-image','background-size','background-position','background-repeat'].forEach(p=>stage.style.removeProperty(p));
+    };
+  }, [liveBackground]);
+
   const backgroundRef = useRef('original');
   const sendBackground = useCallback(async (type, value, destination) => {
     const payload = new TextEncoder().encode(JSON.stringify({type,roomId:liveRoomId,background:value}));
