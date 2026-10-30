@@ -730,6 +730,16 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   object-fit: cover !important;
 }
 `}</style>
+    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-stage') && liveBackground !== 'original' && createPortal(
+      <div className={`rivyza-v358-art rivyza-v358-art-${liveBackground}`} aria-hidden="true">
+        {['hearts','stars','butterflies','petals'].includes(liveBackground) && Array.from({length:liveBackground==='butterflies'?9:liveBackground==='stars'?33:18},(_,i)=>{
+          const x=(13+i*47+(i*i*17)%71)%96+2;
+          const y=(7+i*29+(i*i*11)%43)%94+3;
+          const duration=liveBackground==='stars'?2.4+(i%9)*.7:9+(i%11)*1.9;
+          const symbol=liveBackground==='hearts'?(i%5===0?'♥':'♡'):liveBackground==='stars'?(i%4===0?'✦':'✧'):liveBackground==='butterflies'?'🦋':(i%3===0?'✿':'❀');
+          return <span key={i} className="rivyza-v358-particle" style={{left:`${x}%`,top:`${y}%`,fontSize:`${liveBackground==='butterflies'?12+i%4*2:liveBackground==='stars'?5+i%5*2:9+i%5*2}px`,animationDuration:`${duration}s`,animationDelay:`-${(i*1.73)%duration}s`,opacity:.35+(i%6)*.09}}>{symbol}</span>;
+        })}
+      </div>,document.querySelector('.rivyza-live-stage'))}
     <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''} ${speakers.includes(t?.identity) ? 'rivyza-v314-speaking' : ''}`}
