@@ -519,6 +519,56 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     }catch(e){setInternalError('No se pudo enviar: '+(e.message||'Error'));}
     finally{setInternalBusy(false);}
   }
+  // v3.56: LIVE-only backgrounds. Never saved to user preferences.
+  const backgroundOptions = [
+    ['original','👑','RIVYZA original'], ['hearts','❤️','Corazones pequeños'],
+    ['stars','⭐','Estrellas brillantes'], ['butterflies','🦋','Mariposas luminosas'],
+    ['petals','🌸','Pétalos flotantes'], ['black','⚫','Negro elegante'],
+    ['blue','🔵','Azul profundo'], ['purple','🟣','Morado premium']
+  ];
+  const allowedBackgrounds = new Set(backgroundOptions.map(option => option[0]));
+  const [liveBackground,setLiveBackground] = useState('original');
+  const [backgroundPickerOpen,setBackgroundPickerOpen] = useState(false);
+  const backgroundRef = useRef('original');
+  const sendBackground = useCallback(async (type, value, destination) => {
+    const payload = new TextEncoder().encode(JSON.stringify({type,roomId:liveRoomId,background:value}));
+    await room.localParticipant.publishData(payload,{
+      reliable:true,topic:'rivyza-live-background-v356',
+      ...(destination ? {destinationIdentities:[destination]} : {})
+    });
+  },[room,liveRoomId]);
+  useEffect(() => {
+    backgroundRef.current='original';
+    setLiveBackground('original');
+  },[liveRoomId]);
+  useEffect(() => {
+    const receive = (payload,sender,_kind,topic) => {
+      if(topic!=='rivyza-live-background-v356') return;
+      let data;
+      try {data=JSON.parse(new TextDecoder().decode(payload));}catch{return;}
+      if(data?.roomId!==liveRoomId) return;
+      if(data.type==='request' && isHost && sender?.identity) {
+        sendBackground('state',backgroundRef.current,sender.identity).catch(()=>{});
+      } else if(data.type==='state' && !isHost && sender?.identity===hostId && allowedBackgrounds.has(data.background)) {
+        backgroundRef.current=data.background;
+        setLiveBackground(data.background);
+      }
+    };
+    const onJoined = p => {
+      if(isHost && p?.identity) sendBackground('state',backgroundRef.current,p.identity).catch(()=>{});
+    };
+    room.on(RoomEvent.DataReceived,receive);
+    room.on(RoomEvent.ParticipantConnected,onJoined);
+    if(!isHost) sendBackground('request','original').catch(()=>{});
+    return () => {room.off(RoomEvent.DataReceived,receive);room.off(RoomEvent.ParticipantConnected,onJoined);};
+  },[room,liveRoomId,isHost,hostId,sendBackground]);
+  async function chooseBackground(value) {
+    if(!isHost || !allowedBackgrounds.has(value)) return;
+    backgroundRef.current=value;
+    setLiveBackground(value);
+    setBackgroundPickerOpen(false);
+    try {await sendBackground('state',value);} catch(e) {onError('No se pudo sincronizar el fondo: '+(e?.message||'Error'));}
+  }
   const [drawer, setDrawer] = useState(false);
   async function shareLive() {
     const url = new URL(window.location.href);
@@ -680,7 +730,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   object-fit: cover !important;
 }
 `}</style>
-    <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""}`}>
+    <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''} ${speakers.includes(t?.identity) ? 'rivyza-v314-speaking' : ''}`}
         onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'
@@ -780,6 +830,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       <strong>{tr.options} LIVE</strong>
       <button type="button" onClick={openInternalShare}>👥 Compartir en RIVYZA</button>
        <button type="button" onClick={shareLive}>🔗 Compartir externamente</button>
+      {isHost && <button type="button" onClick={()=>{setDrawer(false);setBackgroundPickerOpen(true);}}>🎨 Personalizar fondo</button>}
       {isHost && <label className="rivyza-live-slot-picker">{tr.slots}: <select value={slots} onChange={e => { const count = Number(e.target.value); broadcastLayout(positions, count); }}>{Array.from({length:10},(_,i) => <option key={i} value={i+1}>{i+1}</option>)}</select></label>}
       {(isHost || isModerator) && <button type="button" onClick={() => { setMoveMode(x => !x); setMoveTarget(null); setSelected(null); setDrawer(false); }}>
         ↔️ {moveMode ? tr.finishMove : tr.rearrange}
@@ -792,6 +843,15 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       {!isHost && <button type="button" onClick={() => { setDrawer(false); onLeaveLive(); }}>🚪 {tr.leaveLive}</button>}
       <button type="button" onClick={() => setDrawer(false)}>{tr.close}</button>
     </div>}
+    {backgroundPickerOpen && isHost && typeof document!=='undefined' && createPortal(
+      <div className="rivyza-v356-picker-overlay" onClick={()=>setBackgroundPickerOpen(false)}>
+        <section className="rivyza-v356-picker" role="dialog" aria-modal="true" aria-label="Personalizar fondo" onClick={e=>e.stopPropagation()}>
+          <div className="rivyza-v356-picker-title"><strong>🎨 Personalizar fondo</strong><button type="button" onClick={()=>setBackgroundPickerOpen(false)} aria-label="Cerrar">✕</button></div>
+          <p>El fondo se aplica a todos durante este LIVE. Las cámaras no cambian.</p>
+          <div className="rivyza-v356-picker-options">{backgroundOptions.map(([value,emoji,label])=><button type="button" key={value} className={liveBackground===value?'selected':''} onClick={()=>chooseBackground(value)}><span>{emoji}</span><span>{label}</span>{liveBackground===value && <span aria-label="Seleccionado">✓</span>}</button>)}</div>
+        </section>
+      </div>,document.body
+    )}
     {internalShareOpen && typeof document!=='undefined' && createPortal(
       <div onClick={()=>setInternalShareOpen(false)} style={{position:'fixed',inset:0,zIndex:2147483001,background:'#000b',display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
         <section role="dialog" aria-modal="true" aria-label="Compartir en RIVYZA" onClick={e=>e.stopPropagation()} style={{background:'#24182e',color:'#fff',width:'100%',maxWidth:520,maxHeight:'75dvh',borderRadius:'18px 18px 0 0',padding:'16px 16px calc(18px + env(safe-area-inset-bottom))',display:'flex',flexDirection:'column',gap:12}}>

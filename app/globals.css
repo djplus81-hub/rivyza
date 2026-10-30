@@ -3612,3 +3612,39 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
   background:linear-gradient(155deg,#151027,#10152c 60%,#161025) !important;
   color:#e5d9f7 !important;
 }
+
+
+/* RIVYZA v3.56 — LIVE backgrounds. No modifications to camera layouts. */
+.rivyza-live-grid.rivyza-live-grid-square[class*="rivyza-v356-bg-"]{position:relative;isolation:isolate}
+.rivyza-live-grid.rivyza-live-grid-square[class*="rivyza-v356-bg-"]>.rivyza-live-tile{position:relative;z-index:1}
+/* The original class intentionally has NO background override: preserve existing RIVYZA art. */
+.rivyza-live-grid.rivyza-v356-bg-black{background:repeating-linear-gradient(145deg,#08080c 0 22px,#11121a 23px 24px,#050509 25px 48px)!important}
+.rivyza-live-grid.rivyza-v356-bg-blue{background:radial-gradient(ellipse at 70% 15%,#126ba2 0%,transparent 43%),radial-gradient(ellipse at 12% 83%,#0b386c 0%,transparent 48%),linear-gradient(125deg,#020d22,#071d45 58%,#010814)!important}
+.rivyza-live-grid.rivyza-v356-bg-purple{background:radial-gradient(ellipse at 25% 18%,#742e8c 0%,transparent 36%),conic-gradient(from 130deg at 70% 55%,#1c082b,#3d155b,#150621,#6c2370,#1c082b)!important}
+.rivyza-live-grid.rivyza-v356-bg-hearts{background:radial-gradient(circle at 50% 90%,#33172c,#0a0b19 72%)!important}
+.rivyza-live-grid.rivyza-v356-bg-stars{background:radial-gradient(ellipse at 50% 100%,#172a4a,#050b1e 70%)!important}
+.rivyza-live-grid.rivyza-v356-bg-butterflies{background:radial-gradient(ellipse at 15% 75%,#26385a,#150e30 67%)!important}
+.rivyza-live-grid.rivyza-v356-bg-petals{background:linear-gradient(145deg,#301b36,#101728 65%,#1b1128)!important}
+.rivyza-live-grid.rivyza-live-grid-square.rivyza-v356-bg-hearts::before,
+.rivyza-live-grid.rivyza-live-grid-square.rivyza-v356-bg-stars::before,
+.rivyza-live-grid.rivyza-live-grid-square.rivyza-v356-bg-butterflies::before,
+.rivyza-live-grid.rivyza-live-grid-square.rivyza-v356-bg-petals::before{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;white-space:pre-wrap;text-align:center;font-size:13px;line-height:5.8;opacity:.7}
+.rivyza-live-grid.rivyza-v356-bg-hearts::before{content:"♡      ♥          ♡       ♥     ♡\A    ♥          ♡        ♥       ♡\A ♡       ♥         ♡       ♥";color:#ff6aa5;text-shadow:0 0 9px #ff3e9180;animation:rivyza-v356-rise 19s linear infinite}
+.rivyza-live-grid.rivyza-v356-bg-stars::before{content:"✦        ·        ✧      ✦      ·\A    ✧       ✦         ·      ✧\A ·       ✦       ✧        ✦";color:#e9efff;text-shadow:0 0 8px #fff,0 0 16px #9cbaff;animation:rivyza-v356-twinkle 3.8s ease-in-out infinite alternate}
+.rivyza-live-grid.rivyza-v356-bg-butterflies::before{content:"🦋             🦋          🦋\A        🦋            🦋\A 🦋                 🦋";font-size:14px;opacity:.48;animation:rivyza-v356-drift 15s ease-in-out infinite alternate}
+.rivyza-live-grid.rivyza-v356-bg-petals::before{content:"❀         ✿         ❀       ✿\A    ✿        ❀         ✿\A ❀           ✿          ❀";color:#f8b8cf;font-size:12px;opacity:.52;animation:rivyza-v356-fall 17s linear infinite}
+@keyframes rivyza-v356-rise{from{transform:translateY(18%)}to{transform:translateY(-32%)}}
+@keyframes rivyza-v356-twinkle{0%{opacity:.18;filter:brightness(.6)}45%{opacity:.85;filter:brightness(1.5)}75%{opacity:.35}100%{opacity:1;filter:brightness(1.9)}}
+@keyframes rivyza-v356-drift{from{transform:translate(-5%,5%)}to{transform:translate(6%,-9%)}}
+@keyframes rivyza-v356-fall{from{transform:translateY(-20%) rotate(-4deg)}to{transform:translateY(30%) rotate(7deg)}}
+.rivyza-v356-picker-overlay{position:fixed;inset:0;z-index:2147483002;background:#000b;display:flex;align-items:flex-end;justify-content:center}
+.rivyza-v356-picker{width:min(100%,520px);max-height:78dvh;overflow-y:auto;background:#21162e;border-radius:20px 20px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom));color:white}
+.rivyza-v356-picker-title{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.rivyza-v356-picker-title button{background:transparent;border:0;color:white;font-size:24px}
+.rivyza-v356-picker p{font-size:12px;color:#cfc3dd;line-height:1.5}
+.rivyza-v356-picker-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.rivyza-v356-picker-options button{display:flex;align-items:center;gap:6px;text-align:left;padding:12px 8px;border-radius:12px;border:1px solid #644677;background:#30203e;color:white;font-size:12px;min-height:54px}
+.rivyza-v356-picker-options button.selected{border-color:#f178d8;background:#543060}
+.rivyza-v356-picker-options button span:first-child{font-size:19px}
+.rivyza-v356-picker-options button span:last-child:not(:nth-child(2)){margin-left:auto}
+@media(prefers-reduced-motion:reduce){.rivyza-live-grid[class*="rivyza-v356-bg-"]::before{animation:none!important}}
