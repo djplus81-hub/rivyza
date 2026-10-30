@@ -634,7 +634,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   display: grid !important;
   width: 100% !important;
   max-width: 100% !important;
-  height: min(66dvh, 690px) !important;
+  height: min(44dvh, 480px) !important;
   min-height: 0 !important;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) !important;
   grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
@@ -1111,8 +1111,30 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-v314-request-status{position:fixed;bottom:calc(190px + env(safe-area-inset-bottom));left:12px;z-index:40;font-size:12px;background:#281c35;padding:7px;border-radius:10px}.rivyza-v314-request-status button{margin-left:8px}
 .rivyza-live-hint{position:fixed;top:90px;left:12px;right:12px;z-index:60;background:#281c35;padding:8px;border-radius:10px;font-size:13px}.rivyza-live-hint button{margin-left:10px}
 `}</style>
+    <style>{`/* RIVYZA v3.55: error discreto; el error sigue visible y disponible en title. */
+.rivyza-live-stage .rivyza-v355-toast {
+  top: calc(75px + env(safe-area-inset-top)) !important;
+  left: auto !important;
+  right: 10px !important;
+  width: max-content !important;
+  max-width: min(220px, 55vw) !important;
+  min-height: 0 !important;
+  max-height: 48px !important;
+  padding: 5px 7px 5px 9px !important;
+  border-radius: 9px !important;
+  background: rgba(20, 15, 30, .88) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,.20) !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+  overflow: hidden !important;
+  pointer-events: auto !important;
+}
+.rivyza-live-stage .rivyza-v355-toast span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rivyza-live-stage .rivyza-v355-toast button { padding: 0 2px !important; font-size: 14px !important; }
+`}</style>
     <header className="rivyza-live-top rivyza-v32-header"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-header-center">RIVYZA <span>LIVE</span></strong></header>
-    {error && <div className="rivyza-v32-toast" role="status"><span>{error}</span><button type="button" onClick={() => setError('')} aria-label="Cerrar aviso">✕</button></div>}
+    {error && <div className="rivyza-v32-toast rivyza-v355-toast" role="status" title={error}><span>{/^load failed$/i.test(error.trim()) ? "No se pudo cargar" : error}</span><button type="button" onClick={() => setError('')} aria-label="Cerrar aviso">✕</button></div>}
     {!roomId ? <section className="rivyza-live-lobby">
       <div style={{padding:'14px',margin:'8px 0 14px',background:'#21172b',borderRadius:14,color:'#fff'}}>
         <label htmlFor="rivyza-welcome-text" style={{display:'block',fontWeight:700,marginBottom:8}}>💗 Mensaje de bienvenida privado</label>
