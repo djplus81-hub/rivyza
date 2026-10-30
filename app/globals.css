@@ -3379,3 +3379,42 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
     max-width:clamp(68px,22vw,90px)!important;
   }
 }
+
+
+/* ===== RIVYZA v3.52 — SOLO CAMERA FULL-SCREEN ===== */
+/* Only the one-camera LIVE layout; layouts 2–10 remain unchanged. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-solo {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  grid-auto-rows: minmax(0, 1fr) !important;
+  width: 100% !important;
+  height: calc(100dvh - 68px - env(safe-area-inset-top)) !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  align-content: stretch !important;
+}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-solo > .rivyza-live-tile.rivyza-live-square:first-child {
+  grid-column: 1 / -1 !important;
+  grid-row: 1 / -1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+  justify-self: stretch !important;
+  align-self: stretch !important;
+  overflow: hidden !important;
+}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-solo .lk-participant-tile,
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-solo .rivyza-v318-video,
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-solo video {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  object-fit: cover !important;
+}
