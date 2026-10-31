@@ -5,6 +5,7 @@ import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import LiveRoom from "./LiveRoom";
 import LivePreviewPlayer from "./LivePreviewPlayer";
+import PostMusicMedia from "./PostMusicMedia";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
   AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send
@@ -550,6 +551,14 @@ export default function HomePage(){
   const [uploadFile,setUploadFile]=useState(null);
   const [uploadPreview,setUploadPreview]=useState("");
   const [uploadCaption,setUploadCaption]=useState("");
+  const [musicSelected,setMusicSelected]=useState(false);
+  const [musicPanel,setMusicPanel]=useState("");
+  const [musicStart,setMusicStart]=useState(0);
+  const [musicLength,setMusicLength]=useState(15);
+  const [originalVolume,setOriginalVolume]=useState(50);
+  const [musicVolume,setMusicVolume]=useState(50);
+  const editorMusicRef=useRef(null);
+  const editorVideoRef=useRef(null);
   const [uploadVisibility,setUploadVisibility]=useState("public");
   const [uploadingPost,setUploadingPost]=useState(false);
   const [uploadMessage,setUploadMessage]=useState("");
@@ -1914,6 +1923,8 @@ export default function HomePage(){
    setUploadFile(null);
    setUploadPreview("");
    setUploadCaption("");
+   setMusicSelected(false);setMusicPanel("");setMusicStart(0);setMusicLength(15);
+   setOriginalVolume(50);setMusicVolume(50);
    setUploadVisibility("public");
    setUploadMessage("");
  }
@@ -1981,7 +1992,13 @@ export default function HomePage(){
          media_path:publicUrl || path,
          caption:uploadCaption.trim() || null,
          visibility:uploadVisibility,
-         duration_seconds:uploadType==="video" ? recordLimit : null
+         duration_seconds:uploadType==="video" ? recordLimit : null,
+         music_path:musicSelected?"/music/muevelo-sin-pensar.mp3":null,
+         music_title:musicSelected?"Muévelo Sin Pensar (Remastered)":null,
+         music_start_seconds:musicSelected?musicStart:null,
+         music_clip_seconds:musicSelected?musicLength:null,
+         original_volume:musicSelected?originalVolume:null,
+         music_volume:musicSelected?musicVolume:null
        })
        .select("*")
        .single();
@@ -2174,8 +2191,30 @@ export default function HomePage(){
            <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
              {uploadType==="photo"
                ? <img src={uploadPreview} alt="Vista previa"/>
-               : <video src={uploadPreview} controls playsInline/>
+               : <video ref={editorVideoRef} src={uploadPreview} controls playsInline style={{width:"100%"}} onPlay={()=>{if(editorVideoRef.current)editorVideoRef.current.volume=musicSelected?originalVolume/100:1;if(musicSelected&&editorMusicRef.current){editorMusicRef.current.currentTime=musicStart;editorMusicRef.current.volume=musicVolume/100;editorMusicRef.current.play().catch(()=>{});}}} onPause={()=>editorMusicRef.current?.pause()}/>
              }
+             {musicSelected&&<audio ref={editorMusicRef} src="/music/muevelo-sin-pensar.mp3" onTimeUpdate={e=>{if(e.currentTarget.currentTime>=musicStart+musicLength){e.currentTarget.currentTime=musicStart;if(uploadType==='photo')e.currentTarget.play().catch(()=>{});else e.currentTarget.pause();}}}/>}
+           </div>
+           <div className="rivyza-music-editor">
+             <button type="button" className="rivyza-music-add" onClick={()=>setMusicPanel("library")}>♫ {musicSelected?"Cambiar música":"Agregar música"}</button>
+             <button type="button" className="rivyza-music-add" onClick={()=>setMusicPanel("audio")}>Editar audio</button>
+             {musicSelected&&<small>♫ Muévelo Sin Pensar (Remastered) · DJ Plus</small>}
+             {musicPanel&&<div className="rivyza-music-sheet">
+               <strong>{musicPanel==="library"?"RIVYZA MUSIC":"Editar audio"}</strong>
+               {musicPanel==="library"?<>
+                 <button type="button" className="rivyza-music-track" onClick={()=>{setMusicSelected(true);setMusicPanel("audio");}}>♫ Muévelo Sin Pensar (Remastered) — DJ Plus ✓</button>
+                 <label>Duración del fragmento</label>
+                 <div className="rivyza-music-length">{[15,30,60].map(n=><button type="button" key={n} className={musicLength===n?"active":""} onClick={()=>setMusicLength(n)}>{n}s</button>)}</div>
+                 <label>Inicio de la canción: {musicStart}s</label><input type="range" min="0" max="90" value={musicStart} onChange={e=>setMusicStart(Number(e.target.value))}/>
+               </>:<>
+                 <div className="rivyza-music-length"><button type="button" onClick={()=>setOriginalVolume(v=>v===0?50:0)}>Original {originalVolume===0?"🔇":"🎤"}</button><button type="button" onClick={()=>setMusicVolume(v=>v===0?50:0)}>Música {musicVolume===0?"🔇":"♫"}</button><button type="button">Volumen</button></div>
+                 <label>Original · {originalVolume}%</label><input type="range" min="0" max="100" value={originalVolume} onChange={e=>{setOriginalVolume(Number(e.target.value));if(editorVideoRef.current)editorVideoRef.current.volume=Number(e.target.value)/100;}}/>
+                 <label>Música · {musicVolume}%</label><input type="range" min="0" max="100" value={musicVolume} onChange={e=>{setMusicVolume(Number(e.target.value));if(editorMusicRef.current)editorMusicRef.current.volume=Number(e.target.value)/100;}}/>
+                 {!musicSelected&&<small>Primero selecciona una canción en Agregar música.</small>}
+                 {musicSelected&&<button type="button" onClick={()=>{if(editorMusicRef.current){editorMusicRef.current.currentTime=musicStart;editorMusicRef.current.volume=musicVolume/100;editorMusicRef.current.play().catch(()=>{});}if(editorVideoRef.current){editorVideoRef.current.volume=originalVolume/100;editorVideoRef.current.play().catch(()=>{});}}}>▶ Escuchar mezcla</button>}
+               </>}
+               <button type="button" className="rivyza-music-done" onClick={()=>{editorMusicRef.current?.pause();setMusicPanel("");}}>Listo ✓</button>
+             </div>}
            </div>
 
            <label className="upload-field">
@@ -3166,10 +3205,7 @@ export default function HomePage(){
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
           <div className="post-detail-media post-swipe-viewer" onTouchStart={handlePostTouchStart} onTouchEnd={handlePostTouchEnd} onWheel={handlePostWheel}>
-            {selectedPost.media_type==="photo"
-              ? <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
-              : <video key={selectedPost.id} ref={postViewerVideoRef} src={selectedPost.media_path} controls playsInline autoPlay preload="auto"/>
-            }
+            <PostMusicMedia key={selectedPost.id} post={selectedPost} detail videoRef={postViewerVideoRef}/>
           </div>
           <div className="post-detail-info">
             {selectedPost.caption && <p className="post-detail-caption">{renderMentionText(selectedPost.caption)}</p>}
@@ -3327,11 +3363,7 @@ export default function HomePage(){
             onTouchEnd={handlePostTouchEnd}
             onWheel={handlePostWheel}
           >
-            {selectedPost.media_type==="photo" ? (
-              <img src={selectedPost.media_path} alt={selectedPost.caption||"Publicación"}/>
-            ) : (
-              <video key={selectedPost.id} ref={postViewerVideoRef} src={selectedPost.media_path} controls playsInline autoPlay preload="auto"/>
-            )}
+            <PostMusicMedia key={selectedPost.id} post={selectedPost} detail videoRef={postViewerVideoRef}/>
           </div>
 
           <div className="post-detail-info">
@@ -3575,10 +3607,7 @@ export default function HomePage(){
         {feedPosts.map(post=>(
           <article className="video-card feed-post-card" key={post.id}>
             <div className="feed-media-wrap">
-              {post.media_type==="video"
-                ? <video className="feed-media" src={`${post.media_path}#t=0.1`} controls playsInline preload="metadata"/>
-                : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
-              }
+              <PostMusicMedia post={post}/>
             </div>
 
             <div className="creator-copy">
@@ -3815,10 +3844,7 @@ export default function HomePage(){
       {feedPosts.map(post=>(
         <article className="video-card feed-post-card" key={post.id}>
           <div className="feed-media-wrap">
-            {post.media_type==="video"
-              ? <video className="feed-media" src={`${post.media_path}#t=0.1`} controls playsInline preload="metadata"/>
-              : <img className="feed-media" src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>
-            }
+            <PostMusicMedia post={post}/>
           </div>
 
           <div className="creator-copy">

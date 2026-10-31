@@ -3732,3 +3732,11 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-profile-live-avatar>.public-profile-photo{display:block;width:92px;height:92px}
 .visitor-avatar-wrap.rivyza-presence-anchor:has(>.rivyza-status-live)>.rivyza-profile-live-avatar>.public-profile-photo{border:3px solid #f13b51!important;background-image:none!important;box-shadow:none!important;outline:0!important}
 .rivyza-profile-live-avatar:focus-visible{outline:2px solid #fff;outline-offset:4px}
+
+/* RIVYZA MUSIC v1 — isolated from LIVE */
+.rivyza-music-editor{display:grid;gap:10px;padding:12px 16px;background:#0d0d17;color:white}
+.rivyza-music-add,.rivyza-music-track,.rivyza-music-done{padding:12px;border-radius:12px;border:1px solid #ffffff36;background:#171727;color:#fff;font-weight:700;cursor:pointer}
+.rivyza-music-sheet{display:grid;gap:12px;padding:14px;border:1px solid #8b2cff77;border-radius:15px;background:#10101c}
+.rivyza-music-sheet label{font-size:13px;font-weight:700}.rivyza-music-sheet input[type=range]{width:100%;accent-color:#ff2ea6}
+.rivyza-music-length{display:flex;gap:8px;flex-wrap:wrap}.rivyza-music-length button{flex:1;border:1px solid #ffffff33;background:#242438;color:white;padding:9px;border-radius:10px}.rivyza-music-length .active,.rivyza-music-done{background:linear-gradient(100deg,#ff2ea6,#8b2cff)}
+.rivyza-music-feed,.rivyza-music-detail{width:100%;height:100%;position:relative}.rivyza-music-feed>.feed-media,.rivyza-music-detail>img,.rivyza-music-detail>video{width:100%;height:100%;object-fit:contain}.rivyza-music-credit{position:absolute;bottom:6px;left:8px;max-width:90%;font-size:11px;background:#0009;color:#fff;border-radius:7px;padding:5px;pointer-events:none}
