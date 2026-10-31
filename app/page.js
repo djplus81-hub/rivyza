@@ -547,6 +547,24 @@ export default function HomePage(){
   const [countryName,setCountryName]=useState("");
   const [showCountry,setShowCountry]=useState(true);
   const [uploadOpen,setUploadOpen]=useState(false);
+  // Detener audio/video del feed mientras la cámara/editor de publicaciones está abierto.
+  // Los medios dentro de .camera-composer siguen funcionando (vista previa y música).
+  useEffect(()=>{
+    if(!uploadOpen || typeof document==="undefined")return;
+    const isBackgroundMedia=(node)=>node instanceof HTMLMediaElement && !node.closest(".camera-composer");
+    const pauseBackground=()=>{
+      document.querySelectorAll("video,audio").forEach(node=>{
+        if(isBackgroundMedia(node) && !node.paused)node.pause();
+      });
+    };
+    const preventBackgroundPlay=(event)=>{
+      const node=event.target;
+      if(isBackgroundMedia(node))node.pause();
+    };
+    pauseBackground();
+    document.addEventListener("play",preventBackgroundPlay,true);
+    return()=>document.removeEventListener("play",preventBackgroundPlay,true);
+  },[uploadOpen]);
   const [uploadType,setUploadType]=useState("photo");
   const [uploadFile,setUploadFile]=useState(null);
   const [uploadPreview,setUploadPreview]=useState("");
