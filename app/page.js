@@ -162,6 +162,8 @@ export default function HomePage(){
   // Compartir v13.19.26: estado independiente del visor y de los mensajes.
   const [sharePost,setSharePost]=useState(null);
   const [sharePeople,setSharePeople]=useState([]);
+  const [shareSearchResults,setShareSearchResults]=useState([]);
+  const [shareSearching,setShareSearching]=useState(false);
   const [shareSearch,setShareSearch]=useState("");
   const [shareSelected,setShareSelected]=useState([]);
   const [shareLoading,setShareLoading]=useState(false);
@@ -1437,46 +1439,75 @@ export default function HomePage(){
 
   async function openShare(post){
     if(!post?.id)return;
-    setSharePost(post);setShareSearch("");setShareSelected([]);setShareError("");setShareSuccess("");setSharePeople([]);
+    setSharePost(post);setShareSearch("");setShareSelected([]);setShareError("");setShareSuccess("");setSharePeople([]);setShareSearchResults([]);
     setPostMenuOpen(false);
     if(!supabase || !user?.id)return;
     setShareLoading(true);
     try{
-      // Amigos: seguimiento mutuo. Consultamos los perfiles reales.
-      const [{data:following,error:e1},{data:followers,error:e2}]=await Promise.all([
-        supabase.from("follows").select("following_id").eq("follower_id",user.id),
-        supabase.from("follows").select("follower_id").eq("following_id",user.id)
-      ]);
-      if(e1||e2)throw e1||e2;
-      const incoming=new Set((followers||[]).map(x=>x.follower_id));
-      const friendIds=(following||[]).map(x=>x.following_id).filter(id=>incoming.has(id) && id!==user.id && !blockedUsers.includes(id));
-      if(friendIds.length){
-        const {data,error}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",friendIds.slice(0,150));
+      // Mostrar todas las personas que sigo, no solo las que me siguen también.
+      const {data:following,error:e1}=await supabase.from("follows").select("following_id").eq("follower_id",user.id);
+      if(e1)throw e1;
+      const ids=[...new Set((following||[]).map(x=>x.following_id))].filter(id=>id!==user.id&&!blockedUsers.includes(id));
+      const profiles=[];
+      for(let i=0;i<ids.length;i+=100){
+        const {data,error}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",ids.slice(i,i+100));
         if(error)throw error;
-        setSharePeople((data||[]).sort((a,b)=>(a.display_name||a.username||"").localeCompare(b.display_name||b.username||"")));
+        profiles.push(...(data||[]));
       }
+      setSharePeople(profiles.sort((a,b)=>(a.display_name||a.username||"").localeCompare(b.display_name||b.username||"")));
     }catch(e){setShareError("No se pudo cargar la lista de amigos: "+(e.message||"Error"));}
     finally{setShareLoading(false);}
   }
+  // Buscar usuarios registrados por nombre o @usuario, incluso si no los sigo.
+  useEffect(()=>{
+    if(!sharePost?.id||!supabase||!user?.id){setShareSearchResults([]);setShareSearching(false);return;}
+    const term=shareSearch.trim().replace(/^@+/,"").trim();
+    if(term.length<3){setShareSearchResults([]);setShareSearching(false);return;}
+    let cancelled=false;
+    setShareSearching(true);
+    const timer=setTimeout(async()=>{
+      try{
+        const safe=term.replace(/[%_,()\\]/g,"").slice(0,60);
+        if(safe.length<3){if(!cancelled)setShareSearchResults([]);return;}
+        const {data,error}=await supabase.from("profiles")
+          .select("id,username,display_name,avatar_url")
+          .or(`username.ilike.%${safe}%,display_name.ilike.%${safe}%`)
+          .limit(50);
+        if(error)throw error;
+        if(!cancelled)setShareSearchResults((data||[]).filter(p=>p.id!==user.id&&!blockedUsers.includes(p.id)));
+      }catch(e){if(!cancelled){setShareSearchResults([]);setShareError("No se pudo buscar usuarios: "+(e.message||"Error"));}}
+      finally{if(!cancelled)setShareSearching(false);}
+    },300);
+    return()=>{cancelled=true;clearTimeout(timer);};
+  },[shareSearch,sharePost?.id,supabase,user?.id,blockedUsers]);
   function toggleShareRecipient(id){setShareSelected(old=>old.includes(id)?old.filter(x=>x!==id):[...old,id]);setShareError("");}
   async function sendSharedPost(){
     if(!supabase||!user?.id||!sharePost?.id||!shareSelected.length||shareSending)return;
     setShareSending(true);setShareError("");setShareSuccess("");
     try{
-      // Revalidar la relación antes de enviar, y no permitir destinatarios bloqueados.
-      const [{data:out,error:outError},{data:incoming,error:inError}]=await Promise.all([
-        supabase.from("follows").select("following_id").eq("follower_id",user.id).in("following_id",shareSelected),
-        supabase.from("follows").select("follower_id").eq("following_id",user.id).in("follower_id",shareSelected)
+      // Revisar bloqueos y preferencias de mensajes antes de enviar.
+      const recipients=[...new Set(shareSelected)].filter(id=>id!==user.id&&!blockedUsers.includes(id));
+      if(recipients.length!==shareSelected.length)throw new Error("Uno de los destinatarios está bloqueado o no está disponible.");
+      const [{data:out,error:outError},{data:incoming,error:inError},{data:prefs,error:prefError},{data:blocks,error:blockError}]=await Promise.all([
+        supabase.from("follows").select("following_id").eq("follower_id",user.id).in("following_id",recipients),
+        supabase.from("follows").select("follower_id").eq("following_id",user.id).in("follower_id",recipients),
+        supabase.from("rivyza_message_preferences").select("user_id,who_can_message").in("user_id",recipients),
+        supabase.from("rivyza_user_blocks").select("blocker_id,blocked_id").in("blocker_id",recipients).eq("blocked_id",user.id)
       ]);
-      if(outError||inError)throw outError||inError;
-      const a=new Set((out||[]).map(x=>x.following_id));
-      const b=new Set((incoming||[]).map(x=>x.follower_id));
-      const recipients=shareSelected.filter(id=>a.has(id)&&b.has(id)&&!blockedUsers.includes(id));
-      if(recipients.length!==shareSelected.length)throw new Error("Algún destinatario ya no está disponible como amigo.");
+      if(outError||inError||prefError||blockError)throw outError||inError||prefError||blockError;
+      const followingIds=new Set((out||[]).map(x=>x.following_id));
+      const followerIds=new Set((incoming||[]).map(x=>x.follower_id));
+      const prefsById=new Map((prefs||[]).map(x=>[x.user_id,x.who_can_message]));
+      const blockedBy=new Set((blocks||[]).map(x=>x.blocker_id));
+      for(const id of recipients){
+        const rule=prefsById.get(id)||"everyone";
+        if(blockedBy.has(id)||rule==="nobody"||(rule==="friends"&&!(followingIds.has(id)&&followerIds.has(id))))
+          throw new Error("Una de las personas no permite recibir mensajes según su privacidad.");
+      }
       const rows=recipients.map(id=>({sender_id:user.id,recipient_id:id,body:"Te compartió una publicación",shared_post_id:sharePost.id}));
       const {error}=await supabase.from("rivyza_messages").insert(rows);
       if(error)throw error;
-      setShareSuccess(`Publicación enviada a ${recipients.length} ${recipients.length===1?"amigo":"amigos"}.`);
+      setShareSuccess(`Publicación enviada a ${recipients.length} ${recipients.length===1?"persona":"personas"}.`);
       setShareSelected([]);
       await loadSocial();
     }catch(e){setShareError("No se pudo enviar: "+(e.message||"Error"));}
@@ -1517,14 +1548,20 @@ export default function HomePage(){
 
   function renderShareSheet(){
     if(!sharePost)return null;
-    const people=sharePeople.filter(p=>`${p.display_name||""} ${p.username||""}`.toLocaleLowerCase().includes(shareSearch.trim().toLocaleLowerCase()));
+    const term=shareSearch.trim().replace(/^@+/,"").toLocaleLowerCase();
+    const people=term.length>=3
+      ? [...new Map([...sharePeople.filter(p=>`${p.display_name||""} ${p.username||""}`.toLocaleLowerCase().includes(term)),...shareSearchResults].map(p=>[p.id,p])).values()]
+      : sharePeople.filter(p=>`${p.display_name||""} ${p.username||""}`.toLocaleLowerCase().includes(term));
+    // Mantener visibles los destinatarios elegidos aunque cambie el texto de búsqueda.
+    const selectedProfiles=[...sharePeople,...shareSearchResults].filter(p=>shareSelected.includes(p.id));
+    const visiblePeople=[...new Map([...selectedProfiles,...people].map(p=>[p.id,p])).values()];
     return createPortal(<div className="rivyza-share-backdrop" onClick={()=>{if(!shareSending)setSharePost(null);}}>
       <section className="rivyza-share-sheet" role="dialog" aria-modal="true" aria-label="Compartir publicación" onClick={e=>e.stopPropagation()}>
         <div className="rivyza-share-grip"/><header><strong>Compartir publicación</strong><button type="button" onClick={()=>setSharePost(null)} aria-label="Cerrar"><X size={22}/></button></header>
-        <div className="rivyza-share-search"><Search size={19}/><input placeholder="Buscar amigos de RIVYZA" value={shareSearch} onChange={e=>setShareSearch(e.target.value)}/></div>
-        <h4>ENVIAR A AMIGOS</h4>
-        {shareLoading?<p className="rivyza-share-hint">Buscando amigos…</p>:people.length?<div className="rivyza-share-friends">{people.map(person=><button key={person.id} type="button" className={shareSelected.includes(person.id)?"chosen":""} onClick={()=>toggleShareRecipient(person.id)}><span className="rivyza-share-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:(person.display_name||person.username||"R").slice(0,1).toUpperCase()}{shareSelected.includes(person.id)&&<span className="rivyza-share-check"><Check size={13}/></span>}</span><small>{person.display_name||person.username||"Usuario"}</small></button>)}</div>:<p className="rivyza-share-hint">{shareSearch?"No hay amigos con ese nombre.":"Tus amigos (seguimiento mutuo) aparecerán aquí."}</p>}
-        {shareSelected.length>0&&<button type="button" className="rivyza-share-send" disabled={shareSending} onClick={sendSharedPost}><Send size={18}/>{shareSending?"Enviando…":`Enviar a ${shareSelected.length} ${shareSelected.length===1?"amigo":"amigos"}`}</button>}
+        <div className="rivyza-share-search"><Search size={19}/><input placeholder="Buscar @usuario o nombre (3 letras)" value={shareSearch} onChange={e=>setShareSearch(e.target.value)}/></div>
+        <h4>{term.length>=3?"RESULTADOS DE BÚSQUEDA":"PERSONAS QUE SIGUES"}</h4>
+        {shareLoading||shareSearching?<p className="rivyza-share-hint">Buscando personas…</p>:visiblePeople.length?<div className="rivyza-share-friends">{visiblePeople.map(person=><button key={person.id} type="button" className={shareSelected.includes(person.id)?"chosen":""} onClick={()=>toggleShareRecipient(person.id)}><span className="rivyza-share-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:(person.display_name||person.username||"R").slice(0,1).toUpperCase()}{shareSelected.includes(person.id)&&<span className="rivyza-share-check"><Check size={13}/></span>}</span><small>{person.display_name||person.username||"Usuario"}</small></button>)}</div>:<p className="rivyza-share-hint">{term.length>=3?"No se encontraron usuarios con ese nombre.":term.length?"Escribe al menos 3 letras para buscar usuarios.":"Las personas que sigues aparecerán aquí."}</p>}
+        {shareSelected.length>0&&<button type="button" className="rivyza-share-send" disabled={shareSending} onClick={sendSharedPost}><Send size={18}/>{shareSending?"Enviando…":`Enviar a ${shareSelected.length} ${shareSelected.length===1?"persona":"personas"}`}</button>}
         <h4>COMPARTIR EN OTRAS APLICACIONES</h4>
         <div className="rivyza-share-external">
           <button type="button" onClick={shareOutside}><span className="rivyza-share-round"><Share2/></span><small>Más aplicaciones</small></button>
