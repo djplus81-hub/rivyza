@@ -2101,7 +2101,7 @@ export default function HomePage(){
          duration_seconds:uploadType==="video" ? Math.ceil(editorVideoDuration||recordLimit) : null,
          music_path:musicSelected?"/music/muevelo-sin-pensar.mp3":null,
          music_title:musicSelected?"Muévelo Sin Pensar (Remastered)":null,
-         music_start_seconds:musicSelected?musicStart:null,
+         music_start_seconds:musicSelected?Math.max(0,Math.floor(Number(musicStart)||0)):null,
          music_clip_seconds:musicSelected?(uploadType==="video"&&editorVideoDuration>0?Math.ceil(editorVideoDuration):musicLength):null,
          original_volume:musicSelected?originalVolume:null,
          music_volume:musicSelected?musicVolume:null
