@@ -330,7 +330,30 @@ export default function HomePage(){
   const [socialError,setSocialError]=useState("");
   const [onlinePreference,setOnlinePreference]=useState(false);
   const [onlineIds,setOnlineIds]=useState([]);
-  const onlineDot=(id)=>id&&id!==user?.id&&onlineIds.includes(id)?<span className="rivyza-online-dot" title={t("En línea")} aria-label={t("En línea")}/>:null;
+  // El aro original cambia de color sin crear otro borde ni un punto verde.
+  const [liveHostIds,setLiveHostIds]=useState([]);
+  const onlineDot=(id)=>{
+    if(!id)return null;
+    const live=liveHostIds.includes(id);
+    const online=id!==user?.id&&onlineIds.includes(id);
+    return live?<span className="rivyza-status-ring-marker rivyza-status-live" title="Transmitiendo LIVE"/>:online?<span className="rivyza-status-ring-marker rivyza-status-online" title={t("En línea")}/>:null;
+  };
+  useEffect(()=>{
+    if(!supabase||!user?.id)return;
+    let mounted=true;
+    async function updateLiveHosts(){
+      try{
+        const {data}=await supabase.auth.getSession();
+        if(!data?.session)return;
+        const response=await fetch("/api/live",{headers:{Authorization:`Bearer ${data.session.access_token}`},cache:"no-store"});
+        if(!response.ok)return;
+        const result=await response.json();
+        if(mounted)setLiveHostIds((result.rooms||[]).map(room=>room.host_id).filter(Boolean));
+      }catch(e){}
+    }
+    updateLiveHosts();const interval=setInterval(updateLiveHosts,15000);
+    return()=>{mounted=false;clearInterval(interval)};
+  },[supabase,user?.id]);
 
   const socialPollBusy=useRef(false);
   const socialThreadRef=useRef(null);
@@ -351,7 +374,6 @@ export default function HomePage(){
   const [adminUnread,setAdminUnread]=useState(0);
   const [myInfractions,setMyInfractions]=useState([]);
   const [publicStrikeCount,setPublicStrikeCount]=useState(0);
-  const [strikeRefreshKey,setStrikeRefreshKey]=useState(0);
   const [moderationLoadError,setModerationLoadError]=useState("");
   const [appealDrafts,setAppealDrafts]=useState({});
   const [adminNotice,setAdminNotice]=useState([]);
@@ -363,7 +385,7 @@ export default function HomePage(){
     try{setAdminLiveStatus(await adminRpc("rivyza_admin_live_status",{p_target:target.id}));}catch(e){setAdminLiveStatus(null);setAdminError("Control LIVE no disponible: ejecuta el SQL v13.19.42.");}
   }
   async function adminOpen(target){setAdminError("");setAdminTarget(target);setAdminPanel(true);setAdminInbox(false);try{await adminRefresh(target);}catch(e){setAdminError(e.message||"Error cargando moderación");}}
-  async function adminDo(fn,args){setAdminBusy(true);setAdminError("");try{await adminRpc(fn,args);if(adminInbox){const cases=await adminRpc("rivyza_admin_cases",{});setAdminCases(cases||[]);}else await adminRefresh();if(["rivyza_admin_add_strike","rivyza_admin_remove_strike","rivyza_admin_resolve_case"].includes(fn)){setStrikeRefreshKey(k=>k+1);if(adminTarget?.id){const {data,error}=await supabase.rpc("rivyza_public_strike_count",{p_target:adminTarget.id});if(!error&&viewedProfile?.id===adminTarget.id)setPublicStrikeCount(Number(data||0));}const {data:mine,error:mineError}=await supabase.rpc("rivyza_my_strikes");if(!mineError)setMyInfractions(mine||[]);}setAdminReason("");setAdminReply("");}catch(e){setAdminError(e.message||"No se pudo completar");}finally{setAdminBusy(false);}}
+  async function adminDo(fn,args){setAdminBusy(true);setAdminError("");try{await adminRpc(fn,args);if(adminInbox){const cases=await adminRpc("rivyza_admin_cases",{});setAdminCases(cases||[]);}else await adminRefresh();setAdminReason("");setAdminReply("");}catch(e){setAdminError(e.message||"No se pudo completar");}finally{setAdminBusy(false);}}
   async function adminOpenInbox(){setAdminError("");setAdminTarget(null);setAdminPanel(true);setAdminInbox(true);try{const rows=await adminRpc("rivyza_admin_cases",{});setAdminCases(rows||[]);try{setAdminSuspended(await adminRpc("rivyza_admin_suspended_live"));}catch(e){setAdminSuspended([]);}}catch(e){setAdminError(e.message||"No se pudo cargar la bandeja");}}
   useEffect(()=>{if(!supabase||!user?.id){setAdminOwner(false);return;}let live=true;
     supabase.rpc("rivyza_is_owner").then(({data,error})=>{if(live)setAdminOwner(!error&&data===true);});
@@ -449,11 +471,19 @@ export default function HomePage(){
   const [viewedProfile,setViewedProfile]=useState(null);
   useEffect(()=>{if(!supabase||!viewedProfile?.id||view!=="otherProfile")return;let active=true;
     setPublicStrikeCount(0);
-    const refresh=()=>supabase.rpc("rivyza_public_strike_count",{p_target:viewedProfile.id}).then(({data,error})=>{if(active&&!error)setPublicStrikeCount(Math.max(0,Number(data||0)));});
-    refresh();
-    const timer=setInterval(refresh,12000);
-    return()=>{active=false;clearInterval(timer);};
-  },[supabase,view,viewedProfile?.id,strikeRefreshKey]);
+    supabase.rpc("rivyza_public_strike_count",{p_target:viewedProfile.id}).then(({data,error})=>{if(active&&!error)setPublicStrikeCount(Number(data||0));});
+    return()=>{active=false;};
+  },[supabase,view,viewedProfile?.id]);
+  useEffect(()=>{
+    if(!supabase||!adminOwner||view!=="otherProfile"||!viewedProfile?.id)return;
+    let mounted=true;
+    async function refreshCount(){
+      const {data,error}=await supabase.rpc("rivyza_public_strike_count",{p_target:viewedProfile.id});
+      if(mounted&&!error)setPublicStrikeCount(Number(data||0));
+    }
+    refreshCount();const timer=setInterval(refreshCount,10000);
+    return()=>{mounted=false;clearInterval(timer)};
+  },[supabase,adminOwner,view,viewedProfile?.id]);
   const [viewedProfilePosts,setViewedProfilePosts]=useState([]);
   const [peopleSearchOpen,setPeopleSearchOpen]=useState(false);
   const [peopleSearch,setPeopleSearch]=useState("");
@@ -2942,7 +2972,7 @@ export default function HomePage(){
             ["Moderación por IA","La moderación automática es una función planificada, no activa en esta versión. La IA no debe sancionar únicamente por palabras aisladas."],
             ["Privacidad y términos","Los textos legales completos y el canal de soporte oficial se publicarán antes del lanzamiento público."]
           ].filter(([a,b])=>(a+" "+b).toLowerCase().includes(helpQuery.toLowerCase())).map(([a,b])=><div key={a} className="rivyza-help-article"><strong>{a}</strong><p>{b}</p></div>)}</div>
-          :settingsSheet==="Estado de cuenta"?<div className="rivyza-feature-settings"><h3>Estado de cuenta</h3>{moderationLoadError&&<p role="alert" className="social-error">No se pudo consultar el estado de cuenta: {moderationLoadError}</p>}<p><span style={{color:"#ff304f",fontWeight:900,letterSpacing:3}}>{"✖ ".repeat(Math.min(3,myInfractions.filter(x=>x.status==="active").length))}</span>Infracciones activas: {myInfractions.filter(x=>x.status==="active").length} de 3. Con tres X activas se restringe LIVE.</p>{myInfractions.map(x=><div className="rivyza-admin-item" key={x.id}><strong><span style={{color:x.status==="active"?"#ff304f":undefined}}>{x.status==="active"?"✖ X activa":"X retirada"}</span> · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p>{x.status==="active"&&!x.appeal_status&&<><textarea placeholder="Explica por qué deseas apelar" value={appealDrafts[x.id]||""} onChange={e=>setAppealDrafts(v=>({...v,[x.id]:e.target.value}))}/><button onClick={()=>submitAppeal(x.id)}>Apelar infracción</button></>}</div>)}<h3>Mensajes oficiales de RIVYZA</h3>{adminNotice.map(n=><div className="rivyza-admin-item" key={n.id}><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString()}</small>{n.strike_id&&<button onClick={()=>{setSettingsSheet("Estado de cuenta");}}>Ver infracción y apelar</button>}</div>)}<p>Para sanciones graves contra menores se prevé suspensión total con revisión urgente y un proceso de apelación limitado.</p></div>
+          :settingsSheet==="Estado de cuenta"?<div className="rivyza-feature-settings"><h3>Estado de cuenta</h3>{moderationLoadError&&<p role="alert" className="social-error">No se pudo consultar el estado de cuenta: {moderationLoadError}</p>}<p>Infracciones activas: {myInfractions.filter(x=>x.status==="active").length} de 3. Con tres X activas se restringe LIVE.</p>{myInfractions.map(x=><div className="rivyza-admin-item" key={x.id}><strong>{x.status==="active"?"X activa":"X retirada"} · {x.appeal_status==="in_review"?"En revisión":x.appeal_status||"Sin apelación"}</strong><p>{x.reason}</p>{x.status==="active"&&!x.appeal_status&&<><textarea placeholder="Explica por qué deseas apelar" value={appealDrafts[x.id]||""} onChange={e=>setAppealDrafts(v=>({...v,[x.id]:e.target.value}))}/><button onClick={()=>submitAppeal(x.id)}>Apelar infracción</button></>}</div>)}<h3>Mensajes oficiales de RIVYZA</h3>{adminNotice.map(n=><div className="rivyza-admin-item" key={n.id}><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString()}</small>{n.strike_id&&<button onClick={()=>{setSettingsSheet("Estado de cuenta");}}>Ver infracción y apelar</button>}</div>)}<p>Para sanciones graves contra menores se prevé suspensión total con revisión urgente y un proceso de apelación limitado.</p></div>
           :settingsSheet==="Cuenta privada"?<div className="rivyza-feature-settings"><label className="rivyza-feature-toggle">Cuenta privada <input type="checkbox" checked={privateAccount} onChange={e=>togglePrivateAccount(e.target.checked)}/></label><p>Oculta tu estado en línea. En los LIVE, solo el anfitrión debe poder identificarte; esta regla también requiere integración en el servicio LIVE.</p></div>
           :settingsSheet==="Cuentas bloqueadas"?<div className="rivyza-feature-settings rivyza-blocked-list">{blockedProfilesLoading?<p>Cargando cuentas bloqueadas…</p>:blockedUsers.length?blockedUsers.map(id=>{const person=blockedProfiles[id];const name=person?.display_name||person?.username||"Cuenta bloqueada";return <div className="rivyza-blocked-person" key={id}><span className="rivyza-blocked-avatar">{person?.avatar_url?<img src={person.avatar_url} alt=""/>:<User size={21}/>}</span><span className="rivyza-blocked-details"><strong>{name}</strong><small>{person?.username?"@"+person.username:"Perfil no disponible"}</small></span><button type="button" className="rivyza-blocked-unblock" onClick={()=>{if(window.confirm(`¿Desbloquear a ${name}?`))setBlocked(id,false);}}>Desbloquear</button></div>}):<p>No tienes cuentas bloqueadas.</p>}</div>
            :settingsSheet==="Eliminar cuenta"?<div className="rivyza-feature-settings" style={{display:"grid",gap:16,textAlign:"center",padding:"24px 18px"}}>
@@ -3015,7 +3045,7 @@ export default function HomePage(){
         <div className="profile-heading-row">
           <div className="profile-heading-copy">
             <h1>{viewedProfile.display_name||viewedProfile.username||"Usuario"}</h1>
-            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>{adminOwner&&publicStrikeCount>0&&<div className="rivyza-public-strikes" title="Infracciones activas de las normas de RIVYZA">{Array.from({length:Math.min(3,publicStrikeCount)},(_,i)=><span key={i} style={{color:"#ff304f",fontWeight:900}}>✖</span>)} <small>{publicStrikeCount} infracción{publicStrikeCount===1?"":"es"} activa{publicStrikeCount===1?"":"s"} de RIVYZA</small></div>}
+            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>{adminOwner&&publicStrikeCount>0&&<div className="rivyza-public-strikes" title="Infracciones activas de las normas de RIVYZA">{Array.from({length:Math.min(3,publicStrikeCount)},(_,i)=><span key={i}>✖</span>)} <small>{publicStrikeCount} infracción{publicStrikeCount===1?"":"es"} activa{publicStrikeCount===1?"":"s"} de RIVYZA</small></div>}
             {viewedProfile.show_country && viewedProfile.country_code && (
               <div className="profile-country">
                 <img
