@@ -2719,7 +2719,38 @@ export default function HomePage(){
   if(loading)return <div className="center">Cargando RIVYZA…</div>;
 
   if(!user){
-    return <main className="auth-shell">
+    return <main className="auth-shell rivyza-auth-fixed">
+      <style>{`
+        .rivyza-auth-fixed {
+          position: fixed;
+          inset: 0;
+          width: 100%;
+          height: 100dvh;
+          min-height: 0;
+          overflow: hidden;
+          overscroll-behavior: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+          box-sizing: border-box;
+        }
+        .rivyza-auth-fixed .auth-card {
+          width: min(440px, 100%);
+          max-height: 100%;
+          min-height: 0;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          box-sizing: border-box;
+        }
+        .rivyza-auth-fixed .auth-card::-webkit-scrollbar { display: none; }
+        @media (max-height: 740px) {
+          .rivyza-auth-fixed .auth-card { padding: 18px 18px; }
+          .rivyza-auth-fixed .rivyza-phone-auth { margin-top: 12px; gap: 8px; }
+        }
+      `}</style>
       <section className="auth-card">
         <div className="logo-mark">R</div>
         <h1>RIVYZA</h1>
