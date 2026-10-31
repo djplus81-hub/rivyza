@@ -387,7 +387,7 @@ export default function HomePage(){
     try{setAdminLiveStatus(await adminRpc("rivyza_admin_live_status",{p_target:target.id}));}catch(e){setAdminLiveStatus(null);setAdminError("Control LIVE no disponible: ejecuta el SQL v13.19.42.");}
   }
   async function adminOpen(target){setAdminError("");setAdminTarget(target);setAdminPanel(true);setAdminInbox(false);try{await adminRefresh(target);}catch(e){setAdminError(e.message||"Error cargando moderación");}}
-  async function adminDo(fn,args){setAdminBusy(true);setAdminError("");try{await adminRpc(fn,args);if(adminInbox){const cases=await adminRpc("rivyza_admin_cases",{});setAdminCases(cases||[]);}else await adminRefresh();setAdminReason("");setAdminReply("");}catch(e){setAdminError(e.message||"No se pudo completar");}finally{setAdminBusy(false);}}
+  async function adminDo(fn,args){setAdminBusy(true);setAdminError("");try{await adminRpc(fn,args);if(adminInbox){const cases=await adminRpc("rivyza_admin_cases",{});setAdminCases(cases||[]);}else await adminRefresh();if(adminTarget?.id){const {data,error}=await supabase.rpc("rivyza_public_strike_count",{p_target:adminTarget.id});if(!error&&viewedProfile?.id===adminTarget.id)setPublicStrikeCount(Number(data||0));}setAdminReason("");setAdminReply("");}catch(e){setAdminError(e.message||"No se pudo completar");}finally{setAdminBusy(false);}}
   async function adminOpenInbox(){setAdminError("");setAdminTarget(null);setAdminPanel(true);setAdminInbox(true);try{const rows=await adminRpc("rivyza_admin_cases",{});setAdminCases(rows||[]);try{setAdminSuspended(await adminRpc("rivyza_admin_suspended_live"));}catch(e){setAdminSuspended([]);}}catch(e){setAdminError(e.message||"No se pudo cargar la bandeja");}}
   useEffect(()=>{if(!supabase||!user?.id){setAdminOwner(false);return;}let live=true;
     supabase.rpc("rivyza_is_owner").then(({data,error})=>{if(live)setAdminOwner(!error&&data===true);});
@@ -473,8 +473,9 @@ export default function HomePage(){
   const [viewedProfile,setViewedProfile]=useState(null);
   useEffect(()=>{if(!supabase||!viewedProfile?.id||view!=="otherProfile")return;let active=true;
     setPublicStrikeCount(0);
-    supabase.rpc("rivyza_public_strike_count",{p_target:viewedProfile.id}).then(({data,error})=>{if(active&&!error)setPublicStrikeCount(Number(data||0));});
-    return()=>{active=false;};
+    const refresh=async()=>{const {data,error}=await supabase.rpc("rivyza_public_strike_count",{p_target:viewedProfile.id});if(active&&!error)setPublicStrikeCount(Math.max(0,Number(data)||0));};
+    refresh();const timer=setInterval(refresh,5000);
+    return()=>{active=false;clearInterval(timer);};
   },[supabase,view,viewedProfile?.id]);
   const [viewedProfilePosts,setViewedProfilePosts]=useState([]);
   const [peopleSearchOpen,setPeopleSearchOpen]=useState(false);
@@ -3037,7 +3038,7 @@ export default function HomePage(){
         <div className="profile-heading-row">
           <div className="profile-heading-copy">
             <h1>{viewedProfile.display_name||viewedProfile.username||"Usuario"}</h1>
-            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>{publicStrikeCount>0&&<div className="rivyza-public-strikes" title="Infracciones activas de las normas de RIVYZA">{Array.from({length:Math.min(3,publicStrikeCount)},(_,i)=><span key={i}>✖</span>)} <small>{publicStrikeCount} infracción{publicStrikeCount===1?"":"es"} activa{publicStrikeCount===1?"":"s"} de RIVYZA</small></div>}
+            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>{publicStrikeCount>0&&<div className="rivyza-public-strikes" title="Infracciones activas de las normas de RIVYZA">{Array.from({length:Math.min(3,publicStrikeCount)},(_,i)=><span key={i} style={{color:"#ff304f",fontWeight:900}}>✖</span>)} <small>{publicStrikeCount} infracción{publicStrikeCount===1?"":"es"} activa{publicStrikeCount===1?"":"s"} de RIVYZA</small></div>}
             {viewedProfile.show_country && viewedProfile.country_code && (
               <div className="profile-country">
                 <img
