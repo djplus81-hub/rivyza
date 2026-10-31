@@ -561,6 +561,8 @@ export default function HomePage(){
   const [musicVolume,setMusicVolume]=useState(50);
   const editorMusicRef=useRef(null);
   const editorVideoRef=useRef(null);
+  const editorMixRef=useRef(null);
+  const [publishStage,setPublishStage]=useState("");
   const [uploadVisibility,setUploadVisibility]=useState("public");
   const [uploadingPost,setUploadingPost]=useState(false);
   const [uploadMessage,setUploadMessage]=useState("");
@@ -1963,11 +1965,58 @@ export default function HomePage(){
    setUploadMessage("");
  }
 
+ function prepareEditorMix(){
+   // Safari en iPhone no respeta HTMLMediaElement.volume; Web Audio permite mezclar ambos.
+   const video=editorVideoRef.current, audio=editorMusicRef.current;
+   const Ctx=typeof window!=="undefined"&&(window.AudioContext||window.webkitAudioContext);
+   if(!Ctx || !audio)return false;
+   try{
+     let mix=editorMixRef.current;
+     if(!mix){
+       const ctx=new Ctx();
+       mix={ctx,videoNode:null,audioNode:null,videoGain:null,audioGain:null,videoElement:null,audioElement:null};
+       editorMixRef.current=mix;
+     }
+     if(mix.audioElement!==audio){
+       mix.audioNode=mix.ctx.createMediaElementSource(audio);
+       mix.audioGain=mix.ctx.createGain();
+       mix.audioNode.connect(mix.audioGain).connect(mix.ctx.destination);
+       mix.audioElement=audio;
+     }
+     if(video && mix.videoElement!==video){
+       mix.videoNode=mix.ctx.createMediaElementSource(video);
+       mix.videoGain=mix.ctx.createGain();
+       mix.videoNode.connect(mix.videoGain).connect(mix.ctx.destination);
+       mix.videoElement=video;
+     }
+     // Con MediaElementSource, volumen nativo a 100%; la mezcla se controla con GainNode.
+     audio.volume=1;
+     if(video)video.volume=1;
+     mix.audioGain.gain.value=musicVolume/100;
+     if(mix.videoGain)mix.videoGain.gain.value=musicSelected?originalVolume/100:1;
+     if(mix.ctx.state==="suspended")mix.ctx.resume().catch(()=>{});
+     return true;
+   }catch(err){
+     console.warn("RIVYZA MUSIC: Web Audio no disponible",err);
+     return false;
+   }
+ }
+ function setEditorMixVolume(kind,value){
+   const mix=editorMixRef.current;
+   const gain=kind==="music"?mix?.audioGain:mix?.videoGain;
+   if(gain){gain.gain.value=value/100;return;}
+   const el=kind==="music"?editorMusicRef.current:editorVideoRef.current;
+   if(el)el.volume=value/100;
+ }
  async function publishPost(){
-   if(!user || !supabase || !uploadFile)return;
+   if(!user || !supabase || !uploadFile){
+     setUploadMessage("No se puede publicar: revisa tu sesión y selecciona una foto o video.");
+     return;
+   }
 
    setUploadingPost(true);
-   setUploadMessage("");
+   setUploadMessage("Preparando publicación…");
+   setPublishStage("Subiendo foto o video…");
 
    try{
      const ext=(uploadFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
@@ -1983,6 +2032,7 @@ export default function HomePage(){
 
      if(uploadError)throw uploadError;
 
+     setPublishStage("Guardando publicación…");
      const {data:pub}=supabase.storage.from("media").getPublicUrl(path);
      const publicUrl=pub?.publicUrl;
 
@@ -2010,6 +2060,7 @@ export default function HomePage(){
        throw postError;
      }
 
+     setPublishStage("Publicado.");
      setUploadMessage("Publicado.");
      if(newPost){
        setProfilePosts(prev=>{
@@ -2028,9 +2079,10 @@ export default function HomePage(){
      await loadProfilePosts();
    }catch(err){
      console.error(err);
-     setUploadMessage(err?.message || "No se pudo publicar.");
+     setUploadMessage("Error al publicar: "+(err?.message || "No se pudo publicar. Revisa la conexión y las columnas de música en Supabase."));
    }finally{
      setUploadingPost(false);
+     setPublishStage("");
    }
  }
 
@@ -2038,11 +2090,12 @@ export default function HomePage(){
  function renderMusicSheet(inCamera){
    const clip=uploadType==="video"&&editorVideoDuration>0?editorVideoDuration:musicLength;
    const maxStart=Math.max(0,Math.floor(musicDuration-clip));
-   const close=()=>{editorMusicRef.current?.pause();setMusicPanel("");};
+   const close=()=>{editorMusicRef.current?.pause();editorVideoRef.current?.pause();setMusicPanel("");};
    const listen=()=>{
      const a=editorMusicRef.current,v=editorVideoRef.current;
-     if(a){a.currentTime=musicStart;a.volume=musicVolume/100;a.play().catch(()=>{});}
-     if(v){v.currentTime=0;v.volume=originalVolume/100;v.play().catch(()=>{});}
+     const mixed=prepareEditorMix();
+     if(a){a.currentTime=musicStart;if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>setUploadMessage("Toca reproducir otra vez para activar el sonido."));}
+     if(v){v.currentTime=0;if(!mixed)v.volume=originalVolume/100;v.play().catch(()=>{});}
    };
    return <div className="rivyza-music-modal" role="dialog" aria-modal="true" aria-label="RIVYZA MUSIC">
      <div className="rivyza-music-modal-backdrop" onClick={close}/>
@@ -2059,9 +2112,15 @@ export default function HomePage(){
            <button type="button" className="rivyza-music-listen" onClick={listen}>▶ Escuchar fragmento con video</button>
          </>}
        </>:<>
-         <div className="rivyza-music-length"><button type="button" onClick={()=>setOriginalVolume(v=>v===0?50:0)}>Original {originalVolume===0?"🔇":"🎤"}</button><button type="button" onClick={()=>setMusicVolume(v=>v===0?50:0)}>Música {musicVolume===0?"🔇":"♫"}</button><button type="button" onClick={()=>setMusicPanel("library")}>Elegir fragmento</button></div>
-         <label>Original · {originalVolume}%</label><input type="range" min="0" max="100" value={originalVolume} onChange={e=>{const n=Number(e.target.value);setOriginalVolume(n);if(editorVideoRef.current)editorVideoRef.current.volume=n/100;}}/>
-         <label>Música · {musicVolume}%</label><input type="range" min="0" max="100" value={musicVolume} onChange={e=>{const n=Number(e.target.value);setMusicVolume(n);if(editorMusicRef.current)editorMusicRef.current.volume=n/100;}}/>
+         <div className="rivyza-music-length"><button type="button" onClick={()=>{const n=originalVolume===0?50:0;setOriginalVolume(n);setEditorMixVolume("original",n);}}>Original {originalVolume===0?"🔇":"🎤"}</button><button type="button" onClick={()=>{const n=musicVolume===0?50:0;setMusicVolume(n);setEditorMixVolume("music",n);}}>Música {musicVolume===0?"🔇":"♫"}</button><button type="button" onClick={()=>setMusicPanel("library")}>Elegir fragmento</button></div>
+         {musicSelected&&<>
+           <label htmlFor="rivyza-music-trim">Inicio de la canción: {musicStart.toFixed(1)} s</label>
+           <input id="rivyza-music-trim" type="range" min="0" max={maxStart} step="0.5" value={Math.min(musicStart,maxStart)} onChange={e=>{const n=Number(e.target.value);setMusicStart(n);const a=editorMusicRef.current;if(a){a.currentTime=n;}const v=editorVideoRef.current;if(v){v.pause();v.currentTime=0;}prepareEditorMix();}}/>
+           <div className="rivyza-music-help">Fragmento: {musicStart.toFixed(1)} s – {(musicStart+clip).toFixed(1)} s. Arrastra para elegir cualquier parte de la canción.</div>
+           {uploadType==="photo"&&<div className="rivyza-music-length">{[15,30,60].map(n=><button key={n} type="button" className={musicLength===n?"active":""} onClick={()=>{setMusicLength(n);setMusicStart(v=>Math.min(v,Math.max(0,musicDuration-n)));}}>{n} s</button>)}</div>}
+         </>}
+         <label>Original · {originalVolume}%</label><input type="range" min="0" max="100" value={originalVolume} onChange={e=>{const n=Number(e.target.value);setOriginalVolume(n);setEditorMixVolume("original",n);}}/>
+         <label>Música · {musicVolume}%</label><input type="range" min="0" max="100" value={musicVolume} onChange={e=>{const n=Number(e.target.value);setMusicVolume(n);setEditorMixVolume("music",n);}}/>
          {musicSelected&&<button type="button" className="rivyza-music-listen" onClick={listen}>▶ Escuchar mezcla</button>}
          {!musicSelected&&<small>Primero selecciona una canción.</small>}
        </>}
@@ -2232,7 +2291,7 @@ export default function HomePage(){
                  ? <img src={uploadPreview} alt="Vista previa"/>
                  : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="metadata" style={{width:"100%"}}
                      onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setEditorVideoDuration(d);}}
-                     onPlay={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));a.volume=musicVolume/100;a.play().catch(()=>{});}}}
+                     onPlay={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
                      onSeeked={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(v&&a&&musicSelected)a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));}}
                      onPause={()=>editorMusicRef.current?.pause()}
                      onEnded={()=>editorMusicRef.current?.pause()}/>
@@ -2270,14 +2329,14 @@ export default function HomePage(){
              </select>
            </label>
 
-           {uploadMessage && <div className="upload-message">{uploadMessage}</div>}
+           {(uploadMessage || publishStage) && <div className="upload-message" role="status" aria-live="polite">{uploadMessage.startsWith("Error")?uploadMessage:(publishStage||uploadMessage)}</div>}
 
            <button
              className="publish-post-btn"
              onClick={publishPost}
              disabled={!uploadFile || uploadingPost}
            >
-             {uploadingPost ? "Publicando…" : "Publicar"}
+             {uploadingPost ? (publishStage||"Publicando…") : "Publicar"}
            </button>
          </div>
        )}
