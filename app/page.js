@@ -562,6 +562,7 @@ export default function HomePage(){
   const editorMusicRef=useRef(null);
   const editorVideoRef=useRef(null);
   const editorMixRef=useRef(null);
+  const musicPreviewRef=useRef(false);
   const [publishStage,setPublishStage]=useState("");
   const [uploadVisibility,setUploadVisibility]=useState("public");
   const [uploadingPost,setUploadingPost]=useState(false);
@@ -2110,9 +2111,15 @@ export default function HomePage(){
      const next=Math.max(0,Math.min(maxStart,Number(n)||0));
      setMusicStart(next);
      const a=editorMusicRef.current;
-     if(a){a.pause();a.currentTime=next;}
      const v=editorVideoRef.current;
      if(v){v.pause();v.currentTime=0;}
+     musicPreviewRef.current=true;
+     if(a){
+       try{a.currentTime=next;}catch(_){}
+       const mixed=prepareEditorMix();
+       if(!mixed)a.volume=musicVolume/100;
+       a.play().catch(()=>setUploadMessage("Para activar el audio, toca ▶ Escuchar una vez."));
+     }
    };
    const musicTimeline=musicSelected&&<div className="rivyza-music-timeline">
      <div className="rivyza-music-timeline-heading"><strong>Selecciona el fragmento</strong><span>{formatMusicTime(musicStart)} – {formatMusicTime(musicStart+clip)} · {clip.toFixed(1)} s</span></div>
@@ -2124,14 +2131,15 @@ export default function HomePage(){
      </div>
      <input aria-label="Desliza la canción para elegir el inicio del fragmento" type="range" min="0" max={maxStart} step="0.5" value={Math.min(musicStart,maxStart)} onChange={e=>seekMusicStart(e.target.value)}/>
      <div className="rivyza-music-timeline-times"><span>0:00</span><span>Canción completa: {formatMusicTime(musicDuration)}</span></div>
-     <small>El recuadro permanece fijo. Desliza la canción para mover el fragmento de {Math.round(clip)} segundos.</small>
+     <small>Desliza hasta cualquier parte de la canción. Al mover el selector escucharás el fragmento y se repetirá automáticamente.</small>
    </div>;
-   const close=()=>{editorMusicRef.current?.pause();editorVideoRef.current?.pause();setMusicPanel("");};
+   const close=()=>{musicPreviewRef.current=false;editorMusicRef.current?.pause();editorVideoRef.current?.pause();setMusicPanel("");};
    const listen=()=>{
      const a=editorMusicRef.current,v=editorVideoRef.current;
+     musicPreviewRef.current=true;
+     if(v){v.pause();v.currentTime=0;}
      const mixed=prepareEditorMix();
      if(a){a.currentTime=musicStart;if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>setUploadMessage("Toca reproducir otra vez para activar el sonido."));}
-     if(v){v.currentTime=0;if(!mixed)v.volume=originalVolume/100;v.play().catch(()=>{});}
    };
    return <div className="rivyza-music-modal" role="dialog" aria-modal="true" aria-label="RIVYZA MUSIC">
      <div className="rivyza-music-modal-backdrop" onClick={close}/>
@@ -2143,7 +2151,7 @@ export default function HomePage(){
            <div className="rivyza-music-help">Mueve la barra para elegir el pedazo exacto de la canción.</div>
            {uploadType==="photo"?<><label>Duración de foto con música</label><div className="rivyza-music-length">{[15,30,60].map(n=><button type="button" key={n} className={musicLength===n?"active":""} onClick={()=>{setMusicLength(n);setMusicStart(v=>Math.min(v,Math.max(0,Math.floor(musicDuration-n))));}}>{n}s</button>)}</div></>:<div className="rivyza-music-help">Duración del video: {editorVideoDuration>0?Math.ceil(editorVideoDuration):"detectando…"} segundos</div>}
            {musicTimeline}
-           <button type="button" className="rivyza-music-listen" onClick={listen}>▶ Escuchar fragmento con video</button>
+           <button type="button" className="rivyza-music-listen" onClick={listen}>▶ Escuchar fragmento</button>
          </>}
        </>:<>
          <div className="rivyza-music-length"><button type="button" onClick={()=>{const n=originalVolume===0?50:0;setOriginalVolume(n);setEditorMixVolume("original",n);}}>Original {originalVolume===0?"🔇":"🎤"}</button><button type="button" onClick={()=>{const n=musicVolume===0?50:0;setMusicVolume(n);setEditorMixVolume("music",n);}}>Música {musicVolume===0?"🔇":"♫"}</button><button type="button" onClick={()=>setMusicPanel("library")}>Elegir fragmento</button></div>
@@ -2153,7 +2161,7 @@ export default function HomePage(){
          </>}
          <label>Original · {originalVolume}%</label><input type="range" min="0" max="100" value={originalVolume} onChange={e=>{const n=Number(e.target.value);setOriginalVolume(n);setEditorMixVolume("original",n);}}/>
          <label>Música · {musicVolume}%</label><input type="range" min="0" max="100" value={musicVolume} onChange={e=>{const n=Number(e.target.value);setMusicVolume(n);setEditorMixVolume("music",n);}}/>
-         {musicSelected&&<button type="button" className="rivyza-music-listen" onClick={listen}>▶ Escuchar mezcla</button>}
+         {musicSelected&&<button type="button" className="rivyza-music-listen" onClick={listen}>▶ Escuchar selección</button>}
          {!musicSelected&&<small>Primero selecciona una canción.</small>}
        </>}
        <button type="button" className="rivyza-music-done" onClick={close}>Listo ✓</button>
@@ -2323,14 +2331,14 @@ export default function HomePage(){
                  ? <img src={uploadPreview} alt="Vista previa"/>
                  : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="metadata" style={{width:"100%"}}
                      onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setEditorVideoDuration(d);}}
-                     onPlay={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
+                     onPlay={()=>{musicPreviewRef.current=false;const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
                      onSeeked={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(v&&a&&musicSelected)a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));}}
                      onPause={()=>editorMusicRef.current?.pause()}
                      onEnded={()=>editorMusicRef.current?.pause()}/>
                }
                {musicSelected&&<audio ref={editorMusicRef} src="/music/muevelo-sin-pensar.mp3" preload="metadata"
                  onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setMusicDuration(d);}}
-                 onTimeUpdate={e=>{const a=e.currentTarget;const clip=uploadType==="video"&&editorVideoDuration>0?editorVideoDuration:musicLength;if(a.currentTime>=musicStart+clip){if(uploadType==="photo")a.currentTime=musicStart;else a.pause();}}}/>}
+                 onTimeUpdate={e=>{const a=e.currentTarget;const clip=uploadType==="video"&&editorVideoDuration>0?editorVideoDuration:musicLength;if(a.currentTime>=musicStart+clip){if(musicPreviewRef.current || uploadType==="photo"){a.currentTime=musicStart;if(musicPreviewRef.current && a.paused)a.play().catch(()=>{});}else a.pause();}}}/>}
              </div>
              <div className="rivyza-music-overlay-actions">
                <button type="button" onClick={()=>setMusicPanel("library")}>♫ {musicSelected?"Cambiar música":"Agregar música"}</button>
