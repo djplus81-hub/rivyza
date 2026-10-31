@@ -2146,10 +2146,19 @@ export default function HomePage(){
 
     setSaving(true);setMessage("");
 
+    // Aviso anticipado; la restricción SQL evita duplicados simultáneos.
+    const desiredName=displayName.trim().replace(/\s+/g," ");
+    const {data:nameMatches,error:nameCheckError}=await supabase.from("profiles")
+      .select("id,display_name").ilike("display_name",desiredName).limit(50);
+    if(nameCheckError){setMessage("No se pudo verificar el nombre. Inténtalo otra vez.");setSaving(false);return;}
+    if((nameMatches||[]).some(p=>p.id!==user.id && p.display_name?.trim().replace(/\s+/g," ").toLocaleLowerCase()===desiredName.toLocaleLowerCase())){
+      setMessage("Este nombre ya está en uso. Elige otro o agrega un número.");setSaving(false);return;
+    }
+
     const payload={
       id:user.id,
       username:clean,
-      display_name:displayName.trim(),
+      display_name:desiredName,
       bio:bio.trim().slice(0,160),
       avatar_url:avatarUrl||null,
      website_url:normalizeExternalUrl(websiteUrl),
@@ -2164,7 +2173,7 @@ export default function HomePage(){
     const {data,error}=await supabase.from("profiles").upsert(payload,{onConflict:"id"}).select().single();
 
     if(error){
-      setMessage(error.code==="23505"?"Ese @usuario ya está ocupado.":"No se pudo guardar el perfil.");
+      setMessage(error.code==="23505"?"El nombre o el @usuario ya está ocupado. Elige otro nombre o agrega un número.":"No se pudo guardar el perfil.");
     }else{
       setProfile(data);
       setUsername(data.username||"");
