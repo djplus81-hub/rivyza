@@ -1569,7 +1569,18 @@ export default function HomePage(){
       const session=data?.session??null;
 
       if(session?.user){
-        await routeSignedInUser(session.user);
+        // Validate against Supabase Auth: a cached session may belong to a deleted user.
+        const {data:verified,error:verifyError}=await supabase.auth.getUser();
+        if(!alive)return;
+        if(verifyError || !verified?.user || verified.user.id!==session.user.id){
+          await supabase.auth.signOut({scope:"local"});
+          if(!alive)return;
+          setUser(null);
+          setProfile(null);
+          setView("home");
+        }else{
+          await routeSignedInUser(verified.user);
+        }
       }else{
         setUser(null);
         setProfile(null);
@@ -2146,13 +2157,13 @@ export default function HomePage(){
 
     setSaving(true);setMessage("");
 
-    // Aviso anticipado; la restricción SQL evita duplicados simultáneos.
+    // Display names may repeat; only @username must be unique.
     const desiredName=displayName.trim().replace(/\s+/g," ");
-    const {data:nameMatches,error:nameCheckError}=await supabase.from("profiles")
-      .select("id,display_name").ilike("display_name",desiredName).limit(50);
-    if(nameCheckError){setMessage("No se pudo verificar el nombre. Inténtalo otra vez.");setSaving(false);return;}
-    if((nameMatches||[]).some(p=>p.id!==user.id && p.display_name?.trim().replace(/\s+/g," ").toLocaleLowerCase()===desiredName.toLocaleLowerCase())){
-      setMessage("Este nombre ya está en uso. Elige otro o agrega un número.");setSaving(false);return;
+    const {data:authData,error:authError}=await supabase.auth.getUser();
+    if(authError || !authData?.user || authData.user.id!==user?.id){
+      setMessage("La sesión de esta cuenta ya no es válida. Cierra sesión e inicia el registro nuevamente.");
+      setSaving(false);
+      return;
     }
 
     const payload={
@@ -2173,7 +2184,10 @@ export default function HomePage(){
     const {data,error}=await supabase.from("profiles").upsert(payload,{onConflict:"id"}).select().single();
 
     if(error){
-      setMessage(error.code==="23505"?"El nombre o el @usuario ya está ocupado. Elige otro nombre o agrega un número.":"No se pudo guardar el perfil.");
+      console.error("RIVYZA profile save error:",error);
+      setMessage(error.code==="23505"
+        ? "El @usuario ya está ocupado o hay una restricción de nombres en Supabase. " + (error.message||"")
+        : "No se pudo guardar el perfil: " + (error.message||"Error desconocido"));
     }else{
       setProfile(data);
       setUsername(data.username||"");
