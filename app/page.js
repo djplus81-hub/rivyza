@@ -2141,7 +2141,7 @@ export default function HomePage(){
    };
    const musicTimeline=musicSelected&&<div className="rivyza-music-timeline">
      <div className="rivyza-music-timeline-heading"><strong>Selecciona el fragmento</strong><span>{formatMusicTime(musicStart)} – {formatMusicTime(musicStart+clip)} · {clip.toFixed(1)} s</span></div>
-     <div className="rivyza-music-wave-viewport">
+     <div className="rivyza-music-wave-viewport" role="slider" tabIndex={0} aria-label="Mover fragmento sobre toda la canción" aria-valuemin={0} aria-valuemax={maxStart} aria-valuenow={musicStart} onPointerDown={e=>{e.currentTarget.setPointerCapture?.(e.pointerId);const r=e.currentTarget.getBoundingClientRect();seekMusicStart(((e.clientX-r.left)/r.width)*maxStart);}} onPointerMove={e=>{if(e.buttons!==1)return;const r=e.currentTarget.getBoundingClientRect();seekMusicStart(((e.clientX-r.left)/r.width)*maxStart);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekMusicStart(musicStart+(e.key==="ArrowRight"?.5:-.5));}}}>
        <div className="rivyza-music-wave-track" style={{transform:`translateX(-${maxStart>0?(musicStart/maxStart)*45:0}%)`}}>
          {Array.from({length:90},(_,i)=><span key={i} style={{height:`${20+Math.abs(Math.sin(i*1.67)*Math.cos(i*.37))*70}%`}}/>)}
        </div>
@@ -2349,10 +2349,11 @@ export default function HomePage(){
                  ? <img src={uploadPreview} alt="Vista previa"/>
                  : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="metadata" style={{width:"100%"}}
                      onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setEditorVideoDuration(d);}}
-                     onPlay={()=>{musicPreviewRef.current=false;const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
+                     onPlaying={()=>{musicPreviewRef.current=false;const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
                      onSeeked={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(v&&a&&musicSelected)a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));}}
+                     onTimeUpdate={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v||!a||!musicSelected||v.paused)return;const target=musicStart+v.currentTime;if(Math.abs(a.currentTime-target)>.22)a.currentTime=target;}}
                      onPause={()=>editorMusicRef.current?.pause()}
-                     onEnded={()=>editorMusicRef.current?.pause()}/>
+                     onEnded={()=>{editorMusicRef.current?.pause();}}/>
                }
                {musicSelected&&<audio ref={editorMusicRef} src="/music/muevelo-sin-pensar.mp3" preload="metadata"
                  onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setMusicDuration(d);}}

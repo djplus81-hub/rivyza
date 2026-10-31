@@ -3805,3 +3805,7 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-music-timeline input[type=range]{width:100%;accent-color:#ff4ab1;touch-action:pan-y;min-height:30px}
 .rivyza-music-timeline-times{display:flex;justify-content:space-between;font-size:11px;color:#c4bccc}
 .rivyza-music-timeline small{font-size:12px;line-height:1.35;color:#d4cedc}
+/* RIVYZA MUSIC: movable excerpt window, touch-first iPhone editor */
+.rivyza-music-wave-viewport{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;outline-offset:3px}
+.rivyza-music-wave-viewport:active{cursor:grabbing}
+.rivyza-music-selection-window{pointer-events:none}
