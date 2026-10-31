@@ -2051,7 +2051,7 @@ export default function HomePage(){
        chunkSize:6*1024*1024,
        retryDelays:[0,1000,3000,5000,10000,20000],
        removeFingerprintOnSuccess:true,
-       metadata:{bucketName:"media",objectName:path,contentType:(file.type||"video/mp4").split(";")[0].trim().toLowerCase(),cacheControl:"3600"},
+       metadata:{bucketName:"media",objectName:path,contentType:file.type||"video/mp4",cacheControl:"3600"},
        onError:reject,
        onProgress:(sent,total)=>setPublishStage(`Subiendo video… ${Math.min(100,Math.round(sent/Math.max(1,total)*100))}%`),
        onSuccess:resolve
@@ -2101,7 +2101,7 @@ export default function HomePage(){
          duration_seconds:uploadType==="video" ? Math.ceil(editorVideoDuration||recordLimit) : null,
          music_path:musicSelected?"/music/muevelo-sin-pensar.mp3":null,
          music_title:musicSelected?"Muévelo Sin Pensar (Remastered)":null,
-         music_start_seconds:musicSelected?Math.max(0,Math.floor(Number(musicStart)||0)):null,
+         music_start_seconds:musicSelected?musicStart:null,
          music_clip_seconds:musicSelected?(uploadType==="video"&&editorVideoDuration>0?Math.ceil(editorVideoDuration):musicLength):null,
          original_volume:musicSelected?originalVolume:null,
          music_volume:musicSelected?musicVolume:null
@@ -2167,10 +2167,10 @@ export default function HomePage(){
        v.play().then(()=>{
          if(a&&!v.paused){
            try{a.currentTime=next+v.currentTime;}catch(_){}
-           a.play().catch(()=>setUploadMessage("Toca ▶ para activar la vista previa con audio."));
+           a.play().catch(()=>void 0);
          }
-       }).catch(()=>setUploadMessage("Toca ▶ para escuchar el video y la música juntos."));
-     }else if(a){a.play().catch(()=>setUploadMessage("Toca ▶ para activar el audio."));}
+       }).catch(()=>void 0);
+     }else if(a){a.play().catch(()=>void 0);}
    };
    const seekMusicStart=(n)=>{
      const next=Math.max(0,Math.min(maxStart,Number(n)||0));
@@ -2433,13 +2433,15 @@ export default function HomePage(){
 
            {(uploadMessage || publishStage) && <div className="upload-message" role="status" aria-live="polite">{uploadMessage.startsWith("Error")?uploadMessage:(publishStage||uploadMessage)}</div>}
 
-           <button
-             className="publish-post-btn"
-             onClick={publishPost}
-             disabled={!uploadFile || uploadingPost}
-           >
-             {uploadingPost ? (publishStage||"Publicando…") : "Publicar"}
-           </button>
+           <div className="rivyza-publish-footer">
+             <button
+               className="publish-post-btn"
+               onClick={publishPost}
+               disabled={!uploadFile || uploadingPost}
+             >
+               {uploadingPost ? (publishStage||"Publicando…") : "Publicar"}
+             </button>
+           </div>
          </div>
        )}
      </div>

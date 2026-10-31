@@ -3816,8 +3816,24 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-music-selection-window{min-width:0;max-width:none;transform:none;box-sizing:border-box;overflow:hidden}
 .rivyza-music-selection-window strong{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* RIVYZA v8.2: publication action stays visible above iPhone safe area. */
-.upload-card{box-sizing:border-box;padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px));}
-.upload-card .publish-post-btn{position:sticky;bottom:0;z-index:12;display:block;margin-top:12px;box-shadow:0 -7px 18px rgba(15,17,24,.9);}
-.upload-card .upload-message{overflow-wrap:anywhere;word-break:break-word;}
-@media(max-width:560px){.upload-card{max-height:calc(100dvh - env(safe-area-inset-top, 0px) - 10px);}}
+/* RIVYZA v8.3: botón Publicar visible sobre la zona segura del iPhone. */
+.camera-composer .post-editor-screen {
+  height: 100dvh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+.camera-composer .post-editor-screen .rivyza-publish-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
+  margin: 12px -16px 0;
+  padding: 12px 16px max(18px, env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, rgba(15,17,24,.96), #0f1118 30%);
+}
+.camera-composer .post-editor-screen .rivyza-publish-footer .publish-post-btn {
+  display: block;
+  min-height: 52px;
+  width: 100%;
+}
