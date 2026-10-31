@@ -555,6 +555,8 @@ export default function HomePage(){
   const [musicPanel,setMusicPanel]=useState("");
   const [musicStart,setMusicStart]=useState(0);
   const [musicLength,setMusicLength]=useState(15);
+  const [musicDuration,setMusicDuration]=useState(157);
+  const [editorVideoDuration,setEditorVideoDuration]=useState(0);
   const [originalVolume,setOriginalVolume]=useState(50);
   const [musicVolume,setMusicVolume]=useState(50);
   const editorMusicRef=useRef(null);
@@ -1923,7 +1925,7 @@ export default function HomePage(){
    setUploadFile(null);
    setUploadPreview("");
    setUploadCaption("");
-   setMusicSelected(false);setMusicPanel("");setMusicStart(0);setMusicLength(15);
+   setMusicSelected(false);setMusicPanel("");setMusicStart(0);setMusicLength(15);setEditorVideoDuration(0);
    setOriginalVolume(50);setMusicVolume(50);
    setUploadVisibility("public");
    setUploadMessage("");
@@ -1996,7 +1998,7 @@ export default function HomePage(){
          music_path:musicSelected?"/music/muevelo-sin-pensar.mp3":null,
          music_title:musicSelected?"Muévelo Sin Pensar (Remastered)":null,
          music_start_seconds:musicSelected?musicStart:null,
-         music_clip_seconds:musicSelected?musicLength:null,
+         music_clip_seconds:musicSelected?(uploadType==="video"&&editorVideoDuration>0?Math.ceil(editorVideoDuration):musicLength):null,
          original_volume:musicSelected?originalVolume:null,
          music_volume:musicSelected?musicVolume:null
        })
@@ -2032,6 +2034,41 @@ export default function HomePage(){
    }
  }
 
+
+ function renderMusicSheet(inCamera){
+   const clip=uploadType==="video"&&editorVideoDuration>0?editorVideoDuration:musicLength;
+   const maxStart=Math.max(0,Math.floor(musicDuration-clip));
+   const close=()=>{editorMusicRef.current?.pause();setMusicPanel("");};
+   const listen=()=>{
+     const a=editorMusicRef.current,v=editorVideoRef.current;
+     if(a){a.currentTime=musicStart;a.volume=musicVolume/100;a.play().catch(()=>{});}
+     if(v){v.currentTime=0;v.volume=originalVolume/100;v.play().catch(()=>{});}
+   };
+   return <div className="rivyza-music-modal" role="dialog" aria-modal="true" aria-label="RIVYZA MUSIC">
+     <div className="rivyza-music-modal-backdrop" onClick={close}/>
+     <div className="rivyza-music-modal-content">
+       <div className="rivyza-music-modal-heading"><strong>{musicPanel==="library"?"RIVYZA MUSIC":"Editar audio"}</strong><button type="button" onClick={close} aria-label="Cerrar">✕</button></div>
+       {musicPanel==="library"?<>
+         <button type="button" className="rivyza-music-track" onClick={()=>{setMusicSelected(true);setMusicPanel(inCamera?"":"audio");}}>♫ Muévelo Sin Pensar (Remastered) — DJ Plus</button>
+         {!inCamera&&<>
+           <div className="rivyza-music-help">Mueve la barra para elegir el pedazo exacto de la canción.</div>
+           {uploadType==="photo"?<><label>Duración de foto con música</label><div className="rivyza-music-length">{[15,30,60].map(n=><button type="button" key={n} className={musicLength===n?"active":""} onClick={()=>{setMusicLength(n);setMusicStart(v=>Math.min(v,Math.max(0,Math.floor(musicDuration-n))));}}>{n}s</button>)}</div></>:<div className="rivyza-music-help">Duración del video: {editorVideoDuration>0?Math.ceil(editorVideoDuration):"detectando…"} segundos</div>}
+           <label>Inicio de canción: {musicStart}s de {Math.floor(musicDuration)}s</label>
+           <input type="range" min="0" max={maxStart} step="1" value={Math.min(musicStart,maxStart)} onChange={e=>{const n=Number(e.target.value);setMusicStart(n);const a=editorMusicRef.current;if(a){a.currentTime=n;a.volume=musicVolume/100;a.play().catch(()=>{});}if(editorVideoRef.current){editorVideoRef.current.pause();editorVideoRef.current.currentTime=0;}}}/>
+           <div className="rivyza-music-help">Fragmento elegido: {musicStart}s a {Math.ceil(musicStart+clip)}s</div>
+           <button type="button" className="rivyza-music-listen" onClick={listen}>▶ Escuchar fragmento con video</button>
+         </>}
+       </>:<>
+         <div className="rivyza-music-length"><button type="button" onClick={()=>setOriginalVolume(v=>v===0?50:0)}>Original {originalVolume===0?"🔇":"🎤"}</button><button type="button" onClick={()=>setMusicVolume(v=>v===0?50:0)}>Música {musicVolume===0?"🔇":"♫"}</button><button type="button" onClick={()=>setMusicPanel("library")}>Elegir fragmento</button></div>
+         <label>Original · {originalVolume}%</label><input type="range" min="0" max="100" value={originalVolume} onChange={e=>{const n=Number(e.target.value);setOriginalVolume(n);if(editorVideoRef.current)editorVideoRef.current.volume=n/100;}}/>
+         <label>Música · {musicVolume}%</label><input type="range" min="0" max="100" value={musicVolume} onChange={e=>{const n=Number(e.target.value);setMusicVolume(n);if(editorMusicRef.current)editorMusicRef.current.volume=n/100;}}/>
+         {musicSelected&&<button type="button" className="rivyza-music-listen" onClick={listen}>▶ Escuchar mezcla</button>}
+         {!musicSelected&&<small>Primero selecciona una canción.</small>}
+       </>}
+       <button type="button" className="rivyza-music-done" onClick={close}>Listo ✓</button>
+     </div>
+   </div>;
+ }
 
  function renderUploadModal(){
    if(!uploadOpen || typeof document==="undefined") return null;
@@ -2075,10 +2112,11 @@ export default function HomePage(){
                <button className="camera-icon-btn" onClick={async()=>{await stopCamera();setUploadOpen(false);}}>
                  <X size={30}/>
                </button>
-               <div className="camera-brand-pill">RIVYZA</div>
+               <button type="button" className="rivyza-camera-add-sound" onClick={()=>setMusicPanel("library")}>♫ {musicSelected?"Muévelo Sin Pensar":"Agregar música"} <span>⌄</span></button>
                <button className="camera-icon-btn" onClick={flipCamera}>↻</button>
              </div>
 {cameraError && <div className="camera-error">{cameraError}</div>}
+             {musicPanel==="library"&&renderMusicSheet(true)}
 
              <div
                className={`camera-bottom ${cameraPanelCollapsed?"collapsed":""}`}
@@ -2188,34 +2226,28 @@ export default function HomePage(){
              <button onClick={async()=>{resetUpload();await stopCamera();setUploadOpen(false);}}><X/></button>
            </div>
 
-           <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
-             {uploadType==="photo"
-               ? <img src={uploadPreview} alt="Vista previa"/>
-               : <video ref={editorVideoRef} src={uploadPreview} controls playsInline style={{width:"100%"}} onPlay={()=>{if(editorVideoRef.current)editorVideoRef.current.volume=musicSelected?originalVolume/100:1;if(musicSelected&&editorMusicRef.current){editorMusicRef.current.currentTime=musicStart;editorMusicRef.current.volume=musicVolume/100;editorMusicRef.current.play().catch(()=>{});}}} onPause={()=>editorMusicRef.current?.pause()}/>
-             }
-             {musicSelected&&<audio ref={editorMusicRef} src="/music/muevelo-sin-pensar.mp3" onTimeUpdate={e=>{if(e.currentTarget.currentTime>=musicStart+musicLength){e.currentTarget.currentTime=musicStart;if(uploadType==='photo')e.currentTarget.play().catch(()=>{});else e.currentTarget.pause();}}}/>}
+           <div className="rivyza-music-stage">
+             <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
+               {uploadType==="photo"
+                 ? <img src={uploadPreview} alt="Vista previa"/>
+                 : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="metadata" style={{width:"100%"}}
+                     onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setEditorVideoDuration(d);}}
+                     onPlay={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));a.volume=musicVolume/100;a.play().catch(()=>{});}}}
+                     onSeeked={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(v&&a&&musicSelected)a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));}}
+                     onPause={()=>editorMusicRef.current?.pause()}
+                     onEnded={()=>editorMusicRef.current?.pause()}/>
+               }
+               {musicSelected&&<audio ref={editorMusicRef} src="/music/muevelo-sin-pensar.mp3" preload="metadata"
+                 onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setMusicDuration(d);}}
+                 onTimeUpdate={e=>{const a=e.currentTarget;const clip=uploadType==="video"&&editorVideoDuration>0?editorVideoDuration:musicLength;if(a.currentTime>=musicStart+clip){if(uploadType==="photo")a.currentTime=musicStart;else a.pause();}}}/>}
+             </div>
+             <div className="rivyza-music-overlay-actions">
+               <button type="button" onClick={()=>setMusicPanel("library")}>♫ {musicSelected?"Cambiar música":"Agregar música"}</button>
+               <button type="button" onClick={()=>setMusicPanel("audio")}>🎚 Editar audio</button>
+             </div>
            </div>
-           <div className="rivyza-music-editor">
-             <button type="button" className="rivyza-music-add" onClick={()=>setMusicPanel("library")}>♫ {musicSelected?"Cambiar música":"Agregar música"}</button>
-             <button type="button" className="rivyza-music-add" onClick={()=>setMusicPanel("audio")}>Editar audio</button>
-             {musicSelected&&<small>♫ Muévelo Sin Pensar (Remastered) · DJ Plus</small>}
-             {musicPanel&&<div className="rivyza-music-sheet">
-               <strong>{musicPanel==="library"?"RIVYZA MUSIC":"Editar audio"}</strong>
-               {musicPanel==="library"?<>
-                 <button type="button" className="rivyza-music-track" onClick={()=>{setMusicSelected(true);setMusicPanel("audio");}}>♫ Muévelo Sin Pensar (Remastered) — DJ Plus ✓</button>
-                 <label>Duración del fragmento</label>
-                 <div className="rivyza-music-length">{[15,30,60].map(n=><button type="button" key={n} className={musicLength===n?"active":""} onClick={()=>setMusicLength(n)}>{n}s</button>)}</div>
-                 <label>Inicio de la canción: {musicStart}s</label><input type="range" min="0" max="90" value={musicStart} onChange={e=>setMusicStart(Number(e.target.value))}/>
-               </>:<>
-                 <div className="rivyza-music-length"><button type="button" onClick={()=>setOriginalVolume(v=>v===0?50:0)}>Original {originalVolume===0?"🔇":"🎤"}</button><button type="button" onClick={()=>setMusicVolume(v=>v===0?50:0)}>Música {musicVolume===0?"🔇":"♫"}</button><button type="button">Volumen</button></div>
-                 <label>Original · {originalVolume}%</label><input type="range" min="0" max="100" value={originalVolume} onChange={e=>{setOriginalVolume(Number(e.target.value));if(editorVideoRef.current)editorVideoRef.current.volume=Number(e.target.value)/100;}}/>
-                 <label>Música · {musicVolume}%</label><input type="range" min="0" max="100" value={musicVolume} onChange={e=>{setMusicVolume(Number(e.target.value));if(editorMusicRef.current)editorMusicRef.current.volume=Number(e.target.value)/100;}}/>
-                 {!musicSelected&&<small>Primero selecciona una canción en Agregar música.</small>}
-                 {musicSelected&&<button type="button" onClick={()=>{if(editorMusicRef.current){editorMusicRef.current.currentTime=musicStart;editorMusicRef.current.volume=musicVolume/100;editorMusicRef.current.play().catch(()=>{});}if(editorVideoRef.current){editorVideoRef.current.volume=originalVolume/100;editorVideoRef.current.play().catch(()=>{});}}}>▶ Escuchar mezcla</button>}
-               </>}
-               <button type="button" className="rivyza-music-done" onClick={()=>{editorMusicRef.current?.pause();setMusicPanel("");}}>Listo ✓</button>
-             </div>}
-           </div>
+           {musicSelected&&<div className="rivyza-music-selected">♫ Muévelo Sin Pensar (Remastered) · DJ Plus</div>}
+           {musicPanel&&renderMusicSheet(false)}
 
            <label className="upload-field">
              <span>Descripción</span>

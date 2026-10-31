@@ -3740,3 +3740,53 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-music-sheet label{font-size:13px;font-weight:700}.rivyza-music-sheet input[type=range]{width:100%;accent-color:#ff2ea6}
 .rivyza-music-length{display:flex;gap:8px;flex-wrap:wrap}.rivyza-music-length button{flex:1;border:1px solid #ffffff33;background:#242438;color:white;padding:9px;border-radius:10px}.rivyza-music-length .active,.rivyza-music-done{background:linear-gradient(100deg,#ff2ea6,#8b2cff)}
 .rivyza-music-feed,.rivyza-music-detail{width:100%;height:100%;position:relative}.rivyza-music-feed>.feed-media,.rivyza-music-detail>img,.rivyza-music-detail>video{width:100%;height:100%;object-fit:contain}.rivyza-music-credit{position:absolute;bottom:6px;left:8px;max-width:90%;font-size:11px;background:#0009;color:#fff;border-radius:7px;padding:5px;pointer-events:none}
+
+/* RIVYZA MUSIC: editor compacto, controles sobre el video y selector visible en iPhone */
+.post-editor-screen .rivyza-music-stage{position:relative;width:min(100%,310px);margin:0 auto 12px}
+.post-editor-screen .rivyza-music-stage .upload-preview.editor-preview-video{width:100%!important;max-height:43svh!important;height:min(43svh,550px)!important;aspect-ratio:9/16!important;margin:0!important}
+.post-editor-screen .rivyza-music-stage .upload-preview.editor-preview-video video{height:100%!important}
+.post-editor-screen .rivyza-music-stage .upload-preview:not(.editor-preview-video){max-height:43svh;overflow:hidden}
+.rivyza-music-overlay-actions{position:absolute;bottom:12px;left:8px;right:8px;z-index:4;display:flex;gap:6px;justify-content:center;pointer-events:none}
+.rivyza-music-overlay-actions button{pointer-events:auto;flex:1;min-width:0;padding:10px 5px;border:1px solid #ffffffa0;border-radius:14px;background:#10101cdb;color:white;font-size:12px;font-weight:800;box-shadow:0 2px 10px #000a}
+.rivyza-music-selected{text-align:center;font-size:12px;color:#ddd;padding:2px 10px 10px}
+.rivyza-music-modal{position:fixed;inset:0;z-index:9999;display:flex;align-items:flex-end;justify-content:center}
+.rivyza-music-modal-backdrop{position:absolute;inset:0;background:#000a}
+.rivyza-music-modal-content{position:relative;width:min(560px,100%);max-height:min(74svh,680px);overflow-y:auto;overscroll-behavior:contain;display:grid;gap:12px;padding:18px 18px max(24px,env(safe-area-inset-bottom));background:#141421;border:1px solid #ffffff33;border-radius:22px 22px 0 0;box-shadow:0 -12px 50px #0009;color:white}
+.rivyza-music-modal-heading{display:flex;align-items:center;justify-content:space-between}
+.rivyza-music-modal-heading button{border:0;background:none;color:#fff;font-size:24px}
+.rivyza-music-modal-content label{font-size:14px;font-weight:700}
+.rivyza-music-modal-content input[type=range]{width:100%;accent-color:#ff2ea6;min-height:30px}
+.rivyza-music-modal-content .rivyza-music-length{display:flex;gap:6px}
+.rivyza-music-modal-content .rivyza-music-length button{flex:1;min-width:0;padding:10px 5px;border-radius:10px;border:1px solid #ffffff44;background:#242438;color:white;font-size:13px}
+.rivyza-music-modal-content .rivyza-music-length button.active{background:#8b2cff}
+.rivyza-music-modal-content .rivyza-music-track,.rivyza-music-listen,.rivyza-music-modal-content .rivyza-music-done{padding:13px;border:1px solid #ffffff44;border-radius:12px;background:#25243a;color:#fff;font-weight:700}
+.rivyza-music-modal-content .rivyza-music-done{background:linear-gradient(100deg,#ff2ea6,#8b2cff)}
+.rivyza-music-help{font-size:13px;line-height:1.4;color:#c6c4d0}
+
+/* RIVYZA MUSIC v2: camera full-screen and bottom music sheet */
+.camera-composer .camera-stage{height:100dvh;min-height:100svh}
+.camera-composer .camera-live{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.camera-composer .camera-topbar{grid-template-columns:50px minmax(0,1fr) 50px;z-index:30}
+.rivyza-camera-add-sound{justify-self:center;max-width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#17171bbd;color:#fff;border:1px solid #ffffff4d;border-radius:24px;padding:11px 15px;font-size:14px;font-weight:800;box-shadow:0 2px 14px #0005}
+.rivyza-camera-add-sound span{opacity:.75;margin-left:7px}
+.camera-composer .camera-bottom{z-index:12;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+.camera-composer .camera-mode-tabs{overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.post-editor-screen .rivyza-music-stage{position:relative;width:min(100%,360px);margin:0 auto 10px}
+.post-editor-screen .rivyza-music-stage .upload-preview.editor-preview-video{height:min(55svh,570px)!important;max-height:55svh!important;width:100%!important;aspect-ratio:9/16!important;margin:0!important}
+.post-editor-screen .rivyza-music-stage .upload-preview.editor-preview-video video{height:100%!important;width:100%!important;object-fit:contain}
+.rivyza-music-overlay-actions{position:absolute;bottom:12px;left:9px;right:9px;z-index:4;display:flex;gap:7px}
+.rivyza-music-overlay-actions button{flex:1;min-width:0;padding:11px 5px;border:1px solid #ffffff8c;border-radius:12px;background:#11121cdb;color:white;font-size:12px;font-weight:800}
+.rivyza-music-selected{text-align:center;font-size:12px;color:#ddd;padding:3px 10px 12px}
+.rivyza-music-modal{position:fixed;inset:0;z-index:10050;display:flex;align-items:flex-end;justify-content:center}
+.rivyza-music-modal-backdrop{position:absolute;inset:0;background:#000b}
+.rivyza-music-modal-content{position:relative;width:min(560px,100%);max-height:78dvh;overflow-y:auto;overscroll-behavior:contain;display:grid;gap:12px;padding:18px 18px max(26px,env(safe-area-inset-bottom));background:#141421;border:1px solid #ffffff33;border-radius:22px 22px 0 0;color:white}
+.rivyza-music-modal-heading{display:flex;align-items:center;justify-content:space-between}
+.rivyza-music-modal-heading button{background:none;border:0;color:white;font-size:25px}
+.rivyza-music-modal-content label{font-size:14px;font-weight:700}
+.rivyza-music-modal-content input[type=range]{width:100%;min-height:32px;accent-color:#ff2ea6}
+.rivyza-music-modal-content .rivyza-music-length{display:flex;gap:7px}
+.rivyza-music-modal-content .rivyza-music-length button{flex:1;min-width:0;padding:10px 5px;border:1px solid #ffffff44;border-radius:10px;background:#242438;color:white}
+.rivyza-music-modal-content .rivyza-music-length button.active{background:#8b2cff}
+.rivyza-music-modal-content .rivyza-music-track,.rivyza-music-modal-content .rivyza-music-listen,.rivyza-music-modal-content .rivyza-music-done{padding:13px;border:1px solid #ffffff44;border-radius:12px;background:#25243a;color:#fff;font-weight:700}
+.rivyza-music-modal-content .rivyza-music-done{background:linear-gradient(100deg,#ff2ea6,#8b2cff)}
+.rivyza-music-help{font-size:13px;color:#c6c4d0;line-height:1.4}
