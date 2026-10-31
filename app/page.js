@@ -581,6 +581,7 @@ export default function HomePage(){
   const editorVideoRef=useRef(null);
   const editorMixRef=useRef(null);
   const musicPreviewRef=useRef(false);
+  const musicDragRef=useRef(null);
   const [publishStage,setPublishStage]=useState("");
   const [uploadVisibility,setUploadVisibility]=useState("public");
   const [uploadingPost,setUploadingPost]=useState(false);
@@ -2030,15 +2031,36 @@ export default function HomePage(){
  async function withPublishTimeout(promise,seconds,stage){
    let timer;
    try{
-     return await Promise.race([
-       Promise.resolve(promise),
-       new Promise((_,reject)=>{
-         timer=setTimeout(()=>reject(new Error(
-           `La operación "${stage}" tardó más de ${seconds} segundos. Revisa tu conexión y el almacenamiento de Supabase. El archivo podría seguir subiendo en segundo plano.`
-         )),seconds*1000);
-       })
-     ]);
+     return await Promise.race([Promise.resolve(promise),new Promise((_,reject)=>{
+       timer=setTimeout(()=>reject(new Error(`La operación "${stage}" tardó más de ${seconds} segundos.`)),seconds*1000);
+     })]);
    }finally{clearTimeout(timer);}
+ }
+ // Supabase Storage resumable upload: 6MB chunks, retry on temporary network errors.
+ async function uploadVideoResumable(file,path){
+   const {Upload}=await import("tus-js-client");
+   const {data:{session},error:sessionError}=await supabase.auth.getSession();
+   if(sessionError||!session?.access_token)throw new Error("Tu sesión venció. Vuelve a iniciar sesión.");
+   const base=process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/,"");
+   if(!base)throw new Error("Falta configurar la URL de Supabase.");
+   await new Promise((resolve,reject)=>{
+     const upload=new Upload(file,{
+       endpoint:`${base}/storage/v1/upload/resumable`,
+       headers:{authorization:`Bearer ${session.access_token}`,apikey:process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY},
+       uploadDataDuringCreation:true,
+       chunkSize:6*1024*1024,
+       retryDelays:[0,1000,3000,5000,10000,20000],
+       removeFingerprintOnSuccess:true,
+       metadata:{bucketName:"media",objectName:path,contentType:file.type||"video/mp4",cacheControl:"3600"},
+       onError:reject,
+       onProgress:(sent,total)=>setPublishStage(`Subiendo video… ${Math.min(100,Math.round(sent/Math.max(1,total)*100))}%`),
+       onSuccess:resolve
+     });
+     upload.findPreviousUploads().then(previous=>{
+       if(previous.length)upload.resumeFromPreviousUpload(previous[0]);
+       upload.start();
+     }).catch(reject);
+   });
  }
  async function publishPost(){
    if(!user || !supabase || !uploadFile){
@@ -2054,15 +2076,16 @@ export default function HomePage(){
      const ext=(uploadFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
      const path=`${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-     const {error:uploadError}=await withPublishTimeout(
-       supabase.storage.from("media").upload(path,uploadFile,{
-         cacheControl:"3600",
-         upsert:false,
-         contentType:uploadFile.type
-       }),60,"Subir foto o video"
-     );
-
-     if(uploadError)throw uploadError;
+     if(uploadType==="video"){
+       await uploadVideoResumable(uploadFile,path);
+     }else{
+       const {error:uploadError}=await withPublishTimeout(
+         supabase.storage.from("media").upload(path,uploadFile,{
+           cacheControl:"3600",upsert:false,contentType:uploadFile.type
+         }),90,"Subir foto"
+       );
+       if(uploadError)throw uploadError;
+     }
 
      setPublishStage("Guardando publicación…");
      const {data:pub}=supabase.storage.from("media").getPublicUrl(path);
@@ -2075,7 +2098,7 @@ export default function HomePage(){
          media_path:publicUrl || path,
          caption:uploadCaption.trim() || null,
          visibility:uploadVisibility,
-         duration_seconds:uploadType==="video" ? recordLimit : null,
+         duration_seconds:uploadType==="video" ? Math.ceil(editorVideoDuration||recordLimit) : null,
          music_path:musicSelected?"/music/muevelo-sin-pensar.mp3":null,
          music_title:musicSelected?"Muévelo Sin Pensar (Remastered)":null,
          music_start_seconds:musicSelected?musicStart:null,
@@ -2125,40 +2148,60 @@ export default function HomePage(){
      const v=Math.max(0,Math.floor(Number(seconds)||0));
      return `${Math.floor(v/60)}:${String(v%60).padStart(2,"0")}`;
    };
+   const playMixedPreview=(next=musicStart)=>{
+     const a=editorMusicRef.current,v=editorVideoRef.current;
+     musicPreviewRef.current=true;
+     const mixed=prepareEditorMix();
+     if(v){
+       v.pause();
+       try{v.currentTime=0;}catch(_){}
+       if(!mixed)v.volume=originalVolume/100;
+     }
+     if(a){
+       a.pause();
+       try{a.currentTime=next;}catch(_){}
+       if(!mixed)a.volume=musicVolume/100;
+     }
+     if(v){
+       // The video is the clock: start its original audio and the music together.
+       v.play().then(()=>{
+         if(a&&!v.paused){
+           try{a.currentTime=next+v.currentTime;}catch(_){}
+           a.play().catch(()=>setUploadMessage("Toca ▶ para activar la vista previa con audio."));
+         }
+       }).catch(()=>setUploadMessage("Toca ▶ para escuchar el video y la música juntos."));
+     }else if(a){a.play().catch(()=>setUploadMessage("Toca ▶ para activar el audio."));}
+   };
    const seekMusicStart=(n)=>{
      const next=Math.max(0,Math.min(maxStart,Number(n)||0));
      setMusicStart(next);
-     const a=editorMusicRef.current;
-     const v=editorVideoRef.current;
-     if(v){v.pause();v.currentTime=0;}
-     musicPreviewRef.current=true;
-     if(a){
-       try{a.currentTime=next;}catch(_){}
-       const mixed=prepareEditorMix();
-       if(!mixed)a.volume=musicVolume/100;
-       a.play().catch(()=>setUploadMessage("Para activar el audio, toca ▶ Escuchar una vez."));
-     }
+     playMixedPreview(next);
+   };
+   const dragTimeline=(e)=>{
+     const r=e.currentTarget.getBoundingClientRect();
+     if(!r.width)return;
+     const ratio=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+     const next=(ratio*musicDuration)-(musicDragRef.current?.offset??clip/2);
+     seekMusicStart(next);
    };
    const musicTimeline=musicSelected&&<div className="rivyza-music-timeline">
-     <div className="rivyza-music-timeline-heading"><strong>Selecciona el fragmento</strong><span>{formatMusicTime(musicStart)} – {formatMusicTime(musicStart+clip)} · {clip.toFixed(1)} s</span></div>
-     <div className="rivyza-music-wave-viewport" role="slider" tabIndex={0} aria-label="Mover fragmento sobre toda la canción" aria-valuemin={0} aria-valuemax={maxStart} aria-valuenow={musicStart} onPointerDown={e=>{e.currentTarget.setPointerCapture?.(e.pointerId);const r=e.currentTarget.getBoundingClientRect();seekMusicStart(((e.clientX-r.left)/r.width)*maxStart);}} onPointerMove={e=>{if(e.buttons!==1)return;const r=e.currentTarget.getBoundingClientRect();seekMusicStart(((e.clientX-r.left)/r.width)*maxStart);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekMusicStart(musicStart+(e.key==="ArrowRight"?.5:-.5));}}}>
-       <div className="rivyza-music-wave-track" style={{transform:`translateX(-${maxStart>0?(musicStart/maxStart)*45:0}%)`}}>
+     <div className="rivyza-music-timeline-heading"><strong>Arrastra el fragmento</strong><span>{formatMusicTime(musicStart)} – {formatMusicTime(musicStart+clip)} · {clip.toFixed(1)} s</span></div>
+     <div className="rivyza-music-wave-viewport" role="slider" tabIndex={0} aria-label="Arrastra el fragmento de música sobre la canción completa" aria-valuemin={0} aria-valuemax={maxStart} aria-valuenow={musicStart}
+       onPointerDown={e=>{const r=e.currentTarget.getBoundingClientRect();const at=(e.clientX-r.left)/Math.max(1,r.width)*musicDuration;musicDragRef.current={offset:at>=musicStart&&at<=musicStart+clip?at-musicStart:clip/2};e.currentTarget.setPointerCapture?.(e.pointerId);dragTimeline(e);}}
+       onPointerMove={e=>{if(musicDragRef.current)dragTimeline(e);}}
+       onPointerUp={e=>{musicDragRef.current=null;e.currentTarget.releasePointerCapture?.(e.pointerId);}}
+       onPointerCancel={()=>{musicDragRef.current=null;}}
+       onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekMusicStart(musicStart+(e.key==="ArrowRight"?.5:-.5));}}}>
+       <div className="rivyza-music-wave-track">
          {Array.from({length:90},(_,i)=><span key={i} style={{height:`${20+Math.abs(Math.sin(i*1.67)*Math.cos(i*.37))*70}%`}}/>)}
        </div>
-       <div className="rivyza-music-selection-window" aria-hidden="true"><span className="rivyza-music-handle"/><strong>{Math.round(clip)} s</strong><span className="rivyza-music-handle"/></div>
+       <div className="rivyza-music-selection-window" style={{left:`${musicStart/Math.max(1,musicDuration)*100}%`,width:`${Math.min(100,clip/Math.max(1,musicDuration)*100)}%`,transform:"none",minWidth:0,maxWidth:"none"}} aria-hidden="true"><span className="rivyza-music-handle"/><strong>{Math.round(clip)} s</strong><span className="rivyza-music-handle"/></div>
      </div>
-     <input aria-label="Desliza la canción para elegir el inicio del fragmento" type="range" min="0" max={maxStart} step="0.5" value={Math.min(musicStart,maxStart)} onChange={e=>seekMusicStart(e.target.value)}/>
      <div className="rivyza-music-timeline-times"><span>0:00</span><span>Canción completa: {formatMusicTime(musicDuration)}</span></div>
-     <small>Desliza hasta cualquier parte de la canción. Al mover el selector escucharás el fragmento y se repetirá automáticamente.</small>
+     <small>Arrastra la zona rosa a cualquier parte de la canción. Escucharás la música y el audio original del video al mismo tiempo.</small>
    </div>;
    const close=()=>{musicPreviewRef.current=false;editorMusicRef.current?.pause();editorVideoRef.current?.pause();setMusicPanel("");};
-   const listen=()=>{
-     const a=editorMusicRef.current,v=editorVideoRef.current;
-     musicPreviewRef.current=true;
-     if(v){v.pause();v.currentTime=0;}
-     const mixed=prepareEditorMix();
-     if(a){a.currentTime=musicStart;if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>setUploadMessage("Toca reproducir otra vez para activar el sonido."));}
-   };
+   const listen=()=>playMixedPreview(musicStart);
    return <div className="rivyza-music-modal" role="dialog" aria-modal="true" aria-label="RIVYZA MUSIC">
      <div className="rivyza-music-modal-backdrop" onClick={close}/>
      <div className="rivyza-music-modal-content">
@@ -2349,7 +2392,7 @@ export default function HomePage(){
                  ? <img src={uploadPreview} alt="Vista previa"/>
                  : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="metadata" style={{width:"100%"}}
                      onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setEditorVideoDuration(d);}}
-                     onPlaying={()=>{musicPreviewRef.current=false;const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
+                     onPlaying={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
                      onSeeked={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(v&&a&&musicSelected)a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));}}
                      onTimeUpdate={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v||!a||!musicSelected||v.paused)return;const target=musicStart+v.currentTime;if(Math.abs(a.currentTime-target)>.22)a.currentTime=target;}}
                      onPause={()=>editorMusicRef.current?.pause()}

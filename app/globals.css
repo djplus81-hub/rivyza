@@ -3809,3 +3809,9 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-music-wave-viewport{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;outline-offset:3px}
 .rivyza-music-wave-viewport:active{cursor:grabbing}
 .rivyza-music-selection-window{pointer-events:none}
+
+/* RIVYZA MUSIC: draggable full-song selection window (v8) */
+.rivyza-music-wave-track{width:100%;transform:none!important;left:0;transition:none}
+.rivyza-music-wave-viewport{touch-action:none;min-height:80px}
+.rivyza-music-selection-window{min-width:0;max-width:none;transform:none;box-sizing:border-box;overflow:hidden}
+.rivyza-music-selection-window strong{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
