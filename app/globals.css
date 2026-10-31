@@ -3725,3 +3725,10 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-presence-anchor:has(>.rivyza-status-ring-marker)>img,.rivyza-presence-anchor:has(>.rivyza-status-ring-marker)>.public-profile-photo,.rivyza-presence-avatar:has(>.rivyza-status-ring-marker)>img,.rivyza-presence-avatar:has(>.rivyza-status-ring-marker)>.connections-fallback,.avatar-action:has(>.rivyza-status-ring-marker)>img,.avatar-action:has(>.rivyza-status-ring-marker)>.mini-avatar{border-color:var(--rivyza-avatar-ring)!important}
 /* La insignia del propietario siempre roja. */
 .rivyza-public-strikes,.rivyza-public-strikes>span{color:#ff405c!important}
+
+/* Avatar rojo: enlace al LIVE sin añadir aros ni alterar el tamaño. */
+.visitor-avatar-wrap:has(>.rivyza-profile-live-avatar){pointer-events:auto!important}
+.rivyza-profile-live-avatar{display:block;width:92px;height:92px;padding:0;margin:0;border:0;background:transparent;border-radius:50%;cursor:pointer;overflow:visible}
+.rivyza-profile-live-avatar>.public-profile-photo{display:block;width:92px;height:92px}
+.visitor-avatar-wrap.rivyza-presence-anchor:has(>.rivyza-status-live)>.rivyza-profile-live-avatar>.public-profile-photo{border:3px solid #f13b51!important;background-image:none!important;box-shadow:none!important;outline:0!important}
+.rivyza-profile-live-avatar:focus-visible{outline:2px solid #fff;outline-offset:4px}

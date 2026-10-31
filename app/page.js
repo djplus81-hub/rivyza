@@ -332,6 +332,7 @@ export default function HomePage(){
   const [onlineIds,setOnlineIds]=useState([]);
   // El aro original cambia de color sin crear otro borde ni un punto verde.
   const [liveHostIds,setLiveHostIds]=useState([]);
+  const [liveHostRooms,setLiveHostRooms]=useState([]);
   const onlineDot=(id)=>{
     if(!id)return null;
     const live=liveHostIds.includes(id);
@@ -348,13 +349,28 @@ export default function HomePage(){
         const response=await fetch("/api/live",{headers:{Authorization:`Bearer ${data.session.access_token}`},cache:"no-store"});
         if(!response.ok)return;
         const result=await response.json();
-        if(mounted)setLiveHostIds((result.rooms||[]).map(room=>room.host_id).filter(Boolean));
+        if(mounted){setLiveHostRooms(result.rooms||[]);setLiveHostIds((result.rooms||[]).map(room=>room.host_id).filter(Boolean));}
       }catch(e){}
     }
     updateLiveHosts();const interval=setInterval(updateLiveHosts,15000);
     return()=>{mounted=false;clearInterval(interval)};
   },[supabase,user?.id]);
 
+  // Tocar el avatar rojo abre el LIVE como espectador, nunca como invitado.
+  async function enterProfileLive(hostId){
+    if(!supabase||!hostId)return;
+    try{
+      const {data}=await supabase.auth.getSession();
+      if(!data?.session){alert("Inicia sesión para entrar al LIVE.");return;}
+      const response=await fetch("/api/live",{headers:{Authorization:`Bearer ${data.session.access_token}`},cache:"no-store"});
+      if(!response.ok)throw new Error("No se pudo comprobar el LIVE.");
+      const payload=await response.json();
+      const room=(payload.rooms||[]).find(r=>r.host_id===hostId);
+      if(!room?.id){setLiveHostIds(ids=>ids.filter(id=>id!==hostId));setLiveHostRooms(rooms=>rooms.filter(r=>r.host_id!==hostId));alert("Este LIVE ya terminó.");return;}
+      setSelectedLiveRoom(room.id);
+      setView("liveStudio");
+    }catch(e){alert(e.message||"No se pudo abrir el LIVE. Intenta de nuevo.");}
+  }
   const socialPollBusy=useRef(false);
   const socialThreadRef=useRef(null);
   const unreadSocial=socialNotices.filter(n=>!n.read_at).length;
@@ -3061,9 +3077,11 @@ export default function HomePage(){
             )}
           </div>
           <div className="profile-photo-edit-wrap visitor-avatar-wrap rivyza-presence-anchor">
-            {viewedProfile.avatar_url
-              ? <img className="public-profile-photo" src={viewedProfile.avatar_url} alt={viewedProfile.display_name||viewedProfile.username}/>
-              : <div className="public-profile-photo fallback">{(viewedProfile.display_name?.[0]||viewedProfile.username?.[0]||"R").toUpperCase()}</div>
+            {liveHostIds.includes(viewedProfile.id)?
+              <button type="button" className="rivyza-profile-live-avatar" onClick={()=>enterProfileLive(viewedProfile.id)} aria-label={`Entrar como espectador al LIVE de ${viewedProfile.display_name||viewedProfile.username||"usuario"}`} title="Entrar al LIVE como espectador">
+                {viewedProfile.avatar_url?<img className="public-profile-photo" src={viewedProfile.avatar_url} alt=""/>:<div className="public-profile-photo fallback">{(viewedProfile.display_name?.[0]||viewedProfile.username?.[0]||"R").toUpperCase()}</div>}
+              </button>
+              :viewedProfile.avatar_url?<img className="public-profile-photo" src={viewedProfile.avatar_url} alt={viewedProfile.display_name||viewedProfile.username}/>:<div className="public-profile-photo fallback">{(viewedProfile.display_name?.[0]||viewedProfile.username?.[0]||"R").toUpperCase()}</div>
             }
             {onlineDot(viewedProfile.id)}
           </div>
