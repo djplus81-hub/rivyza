@@ -2186,7 +2186,7 @@ export default function HomePage(){
       setMessage("La foto no puede pesar más de 5 MB.");return;
     }
     const r=new FileReader();
-    r.onload=()=>{setCropSrc(r.result);setCrop({x:0,y:0});setZoom(1);setCropOpen(true);};
+    r.onload=()=>{setCropSrc(r.result);setCrop({x:0,y:0});setZoom(1);setCroppedPixels(null);setCropOpen(true);};
     r.readAsDataURL(f);
   }
 
@@ -2197,6 +2197,7 @@ export default function HomePage(){
     setUploadingAvatar(true);setMessage("");
     try{
       const blob=await getCroppedBlob(cropSrc,croppedPixels);
+      if(!blob)throw new Error("No se pudo procesar la foto seleccionada.");
       const path=`${user.id}/avatar.jpg`;
 
       const {error:upErr}=await supabase.storage.from("avatars").upload(path,blob,{
@@ -2207,13 +2208,19 @@ export default function HomePage(){
       const {data:p}=supabase.storage.from("avatars").getPublicUrl(path);
       const url=`${p.publicUrl}?v=${Date.now()}`;
 
-      const {data:updated,error:profErr}=await supabase.from("profiles").update({avatar_url:url}).eq("id",user.id).select().single();
-      if(profErr)throw profErr;
+      // En el primer registro aún no existe una fila en profiles.
+      // Guardar el avatar en Storage y conservar su URL hasta Crear mi perfil.
+      // Si el perfil ya existe, actualizar su foto inmediatamente.
+      if(profile){
+        const {data:updated,error:profErr}=await supabase.from("profiles")
+          .update({avatar_url:url}).eq("id",user.id).select().single();
+        if(profErr)throw profErr;
+        setProfile(updated);
+      }
 
       setAvatarUrl(url);
-      setProfile(updated);
       setCropOpen(false);
-      setMessage("Foto de perfil actualizada.");
+      setMessage(profile?"Foto de perfil actualizada.":"Foto lista. Completa tus datos y pulsa Crear mi perfil.");
     }catch(e){
       console.error(e);
       setMessage("No se pudo cambiar la foto.");
