@@ -2051,7 +2051,7 @@ export default function HomePage(){
        chunkSize:6*1024*1024,
        retryDelays:[0,1000,3000,5000,10000,20000],
        removeFingerprintOnSuccess:true,
-       metadata:{bucketName:"media",objectName:path,contentType:file.type||"video/mp4",cacheControl:"3600"},
+       metadata:{bucketName:"media",objectName:path,contentType:(file.type||"video/mp4").split(";")[0].trim().toLowerCase(),cacheControl:"3600"},
        onError:reject,
        onProgress:(sent,total)=>setPublishStage(`Subiendo video… ${Math.min(100,Math.round(sent/Math.max(1,total)*100))}%`),
        onSuccess:resolve
