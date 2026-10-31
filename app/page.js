@@ -3015,7 +3015,7 @@ export default function HomePage(){
         <div className="profile-heading-row">
           <div className="profile-heading-copy">
             <h1>{viewedProfile.display_name||viewedProfile.username||"Usuario"}</h1>
-            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>{publicStrikeCount>0&&<div className="rivyza-public-strikes" title="Infracciones activas de las normas de RIVYZA">{Array.from({length:Math.min(3,publicStrikeCount)},(_,i)=><span key={i} style={{color:"#ff304f",fontWeight:900}}>✖</span>)} <small>{publicStrikeCount} infracción{publicStrikeCount===1?"":"es"} activa{publicStrikeCount===1?"":"s"} de RIVYZA</small></div>}
+            <div className="public-handle">@{viewedProfile.username||"usuario"}</div>{adminOwner&&publicStrikeCount>0&&<div className="rivyza-public-strikes" title="Infracciones activas de las normas de RIVYZA">{Array.from({length:Math.min(3,publicStrikeCount)},(_,i)=><span key={i} style={{color:"#ff304f",fontWeight:900}}>✖</span>)} <small>{publicStrikeCount} infracción{publicStrikeCount===1?"":"es"} activa{publicStrikeCount===1?"":"s"} de RIVYZA</small></div>}
             {viewedProfile.show_country && viewedProfile.country_code && (
               <div className="profile-country">
                 <img
