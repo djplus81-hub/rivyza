@@ -769,15 +769,26 @@ export default function HomePage(){
     if(!supabase||!user?.id)return;
     setCommunityLoading(true);
     try{
-      const [{data:people,error:pe},{data:out,error:oe},{data:incoming,error:ie}]=await Promise.all([
-        supabase.from("profiles").select("id,username,display_name,avatar_url,bio").order("created_at",{ascending:false}).limit(500),
+      // Cargar todas las cuentas por páginas, sin límite fijo de 500 usuarios.
+      const people=[];
+      const pageSize=500;
+      for(let from=0;;from+=pageSize){
+        const {data,error}=await supabase.from("profiles")
+          .select("id,username,display_name,avatar_url,bio")
+          .order("created_at",{ascending:false})
+          .range(from,from+pageSize-1);
+        if(error)throw error;
+        people.push(...(data||[]));
+        if(!data||data.length<pageSize)break;
+      }
+      const [{data:out,error:oe},{data:incoming,error:ie}]=await Promise.all([
         supabase.from("follows").select("following_id").eq("follower_id",user.id),
         supabase.from("follows").select("follower_id").eq("following_id",user.id)
       ]);
-      if(pe||oe||ie)throw pe||oe||ie;
+      if(oe||ie)throw oe||ie;
       const outIds=new Set((out||[]).map(x=>x.following_id));
       const inIds=new Set((incoming||[]).map(x=>x.follower_id));
-      setCommunityRows((people||[]).filter(p=>p.id!==user.id).map(p=>({...p,i_follow:outIds.has(p.id),follows_me:inIds.has(p.id)})));
+      setCommunityRows(people.filter(p=>p.id!==user.id).map(p=>({...p,i_follow:outIds.has(p.id),follows_me:inIds.has(p.id)})));
     }catch(e){console.error("Community directory error:",e);setCommunityRows([]);}
     finally{setCommunityLoading(false);}
   }
@@ -3441,12 +3452,12 @@ export default function HomePage(){
 
   if(view==="connections"){
     const matches=(connectionsTab==="mine"?connectionsRows:communityRows).filter(p=>(`${p.display_name||""} ${p.username||""}`).toLowerCase().includes(connectionsSearch.toLowerCase()));
-    return <main className="feed-shell connections-screen">
+    return <main className="feed-shell connections-screen" style={{display:"flex",flexDirection:"column",height:"100dvh",minHeight:"100dvh",overflow:"hidden",paddingBottom:0}}>
       <header className="connections-header"><button type="button" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">←</button><h1>{t("Comunidad")}</h1><span></span></header>
       <div className="rivyza-community-tabs"><button type="button" className={connectionsTab==="mine"?"active":""} onClick={()=>setConnectionsTab("mine")}>{t("Conexiones")}</button><button type="button" className={connectionsTab==="all"?"active":""} onClick={()=>{setConnectionsTab("all");loadCommunity();}}>{t("Todos los usuarios")}</button></div>
       <div className="connections-search"><Search size={18}/><input value={connectionsSearch} onChange={e=>setConnectionsSearch(e.target.value)} placeholder={connectionsTab==="mine"?"Buscar conexiones":"Buscar usuarios registrados"} aria-label={t("Buscar usuarios")}/></div>
       <p className="connections-hint">{connectionsTab==="mine"?"Amigos, personas que sigues y personas que te siguen.":"Cuentas registradas en RIVYZA · el punto verde indica quién está en línea."}</p>
-      <section className="connections-list">
+      <section className="connections-list" style={{flex:"1 1 auto",minHeight:0,overflowY:"auto",overscrollBehavior:"contain",WebkitOverflowScrolling:"touch",paddingBottom:"110px"}}>
         {(connectionsTab==="mine"?connectionsLoading:communityLoading)&&<p className="connections-empty">Cargando usuarios…</p>}
         {!(connectionsTab==="mine"?connectionsLoading:communityLoading)&&!matches.length&&<p className="connections-empty">No hay usuarios para mostrar.</p>}
         {matches.map(person=><div className="connections-person" key={person.id}>
