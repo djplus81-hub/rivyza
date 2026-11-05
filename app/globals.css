@@ -3879,3 +3879,7 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .camera-composer .camera-controls-row>.rivyza-finish-record{justify-self:end!important;margin-right:4px!important;}
 .camera-composer .rivyza-delete-segment:disabled{opacity:.6;}
 @media(max-width:380px){.camera-composer .camera-controls-row{grid-template-columns:minmax(0,1fr) 112px minmax(0,1fr)!important;column-gap:8px!important;}}
+
+/* RIVYZA: marcas blancas de pausa dibujadas en SVG, sobre el aro */
+.camera-composer .record-progress-ring circle[fill="#fff"]{filter:drop-shadow(0 0 1px #000);}
+.camera-composer .rivyza-delete-segment{touch-action:manipulation;cursor:pointer;}

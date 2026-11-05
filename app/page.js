@@ -609,6 +609,7 @@ export default function HomePage(){
   const cameraSegmentsRef=useRef([]);
   const cameraSegmentStartRef=useRef(0);
   const [cameraSegmentCount,setCameraSegmentCount]=useState(0);
+  const [cameraSegmentBoundaries,setCameraSegmentBoundaries]=useState([]);
   const [cameraExporting,setCameraExporting]=useState(false);
   const cameraFinishRef=useRef(false);
   const cameraDeletePendingRef=useRef(false);
@@ -1910,6 +1911,7 @@ export default function HomePage(){
      if(chunks.length && duration>.05){
        cameraSegmentsRef.current.push({blob:new Blob(chunks,{type:recorder.mimeType||mime||"video/mp4"}),duration});
        setCameraSegmentCount(cameraSegmentsRef.current.length);
+       setCameraSegmentBoundaries(cameraSegmentsRef.current.map((part,i,arr)=>arr.slice(0,i+1).reduce((n,p)=>n+p.duration,0)));
      }
      setCameraSegmentSaving(false);
      if(cameraDeletePendingRef.current){
@@ -1935,7 +1937,7 @@ export default function HomePage(){
  async function startRecording(){
    if(!cameraStream || recording || cameraExporting)return;
    try{
-     cameraSegmentsRef.current=[];setCameraSegmentCount(0);
+     cameraSegmentsRef.current=[];setCameraSegmentCount(0);setCameraSegmentBoundaries([]);
      cameraDeletePendingRef.current=false;setCameraSegmentSaving(false);
      recordElapsedRef.current=0;setRecordSeconds(0);
      setRecordPaused(false);setRecording(true);
@@ -1968,12 +1970,16 @@ export default function HomePage(){
    }
  }
  function removeLastSavedCameraSegment(){
-   const last=cameraSegmentsRef.current.pop();
-   if(!last){setCameraError("Todavía no hay un segmento guardado para borrar.");return;}
+   const segments=cameraSegmentsRef.current;
+   if(!segments.length){setCameraError("Espera un momento: el último segmento todavía no está guardado.");return;}
+   const removed=segments.pop();
    setCameraError("");
-   setCameraSegmentCount(cameraSegmentsRef.current.length);
-   // El reloj retrocede exactamente al inicio del último tramo.
-   recordElapsedRef.current=Math.max(0,cameraSegmentsRef.current.reduce((sum,part)=>sum+part.duration,0));
+   setCameraSegmentCount(segments.length);
+   setCameraSegmentBoundaries(segments.map((part,i)=>segments.slice(0,i+1).reduce((n,p)=>n+p.duration,0)));
+   // Restar la duración del último segmento, sin borrar los anteriores.
+   recordElapsedRef.current=Math.max(0,segments.reduce((sum,part)=>sum+part.duration,0));
+   cameraSegmentStartRef.current=recordElapsedRef.current;
+   cameraSegmentDurationRef.current=0;
    setRecordSeconds(recordElapsedRef.current);
    if(cameraMusicRef.current){
      cameraMusicRef.current.pause();
@@ -1982,9 +1988,9 @@ export default function HomePage(){
  }
  function deleteLastCameraSegment(){
    if(!recording || !recordPaused || cameraExporting)return;
-   // iOS puede tardar en entregar el último blob después de pulsar pausa.
-   // Si aún se está cerrando, programamos el borrado para onstop.
-   if(mediaRecorderRef.current?.state!=="inactive" || cameraSegmentSaving){
+   setCameraError("");
+   // Si MediaRecorder aún está cerrando el segmento, solicitar borrado al onstop.
+   if(cameraSegmentSaving || mediaRecorderRef.current?.state!=="inactive"){
      cameraDeletePendingRef.current=true;
      return;
    }
@@ -2448,7 +2454,7 @@ export default function HomePage(){
                  {recording&&<span>{cameraExporting?"Uniendo segmentos…":recordPaused?"En pausa":"Grabando…"}</span>}
                </div>}
                <div className="camera-controls-row">
-                 {recording&&recordPaused?<button type="button" className="rivyza-delete-segment" onClick={deleteLastCameraSegment} disabled={cameraExporting||cameraDeletePendingRef.current||(!cameraSegmentCount&&!cameraSegmentSaving)} aria-label="Borrar último segmento"><X size={27}/><small>{cameraSegmentSaving?"Guardando…":"Borrar"}</small></button>:<label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
+                 {recording&&recordPaused?<button type="button" className="rivyza-delete-segment" onClick={deleteLastCameraSegment} disabled={cameraExporting||cameraDeletePendingRef.current||(!cameraSegmentCount&&!cameraSegmentSaving)} aria-label="Borrar último segmento"><X size={27}/><small>{cameraSegmentSaving?"Espera…":"Último"}</small></button>:<label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(displayName||username||"R").charAt(0).toUpperCase()}</span>}
                    <small>Galería</small>
                    <input
@@ -2490,6 +2496,10 @@ export default function HomePage(){
                            pathLength="100"
                            style={{animation:"none",strokeDasharray:100,strokeDashoffset:100-100*Math.min(1,recordSeconds/recordLimit),transition:recordPaused?"none":"stroke-dashoffset 80ms linear"}}
                          />
+                         {cameraSegmentBoundaries.filter(time=>time>0.05 && time<recordLimit-0.05).map((time,index)=>{
+                           const angle=(time/recordLimit)*Math.PI*2-Math.PI/2;
+                           return <circle key={`split-${index}`} cx={50+46*Math.cos(angle)} cy={50+46*Math.sin(angle)} r="2.5" fill="#fff" stroke="#151515" strokeWidth=".6" />;
+                         })}
                        </svg>
                      )}
                      <span>{recording?(recordPaused?<Play size={23}/>:<Pause size={23}/>):null}</span>
