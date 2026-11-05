@@ -26,16 +26,18 @@ app.post('/render',async(req,res)=>{
   const {videoPath,musicPath,outputPath,musicStartSeconds,originalVolume,musicVolume}=req.body||{};
   if(!safePath(videoPath)||!safePath(outputPath)||!safePath(musicPath))return res.status(400).json({error:'Invalid storage paths'});
   if(videoPath===outputPath)return res.status(400).json({error:'Output path must differ'});
+  const renderStarted=Date.now();
   const dir=await mkdtemp(path.join(os.tmpdir(),'rivyza-'));
   try{
     const video=path.join(dir,'input.mp4'),music=path.join(dir,'music.mp3'),output=path.join(dir,'final.mp4');
     await Promise.all([download(bucket,videoPath,video),download(process.env.MUSIC_BUCKET||bucket,musicPath,music)]);
+    const downloadMs=Date.now()-renderStarted;
     const duration=await probe(video);
     if(!Number.isFinite(duration)||duration<=0||duration>60.5)throw new Error('Video must be 60 seconds or less');
     const start=clamp(musicStartSeconds,0,86400),voice=clamp(originalVolume,0,100)/100,song=clamp(musicVolume,0,100)/100;
     // First video audio stream, if absent, replace it with silence in a fallback pass.
     const base=['-hide_banner','-loglevel','error','-y','-i',video,'-stream_loop','-1','-ss',String(start),'-i',music];
-    const opts=['-map','0:v:0','-c:v','libx264','-preset','veryfast','-crf','23','-vf','scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30','-pix_fmt','yuv420p','-c:a','aac','-b:a','160k','-t',String(duration),'-movflags','+faststart',output];
+    const opts=['-map','0:v:0','-c:v','libx264','-preset','superfast','-crf','23','-vf','scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30','-pix_fmt','yuv420p','-c:a','aac','-b:a','160k','-t',String(duration),'-movflags','+faststart',output];
     try{
       await run('ffmpeg',[...base,'-filter_complex',`[0:a:0]volume=${voice}[voice];[1:a:0]volume=${song}[song];[voice][song]amix=inputs=2:duration=first:normalize=0[a]`,'-map','[a]',...opts]);
     }catch(err){
@@ -43,9 +45,11 @@ app.post('/render',async(req,res)=>{
       if(!String(err.message).includes('matches no streams'))throw err;
       await run('ffmpeg',[...base,'-filter_complex',`[1:a:0]volume=${song}[a]`,'-map','[a]',...opts]);
     }
+    const encodeMs=Date.now()-renderStarted-downloadMs;
     const bytes=await readFile(output);
     const {error}=await supabase.storage.from(bucket).upload(outputPath,bytes,{contentType:'video/mp4',upsert:false,cacheControl:'3600'});
     if(error)throw error;
+    console.info('render timings ms',{download:downloadMs,encode:encodeMs,upload:Date.now()-renderStarted-downloadMs-encodeMs,total:Date.now()-renderStarted});
     return res.json({ok:true,outputPath,durationSeconds:Math.ceil(duration),bytes:bytes.length});
   }catch(err){console.error('render failed:',err);return res.status(422).json({error:String(err.message||err).slice(0,500)});}
   finally{await rm(dir,{recursive:true,force:true});}
