@@ -1904,7 +1904,7 @@ export default function HomePage(){
      };
 
      rec.onstop=async()=>{
-       const type=(rec.mimeType || "video/mp4").split(";")[0].trim().toLowerCase();
+       const type=rec.mimeType || "video/mp4";
        const blob=new Blob(recordedChunksRef.current,{type});
        const ext=type.includes("webm")?"webm":"mp4";
        const file=new File([blob],`rivyza-video-${Date.now()}.${ext}`,{type});
@@ -2051,7 +2051,7 @@ export default function HomePage(){
        chunkSize:6*1024*1024,
        retryDelays:[0,1000,3000,5000,10000,20000],
        removeFingerprintOnSuccess:true,
-       metadata:{bucketName:"media",objectName:path,contentType:path.toLowerCase().endsWith(".webm")?"video/webm":"video/mp4",cacheControl:"3600"},
+       metadata:{bucketName:"media",objectName:path,contentType:file.type||"video/mp4",cacheControl:"3600"},
        onError:reject,
        onProgress:(sent,total)=>setPublishStage(`Subiendo video… ${Math.min(100,Math.round(sent/Math.max(1,total)*100))}%`),
        onSuccess:resolve
@@ -2101,7 +2101,7 @@ export default function HomePage(){
          duration_seconds:uploadType==="video" ? Math.ceil(editorVideoDuration||recordLimit) : null,
          music_path:musicSelected?"/music/muevelo-sin-pensar.mp3":null,
          music_title:musicSelected?"Muévelo Sin Pensar (Remastered)":null,
-         music_start_seconds:musicSelected?musicStart:null,
+         music_start_seconds:musicSelected?Math.max(0,Math.floor(Number(musicStart)||0)):null,
          music_clip_seconds:musicSelected?(uploadType==="video"&&editorVideoDuration>0?Math.ceil(editorVideoDuration):musicLength):null,
          original_volume:musicSelected?originalVolume:null,
          music_volume:musicSelected?musicVolume:null
