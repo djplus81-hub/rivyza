@@ -2340,7 +2340,6 @@ export default function HomePage(){
                <button className="camera-icon-btn" onClick={flipCamera}>↻</button>
              </div>
 {cameraError && <div className="camera-error">{cameraError}</div>}
-             {musicSelected&&<audio ref={cameraMusicRef} src="/music/muevelo-sin-pensar.mp3" preload="auto" />}
              {musicPanel==="library"&&renderMusicSheet(true)}
 
              <div
@@ -2362,16 +2361,16 @@ export default function HomePage(){
                     FOTO
                   </button>
                   <button
-                    className={cameraMode==="video" && recordLimit===15?"active":""}
-                    onClick={()=>chooseCameraMode("video",15)}
+                    className={cameraMode==="video" && recordLimit===10?"active":""}
+                    onClick={()=>chooseCameraMode("video",10)}
                   >
-                    15s
+                    10s
                   </button>
                   <button
-                    className={cameraMode==="video" && recordLimit===600?"active":""}
-                    onClick={()=>chooseCameraMode("video",600)}
+                    className={cameraMode==="video" && recordLimit===30?"active":""}
+                    onClick={()=>chooseCameraMode("video",30)}
                   >
-                    10m
+                    30s
                   </button>
                   <button
                     className={cameraMode==="video" && recordLimit===60?"active":""}

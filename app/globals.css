@@ -3846,3 +3846,21 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .rivyza-finish-record{border:0;color:#fff;background:#ff285c;border-radius:50%;width:55px;height:55px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
 .rivyza-finish-record small{font-size:9px;}
 .record-button>span svg{color:white;position:relative;z-index:2;}
+
+/* RIVYZA: transparent camera control deck, keep original FOTO/10s/30s/60s */
+.camera-composer .camera-bottom,
+.camera-composer .camera-bottom:not(.collapsed){
+  background:transparent !important;
+  background-color:transparent !important;
+  box-shadow:none !important;
+  border:0 !important;
+  border-radius:0 !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+.camera-composer .camera-mode-tabs button,
+.camera-composer .camera-create-tabs button,
+.camera-composer .camera-profile-thumb small,
+.camera-composer .camera-effects-placeholder small{
+  text-shadow:0 2px 6px rgba(0,0,0,.95) !important;
+}
