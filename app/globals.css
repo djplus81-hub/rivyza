@@ -3872,3 +3872,10 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .camera-composer .record-progress-value{animation:none!important;}
 .rivyza-delete-segment{width:55px;height:55px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;color:#fff;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.45);border-radius:50%;}
 .rivyza-delete-segment small{font-size:10px}.rivyza-delete-segment:disabled{opacity:.35}
+
+/* v3 camera: separar los botones laterales del botón central sin alterar LIVE */
+.camera-composer .camera-controls-row{grid-template-columns:minmax(0,1fr) 132px minmax(0,1fr)!important;column-gap:12px!important;align-items:center!important;}
+.camera-composer .camera-controls-row>.rivyza-delete-segment{justify-self:start!important;margin-left:4px!important;}
+.camera-composer .camera-controls-row>.rivyza-finish-record{justify-self:end!important;margin-right:4px!important;}
+.camera-composer .rivyza-delete-segment:disabled{opacity:.6;}
+@media(max-width:380px){.camera-composer .camera-controls-row{grid-template-columns:minmax(0,1fr) 112px minmax(0,1fr)!important;column-gap:8px!important;}}
