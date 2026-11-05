@@ -35,7 +35,7 @@ app.post('/render',async(req,res)=>{
     const start=clamp(musicStartSeconds,0,86400),voice=clamp(originalVolume,0,100)/100,song=clamp(musicVolume,0,100)/100;
     // First video audio stream, if absent, replace it with silence in a fallback pass.
     const base=['-hide_banner','-loglevel','error','-y','-i',video,'-stream_loop','-1','-ss',String(start),'-i',music];
-    const opts=['-map','0:v:0','-c:v','libx264','-preset','veryfast','-crf','23','-vf','scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,fps=30','-pix_fmt','yuv420p','-c:a','aac','-b:a','160k','-t',String(duration),'-movflags','+faststart',output];
+    const opts=['-map','0:v:0','-c:v','libx264','-preset','veryfast','-crf','23','-vf','scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30','-pix_fmt','yuv420p','-c:a','aac','-b:a','160k','-t',String(duration),'-movflags','+faststart',output];
     try{
       await run('ffmpeg',[...base,'-filter_complex',`[0:a:0]volume=${voice}[voice];[1:a:0]volume=${song}[song];[voice][song]amix=inputs=2:duration=first:normalize=0[a]`,'-map','[a]',...opts]);
     }catch(err){
