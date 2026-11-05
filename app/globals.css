@@ -3883,3 +3883,7 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 /* RIVYZA: marcas blancas de pausa dibujadas en SVG, sobre el aro */
 .camera-composer .record-progress-ring circle[fill="#fff"]{filter:drop-shadow(0 0 1px #000);}
 .camera-composer .rivyza-delete-segment{touch-action:manipulation;cursor:pointer;}
+
+/* v5: No rotar el SVG completo: las marcas y el progreso usan el mismo origen arriba. */
+.camera-composer .record-progress-ring{transform:none!important;}
+.camera-composer .record-progress-ring circle[fill="#fff"]{filter:drop-shadow(0 0 1.5px #000);}
