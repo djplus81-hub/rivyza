@@ -2087,19 +2087,43 @@ export default function HomePage(){
        if(uploadError)throw uploadError;
      }
 
+     // v8.7: renderizar voz + música dentro del MP4 ANTES de publicar.
+     // Si el render falla, no publicar el video sin la mezcla solicitada.
+     let finalPath=path;
+     if(uploadType==="video" && musicSelected){
+       setPublishStage("Mezclando tu voz y la música…");
+       const {data:{session},error:authError}=await supabase.auth.getSession();
+       if(authError||!session?.access_token)throw new Error("Tu sesión venció. Inicia sesión otra vez.");
+       const renderResponse=await withPublishTimeout(fetch("/api/render-video",{
+         method:"POST",
+         headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},
+         body:JSON.stringify({
+           videoPath:path,
+           musicStartSeconds:Math.max(0,Math.floor(Number(musicStart)||0)),
+           originalVolume:Number(originalVolume),
+           musicVolume:Number(musicVolume)
+         })
+       }),240,"Mezclar audio");
+       const renderResult=await renderResponse.json().catch(()=>({}));
+       if(!renderResponse.ok||!renderResult.ok||!renderResult.outputPath){
+         throw new Error(renderResult.error||"No se pudo mezclar la voz con la música.");
+       }
+       finalPath=renderResult.outputPath;
+     }
+
      setPublishStage("Guardando publicación…");
-     const {data:pub}=supabase.storage.from("media").getPublicUrl(path);
+     const {data:pub}=supabase.storage.from("media").getPublicUrl(finalPath);
      const publicUrl=pub?.publicUrl;
 
      const {data:newPost,error:postError}=await withPublishTimeout(
        supabase.from("posts").insert({
          user_id:user.id,
          media_type:uploadType,
-         media_path:publicUrl || path,
+         media_path:publicUrl || finalPath,
          caption:uploadCaption.trim() || null,
          visibility:uploadVisibility,
          duration_seconds:uploadType==="video" ? Math.ceil(editorVideoDuration||recordLimit) : null,
-         music_path:musicSelected?"/music/muevelo-sin-pensar.mp3":null,
+         music_path:musicSelected&&uploadType!=="video"?"/music/muevelo-sin-pensar.mp3":null,
          music_title:musicSelected?"Muévelo Sin Pensar (Remastered)":null,
          music_start_seconds:musicSelected?Math.max(0,Math.floor(Number(musicStart)||0)):null,
          music_clip_seconds:musicSelected?(uploadType==="video"&&editorVideoDuration>0?Math.ceil(editorVideoDuration):musicLength):null,
@@ -2110,7 +2134,7 @@ export default function HomePage(){
      );
 
      if(postError){
-       await supabase.storage.from("media").remove([path]);
+       await supabase.storage.from("media").remove(finalPath===path?[path]:[path,finalPath]);
        throw postError;
      }
 

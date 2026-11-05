@@ -103,6 +103,7 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
   useEffect(()=>()=>{const mix=audioMix.current;if(mix){mix.ctx.close().catch(()=>{});audioMix.current=null;}},[]);
   return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"}>
     {post.media_type==="video"?<video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} playsInline loop preload="metadata" controls={detail}/>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
-    {hasMusic&&<><audio ref={music} src={post.music_path} preload="auto"/><span className="rivyza-music-credit">♫ {post.music_title||"Muévelo Sin Pensar"} · DJ Plus</span></>}
+    {hasMusic&&<audio ref={music} src={post.music_path} preload="auto"/>}
+    {(hasMusic||post.music_title)&&<span className="rivyza-music-credit">♫ {post.music_title||"Muévelo Sin Pensar"} · DJ Plus</span>}
   </div>;
 }
