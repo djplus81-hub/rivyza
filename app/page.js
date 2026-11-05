@@ -2053,11 +2053,8 @@ export default function HomePage(){
        removeFingerprintOnSuccess:true,
        metadata:{bucketName:"media",objectName:path,contentType:(path.toLowerCase().endsWith(".webm")?"video/webm":path.toLowerCase().endsWith(".mov")?"video/quicktime":"video/mp4"),cacheControl:"3600"},
        onError:reject,
-       onProgress:(sent,total)=>{
-         const percent=Math.min(100,Math.round(sent/Math.max(1,total)*100));
-         setPublishStage(percent>=100?"Transferencia completa · Confirmando subida…":`Subiendo video… ${percent}%`);
-       },
-       onSuccess:()=>{setPublishStage("Subida confirmada · Preparando publicación…");resolve();}
+       onProgress:(sent,total)=>setPublishStage(`Subiendo video… ${Math.min(100,Math.round(sent/Math.max(1,total)*100))}%`),
+       onSuccess:resolve
      });
      upload.findPreviousUploads().then(previous=>{
        if(previous.length)upload.resumeFromPreviousUpload(previous[0]);
