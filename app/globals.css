@@ -3864,3 +3864,6 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .camera-composer .camera-effects-placeholder small{
   text-shadow:0 2px 6px rgba(0,0,0,.95) !important;
 }
+
+/* RIVYZA: congelar progreso visual al pausar y continuar desde el mismo punto */
+.record-button.paused .record-progress-value{animation-play-state:paused !important;}

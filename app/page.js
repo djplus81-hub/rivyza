@@ -2400,7 +2400,7 @@ export default function HomePage(){
                    <button className="shutter-button" onClick={capturePhoto}><span></span></button>
                  ) : (
                    <button
-                     className={`record-button ${recording?"recording":""}`}
+                     className={`record-button ${recording?"recording":""} ${recordPaused?"paused":""}`}
                      onClick={recording?pauseOrResumeRecording:startRecording}
                    >
                      {recording && (
