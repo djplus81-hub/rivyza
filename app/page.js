@@ -3806,6 +3806,7 @@ export default function HomePage(){
 
   if(view==="friends"){
     return <main className="feed-shell friends-feed-shell">
+      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }`}</style>
       <header className="friends-topbar friends-feed-topbar">
         <h1>{t("Amigos")}</h1>
         <p>Solo personas que tú sigues y que también te siguen.</p>
@@ -3835,7 +3836,7 @@ export default function HomePage(){
               </button>
               <div className="handle">@{post.creator?.username||"usuario"}</div>
               {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
-              <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
+              <div className="audio-line"><Music2 size={15}/> {post.music_title ? `${post.music_title} · DJ Plus` : "Sonido original · RIVYZA"}</div>
               <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
             </div>
 
@@ -4040,6 +4041,7 @@ export default function HomePage(){
   }
 
   return <main className="feed-shell">
+      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }`}</style>
     <header className="feed-topbar">
       <div className="top-brand">RIVYZA</div>
       <div className="feed-tabs">
@@ -4072,7 +4074,7 @@ export default function HomePage(){
             </button>
             <div className="handle">@{post.creator?.username||"usuario"}</div>
             {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
-            <div className="audio-line"><Music2 size={15}/> Sonido original · RIVYZA</div>
+            <div className="audio-line"><Music2 size={15}/> {post.music_title ? `${post.music_title} · DJ Plus` : "Sonido original · RIVYZA"}</div>
               <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
           </div>
 
