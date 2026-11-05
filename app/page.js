@@ -593,6 +593,10 @@ export default function HomePage(){
   const [cameraStream,setCameraStream]=useState(null);
   const [cameraError,setCameraError]=useState("");
   const [recording,setRecording]=useState(false);
+  const [recordPaused,setRecordPaused]=useState(false);
+  const recordElapsedRef=useRef(0);
+  const recordStartedAtRef=useRef(0);
+  const cameraMusicRef=useRef(null);
   const [recordSeconds,setRecordSeconds]=useState(0);
   const [recordLimit,setRecordLimit]=useState(60);
   const cameraVideoRef=useRef(null);
@@ -1797,7 +1801,10 @@ export default function HomePage(){
      recordTimerRef.current=null;
    }
    setRecording(false);
+   setRecordPaused(false);
+   recordElapsedRef.current=0;
    setRecordSeconds(0);
+   cameraMusicRef.current?.pause();
  }
 
  async function startCamera(facing=cameraFacing){
@@ -1915,26 +1922,59 @@ export default function HomePage(){
        await stopCamera();
      };
 
-     rec.start(1000);
+     rec.start(250);
      setRecording(true);
+     setRecordPaused(false);
+     recordElapsedRef.current=0;
+     recordStartedAtRef.current=Date.now();
      setRecordSeconds(0);
-
+     if(musicSelected && cameraMusicRef.current){
+       const a=cameraMusicRef.current;
+       a.currentTime=Math.max(0,Number(musicStart)||0);
+       a.play().catch(()=>{});
+     }
      recordTimerRef.current=setInterval(()=>{
-       setRecordSeconds(s=>{
-         const next=s+1;
-         if(next>=recordLimit){
-           try{mediaRecorderRef.current?.stop();}catch{}
-         }
-         return next;
-       });
-     },1000);
+       const elapsed=recordElapsedRef.current+(Date.now()-recordStartedAtRef.current)/1000;
+       setRecordSeconds(Math.min(recordLimit,elapsed));
+       if(elapsed>=recordLimit)stopRecording();
+     },100);
    }catch(err){
      console.error(err);
      setCameraError("Este navegador no permite grabar video aquí. Puedes elegir un video de la galería.");
    }
  }
 
+ function pauseOrResumeRecording(){
+   const rec=mediaRecorderRef.current;
+   if(!rec)return;
+   try{
+     if(rec.state==="recording"){
+       rec.pause();
+       recordElapsedRef.current+=(Date.now()-recordStartedAtRef.current)/1000;
+       setRecordPaused(true);
+       cameraMusicRef.current?.pause();
+       if(recordTimerRef.current)clearInterval(recordTimerRef.current);
+       recordTimerRef.current=null;
+     }else if(rec.state==="paused"){
+       rec.resume();
+       recordStartedAtRef.current=Date.now();
+       setRecordPaused(false);
+       if(musicSelected)cameraMusicRef.current?.play().catch(()=>{});
+       recordTimerRef.current=setInterval(()=>{
+         const elapsed=recordElapsedRef.current+(Date.now()-recordStartedAtRef.current)/1000;
+         setRecordSeconds(Math.min(recordLimit,elapsed));
+         if(elapsed>=recordLimit)stopRecording();
+       },100);
+     }
+   }catch(err){console.warn("RIVYZA recording pause:",err);}
+ }
  function stopRecording(){
+   cameraMusicRef.current?.pause();
+   if(recordTimerRef.current)clearInterval(recordTimerRef.current);
+   recordTimerRef.current=null;
+   try{
+     if(mediaRecorderRef.current?.state==="paused")mediaRecorderRef.current.resume();
+   }catch{}
    try{
      if(mediaRecorderRef.current?.state==="recording"){
        mediaRecorderRef.current.stop();
@@ -2300,6 +2340,7 @@ export default function HomePage(){
                <button className="camera-icon-btn" onClick={flipCamera}>↻</button>
              </div>
 {cameraError && <div className="camera-error">{cameraError}</div>}
+             {musicSelected&&<audio ref={cameraMusicRef} src="/music/muevelo-sin-pensar.mp3" preload="auto" />}
              {musicPanel==="library"&&renderMusicSheet(true)}
 
              <div
@@ -2321,16 +2362,16 @@ export default function HomePage(){
                     FOTO
                   </button>
                   <button
-                    className={cameraMode==="video" && recordLimit===10?"active":""}
-                    onClick={()=>chooseCameraMode("video",10)}
+                    className={cameraMode==="video" && recordLimit===15?"active":""}
+                    onClick={()=>chooseCameraMode("video",15)}
                   >
-                    10s
+                    15s
                   </button>
                   <button
-                    className={cameraMode==="video" && recordLimit===30?"active":""}
-                    onClick={()=>chooseCameraMode("video",30)}
+                    className={cameraMode==="video" && recordLimit===600?"active":""}
+                    onClick={()=>chooseCameraMode("video",600)}
                   >
-                    30s
+                    10m
                   </button>
                   <button
                     className={cameraMode==="video" && recordLimit===60?"active":""}
@@ -2340,6 +2381,10 @@ export default function HomePage(){
                   </button>
                 </div>
 
+               {cameraMode==="video"&&<div className="rivyza-record-status">
+                 <span>{Math.floor(recordSeconds)}s / {recordLimit}s</span>
+                 {recording&&<span>{recordPaused?"En pausa":"Grabando…"}</span>}
+               </div>}
                <div className="camera-controls-row">
                  <label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(displayName||username||"R").charAt(0).toUpperCase()}</span>}
@@ -2357,7 +2402,7 @@ export default function HomePage(){
                  ) : (
                    <button
                      className={`record-button ${recording?"recording":""}`}
-                     onClick={recording?stopRecording:startRecording}
+                     onClick={recording?pauseOrResumeRecording:startRecording}
                    >
                      {recording && (
                        <svg
@@ -2384,14 +2429,14 @@ export default function HomePage(){
                          />
                        </svg>
                      )}
-                     <span></span>
+                     <span>{recording?(recordPaused?<Play size={23}/>:<Pause size={23}/>):null}</span>
                    </button>
                  )}
 
-                 <button className="camera-effects-placeholder" type="button" onClick={()=>setUploadMessage("Efectos estarán disponibles próximamente.")}>
+                 {recording&&recordPaused?<button className="rivyza-finish-record" type="button" onClick={stopRecording} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setUploadMessage("Efectos estarán disponibles próximamente.")}>
                    <span>✦</span>
                    <small>Efectos</small>
-                 </button>
+                 </button>}
                </div>
 
                <div className="camera-create-tabs">
