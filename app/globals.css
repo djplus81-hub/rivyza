@@ -3867,3 +3867,8 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 
 /* RIVYZA: congelar progreso visual al pausar y continuar desde el mismo punto */
 .record-button.paused .record-progress-value{animation-play-state:paused !important;}
+
+/* RIVYZA: progreso controlado por segundos reales; nunca animación independiente */
+.camera-composer .record-progress-value{animation:none!important;}
+.rivyza-delete-segment{width:55px;height:55px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;color:#fff;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.45);border-radius:50%;}
+.rivyza-delete-segment small{font-size:10px}.rivyza-delete-segment:disabled{opacity:.35}

@@ -606,6 +606,11 @@ export default function HomePage(){
   const cameraZoomTrackRef=useRef(null);
   const mediaRecorderRef=useRef(null);
   const recordedChunksRef=useRef([]);
+  const cameraSegmentsRef=useRef([]);
+  const cameraSegmentStartRef=useRef(0);
+  const [cameraSegmentCount,setCameraSegmentCount]=useState(0);
+  const [cameraExporting,setCameraExporting]=useState(false);
+  const cameraFinishRef=useRef(false);
   const recordTimerRef=useRef(null);
   const [message,setMessage]=useState("");
   const [saving,setSaving]=useState(false);
@@ -1890,96 +1895,129 @@ export default function HomePage(){
    await stopCamera();
  }
 
- async function startRecording(){
-   if(!cameraStream || recording)return;
-
-   const preferred=[
-     "video/mp4;codecs=h264,aac",
-     "video/mp4",
-     "video/webm;codecs=vp9,opus",
-     "video/webm"
-   ];
-   const mime=preferred.find(t=>window.MediaRecorder && MediaRecorder.isTypeSupported?.(t)) || "";
-
-   try{
-     const rec=new MediaRecorder(cameraStream,mime?{mimeType:mime}:undefined);
-     recordedChunksRef.current=[];
-     mediaRecorderRef.current=rec;
-
-     rec.ondataavailable=(e)=>{
-       if(e.data?.size) recordedChunksRef.current.push(e.data);
-     };
-
-     rec.onstop=async()=>{
-       const type=rec.mimeType || "video/mp4";
-       const blob=new Blob(recordedChunksRef.current,{type});
-       const ext=type.includes("webm")?"webm":"mp4";
-       const file=new File([blob],`rivyza-video-${Date.now()}.${ext}`,{type});
-       setUploadType("video");
-       setUploadFile(file);
-       if(uploadPreview) URL.revokeObjectURL(uploadPreview);
-       setUploadPreview(URL.createObjectURL(file));
-       await stopCamera();
-     };
-
-     rec.start(250);
-     setRecording(true);
-     setRecordPaused(false);
-     recordElapsedRef.current=0;
-     recordStartedAtRef.current=Date.now();
-     setRecordSeconds(0);
-     if(musicSelected && cameraMusicRef.current){
-       const a=cameraMusicRef.current;
-       a.currentTime=Math.max(0,Number(musicStart)||0);
-       a.play().catch(()=>{});
+ // Cada tramo se graba en su propio archivo; así X realmente puede descartarlo.
+ function createCameraSegment(){
+   const preferred=["video/mp4;codecs=h264,aac","video/mp4","video/webm;codecs=vp8,opus","video/webm"];
+   const mime=preferred.find(t=>window.MediaRecorder && MediaRecorder.isTypeSupported?.(t))||"";
+   const recorder=new MediaRecorder(cameraStream,mime?{mimeType:mime}:undefined);
+   const chunks=[];
+   recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data);};
+   recorder.onstop=()=>{
+     const duration=Math.max(0,recordElapsedRef.current-cameraSegmentStartRef.current);
+     if(chunks.length && duration>.05){
+       cameraSegmentsRef.current.push({blob:new Blob(chunks,{type:recorder.mimeType||mime||"video/mp4"}),duration});
+       setCameraSegmentCount(cameraSegmentsRef.current.length);
      }
-     recordTimerRef.current=setInterval(()=>{
-       const elapsed=recordElapsedRef.current+(Date.now()-recordStartedAtRef.current)/1000;
-       setRecordSeconds(Math.min(recordLimit,elapsed));
-       if(elapsed>=recordLimit)stopRecording();
-     },100);
-   }catch(err){
-     console.error(err);
-     setCameraError("Este navegador no permite grabar video aquí. Puedes elegir un video de la galería.");
-   }
+     if(cameraFinishRef.current){cameraFinishRef.current=false;void finishCameraSegments();}
+   };
+   mediaRecorderRef.current=recorder;
+   cameraSegmentStartRef.current=recordElapsedRef.current;
+   recordStartedAtRef.current=Date.now();
+   recorder.start(250);
  }
-
+ function cameraTick(){
+   if(recordTimerRef.current)clearInterval(recordTimerRef.current);
+   recordTimerRef.current=setInterval(()=>{
+     const elapsed=recordElapsedRef.current+(Date.now()-recordStartedAtRef.current)/1000;
+     setRecordSeconds(Math.min(recordLimit,elapsed));
+     if(elapsed>=recordLimit)stopRecording();
+   },80);
+ }
+ async function startRecording(){
+   if(!cameraStream || recording || cameraExporting)return;
+   try{
+     cameraSegmentsRef.current=[];setCameraSegmentCount(0);
+     recordElapsedRef.current=0;setRecordSeconds(0);
+     setRecordPaused(false);setRecording(true);
+     createCameraSegment();cameraTick();
+     if(musicSelected && cameraMusicRef.current){
+       cameraMusicRef.current.currentTime=Math.max(0,Number(musicStart)||0);
+       cameraMusicRef.current.play().catch(()=>{});
+     }
+   }catch(err){setRecording(false);setCameraError("No se pudo iniciar la grabación: "+(err.message||err));}
+ }
  function pauseOrResumeRecording(){
    const rec=mediaRecorderRef.current;
-   if(!rec)return;
-   try{
-     if(rec.state==="recording"){
-       rec.pause();
-       recordElapsedRef.current+=(Date.now()-recordStartedAtRef.current)/1000;
-       setRecordPaused(true);
-       cameraMusicRef.current?.pause();
-       if(recordTimerRef.current)clearInterval(recordTimerRef.current);
-       recordTimerRef.current=null;
-     }else if(rec.state==="paused"){
-       rec.resume();
-       recordStartedAtRef.current=Date.now();
-       setRecordPaused(false);
+   if(!recording || cameraExporting)return;
+   if(!recordPaused){
+     if(!rec || rec.state!=="recording")return;
+     recordElapsedRef.current+=Math.max(0,(Date.now()-recordStartedAtRef.current)/1000);
+     setRecordSeconds(recordElapsedRef.current);
+     clearInterval(recordTimerRef.current);recordTimerRef.current=null;
+     cameraMusicRef.current?.pause();
+     setRecordPaused(true);
+     rec.stop();
+   }else{
+     if(rec?.state!=="inactive")return;
+     try{
+       createCameraSegment();setRecordPaused(false);cameraTick();
        if(musicSelected)cameraMusicRef.current?.play().catch(()=>{});
-       recordTimerRef.current=setInterval(()=>{
-         const elapsed=recordElapsedRef.current+(Date.now()-recordStartedAtRef.current)/1000;
-         setRecordSeconds(Math.min(recordLimit,elapsed));
-         if(elapsed>=recordLimit)stopRecording();
-       },100);
-     }
-   }catch(err){console.warn("RIVYZA recording pause:",err);}
+     }catch(err){setCameraError("No se pudo continuar la grabación: "+(err.message||err));}
+   }
+ }
+ function deleteLastCameraSegment(){
+   if(!recordPaused || mediaRecorderRef.current?.state!=="inactive" || cameraExporting)return;
+   const last=cameraSegmentsRef.current.pop();
+   if(!last)return;
+   setCameraSegmentCount(cameraSegmentsRef.current.length);
+   recordElapsedRef.current=Math.max(0,recordElapsedRef.current-last.duration);
+   setRecordSeconds(recordElapsedRef.current);
+   if(cameraMusicRef.current){
+     cameraMusicRef.current.pause();
+     cameraMusicRef.current.currentTime=Math.max(0,(Number(musicStart)||0)+recordElapsedRef.current);
+   }
  }
  function stopRecording(){
+   if(!recording || cameraExporting)return;
    cameraMusicRef.current?.pause();
-   if(recordTimerRef.current)clearInterval(recordTimerRef.current);
-   recordTimerRef.current=null;
+   clearInterval(recordTimerRef.current);recordTimerRef.current=null;
+   const rec=mediaRecorderRef.current;
+   cameraFinishRef.current=true;
+   if(rec?.state==="recording"){
+     recordElapsedRef.current+=Math.max(0,(Date.now()-recordStartedAtRef.current)/1000);
+     setRecordSeconds(recordElapsedRef.current);
+     rec.stop();
+   }else if(rec?.state==="inactive"){
+     cameraFinishRef.current=false;void finishCameraSegments();
+   }
+ }
+ async function finishCameraSegments(){
+   const segments=cameraSegmentsRef.current;
+   if(!segments.length){setRecording(false);setRecordPaused(false);return;}
+   setCameraExporting(true);
    try{
-     if(mediaRecorderRef.current?.state==="paused")mediaRecorderRef.current.resume();
-   }catch{}
-   try{
-     if(mediaRecorderRef.current?.state==="recording"){
-       mediaRecorderRef.current.stop();
+     let blob=segments[0].blob;
+     if(segments.length>1){
+       // FFmpeg re-multiplexa cada segmento: nunca concatenar MP4 a ciegas.
+       const [{FFmpeg},{fetchFile,toBlobURL}]=await Promise.all([import("@ffmpeg/ffmpeg"),import("@ffmpeg/util")]);
+       const ffmpeg=new FFmpeg();
+       const base="https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
+       await ffmpeg.load({coreURL:await toBlobURL(`${base}/ffmpeg-core.js`,"text/javascript"),wasmURL:await toBlobURL(`${base}/ffmpeg-core.wasm`,"application/wasm")});
+       const extension=segments[0].blob.type.includes("webm")?"webm":"mp4";
+       let concat="";
+       for(let i=0;i<segments.length;i++){
+         const name=`segment${i}.${extension}`;
+         await ffmpeg.writeFile(name,await fetchFile(segments[i].blob));
+         concat+=`file '${name}'\n`;
+       }
+       await ffmpeg.writeFile("segments.txt",new TextEncoder().encode(concat));
+       await ffmpeg.exec(["-f","concat","-safe","0","-i","segments.txt","-c","copy",`joined.${extension}`]);
+       const bytes=await ffmpeg.readFile(`joined.${extension}`);
+       blob=new Blob([bytes],{type:segments[0].blob.type});
+       ffmpeg.terminate();
      }
-   }catch{}
+     const type=blob.type||"video/mp4";
+     const ext=type.includes("webm")?"webm":"mp4";
+     const file=new File([blob],`rivyza-video-${Date.now()}.${ext}`,{type});
+     setUploadType("video");setUploadFile(file);
+     setUploadPreview(old=>{if(old)URL.revokeObjectURL(old);return URL.createObjectURL(file);});
+     await stopCamera();
+     cameraSegmentsRef.current=[];setCameraSegmentCount(0);
+   }catch(err){
+     console.error("RIVYZA segment export",err);
+     setCameraError("No se pudieron unir los segmentos en este dispositivo. La grabación sigue disponible; intenta terminar de nuevo. "+(err.message||""));
+     setRecordPaused(true);
+   }finally{setCameraExporting(false);}
  }
 
  function resetUpload(){
@@ -2382,10 +2420,10 @@ export default function HomePage(){
 
                {cameraMode==="video"&&<div className="rivyza-record-status">
                  <span>{Math.floor(recordSeconds)}s / {recordLimit}s</span>
-                 {recording&&<span>{recordPaused?"En pausa":"Grabando…"}</span>}
+                 {recording&&<span>{cameraExporting?"Uniendo segmentos…":recordPaused?"En pausa":"Grabando…"}</span>}
                </div>}
                <div className="camera-controls-row">
-                 <label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
+                 {recording&&recordPaused?<button type="button" className="rivyza-delete-segment" onClick={deleteLastCameraSegment} disabled={!cameraSegmentCount||cameraExporting} aria-label="Borrar último segmento"><X size={27}/><small>Borrar</small></button>:<label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(displayName||username||"R").charAt(0).toUpperCase()}</span>}
                    <small>Galería</small>
                    <input
@@ -2394,14 +2432,14 @@ export default function HomePage(){
                      onChange={(e)=>{setUploadType(cameraMode==="photo"?"photo":"video");onPickPostFile(e);}}
                      hidden
                    />
-                 </label>
+                 </label>}
 
                  {cameraMode==="photo" ? (
                    <button className="shutter-button" onClick={capturePhoto}><span></span></button>
                  ) : (
                    <button
                      className={`record-button ${recording?"recording":""} ${recordPaused?"paused":""}`}
-                     onClick={recording?pauseOrResumeRecording:startRecording}
+                     onClick={recording?pauseOrResumeRecording:startRecording} disabled={cameraExporting}
                    >
                      {recording && (
                        <svg
@@ -2425,6 +2463,7 @@ export default function HomePage(){
                            className="record-progress-value"
                            cx="50" cy="50" r="46"
                            pathLength="100"
+                           style={{animation:"none",strokeDasharray:100,strokeDashoffset:100-100*Math.min(1,recordSeconds/recordLimit),transition:recordPaused?"none":"stroke-dashoffset 80ms linear"}}
                          />
                        </svg>
                      )}
@@ -2432,7 +2471,7 @@ export default function HomePage(){
                    </button>
                  )}
 
-                 {recording&&recordPaused?<button className="rivyza-finish-record" type="button" onClick={stopRecording} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setUploadMessage("Efectos estarán disponibles próximamente.")}>
+                 {recording&&recordPaused?<button className="rivyza-finish-record" type="button" onClick={stopRecording} disabled={cameraExporting} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setUploadMessage("Efectos estarán disponibles próximamente.")}>
                    <span>✦</span>
                    <small>Efectos</small>
                  </button>}
