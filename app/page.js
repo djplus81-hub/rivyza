@@ -1918,7 +1918,8 @@ export default function HomePage(){
      setCameraSegmentSaving(false);
      if(cameraDeletePendingRef.current){
        cameraDeletePendingRef.current=false;
-       removeLastSavedCameraSegment();
+       if(cameraSegmentsRef.current.length)removeLastSavedCameraSegment();
+       else {recordElapsedRef.current=Math.max(0,cameraSegmentStartRef.current);setRecordSeconds(recordElapsedRef.current);setCameraError("No se pudo guardar el último tramo; el contador volvió al punto anterior.");}
      }
      if(cameraFinishRef.current){cameraFinishRef.current=false;void finishCameraSegments();}
    };
@@ -1989,11 +1990,13 @@ export default function HomePage(){
    }
  }
  function deleteLastCameraSegment(){
-   if(!recording || !recordPaused || cameraExporting)return;
+   if(cameraExporting)return;
+   if(!recording || !recordPaused){setCameraError("Primero pausa la grabación para borrar el último tramo.");return;}
    setCameraError("");
    // Si MediaRecorder aún está cerrando el segmento, solicitar borrado al onstop.
-   if(cameraSegmentSavingRef.current || mediaRecorderRef.current?.state!=="inactive"){
+   if(cameraSegmentSavingRef.current || (mediaRecorderRef.current && mediaRecorderRef.current.state!=="inactive")){
      cameraDeletePendingRef.current=true;
+     setCameraError("Guardando el último tramo para eliminarlo…");
      return;
    }
    removeLastSavedCameraSegment();
@@ -2456,7 +2459,7 @@ export default function HomePage(){
                  {recording&&<span>{cameraExporting?"Uniendo segmentos…":recordPaused?"En pausa":"Grabando…"}</span>}
                </div>}
                <div className="camera-controls-row">
-                 {recording&&recordPaused?<button type="button" className="rivyza-delete-segment" onClick={deleteLastCameraSegment} disabled={cameraExporting||(!cameraSegmentCount&&!cameraSegmentSaving)} aria-label="Borrar último segmento"><X size={27}/><small>{cameraSegmentSaving?"Espera…":"Último"}</small></button>:<label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
+                 {recording&&recordPaused?<button type="button" className="rivyza-delete-segment" onClick={deleteLastCameraSegment} disabled={cameraExporting} aria-label="Borrar último segmento"><X size={34} strokeWidth={4}/><small>{cameraSegmentSaving?"Borrando…":"Borrar"}</small></button>:<label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
                    {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{(displayName||username||"R").charAt(0).toUpperCase()}</span>}
                    <small>Galería</small>
                    <input

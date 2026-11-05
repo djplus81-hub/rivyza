@@ -3887,3 +3887,9 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 /* v5: No rotar el SVG completo: las marcas y el progreso usan el mismo origen arriba. */
 .camera-composer .record-progress-ring{transform:none!important;}
 .camera-composer .record-progress-ring circle[fill="#fff"]{filter:drop-shadow(0 0 1.5px #000);}
+
+/* v6: X claramente blanca, gruesa, tocable y por encima del aro */
+.camera-composer .rivyza-delete-segment{position:relative!important;z-index:35!important;pointer-events:auto!important;min-width:62px!important;width:62px!important;height:62px!important;background:rgba(12,12,16,.62)!important;border:2px solid rgba(255,255,255,.8)!important;color:#fff!important;opacity:1!important;box-shadow:0 2px 14px #0008!important;}
+.camera-composer .rivyza-delete-segment svg{stroke:#fff!important;stroke-width:4!important;pointer-events:none;}
+.camera-composer .rivyza-delete-segment small{font-weight:900!important;color:#fff!important;pointer-events:none;}
+.camera-composer .rivyza-delete-segment:active{transform:scale(.93);background:#444!important;}
