@@ -17,6 +17,54 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     observer.observe(node);return()=>observer.disconnect();
   },[]);
 
+  // Photos have no video element: play their selected music segment independently.
+  useEffect(()=>{
+    if(post.media_type==="video"||!hasMusic)return;
+    const a=music.current,node=root.current;
+    if(!a||!node)return;
+    let disposed=false;
+    const clip=Math.max(1,Number(post.music_clip_seconds)||10);
+    const stop=()=>a.pause();
+    if(!visible){stop();return;}
+    if(activeStop)activeStop();
+    activeStop=stop;
+    a.muted=false;
+    a.volume=musicVolume;
+    const begin=()=>{
+      if(disposed||!visible)return;
+      if(a.currentTime<start||a.currentTime>=start+clip){
+        try{a.currentTime=start;}catch(_){}
+      }
+      a.play().catch(()=>{}); // Mobile browsers may require a user gesture.
+    };
+    const onTick=()=>{
+      if(a.currentTime>=start+clip){
+        try{a.currentTime=start;}catch(_){}
+        if(visible)a.play().catch(()=>{});
+      }
+    };
+    const onEnded=()=>{
+      try{a.currentTime=start;}catch(_){}
+      if(visible)a.play().catch(()=>{});
+    };
+    const onTap=()=>begin();
+    a.addEventListener("timeupdate",onTick);
+    a.addEventListener("ended",onEnded);
+    node.addEventListener("pointerdown",onTap,{passive:true});
+    node.addEventListener("touchstart",onTap,{passive:true});
+    try{a.currentTime=start;}catch(_){}
+    begin();
+    return()=>{
+      disposed=true;
+      a.removeEventListener("timeupdate",onTick);
+      a.removeEventListener("ended",onEnded);
+      node.removeEventListener("pointerdown",onTap);
+      node.removeEventListener("touchstart",onTap);
+      stop();
+      if(activeStop===stop)activeStop=null;
+    };
+  },[visible,post.id,post.media_type,post.music_clip_seconds,hasMusic,start,musicVolume]);
+
   useEffect(()=>{
     const v=video.current,a=music.current;
     if(!v)return;
@@ -104,6 +152,5 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
   return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"}>
     {post.media_type==="video"?<video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} playsInline loop preload="metadata" controls={detail}/>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
     {hasMusic&&<audio ref={music} src={post.music_path} preload="auto"/>}
-    {(hasMusic||post.music_title)&&<span className="rivyza-music-credit">♫ {post.music_title||"Muévelo Sin Pensar"} · DJ Plus</span>}
   </div>;
 }
