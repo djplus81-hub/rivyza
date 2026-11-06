@@ -596,8 +596,8 @@ export default function HomePage(){
   const [cameraEffectsOpen,setCameraEffectsOpen]=useState(false);
   const [cameraTone,setCameraTone]=useState('natural');
   const [cameraLight,setCameraLight]=useState(0);
-  const [cameraSoft,setCameraSoft]=useState(0);
-  const cameraEffectsRef=useRef({tone:'natural',light:0,soft:0});
+  const [cameraSoft,setCameraSoft]=useState(30);
+  const cameraEffectsRef=useRef({tone:'natural',light:0,soft:30});
   const cameraProcessedRef=useRef(null);
   const cameraProcessingRef=useRef(null);
   useEffect(()=>{
@@ -609,7 +609,7 @@ export default function HomePage(){
     if(!user?.id)return;
     try{
       const saved=JSON.parse(localStorage.getItem(`rivyza-camera-effects:${user.id}`)||'null');
-      if(saved){setCameraTone(['natural','warm','cool','vivid','mono'].includes(saved.tone)?saved.tone:'natural');setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(30,Number(saved.soft)||0)));}
+      if(saved){setCameraTone(['natural','warm','cool','vivid','mono'].includes(saved.tone)?saved.tone:'natural');setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(30,saved.soft===undefined?30:Number(saved.soft)||0)));}
     }catch{}
   },[user?.id]);
   function cameraFilterValue(){
@@ -627,13 +627,13 @@ export default function HomePage(){
     const source=cameraStream;
     const video=cameraVideoRef.current;
     if(!source||!video||!cameraEffectsRef.current)return source;
-    if(!HTMLCanvasElement.prototype.captureStream)return source;
+    if(typeof HTMLCanvasElement.prototype.captureStream!=="function")throw new Error("Este navegador no permite grabar los efectos en video. No se grabará sin el filtro.");
     if(cameraProcessedRef.current)return cameraProcessedRef.current;
     const canvas=document.createElement('canvas');
     canvas.width=Math.min(720,video.videoWidth||720);
     canvas.height=Math.round(canvas.width*(video.videoHeight||1280)/(video.videoWidth||720));
     const ctx=canvas.getContext('2d',{alpha:false});
-    if(!ctx)return source;
+    if(!ctx)throw new Error("No se pudo preparar el video con efectos.");
     const state={raf:0,stream:null};
     const draw=()=>{
       if(video.readyState>=2){
@@ -645,6 +645,7 @@ export default function HomePage(){
     };
     draw();
     const processed=canvas.captureStream(24);
+    if(!processed.getVideoTracks().length)throw new Error("No se pudo crear el video con efectos.");
     const combined=new MediaStream([...processed.getVideoTracks(),...source.getAudioTracks()]);
     state.stream=processed;
     cameraProcessingRef.current=state;
