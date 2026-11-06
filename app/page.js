@@ -592,6 +592,66 @@ export default function HomePage(){
   const [cameraFacing,setCameraFacing]=useState("user");
   const [cameraStream,setCameraStream]=useState(null);
   const [cameraError,setCameraError]=useState("");
+  // v3.62: ajustes reales de imagen para fotos y videos; no simula geometría facial.
+  const [cameraEffectsOpen,setCameraEffectsOpen]=useState(false);
+  const [cameraTone,setCameraTone]=useState('natural');
+  const [cameraLight,setCameraLight]=useState(0);
+  const [cameraSoft,setCameraSoft]=useState(0);
+  const cameraEffectsRef=useRef({tone:'natural',light:0,soft:0});
+  const cameraProcessedRef=useRef(null);
+  const cameraProcessingRef=useRef(null);
+  useEffect(()=>{
+    cameraEffectsRef.current={tone:cameraTone,light:cameraLight,soft:cameraSoft};
+    if(!user?.id)return;
+    try{localStorage.setItem(`rivyza-camera-effects:${user.id}`,JSON.stringify(cameraEffectsRef.current));}catch{}
+  },[cameraTone,cameraLight,cameraSoft,user?.id]);
+  useEffect(()=>{
+    if(!user?.id)return;
+    try{
+      const saved=JSON.parse(localStorage.getItem(`rivyza-camera-effects:${user.id}`)||'null');
+      if(saved){setCameraTone(['natural','warm','cool','vivid','mono'].includes(saved.tone)?saved.tone:'natural');setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(30,Number(saved.soft)||0)));}
+    }catch{}
+  },[user?.id]);
+  function cameraFilterValue(){
+    const {tone,light,soft}=cameraEffectsRef.current;
+    const tones={natural:'',warm:'sepia(.18) saturate(1.12)',cool:'hue-rotate(12deg) saturate(1.06)',vivid:'saturate(1.45) contrast(1.08)',mono:'grayscale(1)'};
+    return `${tones[tone]||''} brightness(${Math.max(.7,1+light/100)}) blur(${soft/30*.65}px)`;
+  }
+  function stopCameraProcessing(){
+    const state=cameraProcessingRef.current;
+    if(state){cancelAnimationFrame(state.raf);state.stream?.getVideoTracks().forEach(t=>t.stop());}
+    cameraProcessingRef.current=null;
+    cameraProcessedRef.current=null;
+  }
+  function cameraRecordingStream(){
+    const source=cameraStream;
+    const video=cameraVideoRef.current;
+    if(!source||!video||!cameraEffectsRef.current)return source;
+    if(!HTMLCanvasElement.prototype.captureStream)return source;
+    if(cameraProcessedRef.current)return cameraProcessedRef.current;
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.min(720,video.videoWidth||720);
+    canvas.height=Math.round(canvas.width*(video.videoHeight||1280)/(video.videoWidth||720));
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx)return source;
+    const state={raf:0,stream:null};
+    const draw=()=>{
+      if(video.readyState>=2){
+        ctx.save();ctx.filter=cameraFilterValue();
+        ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        ctx.restore();
+      }
+      state.raf=requestAnimationFrame(draw);
+    };
+    draw();
+    const processed=canvas.captureStream(24);
+    const combined=new MediaStream([...processed.getVideoTracks(),...source.getAudioTracks()]);
+    state.stream=processed;
+    cameraProcessingRef.current=state;
+    cameraProcessedRef.current=combined;
+    return combined;
+  }
+
   const [recording,setRecording]=useState(false);
   const [recordPaused,setRecordPaused]=useState(false);
   const recordElapsedRef=useRef(0);
@@ -1799,6 +1859,7 @@ export default function HomePage(){
  }
 
  async function stopCamera(){
+   stopCameraProcessing();
    cameraZoomTrackRef.current=null;
    setCameraZoomRange(null);
    setCameraZoom(1);
@@ -1887,6 +1948,7 @@ export default function HomePage(){
      ctx.translate(canvas.width,0);
      ctx.scale(-1,1);
    }
+   ctx.filter=cameraFilterValue();
    ctx.drawImage(video,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
 
    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.92));
@@ -1904,7 +1966,7 @@ export default function HomePage(){
  function createCameraSegment(){
    const preferred=["video/mp4;codecs=h264,aac","video/mp4","video/webm;codecs=vp8,opus","video/webm"];
    const mime=preferred.find(t=>window.MediaRecorder && MediaRecorder.isTypeSupported?.(t))||"";
-   const recorder=new MediaRecorder(cameraStream,mime?{mimeType:mime}:undefined);
+   const recorder=new MediaRecorder(cameraRecordingStream(),mime?{mimeType:mime}:undefined);
    const chunks=[];
    recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data);};
    recorder.onstop=()=>{
@@ -2382,6 +2444,7 @@ export default function HomePage(){
                autoPlay
                muted
                playsInline
+               style={{filter:`${cameraTone==='warm'?'sepia(.18) saturate(1.12)':cameraTone==='cool'?'hue-rotate(12deg) saturate(1.06)':cameraTone==='vivid'?'saturate(1.45) contrast(1.08)':cameraTone==='mono'?'grayscale(1)':''} brightness(${1+cameraLight/100}) blur(${cameraSoft/30*.65}px)`}}
              />
 
              <div className="rivyza-camera-zoom" aria-label="Zoom de cámara">
@@ -2415,6 +2478,14 @@ export default function HomePage(){
              </div>
 {cameraError && <div className="camera-error">{cameraError}</div>}
              {musicPanel==="library"&&renderMusicSheet(true)}
+             {cameraEffectsOpen&&<div style={{position:'absolute',left:12,right:12,bottom:185,zIndex:60,background:'rgba(16,13,25,.94)',color:'#fff',borderRadius:18,padding:16,boxShadow:'0 8px 28px #0009'}}>
+               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}><strong>✦ Filtros de cámara</strong><button type="button" onClick={()=>setCameraEffectsOpen(false)} style={{color:'#fff',background:'transparent',border:0,fontSize:24}}>×</button></div>
+               <div style={{display:'flex',gap:6,overflowX:'auto',marginBottom:14}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'#e92f9c':'#35303d',border:0,borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap'}}>{label}</button>)}</div>
+               <label style={{display:'block',fontSize:13}}>Iluminación: {cameraLight} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="-30" max="30" value={cameraLight} onChange={e=>setCameraLight(Number(e.target.value))}/></label>
+               <label style={{display:'block',fontSize:13,marginTop:8}}>Suavidad general: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
+               <small style={{display:'block',opacity:.7,marginTop:8}}>Estos ajustes se aplican a la foto o video y se recuerdan en este dispositivo. El retoque facial de piel, rostro y ojos se incorporará por separado.</small>
+               <button type="button" onClick={()=>{setCameraTone('natural');setCameraLight(0);setCameraSoft(0)}} style={{background:'transparent',border:'1px solid #777',borderRadius:10,color:'#fff',padding:'7px 12px',marginTop:10}}>Restablecer</button>
+             </div>}
 
              <div
                className={`camera-bottom ${cameraPanelCollapsed?"collapsed":""}`}
@@ -2513,7 +2584,7 @@ export default function HomePage(){
                    </button>
                  )}
 
-                 {recording&&recordPaused?<button className="rivyza-finish-record" type="button" onClick={stopRecording} disabled={cameraExporting||cameraSegmentSaving} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setUploadMessage("Efectos estarán disponibles próximamente.")}>
+                 {recording&&recordPaused?<button className="rivyza-finish-record" type="button" onClick={stopRecording} disabled={cameraExporting||cameraSegmentSaving} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setCameraEffectsOpen(v=>!v)}>
                    <span>✦</span>
                    <small>Efectos</small>
                  </button>}
