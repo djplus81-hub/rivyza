@@ -609,13 +609,13 @@ export default function HomePage(){
     if(!user?.id)return;
     try{
       const saved=JSON.parse(localStorage.getItem(`rivyza-camera-effects:${user.id}`)||'null');
-      if(saved){setCameraTone(['natural','warm','cool','vivid','mono'].includes(saved.tone)?saved.tone:'natural');setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(30,Number(saved.soft)||0)));}
+      if(saved){setCameraTone(['natural','warm','cool','vivid','mono'].includes(saved.tone)?saved.tone:'natural');setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(100,Number(saved.soft)||0)));}
     }catch{}
   },[user?.id]);
   function cameraFilterValue(){
     const {tone,light,soft}=cameraEffectsRef.current;
     const tones={natural:'',warm:'sepia(.18) saturate(1.12)',cool:'hue-rotate(12deg) saturate(1.06)',vivid:'saturate(1.45) contrast(1.08)',mono:'grayscale(1)'};
-    return `${tones[tone]||''} brightness(${Math.max(.7,1+light/100)}) blur(${soft/30*.65}px)`;
+    return `${tones[tone]||''} brightness(${Math.max(.7,1+light/100)}) blur(${(soft/100*5).toFixed(2)}px)`;
   }
   function stopCameraProcessing(){
     const state=cameraProcessingRef.current;
@@ -2444,7 +2444,7 @@ export default function HomePage(){
                autoPlay
                muted
                playsInline
-               style={{filter:`${cameraTone==='warm'?'sepia(.18) saturate(1.12)':cameraTone==='cool'?'hue-rotate(12deg) saturate(1.06)':cameraTone==='vivid'?'saturate(1.45) contrast(1.08)':cameraTone==='mono'?'grayscale(1)':''} brightness(${1+cameraLight/100}) blur(${cameraSoft/30*.65}px)`}}
+               style={{filter:`${cameraTone==='warm'?'sepia(.18) saturate(1.12)':cameraTone==='cool'?'hue-rotate(12deg) saturate(1.06)':cameraTone==='vivid'?'saturate(1.45) contrast(1.08)':cameraTone==='mono'?'grayscale(1)':''} brightness(${1+cameraLight/100}) blur(${(cameraSoft/100*5).toFixed(2)}px)`}}
              />
 
              <div className="rivyza-camera-zoom" aria-label="Zoom de cámara">
@@ -2482,7 +2482,7 @@ export default function HomePage(){
                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}><strong>✦ Filtros de cámara</strong><button type="button" onClick={()=>setCameraEffectsOpen(false)} style={{color:'#fff',background:'transparent',border:0,fontSize:24}}>×</button></div>
                <div style={{display:'flex',gap:6,overflowX:'auto',marginBottom:14}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'#e92f9c':'#35303d',border:0,borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap'}}>{label}</button>)}</div>
                <label style={{display:'block',fontSize:13}}>Iluminación: {cameraLight} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="-30" max="30" value={cameraLight} onChange={e=>setCameraLight(Number(e.target.value))}/></label>
-               <label style={{display:'block',fontSize:13,marginTop:8}}>Suavidad general: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
+               <label style={{display:'block',fontSize:13,marginTop:8}}>Suavizar imagen: {cameraSoft}% <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="100" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
                <small style={{display:'block',opacity:.7,marginTop:8}}>Estos ajustes se aplican a la foto o video y se recuerdan en este dispositivo. El retoque facial de piel, rostro y ojos se incorporará por separado.</small>
                <button type="button" onClick={()=>{setCameraTone('natural');setCameraLight(0);setCameraSoft(0)}} style={{background:'transparent',border:'1px solid #777',borderRadius:10,color:'#fff',padding:'7px 12px',marginTop:10}}>Restablecer</button>
              </div>}
