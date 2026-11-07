@@ -682,6 +682,47 @@ export default function HomePage(){
   const [postCropAspect,setPostCropAspect]=useState(9/16);
   const [postCropBusy,setPostCropBusy]=useState(false);
   const [postCropError,setPostCropError]=useState("");
+  // Editor fotográfico: filtros no destructivos, con intensidad regulable.
+  const [photoFilter,setPhotoFilter]=useState("original");
+  const [photoFilterStrength,setPhotoFilterStrength]=useState(70);
+  const [photoFilterBusy,setPhotoFilterBusy]=useState(false);
+  const [photoFilterError,setPhotoFilterError]=useState("");
+  const photoFilterPresets=[
+    {id:"original",name:"Original",css:"none"},
+    {id:"vivid",name:"Vivo",css:"saturate(1.65) contrast(1.12)"},
+    {id:"warm",name:"Cálido",css:"sepia(.28) saturate(1.22)"},
+    {id:"cool",name:"Frío",css:"hue-rotate(14deg) saturate(1.12)"},
+    {id:"mono",name:"B/N",css:"grayscale(1) contrast(1.12)"},
+    {id:"soft",name:"Suave",css:"contrast(.92) brightness(1.07) saturate(.92)"}
+  ];
+  async function applyPhotoFilter(){
+    if(uploadType!=="photo"||!uploadPreview||photoFilterBusy)return;
+    if(photoFilter==="original"||photoFilterStrength===0){setPhotoFilter("original");return;}
+    setPhotoFilterBusy(true);setPhotoFilterError("");
+    try{
+      const image=await createImage(uploadPreview);
+      const canvas=document.createElement("canvas");
+      const scale=Math.min(1,4096/Math.max(image.naturalWidth,image.naturalHeight));
+      canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+      canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+      const ctx=canvas.getContext("2d");
+      if(!ctx)throw new Error("No se pudo preparar la imagen.");
+      ctx.drawImage(image,0,0,canvas.width,canvas.height);
+      const preset=photoFilterPresets.find(p=>p.id===photoFilter);
+      ctx.filter=preset?.css||"none";
+      ctx.globalAlpha=photoFilterStrength/100;
+      ctx.drawImage(image,0,0,canvas.width,canvas.height);
+      ctx.filter="none";ctx.globalAlpha=1;
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.95));
+      if(!blob)throw new Error("No se pudo guardar el filtro.");
+      const file=new File([blob],`rivyza-filter-${Date.now()}.jpg`,{type:"image/jpeg"});
+      const url=URL.createObjectURL(file);
+      setUploadFile(file);setUploadPreview(url);setPhotoFilter("original");
+      URL.revokeObjectURL(uploadPreview);
+    }catch(e){setPhotoFilterError(e.message||"No se pudo aplicar el filtro.");}
+    finally{setPhotoFilterBusy(false);}
+  }
+
   async function applyPostCrop(){
     if(!uploadPreview||!postCropPixels||postCropBusy)return;
     setPostCropBusy(true);setPostCropError("");
@@ -3006,6 +3047,12 @@ export default function HomePage(){
              </div>
            </div>
            {uploadType==="photo" && <button type="button" onClick={()=>{setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);setPostCropAspect(9/16);setPostCropError("");setPostCropOpen(true);}} style={{position:"absolute",top:"calc(110px + env(safe-area-inset-top))",left:12,zIndex:8,background:"rgba(0,0,0,.6)",color:"white",border:"1px solid rgba(255,255,255,.4)",borderRadius:22,padding:"10px 14px",fontWeight:700}}>✂ Ajustar foto</button>}
+           {uploadType==="photo" && <div style={{position:"absolute",top:"calc(165px + env(safe-area-inset-top))",left:12,right:12,zIndex:8,maxWidth:360,background:"rgba(15,15,20,.75)",backdropFilter:"blur(14px)",borderRadius:16,padding:"10px 12px",color:"white"}}>
+             <div style={{fontSize:12,fontWeight:700,marginBottom:7}}>Filtros de fotografía</div>
+             <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:5}}>{photoFilterPresets.map(p=><button key={p.id} type="button" onClick={()=>setPhotoFilter(p.id)} style={{flex:"0 0 auto",fontSize:12,color:"white",border:photoFilter===p.id?"1px solid #ff37ad":"1px solid #777",borderRadius:12,background:photoFilter===p.id?"#642453":"#292930",padding:"7px 9px"}}>{p.name}</button>)}</div>
+             {photoFilter!=="original"&&<><label style={{display:"flex",alignItems:"center",gap:9,fontSize:12,marginTop:6}}>Intensidad <input aria-label="Intensidad del filtro" type="range" min="0" max="100" value={photoFilterStrength} onChange={e=>setPhotoFilterStrength(Number(e.target.value))} style={{flex:1}}/>{photoFilterStrength}%</label><button type="button" disabled={photoFilterBusy} onClick={applyPhotoFilter} style={{width:"100%",marginTop:5,background:"linear-gradient(90deg,#ec29a9,#168bff)",border:0,borderRadius:10,padding:8,color:"white",fontWeight:700}}>{photoFilterBusy?"Aplicando…":"Aplicar filtro"}</button></>}
+             {photoFilterError&&<small style={{color:"#ff9999"}}>{photoFilterError}</small>}
+           </div>}
            {postCropOpen && uploadType==="photo" && <div style={{position:"fixed",inset:0,zIndex:100000,background:"#080808",display:"flex",flexDirection:"column",color:"white"}}>
              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"calc(12px + env(safe-area-inset-top)) 16px 12px"}}><button onClick={()=>setPostCropOpen(false)} style={{color:"white",background:"none",border:0,fontSize:18}}>Cancelar</button><strong>Ajustar fotografía</strong><button onClick={applyPostCrop} disabled={postCropBusy||!postCropPixels} style={{background:"#ec29a9",color:"white",border:0,borderRadius:16,padding:"9px 13px",fontWeight:700}}>{postCropBusy?"Guardando…":"Aplicar"}</button></div>
              <div style={{position:"relative",flex:1,minHeight:150,background:"#151515"}}><Cropper image={uploadPreview} crop={postCrop} zoom={postZoom} aspect={postCropAspect} onCropChange={setPostCrop} onZoomChange={setPostZoom} onCropComplete={(_,pixels)=>setPostCropPixels(pixels)} showGrid={true}/></div>
