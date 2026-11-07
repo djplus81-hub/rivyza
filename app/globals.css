@@ -3893,3 +3893,26 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 .camera-composer .rivyza-delete-segment svg{stroke:#fff!important;stroke-width:4!important;pointer-events:none;}
 .camera-composer .rivyza-delete-segment small{font-weight:900!important;color:#fff!important;pointer-events:none;}
 .camera-composer .rivyza-delete-segment:active{transform:scale(.93);background:#444!important;}
+
+
+/* RIVYZA 2026-11-07 — Fotos de «Para ti» a pantalla completa.
+   Solo cambia la presentación de fotos en el feed; no altera videos,
+   cámara, DeepAR, LIVE, ni el archivo original de las publicaciones.
+   Sobrescribe reglas antiguas de object-fit:contain y el desplazamiento +35px. */
+.feed-shell > .home-real-feed > .feed-post-card .feed-media-wrap .rivyza-music-feed {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+.feed-shell > .home-real-feed > .feed-post-card .feed-media-wrap img.feed-media,
+.feed-shell > .home-real-feed > .feed-post-card .feed-media-wrap .rivyza-music-feed > img.feed-media {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+}
