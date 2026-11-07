@@ -2237,7 +2237,7 @@ async function applyPostCrop(){
      const stream=await navigator.mediaDevices.getUserMedia({
        video:cameraMode==="photo"
          ? {facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:960},aspectRatio:{ideal:4/3}}
-         : {facingMode:{ideal:facing},width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:9/16}},
+         : {facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:960},aspectRatio:{ideal:4/3}},
        audio:cameraMode==="video"
      });
 
@@ -2552,7 +2552,7 @@ async function applyPostCrop(){
    setPostCropOpen(false);setPostCropPixels(null);
    setUploadCaption("");
    setMusicSelected(false);setMusicPanel("");setMusicStart(0);setMusicLength(15);setEditorVideoDuration(0);
-   setOriginalVolume(50);setMusicVolume(50);
+   setOriginalVolume(50);setMusicVolume(50);setVideoFilter("original");setVideoFilterStrength(70);setVideoFilterOpen(false);setVideoTrimOpen(false);setVideoTrimStart(0);setVideoTrimEnd(0);
    setUploadVisibility("public");
    setUploadMessage("");
  }
@@ -2677,12 +2677,12 @@ async function applyPostCrop(){
    setPublishStage("Subiendo foto o video…");
 
    try{
-     const publishFile=uploadType==="photo"?await getPhotoForPublishing():uploadFile;
+     const publishFile=uploadType==="photo"?await getPhotoForPublishing():await getVideoForPublishing();
      const ext=(publishFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
      const path=`${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
      if(uploadType==="video"){
-       await uploadVideoResumable(uploadFile,path);
+       await uploadVideoResumable(publishFile,path);
      }else{
        const {error:uploadError}=await withPublishTimeout(
          supabase.storage.from("media").upload(path,publishFile,{
@@ -2873,7 +2873,7 @@ async function applyPostCrop(){
                autoPlay
                muted
                playsInline
-               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1,objectFit:cameraMode==="photo"?"contain":undefined}}
+               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1,objectFit:"contain"}}
              />
              <div ref={deepARContainerRef} style={{position:"absolute",inset:0,pointerEvents:"none",opacity:deepAREffect?1:0,filter:cameraFilterValue()}}/>
 
@@ -3069,8 +3069,8 @@ async function applyPostCrop(){
              <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
                {uploadType==="photo"
                  ? <img src={uploadPreview} alt="Vista previa" style={{filter:photoFilterCss,transition:"filter .15s"}}/>
-                 : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="auto" style={{width:"100%"}}
-                     onLoadedMetadata={e=>{const v=e.currentTarget,d=v.duration;if(Number.isFinite(d)&&d>0){setEditorVideoDuration(d);/* iOS: seek to a decoded frame so the editor does not open black. */try{v.currentTime=Math.min(0.18,Math.max(0,d-0.05));}catch(_){}}}}
+                 : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="auto" style={{width:"100%",filter:videoFilterCss}}
+                     onLoadedMetadata={e=>{const v=e.currentTarget,d=v.duration;if(Number.isFinite(d)&&d>0){setEditorVideoDuration(d);setVideoTrimEnd(d);/* iOS: seek to a decoded frame so the editor does not open black. */try{v.currentTime=Math.min(0.18,Math.max(0,d-0.05));}catch(_){}}}}
                      onPlaying={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
                      onSeeked={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(v&&a&&musicSelected)a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));}}
                      onTimeUpdate={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v||!a||!musicSelected||v.paused)return;const target=musicStart+v.currentTime;if(Math.abs(a.currentTime-target)>.22)a.currentTime=target;}}
@@ -3083,11 +3083,15 @@ async function applyPostCrop(){
              </div>
            </div>
            <div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",right:12,zIndex:9,display:"flex",flexDirection:"column",gap:8,width:92}}>
+             {uploadType==="video"&&<button type="button" onClick={()=>{setVideoFilterOpen(false);setVideoTrimOpen(v=>!v)}} style={{background:"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>✂ Recortar</button>}
+             {uploadType==="video"&&<button type="button" onClick={()=>{setVideoTrimOpen(false);setVideoFilterOpen(v=>!v)}} style={{background:videoFilterOpen?"#71315f":"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>EF Filtros</button>}
              {uploadType==="photo"&&<button type="button" onClick={()=>{setPhotoFilterOpen(false);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);setPostCropAspect(9/16);setPostCropError("");setPostCropOpen(true);}} style={{background:"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>✂ Ajustar</button>}
              {uploadType==="photo"&&<button type="button" onClick={()=>setPhotoFilterOpen(v=>!v)} style={{background:photoFilterOpen?"#71315f":"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>EF Filtros</button>}
              <button type="button" onClick={()=>{setPhotoFilterOpen(false);setMusicPanel("library");}} style={{background:"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>♫ Música</button>
              <button type="button" onClick={()=>{setPhotoFilterOpen(false);setMusicPanel("audio");}} style={{background:"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>☷ Audio</button>
            </div>
+           {uploadType==="video"&&videoFilterOpen&&<div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",left:12,right:116,zIndex:10,background:"rgba(15,15,20,.94)",borderRadius:16,padding:12,color:"white"}}><div style={{display:"flex",justifyContent:"space-between"}}><strong>EF · Filtros de video</strong><button onClick={()=>setVideoFilterOpen(false)} style={{color:"white",background:"transparent",border:0}}>×</button></div><div style={{display:"flex",gap:6,overflowX:"auto",marginTop:10}}>{photoFilterPresets.map(p=><button key={p.id} onClick={()=>setVideoFilter(p.id)} style={{flex:"0 0 auto",padding:9,borderRadius:10,color:"white",background:videoFilter===p.id?"#71315f":"#292930",border:"1px solid #777"}}>{p.name}</button>)}</div>{videoFilter!=="original"&&<label style={{display:"flex",gap:8,marginTop:12,alignItems:"center"}}>Intensidad <input type="range" min="0" max="100" value={videoFilterStrength} onChange={e=>setVideoFilterStrength(Number(e.target.value))} style={{flex:1}}/>{videoFilterStrength}%</label>}</div>}
+           {uploadType==="video"&&videoTrimOpen&&<div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",left:12,right:116,zIndex:10,background:"rgba(15,15,20,.94)",borderRadius:16,padding:12,color:"white"}}><div style={{display:"flex",justifyContent:"space-between"}}><strong>✂ Recortar duración</strong><button onClick={()=>setVideoTrimOpen(false)} style={{color:"white",background:"transparent",border:0}}>×</button></div><label style={{display:"block",marginTop:12}}>Inicio: {videoTrimStart.toFixed(1)} s<input style={{width:"100%"}} type="range" min="0" max={Math.max(0,videoTrimEnd-.2)} step="0.1" value={videoTrimStart} onChange={e=>{setVideoTrimStart(Number(e.target.value));if(editorVideoRef.current)editorVideoRef.current.currentTime=Number(e.target.value)}}/></label><label style={{display:"block",marginTop:12}}>Final: {videoTrimEnd.toFixed(1)} s<input style={{width:"100%"}} type="range" min={Math.min(editorVideoDuration,videoTrimStart+.2)} max={editorVideoDuration||1} step="0.1" value={videoTrimEnd} onChange={e=>setVideoTrimEnd(Number(e.target.value))}/></label><small>El recorte se guardará al publicar.</small></div>}
            {uploadType==="photo"&&photoFilterOpen&&<div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",left:12,right:116,zIndex:10,background:"rgba(15,15,20,.94)",backdropFilter:"blur(14px)",borderRadius:16,padding:12,color:"white"}}>
              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,fontWeight:700,fontSize:13}}><span>EF · Filtros de fotografía</span><button type="button" onClick={()=>setPhotoFilterOpen(false)} style={{color:"white",background:"transparent",border:0,fontSize:20}}>×</button></div>
              <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:8}}>{photoFilterPresets.map(p=><button key={p.id} type="button" onClick={()=>{setPhotoFilter(p.id);setPhotoFilterError("");}} style={{flex:"0 0 auto",fontSize:12,color:"white",border:photoFilter===p.id?"2px solid #ff37ad":"1px solid #777",borderRadius:12,background:photoFilter===p.id?"#642453":"#292930",padding:"9px 12px"}}>{p.name}</button>)}</div>
