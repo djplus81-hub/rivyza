@@ -6,6 +6,7 @@ let activeStop=null;
 export default function PostMusicMedia({post,detail=false,videoRef=null}){
   const root=useRef(null),video=useRef(null),music=useRef(null),audioMix=useRef(null);
   const [visible,setVisible]=useState(false);
+  const [videoReady,setVideoReady]=useState(false);
   const hasMusic=Boolean(post.music_path);
   const start=Math.max(0,Number(post.music_start_seconds)||0);
   const originalVolume=Math.max(0,Math.min(1,Number(post.original_volume??50)/100));
@@ -134,11 +135,22 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     v.addEventListener("timeupdate",detectLoop);
     const onMusicEnded=()=>{if(!v.paused)startMusic();};
     a?.addEventListener("ended",onMusicEnded);
-    v.currentTime=0;
-    if(a){a.pause();align(true);}
-    v.play().then(()=>{if(!disposed)startMusic();}).catch(()=>{});
+    // Do not start playback before a decoded frame is available.
+    // This avoids a black flash while moving between feed posts.
+    let startCancelled=false;
+    const beginVideo=()=>{
+      if(disposed||startCancelled||!visible)return;
+      setVideoReady(true);
+      if(a){a.pause();align(true);}
+      v.play().then(()=>{if(!disposed)startMusic();}).catch(()=>{});
+    };
+    setVideoReady(v.readyState>=2);
+    try{v.currentTime=0;}catch(_){}
+    if(v.readyState>=2)beginVideo();
+    else v.addEventListener("loadeddata",beginVideo,{once:true});
     return()=>{
-      disposed=true;
+      disposed=true;startCancelled=true;
+      v.removeEventListener("loadeddata",beginVideo);
       root.current?.removeEventListener("pointerdown",onUserGesture);
       root.current?.removeEventListener("touchstart",onUserGesture);
       v.removeEventListener("playing",onPlay);v.removeEventListener("pause",onPause);
@@ -150,7 +162,7 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
   },[visible,post.id,hasMusic,start,originalVolume,musicVolume]);
   useEffect(()=>()=>{const mix=audioMix.current;if(mix){mix.ctx.close().catch(()=>{});audioMix.current=null;}},[]);
   return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"}>
-    {post.media_type==="video"?<video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} autoPlay playsInline loop preload="auto" controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
+    {post.media_type==="video"?<video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} playsInline loop preload="auto" onLoadedData={()=>setVideoReady(true)} style={{visibility:videoReady?"visible":"hidden"}} controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
     {hasMusic&&<audio ref={music} src={post.music_path} preload="auto"/>}
   </div>;
 }
