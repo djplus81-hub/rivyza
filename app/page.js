@@ -2971,7 +2971,6 @@ export default function HomePage(){
                <button type="button" onClick={()=>setMusicPanel("audio")}>🎚 Editar audio</button>
              </div>
            </div>
-           {musicSelected&&<div className="rivyza-music-selected">♫ Muévelo Sin Pensar (Remastered) · DJ Plus</div>}
            {musicPanel&&renderMusicSheet(false)}
 
            <label className="upload-field">
