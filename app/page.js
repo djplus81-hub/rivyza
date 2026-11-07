@@ -11,6 +11,118 @@ import {
   AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send
 } from "lucide-react";
 
+// Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
+const DEEPAR_EFFECTS = [
+  {
+    "id": "8bitHearts",
+    "label": "8bitHearts",
+    "category": "fun",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/8bitHearts.deepar"
+  },
+  {
+    "id": "Elephant_Trunk",
+    "label": "Elephant Trunk",
+    "category": "fun",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Elephant_Trunk.deepar"
+  },
+  {
+    "id": "Emotion_Meter",
+    "label": "Emotion Meter",
+    "category": "fun",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Emotion_Meter.deepar"
+  },
+  {
+    "id": "Emotions_Exaggerator",
+    "label": "Emotions Exaggerator",
+    "category": "face",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Emotions_Exaggerator.deepar"
+  },
+  {
+    "id": "Fire_Effect",
+    "label": "Fire Effect",
+    "category": "fun",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Fire_Effect.deepar"
+  },
+  {
+    "id": "Hope",
+    "label": "Hope",
+    "category": "fun",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Hope.deepar"
+  },
+  {
+    "id": "Humanoid",
+    "label": "Humanoid",
+    "category": "face",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Humanoid.deepar"
+  },
+  {
+    "id": "MakeupLook",
+    "label": "MakeupLook",
+    "category": "beauty",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/MakeupLook.deepar"
+  },
+  {
+    "id": "Neon_Devil_Horns",
+    "label": "Neon Devil Horns",
+    "category": "accessories",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Neon_Devil_Horns.deepar"
+  },
+  {
+    "id": "Ping_Pong",
+    "label": "Ping Pong",
+    "category": "fun",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ping_Pong.deepar"
+  },
+  {
+    "id": "Snail",
+    "label": "Snail",
+    "category": "fun",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Snail.deepar"
+  },
+  {
+    "id": "Split_View_Look",
+    "label": "Split View Look",
+    "category": "beauty",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Split_View_Look.deepar"
+  },
+  {
+    "id": "Stallone",
+    "label": "Stallone",
+    "category": "face",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Stallone.deepar"
+  },
+  {
+    "id": "Vendetta_Mask",
+    "label": "Vendetta Mask",
+    "category": "accessories",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Vendetta_Mask.deepar"
+  },
+  {
+    "id": "burning_effect",
+    "label": "burning effect",
+    "category": "fun",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/burning_effect.deepar"
+  },
+  {
+    "id": "flower_face",
+    "label": "flower face",
+    "category": "accessories",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/flower_face.deepar"
+  },
+  {
+    "id": "galaxy_background",
+    "label": "galaxy background",
+    "category": "fun",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/galaxy_background.deepar"
+  },
+  {
+    "id": "viking_helmet",
+    "label": "viking helmet",
+    "category": "accessories",
+    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/viking_helmet.deepar"
+  }
+];
+
 function createImage(url){return new Promise((resolve,reject)=>{const i=new Image();i.addEventListener("load",()=>resolve(i));i.addEventListener("error",reject);i.setAttribute("crossOrigin","anonymous");i.src=url;});}
 async function getCroppedBlob(src,pixelCrop){
   const image=await createImage(src),canvas=document.createElement("canvas"),size=768;
@@ -602,6 +714,42 @@ export default function HomePage(){
   const cameraEffectsRef=useRef({tone:'natural',intensity:100,light:0,soft:30});
   const cameraProcessedRef=useRef(null);
   const cameraProcessingRef=useRef(null);
+  // DeepAR solo para la cámara de publicaciones; nunca se usa en LiveRoom.
+  const deepARRef=useRef(null);
+  const deepARContainerRef=useRef(null);
+  const deepARBusyRef=useRef(false);
+  const [deepAREffect,setDeepAREffect]=useState(null);
+  const [deepARBusy,setDeepARBusy]=useState(false);
+  const [deepARError,setDeepARError]=useState("");
+  async function removeDeepAREffect(){
+    if(deepARBusyRef.current)return;
+    const engine=deepARRef.current;
+    if(engine){try{await engine.clearEffect();}catch(e){console.warn("DeepAR clear:",e);}}
+    setDeepAREffect(null);setDeepARError("");
+  }
+  async function chooseDeepAREffect(effect){
+    if(deepARBusyRef.current || recording || cameraSegmentSaving)return;
+    if(!effect){await removeDeepAREffect();return;}
+    const video=cameraVideoRef.current;
+    const holder=deepARContainerRef.current;
+    if(!video || !holder || !cameraStream){setDeepARError("Abre la cámara primero.");return;}
+    const license=process.env.NEXT_PUBLIC_DEEPAR_LICENSE_KEY;
+    if(!license){setDeepARError("Falta NEXT_PUBLIC_DEEPAR_LICENSE_KEY en Vercel.");return;}
+    deepARBusyRef.current=true;setDeepARBusy(true);setDeepARError("");
+    try{
+      if(!deepARRef.current){
+        const deepar=await import('deepar');
+        if(!holder.isConnected)throw new Error("La cámara se cerró.");
+        const engine=await deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
+        deepARRef.current=engine;
+        engine.setVideoElement(video,cameraFacing==="user");
+      }
+      await deepARRef.current.switchEffect(effect.url);
+      setDeepAREffect(effect.id);
+    }catch(e){console.error("DeepAR:",e);setDeepARError("No se pudo cargar este efecto. Comprueba el archivo y la licencia.");}
+    finally{deepARBusyRef.current=false;setDeepARBusy(false);}
+  }
+
   useEffect(()=>{
     cameraEffectsRef.current={tone:cameraTone,intensity:cameraToneIntensity,light:cameraLight,soft:cameraSoft};
     if(!user?.id)return;
@@ -676,7 +824,7 @@ export default function HomePage(){
   }
   function cameraRecordingStream(){
     const source=cameraStream;
-    const video=cameraVideoRef.current;
+    const video=deepAREffect && deepARRef.current?.getCanvas?.() || cameraVideoRef.current;
     if(!source||!video||!cameraEffectsRef.current)return source;
     if(typeof HTMLCanvasElement.prototype.captureStream!=="function")throw new Error("Este navegador no permite grabar los efectos en video. No se grabará sin el filtro.");
     if(cameraProcessedRef.current)return cameraProcessedRef.current;
@@ -687,7 +835,7 @@ export default function HomePage(){
     if(!ctx)throw new Error("No se pudo preparar el video con efectos.");
     const state={raf:0,stream:null};
     const draw=()=>{
-      if(video.readyState>=2){
+      if(video instanceof HTMLCanvasElement || video.readyState>=2){
         ctx.save();
         const effects=cameraEffectsRef.current;
         paintCameraEffects(ctx,video,0,0,canvas.width,canvas.height);
@@ -1913,6 +2061,8 @@ export default function HomePage(){
 
  async function stopCamera(){
    stopCameraProcessing();
+   if(deepARRef.current){try{deepARRef.current.shutdown();}catch(e){}deepARRef.current=null;}
+   setDeepAREffect(null);setDeepARError("");
    cameraZoomTrackRef.current=null;
    setCameraZoomRange(null);
    setCameraZoom(1);
@@ -1977,16 +2127,16 @@ export default function HomePage(){
  }
 
  async function capturePhoto(){
-   const video=cameraVideoRef.current;
-   if(!video || !video.videoWidth)return;
+   const video=deepAREffect && deepARRef.current?.getCanvas?.() || cameraVideoRef.current;
+   if(!video || !video.videoWidth && !video.width)return;
 
    const canvas=document.createElement("canvas");
    // Match the visible full-screen object-fit:cover preview, without stretching.
    const bounds=video.getBoundingClientRect();
    const displayW=bounds.width || 9;
    const displayH=bounds.height || 16;
-   const sourceW=video.videoWidth;
-   const sourceH=video.videoHeight;
+   const sourceW=video.videoWidth || video.width;
+   const sourceH=video.videoHeight || video.height;
    const targetRatio=displayW/displayH;
    let cropW=sourceW, cropH=sourceH;
    if(sourceW/sourceH>targetRatio) cropW=sourceH*targetRatio;
@@ -1997,7 +2147,7 @@ export default function HomePage(){
    canvas.height=Math.round(cropH);
    const ctx=canvas.getContext("2d");
 
-   if(cameraFacing==="user"){
+   if(cameraFacing==="user" && !deepAREffect){
      ctx.translate(canvas.width,0);
      ctx.scale(-1,1);
    }
@@ -2520,8 +2670,9 @@ export default function HomePage(){
                autoPlay
                muted
                playsInline
-               style={{filter:cameraFilterValue()}}
+               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1}}
              />
+             <div ref={deepARContainerRef} style={{position:"absolute",inset:0,pointerEvents:"none",opacity:deepAREffect?1:0,filter:cameraFilterValue()}}/>
 
              <div className="rivyza-camera-zoom" aria-label="Zoom de cámara">
                {!cameraPanelCollapsed ? (
@@ -2557,6 +2708,9 @@ export default function HomePage(){
              {cameraEffectsOpen&&<div style={{position:'absolute',left:8,right:8,bottom:230,zIndex:60,background:'rgba(12,12,22,.13)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',color:'#fff',border:'1px solid rgba(255,255,255,.25)',borderRadius:18,padding:'10px 10px 12px',boxShadow:'0 3px 16px rgba(0,0,0,.10)',textShadow:'0 1px 3px rgba(0,0,0,.85)'}}>
                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong style={{fontSize:15}}>✦ RIVYZA Efectos</strong><button type="button" aria-label="Cerrar efectos" onClick={()=>setCameraEffectsOpen(false)} style={{color:'#fff',background:'rgba(0,0,0,.22)',border:'1px solid #ffffff55',borderRadius:20,fontSize:21,width:30,height:30}}>×</button></div>
                <div style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:5,marginBottom:8,WebkitOverflowScrolling:'touch'}}>{[['filters','Filtros'],['beauty','Belleza'],['face','Rostro'],['accessories','Accesorios'],['fun','Divertidos']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraEffectsTab(key)} style={{background:cameraEffectsTab===key?'rgba(233,47,156,.85)':'rgba(0,0,0,.22)',border:'1px solid rgba(255,255,255,.32)',borderRadius:20,color:'#fff',padding:'7px 10px',fontSize:12,fontWeight:cameraEffectsTab===key?700:500,whiteSpace:'nowrap',textShadow:'0 1px 2px #0009'}}>{label}</button>)}</div>
+               {deepAREffect&&<button type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(null)} style={{color:'#fff',background:'#9d215f',borderRadius:9,padding:'6px 10px',marginBottom:6}}>Quitar efecto AR</button>}
+               {deepARBusy&&<div style={{fontSize:12}}>Cargando efecto DeepAR…</div>}
+               {deepARError&&<div role="alert" style={{fontSize:12,color:'#ffb3c9'}}>{deepARError}</div>}
                {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:3}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'rgba(233,47,156,.88)':'rgba(0,0,0,.24)',border:'1px solid rgba(255,255,255,.4)',borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap',fontWeight:cameraTone===key?700:500}}>{label}</button>)}</div>}
                {cameraEffectsTab==='filters'&&cameraTone!=='natural'&&<label style={{display:'block',marginTop:12,padding:'6px 8px',background:'rgba(0,0,0,.20)',borderRadius:10,fontSize:13}}>Intensidad del filtro: {cameraToneIntensity}%<input type="range" min="0" max="100" step="1" value={cameraToneIntensity} onChange={e=>setCameraToneIntensity(Number(e.target.value))} style={{display:'block',width:'100%',marginTop:7,accentColor:'#ed3b9f',touchAction:'auto'}} aria-label="Ajustar intensidad del filtro"/></label>}
                {cameraEffectsTab==='beauty'&&<div style={{background:'rgba(0,0,0,.16)',borderRadius:12,padding:'8px 10px'}}>
@@ -2565,9 +2719,9 @@ export default function HomePage(){
                  <small style={{fontSize:11,opacity:.95}}>Estos ajustes se guardan para la próxima vez. La belleza facial profesional se añadirá después.</small>
                  <button type="button" onClick={()=>{setCameraLight(0);setCameraSoft(0)}} style={{display:'block',background:'rgba(0,0,0,.24)',border:'1px solid #ffffff66',borderRadius:10,color:'#fff',padding:'5px 10px',marginTop:6}}>Restablecer belleza</button>
                </div>}
-               {cameraEffectsTab==='face'&&<div style={{fontSize:13,background:'rgba(0,0,0,.20)',borderRadius:12,padding:12}}>Retoques de rostro, maquillaje, ojos y labios: próximamente con el motor de belleza profesional.</div>}
-               {cameraEffectsTab==='accessories'&&<div style={{fontSize:13,background:'rgba(0,0,0,.20)',borderRadius:12,padding:12}}>Lentes, gorritos, coronas y máscaras: próximamente.</div>}
-               {cameraEffectsTab==='fun'&&<div style={{fontSize:13,background:'rgba(0,0,0,.20)',borderRadius:12,padding:12}}>Efectos animados y divertidos: próximamente.</div>}
+               {cameraEffectsTab==='face'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='face').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
+               {cameraEffectsTab==='accessories'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='accessories').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
+               {cameraEffectsTab==='fun'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='fun').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
              </div>}
 
              <div
