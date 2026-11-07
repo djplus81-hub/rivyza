@@ -594,6 +594,7 @@ export default function HomePage(){
   const [cameraError,setCameraError]=useState("");
   // v3.62: ajustes reales de imagen para fotos y videos; no simula geometría facial.
   const [cameraEffectsOpen,setCameraEffectsOpen]=useState(false);
+  const [cameraEffectsTab,setCameraEffectsTab]=useState("filters");
   const [cameraTone,setCameraTone]=useState('natural');
   const [cameraLight,setCameraLight]=useState(0);
   const [cameraSoft,setCameraSoft]=useState(30);
@@ -603,13 +604,13 @@ export default function HomePage(){
   useEffect(()=>{
     cameraEffectsRef.current={tone:cameraTone,light:cameraLight,soft:cameraSoft};
     if(!user?.id)return;
-    try{localStorage.setItem(`rivyza-camera-effects:${user.id}`,JSON.stringify(cameraEffectsRef.current));}catch{}
+    try{localStorage.setItem(`rivyza-camera-effects:${user.id}`,JSON.stringify({light:cameraLight,soft:cameraSoft}));}catch{}
   },[cameraTone,cameraLight,cameraSoft,user?.id]);
   useEffect(()=>{
     if(!user?.id)return;
     try{
       const saved=JSON.parse(localStorage.getItem(`rivyza-camera-effects:${user.id}`)||'null');
-      if(saved){setCameraTone(['natural','warm','cool','vivid','mono'].includes(saved.tone)?saved.tone:'natural');setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(30,saved.soft===undefined?30:Number(saved.soft)||0)));}
+      if(saved){setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(30,saved.soft===undefined?30:Number(saved.soft)||0)));}
     }catch{}
   },[user?.id]);
   function cameraFilterValue(){
@@ -2187,6 +2188,10 @@ export default function HomePage(){
  }
 
  function resetUpload(){
+   setCameraTone("natural");
+   cameraEffectsRef.current={...cameraEffectsRef.current,tone:"natural"};
+   setCameraEffectsTab("filters");
+   setCameraEffectsOpen(false);
    if(uploadPreview) URL.revokeObjectURL(uploadPreview);
    setUploadFile(null);
    setUploadPreview("");
@@ -2546,13 +2551,19 @@ export default function HomePage(){
              </div>
 {cameraError && <div className="camera-error">{cameraError}</div>}
              {musicPanel==="library"&&renderMusicSheet(true)}
-             {cameraEffectsOpen&&<div style={{position:'absolute',left:12,right:12,bottom:185,zIndex:60,background:'rgba(16,13,25,.94)',color:'#fff',borderRadius:18,padding:16,boxShadow:'0 8px 28px #0009'}}>
-               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}><strong>✦ Filtros de cámara</strong><button type="button" onClick={()=>setCameraEffectsOpen(false)} style={{color:'#fff',background:'transparent',border:0,fontSize:24}}>×</button></div>
-               <div style={{display:'flex',gap:6,overflowX:'auto',marginBottom:14}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'#e92f9c':'#35303d',border:0,borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap'}}>{label}</button>)}</div>
-               <label style={{display:'block',fontSize:13}}>Iluminación: {cameraLight} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="-30" max="30" value={cameraLight} onChange={e=>setCameraLight(Number(e.target.value))}/></label>
-               <label style={{display:'block',fontSize:13,marginTop:8}}>Suavidad general: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
-               <small style={{display:'block',opacity:.7,marginTop:8}}>Estos ajustes se aplican a la foto o video y se recuerdan en este dispositivo. El retoque facial de piel, rostro y ojos se incorporará por separado.</small>
-               <button type="button" onClick={()=>{setCameraTone('natural');setCameraLight(0);setCameraSoft(0)}} style={{background:'transparent',border:'1px solid #777',borderRadius:10,color:'#fff',padding:'7px 12px',marginTop:10}}>Restablecer</button>
+             {cameraEffectsOpen&&<div style={{position:'absolute',left:8,right:8,bottom:175,zIndex:60,background:'rgba(12,12,22,.13)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',color:'#fff',border:'1px solid rgba(255,255,255,.25)',borderRadius:18,padding:'10px 10px 12px',boxShadow:'0 3px 16px rgba(0,0,0,.10)',textShadow:'0 1px 3px rgba(0,0,0,.85)'}}>
+               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong style={{fontSize:15}}>✦ RIVYZA Efectos</strong><button type="button" aria-label="Cerrar efectos" onClick={()=>setCameraEffectsOpen(false)} style={{color:'#fff',background:'rgba(0,0,0,.22)',border:'1px solid #ffffff55',borderRadius:20,fontSize:21,width:30,height:30}}>×</button></div>
+               <div style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:5,marginBottom:8,WebkitOverflowScrolling:'touch'}}>{[['filters','Filtros'],['beauty','Belleza'],['face','Rostro'],['accessories','Accesorios'],['fun','Divertidos']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraEffectsTab(key)} style={{background:cameraEffectsTab===key?'rgba(233,47,156,.85)':'rgba(0,0,0,.22)',border:'1px solid rgba(255,255,255,.32)',borderRadius:20,color:'#fff',padding:'7px 10px',fontSize:12,fontWeight:cameraEffectsTab===key?700:500,whiteSpace:'nowrap',textShadow:'0 1px 2px #0009'}}>{label}</button>)}</div>
+               {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:3}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'rgba(233,47,156,.88)':'rgba(0,0,0,.24)',border:'1px solid rgba(255,255,255,.4)',borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap',fontWeight:cameraTone===key?700:500}}>{label}</button>)}</div>}
+               {cameraEffectsTab==='beauty'&&<div style={{background:'rgba(0,0,0,.16)',borderRadius:12,padding:'8px 10px'}}>
+                 <label style={{display:'block',fontSize:13}}>Iluminación: {cameraLight} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="-30" max="30" value={cameraLight} onChange={e=>setCameraLight(Number(e.target.value))}/></label>
+                 <label style={{display:'block',fontSize:13,marginTop:7}}>Suavidad general: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
+                 <small style={{fontSize:11,opacity:.95}}>Estos ajustes se guardan para la próxima vez. La belleza facial profesional se añadirá después.</small>
+                 <button type="button" onClick={()=>{setCameraLight(0);setCameraSoft(0)}} style={{display:'block',background:'rgba(0,0,0,.24)',border:'1px solid #ffffff66',borderRadius:10,color:'#fff',padding:'5px 10px',marginTop:6}}>Restablecer belleza</button>
+               </div>}
+               {cameraEffectsTab==='face'&&<div style={{fontSize:13,background:'rgba(0,0,0,.20)',borderRadius:12,padding:12}}>Retoques de rostro, maquillaje, ojos y labios: próximamente con el motor de belleza profesional.</div>}
+               {cameraEffectsTab==='accessories'&&<div style={{fontSize:13,background:'rgba(0,0,0,.20)',borderRadius:12,padding:12}}>Lentes, gorritos, coronas y máscaras: próximamente.</div>}
+               {cameraEffectsTab==='fun'&&<div style={{fontSize:13,background:'rgba(0,0,0,.20)',borderRadius:12,padding:12}}>Efectos animados y divertidos: próximamente.</div>}
              </div>}
 
              <div
