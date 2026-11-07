@@ -150,21 +150,7 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
   },[visible,post.id,hasMusic,start,originalVolume,musicVolume]);
   useEffect(()=>()=>{const mix=audioMix.current;if(mix){mix.ctx.close().catch(()=>{});audioMix.current=null;}},[]);
   return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"}>
-    {!detail&&post.media_type!=="video"&&<style>{`
-      .feed-post-card .feed-media-wrap { overflow: hidden; }
-      .feed-post-card .rivyza-music-feed:has(> img.feed-photo-fullscreen) {
-        position: absolute !important; inset: 0 !important;
-        width: 100% !important; height: 100% !important;
-      }
-      .feed-post-card .feed-media-wrap:has(img.feed-photo-fullscreen) { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
-      .feed-post-card img.feed-photo-fullscreen {
-        position: absolute !important; inset: 0 !important;
-        width: 100% !important; height: 100% !important;
-        max-width: none !important; max-height: none !important;
-        object-fit: cover !important; object-position: center center !important;
-      }
-    `}</style>}
-    {post.media_type==="video"?<video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} playsInline loop preload="metadata" controls={detail}/>:<img className={detail?"":"feed-media feed-photo-fullscreen"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
+    {post.media_type==="video"?<video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} autoPlay playsInline loop preload="auto" controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
     {hasMusic&&<audio ref={music} src={post.music_path} preload="auto"/>}
   </div>;
 }
