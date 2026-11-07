@@ -794,6 +794,29 @@ async function applyPostCrop(){
   const [musicLength,setMusicLength]=useState(15);
   const [musicDuration,setMusicDuration]=useState(157);
   const [editorVideoDuration,setEditorVideoDuration]=useState(0);
+   // Estados del editor de video: deben existir antes de renderizar la revisión.
+   const [videoFilter,setVideoFilter]=useState("original");
+   const [videoFilterStrength,setVideoFilterStrength]=useState(70);
+   const [videoFilterOpen,setVideoFilterOpen]=useState(false);
+   const [videoTrimOpen,setVideoTrimOpen]=useState(false);
+   const [videoTrimStart,setVideoTrimStart]=useState(0);
+   const [videoTrimEnd,setVideoTrimEnd]=useState(0);
+   const videoFilterCss=videoFilter==="original"?"none":({
+     vivid:`saturate(${1+.65*videoFilterStrength/100}) contrast(${1+.12*videoFilterStrength/100})`,
+     warm:`sepia(${.28*videoFilterStrength/100}) saturate(${1+.22*videoFilterStrength/100})`,
+     cool:`hue-rotate(${14*videoFilterStrength/100}deg) saturate(${1+.12*videoFilterStrength/100})`,
+     mono:`grayscale(${videoFilterStrength/100}) contrast(${1+.12*videoFilterStrength/100})`,
+     soft:`contrast(${1-.08*videoFilterStrength/100}) brightness(${1+.07*videoFilterStrength/100}) saturate(${1-.08*videoFilterStrength/100})`
+   }[videoFilter]||"none");
+   // No publicar el original silenciosamente si el usuario pidió editarlo.
+   async function getVideoForPublishing(){
+     if(!uploadFile)throw new Error("No hay video para publicar.");
+     const filtered=videoFilter!=="original"&&videoFilterStrength>0;
+     const trimmed=videoTrimStart>.05||(videoTrimEnd>0&&editorVideoDuration>0&&videoTrimEnd<editorVideoDuration-.05);
+     if(filtered||trimmed)throw new Error("Los filtros y recortes de video aún no se pueden exportar de forma segura en este dispositivo. Para publicar sin perder cambios, selecciona Original y deja la duración completa.");
+     return uploadFile;
+   }
+
   const [originalVolume,setOriginalVolume]=useState(50);
   const [musicVolume,setMusicVolume]=useState(50);
   const editorMusicRef=useRef(null);
@@ -2757,12 +2780,13 @@ async function applyPostCrop(){
      }
      // Cerrar la cámara y regresar al feed tras una publicación confirmada.
      // La actualización del perfil no debe impedir la navegación.
-     await stopCamera();
-     resetUpload();
      setUploadOpen(false);
      setSelectedPost(null);
      setFeedTab("forYou");
      setView("home");
+     // La limpieza de la cámara no puede impedir volver al feed tras guardar.
+     try{await stopCamera();}catch(cleanupError){console.warn("Cierre de cámara:",cleanupError);}
+     try{resetUpload();}catch(cleanupError){console.warn("Limpieza de editor:",cleanupError);}
      void loadProfilePosts().catch(error=>console.warn("No se pudo actualizar el perfil tras publicar",error));
    }catch(err){
      console.error(err);
