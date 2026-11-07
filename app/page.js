@@ -637,8 +637,26 @@ export default function HomePage(){
     const state={raf:0,stream:null};
     const draw=()=>{
       if(video.readyState>=2){
-        ctx.save();ctx.filter=cameraFilterValue();
-        ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        ctx.save();
+        const effects=cameraEffectsRef.current;
+        // iPhone: apply monochrome to actual canvas pixels, not just the CSS preview.
+        // This guarantees that MediaRecorder receives grayscale frames even if
+        // CanvasRenderingContext2D.filter is unsupported or inconsistent.
+        if(effects.tone==='mono'){
+          ctx.filter='none';
+          ctx.drawImage(video,0,0,canvas.width,canvas.height);
+          const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
+          const px=frame.data;
+          const brightness=Math.max(.7,1+effects.light/100);
+          for(let i=0;i<px.length;i+=4){
+            const gray=Math.min(255,Math.round((.2126*px[i]+.7152*px[i+1]+.0722*px[i+2])*brightness));
+            px[i]=gray;px[i+1]=gray;px[i+2]=gray;
+          }
+          ctx.putImageData(frame,0,0);
+        }else{
+          ctx.filter=cameraFilterValue();
+          ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        }
         ctx.restore();
       }
       state.raf=requestAnimationFrame(draw);
