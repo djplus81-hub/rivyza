@@ -2085,7 +2085,9 @@ export default function HomePage(){
      }
 
      const stream=await navigator.mediaDevices.getUserMedia({
-       video:{facingMode:{ideal:facing},width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:9/16}},
+       video:cameraMode==="photo"
+         ? {facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:960},aspectRatio:{ideal:4/3}}
+         : {facingMode:{ideal:facing},width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:9/16}},
        audio:cameraMode==="video"
      });
 
@@ -2131,7 +2133,7 @@ export default function HomePage(){
    if(!sourceW||!sourceH){setCameraError("La cámara todavía no está lista para tomar fotos.");return;}
    const bounds=rawVideo?.getBoundingClientRect?.()||source.getBoundingClientRect();
    const displayW=bounds.width||9,displayH=bounds.height||16;
-   const ratio=displayW/displayH;
+   const ratio=cameraMode==="photo" && !deepAREffect ? sourceW/sourceH : displayW/displayH;
    let cropW=sourceW,cropH=sourceH;
    if(sourceW/sourceH>ratio)cropW=sourceH*ratio;
    else cropH=sourceW/ratio;
@@ -2719,7 +2721,7 @@ export default function HomePage(){
                autoPlay
                muted
                playsInline
-               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1}}
+               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1,objectFit:cameraMode==="photo"?"contain":undefined}}
              />
              <div ref={deepARContainerRef} style={{position:"absolute",inset:0,pointerEvents:"none",opacity:deepAREffect?1:0,filter:cameraFilterValue()}}/>
 
