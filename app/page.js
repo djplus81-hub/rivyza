@@ -674,6 +674,39 @@ export default function HomePage(){
   const [uploadType,setUploadType]=useState("photo");
   const [uploadFile,setUploadFile]=useState(null);
   const [uploadPreview,setUploadPreview]=useState("");
+  // Editor independiente para publicaciones fotográficas (no afecta LIVE ni video).
+  const [postCropOpen,setPostCropOpen]=useState(false);
+  const [postCrop,setPostCrop]=useState({x:0,y:0});
+  const [postZoom,setPostZoom]=useState(1);
+  const [postCropPixels,setPostCropPixels]=useState(null);
+  const [postCropAspect,setPostCropAspect]=useState(9/16);
+  const [postCropBusy,setPostCropBusy]=useState(false);
+  const [postCropError,setPostCropError]=useState("");
+  async function applyPostCrop(){
+    if(!uploadPreview||!postCropPixels||postCropBusy)return;
+    setPostCropBusy(true);setPostCropError("");
+    try{
+      const image=await createImage(uploadPreview);
+      const c=document.createElement("canvas");
+      // No forzar 768x768: conservar los píxeles reales del recorte.
+      const scale=Math.min(1,4096/Math.max(postCropPixels.width,postCropPixels.height));
+      c.width=Math.max(1,Math.round(postCropPixels.width*scale));
+      c.height=Math.max(1,Math.round(postCropPixels.height*scale));
+      const ctx=c.getContext("2d");
+      if(!ctx)throw new Error("No se pudo preparar el recorte.");
+      ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
+      ctx.drawImage(image,postCropPixels.x,postCropPixels.y,postCropPixels.width,postCropPixels.height,0,0,c.width,c.height);
+      const blob=await new Promise(resolve=>c.toBlob(resolve,"image/jpeg",0.95));
+      if(!blob)throw new Error("No se pudo guardar el recorte.");
+      const file=new File([blob],`rivyza-photo-edited-${Date.now()}.jpg`,{type:"image/jpeg"});
+      const next=URL.createObjectURL(file);
+      setUploadFile(file);setUploadPreview(next);setPostCropOpen(false);
+      // Revocar la vista anterior solo después de sustituirla.
+      URL.revokeObjectURL(uploadPreview);
+    }catch(e){setPostCropError(e.message||"No se pudo ajustar la fotografía.");}
+    finally{setPostCropBusy(false);}
+  }
+
   const [uploadCaption,setUploadCaption]=useState("");
   const [musicSelected,setMusicSelected]=useState(false);
   const [musicPanel,setMusicPanel]=useState("");
@@ -2436,6 +2469,7 @@ export default function HomePage(){
    if(uploadPreview) URL.revokeObjectURL(uploadPreview);
    setUploadFile(null);
    setUploadPreview("");
+   setPostCropOpen(false);setPostCropPixels(null);
    setUploadCaption("");
    setMusicSelected(false);setMusicPanel("");setMusicStart(0);setMusicLength(15);setEditorVideoDuration(0);
    setOriginalVolume(50);setMusicVolume(50);
@@ -2971,6 +3005,13 @@ export default function HomePage(){
                <button type="button" onClick={()=>setMusicPanel("audio")}>🎚 Editar audio</button>
              </div>
            </div>
+           {uploadType==="photo" && <button type="button" onClick={()=>{setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);setPostCropAspect(9/16);setPostCropError("");setPostCropOpen(true);}} style={{position:"absolute",top:"calc(110px + env(safe-area-inset-top))",left:12,zIndex:8,background:"rgba(0,0,0,.6)",color:"white",border:"1px solid rgba(255,255,255,.4)",borderRadius:22,padding:"10px 14px",fontWeight:700}}>✂ Ajustar foto</button>}
+           {postCropOpen && uploadType==="photo" && <div style={{position:"fixed",inset:0,zIndex:100000,background:"#080808",display:"flex",flexDirection:"column",color:"white"}}>
+             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"calc(12px + env(safe-area-inset-top)) 16px 12px"}}><button onClick={()=>setPostCropOpen(false)} style={{color:"white",background:"none",border:0,fontSize:18}}>Cancelar</button><strong>Ajustar fotografía</strong><button onClick={applyPostCrop} disabled={postCropBusy||!postCropPixels} style={{background:"#ec29a9",color:"white",border:0,borderRadius:16,padding:"9px 13px",fontWeight:700}}>{postCropBusy?"Guardando…":"Aplicar"}</button></div>
+             <div style={{position:"relative",flex:1,minHeight:150,background:"#151515"}}><Cropper image={uploadPreview} crop={postCrop} zoom={postZoom} aspect={postCropAspect} onCropChange={setPostCrop} onZoomChange={setPostZoom} onCropComplete={(_,pixels)=>setPostCropPixels(pixels)} showGrid={true}/></div>
+             <div style={{padding:"15px 20px calc(24px + env(safe-area-inset-bottom))",display:"flex",flexDirection:"column",gap:14}}><div style={{display:"flex",gap:8,justifyContent:"center"}}>{[[9/16,"Pantalla 9:16"],[3/4,"Foto 3:4"],[1,"Cuadrada"]].map(([aspect,label])=><button key={label} onClick={()=>{setPostCropAspect(aspect);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);}} style={{padding:"9px",borderRadius:12,border:postCropAspect===aspect?"2px solid #ec29a9":"1px solid #777",background:"#252525",color:"white"}}>{label}</button>)}</div><label style={{display:"flex",alignItems:"center",gap:12}}>Zoom <input type="range" min="1" max="3" step="0.01" value={postZoom} onChange={e=>setPostZoom(Number(e.target.value))} style={{flex:1}}/></label><small style={{textAlign:"center",color:"#bbb"}}>Arrastra para mover la imagen. Usa dos dedos para acercar o alejar.</small>{postCropError&&<p style={{color:"#ff8888"}}>{postCropError}</p>}</div>
+           </div>}
+           {musicSelected&&<div className="rivyza-music-selected">♫ Muévelo Sin Pensar (Remastered) · DJ Plus</div>}
            {musicPanel&&renderMusicSheet(false)}
 
            <label className="upload-field">
