@@ -704,8 +704,8 @@ export default function HomePage(){
   const [cameraTone,setCameraTone]=useState('natural');
   const [cameraToneIntensity,setCameraToneIntensity]=useState(100);
   const [cameraLight,setCameraLight]=useState(0);
-  const [cameraSoft,setCameraSoft]=useState(30);
-  const cameraEffectsRef=useRef({tone:'natural',intensity:100,light:0,soft:30});
+  const [cameraSoft,setCameraSoft]=useState(0);
+  const cameraEffectsRef=useRef({tone:'natural',intensity:100,light:0,soft:0});
   const cameraProcessedRef=useRef(null);
   const cameraProcessingRef=useRef(null);
   // DeepAR solo para la cámara de publicaciones; nunca se usa en LiveRoom.
@@ -773,16 +773,22 @@ export default function HomePage(){
     }
   }
 
+  // La distorsión es temporal: siempre inicia en cero al abrir la cámara.
+  useEffect(()=>{
+    if(!uploadOpen)return;
+    cameraEffectsRef.current={...cameraEffectsRef.current,soft:0};
+    setCameraSoft(0);
+  },[uploadOpen]);
   useEffect(()=>{
     cameraEffectsRef.current={tone:cameraTone,intensity:cameraToneIntensity,light:cameraLight,soft:cameraSoft};
     if(!user?.id)return;
-    try{localStorage.setItem(`rivyza-camera-effects:${user.id}`,JSON.stringify({intensity:cameraToneIntensity,light:cameraLight,soft:cameraSoft}));}catch{}
+    try{localStorage.setItem(`rivyza-camera-effects:${user.id}`,JSON.stringify({intensity:cameraToneIntensity,light:cameraLight}));}catch{}
   },[cameraTone,cameraToneIntensity,cameraLight,cameraSoft,user?.id]);
   useEffect(()=>{
     if(!user?.id)return;
     try{
       const saved=JSON.parse(localStorage.getItem(`rivyza-camera-effects:${user.id}`)||'null');
-      if(saved){setCameraToneIntensity(Math.max(0,Math.min(100,saved.intensity===undefined?100:Number(saved.intensity)||0)));setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(30,saved.soft===undefined?30:Number(saved.soft)||0)));}
+      if(saved){setCameraToneIntensity(Math.max(0,Math.min(100,saved.intensity===undefined?100:Number(saved.intensity)||0)));setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));}
     }catch{}
   },[user?.id]);
   function cameraFilterValue(){
@@ -2797,7 +2803,7 @@ export default function HomePage(){
                {cameraEffectsTab==='filters'&&cameraTone!=='natural'&&<label style={{display:'block',marginTop:12,padding:'6px 8px',background:'rgba(0,0,0,.20)',borderRadius:10,fontSize:13}}>Intensidad del filtro: {cameraToneIntensity}%<input type="range" min="0" max="100" step="1" value={cameraToneIntensity} onChange={e=>setCameraToneIntensity(Number(e.target.value))} style={{display:'block',width:'100%',marginTop:7,accentColor:'#ed3b9f',touchAction:'auto'}} aria-label="Ajustar intensidad del filtro"/></label>}
                {cameraEffectsTab==='beauty'&&<div style={{background:'rgba(0,0,0,.16)',borderRadius:12,padding:'8px 10px'}}>
                  <label style={{display:'block',fontSize:13}}>Iluminación: {cameraLight} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="-30" max="30" value={cameraLight} onChange={e=>setCameraLight(Number(e.target.value))}/></label>
-                 <label style={{display:'block',fontSize:13,marginTop:7}}>Suavidad general: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
+                 <label style={{display:'block',fontSize:13,marginTop:7}}>Distorsión: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
                  <small style={{fontSize:11,opacity:.95}}>Estos ajustes se guardan para la próxima vez. La belleza facial profesional se añadirá después.</small>
                  <button type="button" onClick={()=>{setCameraLight(0);setCameraSoft(0)}} style={{display:'block',background:'rgba(0,0,0,.24)',border:'1px solid #ffffff66',borderRadius:10,color:'#fff',padding:'5px 10px',marginTop:6}}>Restablecer belleza</button>
                </div>}
