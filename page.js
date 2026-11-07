@@ -674,6 +674,77 @@ export default function HomePage(){
   const [uploadType,setUploadType]=useState("photo");
   const [uploadFile,setUploadFile]=useState(null);
   const [uploadPreview,setUploadPreview]=useState("");
+  // Editor independiente para publicaciones fotográficas (no afecta LIVE ni video).
+  const [postCropOpen,setPostCropOpen]=useState(false);
+  const [postCrop,setPostCrop]=useState({x:0,y:0});
+  const [postZoom,setPostZoom]=useState(1);
+  const [postCropPixels,setPostCropPixels]=useState(null);
+  const [postCropAspect,setPostCropAspect]=useState(9/16);
+  const [postCropBusy,setPostCropBusy]=useState(false);
+  const [postCropError,setPostCropError]=useState("");
+  // Editor fotográfico: filtros no destructivos, con intensidad regulable.
+  const [photoFilter,setPhotoFilter]=useState("original");
+  const [photoFilterOpen,setPhotoFilterOpen]=useState(false);
+  const [photoFilterStrength,setPhotoFilterStrength]=useState(70);
+  const [photoFilterBusy,setPhotoFilterBusy]=useState(false);
+  const [photoFilterError,setPhotoFilterError]=useState("");
+  const photoFilterPresets=[
+    {id:"original",name:"Original",css:"none"},
+    {id:"vivid",name:"Vivo",css:"saturate(1.65) contrast(1.12)"},
+    {id:"warm",name:"Cálido",css:"sepia(.28) saturate(1.22)"},
+    {id:"cool",name:"Frío",css:"hue-rotate(14deg) saturate(1.12)"},
+    {id:"mono",name:"B/N",css:"grayscale(1) contrast(1.12)"},
+    {id:"soft",name:"Suave",css:"contrast(.92) brightness(1.07) saturate(.92)"}
+  ];
+   // La vista previa conserva el filtro al cerrar EF; solo se graba al publicar.
+   const photoFilterCss=photoFilter==="original"?"none":({
+     vivid:`saturate(${1+.65*photoFilterStrength/100}) contrast(${1+.12*photoFilterStrength/100})`,
+     warm:`sepia(${.28*photoFilterStrength/100}) saturate(${1+.22*photoFilterStrength/100})`,
+     cool:`hue-rotate(${14*photoFilterStrength/100}deg) saturate(${1+.12*photoFilterStrength/100})`,
+     mono:`grayscale(${photoFilterStrength/100}) contrast(${1+.12*photoFilterStrength/100})`,
+     soft:`contrast(${1-.08*photoFilterStrength/100}) brightness(${1+.07*photoFilterStrength/100}) saturate(${1-.08*photoFilterStrength/100})`
+   }[photoFilter]||"none");
+   async function getPhotoForPublishing(){
+     if(photoFilterCss==="none")return uploadFile;
+     const image=await createImage(uploadPreview);
+     const canvas=document.createElement("canvas");
+     const scale=Math.min(1,4096/Math.max(image.naturalWidth,image.naturalHeight));
+     canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+     canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+     const ctx=canvas.getContext("2d");
+     if(!ctx)throw new Error("No se pudo preparar el filtro de la foto.");
+     ctx.filter=photoFilterCss;
+     ctx.drawImage(image,0,0,canvas.width,canvas.height);
+     const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.95));
+     if(!blob)throw new Error("No se pudo guardar la fotografía con filtro.");
+     return new File([blob],`rivyza-photo-${Date.now()}.jpg`,{type:"image/jpeg"});
+   }
+
+  async function applyPostCrop(){
+    if(!uploadPreview||!postCropPixels||postCropBusy)return;
+    setPostCropBusy(true);setPostCropError("");
+    try{
+      const image=await createImage(uploadPreview);
+      const c=document.createElement("canvas");
+      // No forzar 768x768: conservar los píxeles reales del recorte.
+      const scale=Math.min(1,4096/Math.max(postCropPixels.width,postCropPixels.height));
+      c.width=Math.max(1,Math.round(postCropPixels.width*scale));
+      c.height=Math.max(1,Math.round(postCropPixels.height*scale));
+      const ctx=c.getContext("2d");
+      if(!ctx)throw new Error("No se pudo preparar el recorte.");
+      ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";
+      ctx.drawImage(image,postCropPixels.x,postCropPixels.y,postCropPixels.width,postCropPixels.height,0,0,c.width,c.height);
+      const blob=await new Promise(resolve=>c.toBlob(resolve,"image/jpeg",0.95));
+      if(!blob)throw new Error("No se pudo guardar el recorte.");
+      const file=new File([blob],`rivyza-photo-edited-${Date.now()}.jpg`,{type:"image/jpeg"});
+      const next=URL.createObjectURL(file);
+      setUploadFile(file);setUploadPreview(next);setPostCropOpen(false);
+      // Revocar la vista anterior solo después de sustituirla.
+      URL.revokeObjectURL(uploadPreview);
+    }catch(e){setPostCropError(e.message||"No se pudo ajustar la fotografía.");}
+    finally{setPostCropBusy(false);}
+  }
+
   const [uploadCaption,setUploadCaption]=useState("");
   const [musicSelected,setMusicSelected]=useState(false);
   const [musicPanel,setMusicPanel]=useState("");
@@ -704,21 +775,36 @@ export default function HomePage(){
   const [cameraTone,setCameraTone]=useState('natural');
   const [cameraToneIntensity,setCameraToneIntensity]=useState(100);
   const [cameraLight,setCameraLight]=useState(0);
-  const [cameraSoft,setCameraSoft]=useState(30);
-  const cameraEffectsRef=useRef({tone:'natural',intensity:100,light:0,soft:30});
+  const [cameraSoft,setCameraSoft]=useState(0);
+  const cameraEffectsRef=useRef({tone:'natural',intensity:100,light:0,soft:0});
   const cameraProcessedRef=useRef(null);
   const cameraProcessingRef=useRef(null);
   // DeepAR solo para la cámara de publicaciones; nunca se usa en LiveRoom.
   const deepARRef=useRef(null);
   const deepARContainerRef=useRef(null);
   const deepARBusyRef=useRef(false);
+  const deepARRequestRef=useRef(0);
   const [deepAREffect,setDeepAREffect]=useState(null);
   const [deepARBusy,setDeepARBusy]=useState(false);
   const [deepARError,setDeepARError]=useState("");
+  // Evitar que una promesa de DeepAR deje la interfaz en «Cargando» indefinidamente.
+  function deepARWithTimeout(promise,ms=15000){
+    let timer;
+    return Promise.race([
+      promise,
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("DEEPAR_TIMEOUT")),ms);})
+    ]).finally(()=>clearTimeout(timer));
+  }
+  function resetDeepAREngine(){
+    const engine=deepARRef.current;
+    deepARRef.current=null;
+    if(engine){try{engine.shutdown();}catch(e){console.warn("DeepAR shutdown:",e);}}
+    setDeepAREffect(null);
+  }
   async function removeDeepAREffect(){
     if(deepARBusyRef.current)return;
     const engine=deepARRef.current;
-    if(engine){try{await engine.clearEffect();}catch(e){console.warn("DeepAR clear:",e);}}
+    if(engine){try{await deepARWithTimeout(Promise.resolve().then(()=>engine.clearEffect()),8000);}catch(e){resetDeepAREngine();}}
     setDeepAREffect(null);setDeepARError("");
   }
   async function chooseDeepAREffect(effect){
@@ -729,31 +815,51 @@ export default function HomePage(){
     if(!video || !holder || !cameraStream){setDeepARError("Abre la cámara primero.");return;}
     const license=process.env.NEXT_PUBLIC_DEEPAR_LICENSE_KEY;
     if(!license){setDeepARError("Falta NEXT_PUBLIC_DEEPAR_LICENSE_KEY en Vercel.");return;}
+    const request=++deepARRequestRef.current;
     deepARBusyRef.current=true;setDeepARBusy(true);setDeepARError("");
     try{
       if(!deepARRef.current){
-        const deepar=await import('deepar');
-        if(!holder.isConnected)throw new Error("La cámara se cerró.");
-        const engine=await deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
+        const deepar=await deepARWithTimeout(import('deepar'),15000);
+        if(request!==deepARRequestRef.current || !holder.isConnected)throw new Error("La cámara se cerró.");
+        const initialization=deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
+        // Si initialize termina después del timeout, cerrar ese motor tardío.
+        initialization.then(engine=>{
+          if(request!==deepARRequestRef.current || !holder.isConnected){try{engine.shutdown();}catch(e){}}
+        }).catch(()=>{});
+        const engine=await deepARWithTimeout(initialization,15000);
+        if(request!==deepARRequestRef.current || !holder.isConnected){try{engine.shutdown();}catch(e){}throw new Error("La cámara se cerró.");}
         deepARRef.current=engine;
         engine.setVideoElement(video,cameraFacing==="user");
       }
-      await deepARRef.current.switchEffect(effect.url);
-      setDeepAREffect(effect.id);
-    }catch(e){console.error("DeepAR:",e);setDeepARError("No se pudo cargar este efecto. Comprueba el archivo y la licencia.");}
-    finally{deepARBusyRef.current=false;setDeepARBusy(false);}
+      await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url)),15000);
+      if(request===deepARRequestRef.current)setDeepAREffect(effect.id);
+    }catch(e){
+      console.error("DeepAR:",e);
+      // Un switchEffect bloqueado puede dejar el motor inutilizable: descartarlo
+      // para que el próximo toque lo inicialice de nuevo sin cerrar RIVYZA.
+      resetDeepAREngine();
+      if(request===deepARRequestRef.current)setDeepARError(e?.message==="DEEPAR_TIMEOUT"?"El efecto tardó demasiado. Selecciona otro efecto o inténtalo de nuevo.":"No se pudo cargar este efecto. Inténtalo de nuevo.");
+    }finally{
+      if(request===deepARRequestRef.current){deepARBusyRef.current=false;setDeepARBusy(false);}
+    }
   }
 
+  // La distorsión es temporal: siempre inicia en cero al abrir la cámara.
+  useEffect(()=>{
+    if(!uploadOpen)return;
+    cameraEffectsRef.current={...cameraEffectsRef.current,soft:0};
+    setCameraSoft(0);
+  },[uploadOpen]);
   useEffect(()=>{
     cameraEffectsRef.current={tone:cameraTone,intensity:cameraToneIntensity,light:cameraLight,soft:cameraSoft};
     if(!user?.id)return;
-    try{localStorage.setItem(`rivyza-camera-effects:${user.id}`,JSON.stringify({intensity:cameraToneIntensity,light:cameraLight,soft:cameraSoft}));}catch{}
+    try{localStorage.setItem(`rivyza-camera-effects:${user.id}`,JSON.stringify({intensity:cameraToneIntensity,light:cameraLight}));}catch{}
   },[cameraTone,cameraToneIntensity,cameraLight,cameraSoft,user?.id]);
   useEffect(()=>{
     if(!user?.id)return;
     try{
       const saved=JSON.parse(localStorage.getItem(`rivyza-camera-effects:${user.id}`)||'null');
-      if(saved){setCameraToneIntensity(Math.max(0,Math.min(100,saved.intensity===undefined?100:Number(saved.intensity)||0)));setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(30,saved.soft===undefined?30:Number(saved.soft)||0)));}
+      if(saved){setCameraToneIntensity(Math.max(0,Math.min(100,saved.intensity===undefined?100:Number(saved.intensity)||0)));setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));}
     }catch{}
   },[user?.id]);
   function cameraFilterValue(){
@@ -2055,7 +2161,9 @@ export default function HomePage(){
 
  async function stopCamera(){
    stopCameraProcessing();
-   if(deepARRef.current){try{deepARRef.current.shutdown();}catch(e){}deepARRef.current=null;}
+   deepARRequestRef.current++;
+   deepARBusyRef.current=false;setDeepARBusy(false);
+   resetDeepAREngine();
    setDeepAREffect(null);setDeepARError("");
    cameraZoomTrackRef.current=null;
    setCameraZoomRange(null);
@@ -2085,7 +2193,9 @@ export default function HomePage(){
      }
 
      const stream=await navigator.mediaDevices.getUserMedia({
-       video:{facingMode:{ideal:facing},width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:9/16}},
+       video:cameraMode==="photo"
+         ? {facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:960},aspectRatio:{ideal:4/3}}
+         : {facingMode:{ideal:facing},width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:9/16}},
        audio:cameraMode==="video"
      });
 
@@ -2131,7 +2241,7 @@ export default function HomePage(){
    if(!sourceW||!sourceH){setCameraError("La cámara todavía no está lista para tomar fotos.");return;}
    const bounds=rawVideo?.getBoundingClientRect?.()||source.getBoundingClientRect();
    const displayW=bounds.width||9,displayH=bounds.height||16;
-   const ratio=displayW/displayH;
+   const ratio=cameraMode==="photo" && !deepAREffect ? sourceW/sourceH : displayW/displayH;
    let cropW=sourceW,cropH=sourceH;
    if(sourceW/sourceH>ratio)cropW=sourceH*ratio;
    else cropH=sourceW/ratio;
@@ -2397,6 +2507,7 @@ export default function HomePage(){
    if(uploadPreview) URL.revokeObjectURL(uploadPreview);
    setUploadFile(null);
    setUploadPreview("");
+   setPostCropOpen(false);setPostCropPixels(null);
    setUploadCaption("");
    setMusicSelected(false);setMusicPanel("");setMusicStart(0);setMusicLength(15);setEditorVideoDuration(0);
    setOriginalVolume(50);setMusicVolume(50);
@@ -2524,15 +2635,16 @@ export default function HomePage(){
    setPublishStage("Subiendo foto o video…");
 
    try{
-     const ext=(uploadFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
+     const publishFile=uploadType==="photo"?await getPhotoForPublishing():uploadFile;
+     const ext=(publishFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
      const path=`${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
      if(uploadType==="video"){
        await uploadVideoResumable(uploadFile,path);
      }else{
        const {error:uploadError}=await withPublishTimeout(
-         supabase.storage.from("media").upload(path,uploadFile,{
-           cacheControl:"3600",upsert:false,contentType:uploadFile.type
+         supabase.storage.from("media").upload(path,publishFile,{
+           cacheControl:"3600",upsert:false,contentType:publishFile.type
          }),90,"Subir foto"
        );
        if(uploadError)throw uploadError;
@@ -2719,7 +2831,7 @@ export default function HomePage(){
                autoPlay
                muted
                playsInline
-               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1}}
+               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1,objectFit:cameraMode==="photo"?"contain":undefined}}
              />
              <div ref={deepARContainerRef} style={{position:"absolute",inset:0,pointerEvents:"none",opacity:deepAREffect?1:0,filter:cameraFilterValue()}}/>
 
@@ -2764,7 +2876,7 @@ export default function HomePage(){
                {cameraEffectsTab==='filters'&&cameraTone!=='natural'&&<label style={{display:'block',marginTop:12,padding:'6px 8px',background:'rgba(0,0,0,.20)',borderRadius:10,fontSize:13}}>Intensidad del filtro: {cameraToneIntensity}%<input type="range" min="0" max="100" step="1" value={cameraToneIntensity} onChange={e=>setCameraToneIntensity(Number(e.target.value))} style={{display:'block',width:'100%',marginTop:7,accentColor:'#ed3b9f',touchAction:'auto'}} aria-label="Ajustar intensidad del filtro"/></label>}
                {cameraEffectsTab==='beauty'&&<div style={{background:'rgba(0,0,0,.16)',borderRadius:12,padding:'8px 10px'}}>
                  <label style={{display:'block',fontSize:13}}>Iluminación: {cameraLight} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="-30" max="30" value={cameraLight} onChange={e=>setCameraLight(Number(e.target.value))}/></label>
-                 <label style={{display:'block',fontSize:13,marginTop:7}}>Suavidad general: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
+                 <label style={{display:'block',fontSize:13,marginTop:7}}>Distorsión: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
                  <small style={{fontSize:11,opacity:.95}}>Estos ajustes se guardan para la próxima vez. La belleza facial profesional se añadirá después.</small>
                  <button type="button" onClick={()=>{setCameraLight(0);setCameraSoft(0)}} style={{display:'block',background:'rgba(0,0,0,.24)',border:'1px solid #ffffff66',borderRadius:10,color:'#fff',padding:'5px 10px',marginTop:6}}>Restablecer belleza</button>
                </div>}
@@ -2868,7 +2980,7 @@ export default function HomePage(){
                    </button>
                  )}
 
-                 {recording?<button className="rivyza-finish-record" type="button" onClick={stopRecording} disabled={cameraExporting} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setCameraEffectsOpen(v=>!v)}>
+                 {recording&&recordPaused?<button className="rivyza-finish-record" type="button" onClick={stopRecording} disabled={cameraExporting||cameraSegmentSaving} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setCameraEffectsOpen(v=>!v)}>
                    <span>✦</span>
                    <small>Efectos</small>
                  </button>}
@@ -2883,7 +2995,28 @@ export default function HomePage(){
            </div>
          </>
        ) : (
-         <div className="post-editor-screen">
+         <div className="post-editor-screen rivyza-transparent-review">
+           <style>{`
+             .camera-composer .rivyza-transparent-review{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;background:#000!important;display:block!important;isolation:isolate;color:white!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-stage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;background:#000!important;border:0!important;overflow:hidden!important;z-index:0!important}
+             .camera-composer .rivyza-transparent-review .upload-preview.editor-preview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:none!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#000!important;overflow:hidden!important}
+             .camera-composer .rivyza-transparent-review .upload-preview.editor-preview>img,.camera-composer .rivyza-transparent-review .upload-preview.editor-preview>video{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:none!important;object-fit:cover!important;border-radius:0!important;background:transparent!important}
+             .camera-composer .rivyza-transparent-review .upload-header{position:absolute!important;top:0!important;left:0!important;right:0!important;z-index:4!important;display:flex!important;align-items:center!important;padding-top:max(12px,env(safe-area-inset-top))!important;background:linear-gradient(to bottom,rgba(0,0,0,.58),transparent)!important;border:0!important;color:#fff!important}
+             .camera-composer .rivyza-transparent-review .upload-header button{color:#fff!important;background:rgba(0,0,0,.28)!important;border-radius:50%!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-overlay-actions{position:absolute!important;top:calc(65px + env(safe-area-inset-top))!important;right:12px!important;left:auto!important;bottom:auto!important;z-index:3!important;display:flex!important;flex-direction:column!important;gap:8px!important;background:transparent!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-overlay-actions button{background:rgba(0,0,0,.34)!important;color:white!important;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2)!important;border-radius:20px!important}
+             .camera-composer .rivyza-transparent-review>.upload-field{position:absolute!important;left:12px!important;right:12px!important;width:auto!important;z-index:3!important;margin:0!important;padding:9px 12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:14px!important;background:rgba(0,0,0,.30)!important;backdrop-filter:blur(9px);color:#fff!important}
+             .camera-composer .rivyza-transparent-review>.upload-field:nth-of-type(1){bottom:calc(145px + env(safe-area-inset-bottom))!important}
+             .camera-composer .rivyza-transparent-review>.upload-field:nth-of-type(2){bottom:calc(83px + env(safe-area-inset-bottom))!important}
+             .camera-composer .rivyza-transparent-review>.upload-field textarea{background:transparent!important;color:white!important;border:0!important;resize:none!important;min-height:35px!important;max-height:55px!important;padding:3px!important}
+             .camera-composer .rivyza-transparent-review>.upload-field textarea::placeholder{color:rgba(255,255,255,.78)!important}
+             .camera-composer .rivyza-transparent-review>.upload-field select{background:rgba(0,0,0,.48)!important;color:white!important;border:1px solid rgba(255,255,255,.2)!important}
+             .camera-composer .rivyza-transparent-review .rivyza-publish-footer{position:absolute!important;bottom:0!important;left:0!important;right:0!important;z-index:4!important;padding:8px 14px calc(10px + env(safe-area-inset-bottom))!important;background:linear-gradient(to top,rgba(0,0,0,.55),transparent)!important;border:0!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-selected{position:absolute!important;top:calc(154px + env(safe-area-inset-top))!important;left:12px!important;right:12px!important;width:fit-content!important;max-width:85%!important;z-index:3!important;background:rgba(0,0,0,.30)!important;border-radius:12px!important;padding:5px 9px!important;color:white!important}
+             .camera-composer .rivyza-transparent-review .upload-message{position:absolute!important;bottom:calc(220px + env(safe-area-inset-bottom))!important;left:12px!important;right:12px!important;z-index:5!important;background:rgba(0,0,0,.55)!important;color:white!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-sheet{z-index:10!important}
+             @media(max-height:650px){.camera-composer .rivyza-transparent-review>.upload-field:nth-of-type(1){bottom:calc(126px + env(safe-area-inset-bottom))!important}.camera-composer .rivyza-transparent-review>.upload-field:nth-of-type(2){bottom:calc(70px + env(safe-area-inset-bottom))!important}}
+           `}</style>
            <div className="upload-header">
              <button onClick={()=>{resetUpload();setTimeout(()=>startCamera(cameraFacing),0);}}>←</button>
              <strong>Nueva publicación</strong>
@@ -2893,9 +3026,9 @@ export default function HomePage(){
            <div className="rivyza-music-stage">
              <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
                {uploadType==="photo"
-                 ? <img src={uploadPreview} alt="Vista previa"/>
-                 : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="metadata" style={{width:"100%"}}
-                     onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setEditorVideoDuration(d);}}
+                 ? <img src={uploadPreview} alt="Vista previa" style={{filter:photoFilterCss,transition:"filter .15s"}}/>
+                 : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="auto" style={{width:"100%"}}
+                     onLoadedMetadata={e=>{const v=e.currentTarget,d=v.duration;if(Number.isFinite(d)&&d>0){setEditorVideoDuration(d);/* iOS: seek to a decoded frame so the editor does not open black. */try{v.currentTime=Math.min(0.18,Math.max(0,d-0.05));}catch(_){}}}}
                      onPlaying={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
                      onSeeked={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(v&&a&&musicSelected)a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));}}
                      onTimeUpdate={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v||!a||!musicSelected||v.paused)return;const target=musicStart+v.currentTime;if(Math.abs(a.currentTime-target)>.22)a.currentTime=target;}}
@@ -2906,11 +3039,24 @@ export default function HomePage(){
                  onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setMusicDuration(d);}}
                  onTimeUpdate={e=>{const a=e.currentTarget;const clip=uploadType==="video"&&editorVideoDuration>0?editorVideoDuration:musicLength;if(a.currentTime>=musicStart+clip){if(musicPreviewRef.current || uploadType==="photo"){a.currentTime=musicStart;if(musicPreviewRef.current && a.paused)a.play().catch(()=>{});}else a.pause();}}}/>}
              </div>
-             <div className="rivyza-music-overlay-actions">
-               <button type="button" onClick={()=>setMusicPanel("library")}>♫ {musicSelected?"Cambiar música":"Agregar música"}</button>
-               <button type="button" onClick={()=>setMusicPanel("audio")}>🎚 Editar audio</button>
-             </div>
            </div>
+           <div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",right:12,zIndex:9,display:"flex",flexDirection:"column",gap:8,width:92}}>
+             {uploadType==="photo"&&<button type="button" onClick={()=>{setPhotoFilterOpen(false);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);setPostCropAspect(9/16);setPostCropError("");setPostCropOpen(true);}} style={{background:"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>✂ Ajustar</button>}
+             {uploadType==="photo"&&<button type="button" onClick={()=>setPhotoFilterOpen(v=>!v)} style={{background:photoFilterOpen?"#71315f":"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>EF Filtros</button>}
+             <button type="button" onClick={()=>{setPhotoFilterOpen(false);setMusicPanel("library");}} style={{background:"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>♫ Música</button>
+             <button type="button" onClick={()=>{setPhotoFilterOpen(false);setMusicPanel("audio");}} style={{background:"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>☷ Audio</button>
+           </div>
+           {uploadType==="photo"&&photoFilterOpen&&<div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",left:12,right:116,zIndex:10,background:"rgba(15,15,20,.94)",backdropFilter:"blur(14px)",borderRadius:16,padding:12,color:"white"}}>
+             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,fontWeight:700,fontSize:13}}><span>EF · Filtros de fotografía</span><button type="button" onClick={()=>setPhotoFilterOpen(false)} style={{color:"white",background:"transparent",border:0,fontSize:20}}>×</button></div>
+             <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:8}}>{photoFilterPresets.map(p=><button key={p.id} type="button" onClick={()=>{setPhotoFilter(p.id);setPhotoFilterError("");}} style={{flex:"0 0 auto",fontSize:12,color:"white",border:photoFilter===p.id?"2px solid #ff37ad":"1px solid #777",borderRadius:12,background:photoFilter===p.id?"#642453":"#292930",padding:"9px 12px"}}>{p.name}</button>)}</div>
+             {photoFilter!=="original"&&<label style={{display:"flex",alignItems:"center",gap:9,fontSize:12,marginTop:8}}>Intensidad <input aria-label="Intensidad del filtro" type="range" min="0" max="100" value={photoFilterStrength} onChange={e=>setPhotoFilterStrength(Number(e.target.value))} style={{flex:1}}/>{photoFilterStrength}%</label>}
+             {photoFilterError&&<small style={{color:"#ff9999"}}>{photoFilterError}</small>}
+           </div>}
+           {postCropOpen && uploadType==="photo" && <div style={{position:"fixed",inset:0,zIndex:100000,background:"#080808",display:"flex",flexDirection:"column",color:"white"}}>
+             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"calc(12px + env(safe-area-inset-top)) 16px 12px"}}><button onClick={()=>setPostCropOpen(false)} style={{color:"white",background:"none",border:0,fontSize:18}}>Cancelar</button><strong>Ajustar fotografía</strong><button onClick={applyPostCrop} disabled={postCropBusy||!postCropPixels} style={{background:"#ec29a9",color:"white",border:0,borderRadius:16,padding:"9px 13px",fontWeight:700}}>{postCropBusy?"Guardando…":"Aplicar"}</button></div>
+             <div style={{position:"relative",flex:1,minHeight:150,background:"#151515"}}><Cropper image={uploadPreview} crop={postCrop} zoom={postZoom} aspect={postCropAspect} onCropChange={setPostCrop} onZoomChange={setPostZoom} onCropComplete={(_,pixels)=>setPostCropPixels(pixels)} showGrid={true}/></div>
+             <div style={{padding:"15px 20px calc(24px + env(safe-area-inset-bottom))",display:"flex",flexDirection:"column",gap:14}}><div style={{display:"flex",gap:8,justifyContent:"center"}}>{[[9/16,"Pantalla 9:16"],[3/4,"Foto 3:4"],[1,"Cuadrada"]].map(([aspect,label])=><button key={label} onClick={()=>{setPostCropAspect(aspect);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);}} style={{padding:"9px",borderRadius:12,border:postCropAspect===aspect?"2px solid #ec29a9":"1px solid #777",background:"#252525",color:"white"}}>{label}</button>)}</div><label style={{display:"flex",alignItems:"center",gap:12}}>Zoom <input type="range" min="1" max="3" step="0.01" value={postZoom} onChange={e=>setPostZoom(Number(e.target.value))} style={{flex:1}}/></label><small style={{textAlign:"center",color:"#bbb"}}>Arrastra para mover la imagen. Usa dos dedos para acercar o alejar.</small>{postCropError&&<p style={{color:"#ff8888"}}>{postCropError}</p>}</div>
+           </div>}
            {musicSelected&&<div className="rivyza-music-selected">♫ Muévelo Sin Pensar (Remastered) · DJ Plus</div>}
            {musicPanel&&renderMusicSheet(false)}
 
