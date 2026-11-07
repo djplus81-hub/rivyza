@@ -596,32 +596,35 @@ export default function HomePage(){
   const [cameraEffectsOpen,setCameraEffectsOpen]=useState(false);
   const [cameraEffectsTab,setCameraEffectsTab]=useState("filters");
   const [cameraTone,setCameraTone]=useState('natural');
+  const [cameraFilterIntensity,setCameraFilterIntensity]=useState(70);
   const [cameraLight,setCameraLight]=useState(0);
   const [cameraSoft,setCameraSoft]=useState(30);
-  const cameraEffectsRef=useRef({tone:'natural',light:0,soft:30});
+  const cameraEffectsRef=useRef({tone:'natural',light:0,soft:30,intensity:70});
   const cameraProcessedRef=useRef(null);
   const cameraProcessingRef=useRef(null);
   useEffect(()=>{
-    cameraEffectsRef.current={tone:cameraTone,light:cameraLight,soft:cameraSoft};
+    cameraEffectsRef.current={tone:cameraTone,light:cameraLight,soft:cameraSoft,intensity:cameraFilterIntensity};
     if(!user?.id)return;
-    try{localStorage.setItem(`rivyza-camera-effects:${user.id}`,JSON.stringify({light:cameraLight,soft:cameraSoft}));}catch{}
-  },[cameraTone,cameraLight,cameraSoft,user?.id]);
+    try{localStorage.setItem(`rivyza-camera-effects:${user.id}`,JSON.stringify({light:cameraLight,soft:cameraSoft,intensity:cameraFilterIntensity}));}catch{}
+  },[cameraTone,cameraLight,cameraSoft,cameraFilterIntensity,user?.id]);
   useEffect(()=>{
     if(!user?.id)return;
     try{
       const saved=JSON.parse(localStorage.getItem(`rivyza-camera-effects:${user.id}`)||'null');
-      if(saved){setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(30,saved.soft===undefined?30:Number(saved.soft)||0)));}
+      if(saved){setCameraFilterIntensity(Math.max(0,Math.min(100,saved.intensity===undefined?70:Number(saved.intensity)||0)));setCameraLight(Math.max(-30,Math.min(30,Number(saved.light)||0)));setCameraSoft(Math.max(0,Math.min(30,saved.soft===undefined?30:Number(saved.soft)||0)));}
     }catch{}
   },[user?.id]);
   function cameraFilterValue(){
-    const {tone,light,soft}=cameraEffectsRef.current;
-    const tones={natural:'',warm:'sepia(.18) saturate(1.12)',cool:'hue-rotate(12deg) saturate(1.06)',vivid:'saturate(1.45) contrast(1.08)',mono:'grayscale(1)'};
+    const {tone,light,soft,intensity}=cameraEffectsRef.current;
+    const amount=Math.max(0,Math.min(1,(intensity??70)/100));
+    const tones={natural:'',warm:`sepia(${(.18*amount).toFixed(3)}) saturate(${(1+.12*amount).toFixed(3)})`,cool:`hue-rotate(${(12*amount).toFixed(2)}deg) saturate(${(1+.06*amount).toFixed(3)})`,vivid:`saturate(${(1+.45*amount).toFixed(3)}) contrast(${(1+.08*amount).toFixed(3)})`,mono:`grayscale(${amount.toFixed(3)})`};
     return `${tones[tone]||''} brightness(${Math.max(.7,1+light/100)}) blur(${soft/30*.65}px)`;
   }
   // Pixel-based effects: iOS Safari may ignore ctx.filter when exporting video.
   // This path applies all color presets and lighting to the actual recorded pixels.
   function paintCameraEffects(ctx,video,dx,dy,dw,dh){
-    const {tone,light,soft}=cameraEffectsRef.current;
+    const {tone,light,soft,intensity}=cameraEffectsRef.current;
+    const strength=Math.max(0,Math.min(1,(intensity??70)/100));
     ctx.filter='none';
     ctx.drawImage(video,dx,dy,dw,dh);
     const frame=ctx.getImageData(dx,dy,dw,dh);
@@ -644,9 +647,9 @@ export default function HomePage(){
         g=(gray+(g-gray)*1.45-128)*1.08+128;
         b=(gray+(b-gray)*1.45-128)*1.08+128;
       }
-      px[i]=Math.max(0,Math.min(255,Math.round(r*brightness)));
-      px[i+1]=Math.max(0,Math.min(255,Math.round(g*brightness)));
-      px[i+2]=Math.max(0,Math.min(255,Math.round(b*brightness)));
+      px[i]=Math.max(0,Math.min(255,Math.round((px[i]+(r-px[i])*strength)*brightness)));
+      px[i+1]=Math.max(0,Math.min(255,Math.round((px[i+1]+(g-px[i+1])*strength)*brightness)));
+      px[i+2]=Math.max(0,Math.min(255,Math.round((px[i+2]+(b-px[i+2])*strength)*brightness)));
     }
     ctx.putImageData(frame,dx,dy);
     // Gentle overall softening (not face-aware beauty retouch).
@@ -2517,7 +2520,7 @@ export default function HomePage(){
                autoPlay
                muted
                playsInline
-               style={{filter:`${cameraTone==='warm'?'sepia(.18) saturate(1.12)':cameraTone==='cool'?'hue-rotate(12deg) saturate(1.06)':cameraTone==='vivid'?'saturate(1.45) contrast(1.08)':cameraTone==='mono'?'grayscale(1)':''} brightness(${1+cameraLight/100}) blur(${cameraSoft/30*.65}px)`}}
+               style={{filter:cameraFilterValue()}}
              />
 
              <div className="rivyza-camera-zoom" aria-label="Zoom de cámara">
@@ -2551,10 +2554,15 @@ export default function HomePage(){
              </div>
 {cameraError && <div className="camera-error">{cameraError}</div>}
              {musicPanel==="library"&&renderMusicSheet(true)}
-             {cameraEffectsOpen&&<div style={{position:'absolute',left:8,right:8,bottom:175,zIndex:60,background:'rgba(12,12,22,.13)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',color:'#fff',border:'1px solid rgba(255,255,255,.25)',borderRadius:18,padding:'10px 10px 12px',boxShadow:'0 3px 16px rgba(0,0,0,.10)',textShadow:'0 1px 3px rgba(0,0,0,.85)'}}>
+             {cameraEffectsOpen&&<div style={{position:'absolute',left:8,right:8,bottom:225,zIndex:60,background:'rgba(12,12,22,.13)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',color:'#fff',border:'1px solid rgba(255,255,255,.25)',borderRadius:18,padding:'10px 10px 12px',boxShadow:'0 3px 16px rgba(0,0,0,.10)',textShadow:'0 1px 3px rgba(0,0,0,.85)'}}>
                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong style={{fontSize:15}}>✦ RIVYZA Efectos</strong><button type="button" aria-label="Cerrar efectos" onClick={()=>setCameraEffectsOpen(false)} style={{color:'#fff',background:'rgba(0,0,0,.22)',border:'1px solid #ffffff55',borderRadius:20,fontSize:21,width:30,height:30}}>×</button></div>
                <div style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:5,marginBottom:8,WebkitOverflowScrolling:'touch'}}>{[['filters','Filtros'],['beauty','Belleza'],['face','Rostro'],['accessories','Accesorios'],['fun','Divertidos']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraEffectsTab(key)} style={{background:cameraEffectsTab===key?'rgba(233,47,156,.85)':'rgba(0,0,0,.22)',border:'1px solid rgba(255,255,255,.32)',borderRadius:20,color:'#fff',padding:'7px 10px',fontSize:12,fontWeight:cameraEffectsTab===key?700:500,whiteSpace:'nowrap',textShadow:'0 1px 2px #0009'}}>{label}</button>)}</div>
                {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:3}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'rgba(233,47,156,.88)':'rgba(0,0,0,.24)',border:'1px solid rgba(255,255,255,.4)',borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap',fontWeight:cameraTone===key?700:500}}>{label}</button>)}</div>}
+               {cameraEffectsTab==='filters'&&cameraTone!=='natural'&&<div style={{display:'flex',alignItems:'center',gap:9,marginTop:10,padding:'3px 4px'}}>
+                 <label htmlFor="rivyza-filter-intensity" style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap'}}>Intensidad</label>
+                 <input id="rivyza-filter-intensity" aria-label="Intensidad del filtro" type="range" min="0" max="100" step="1" value={cameraFilterIntensity} onChange={e=>setCameraFilterIntensity(Number(e.target.value))} style={{flex:1,minWidth:0,accentColor:'#ed3b9f',touchAction:'pan-x'}}/>
+                 <span style={{fontSize:12,minWidth:34,textAlign:'right',fontWeight:700}}>{cameraFilterIntensity}%</span>
+               </div>}
                {cameraEffectsTab==='beauty'&&<div style={{background:'rgba(0,0,0,.16)',borderRadius:12,padding:'8px 10px'}}>
                  <label style={{display:'block',fontSize:13}}>Iluminación: {cameraLight} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="-30" max="30" value={cameraLight} onChange={e=>setCameraLight(Number(e.target.value))}/></label>
                  <label style={{display:'block',fontSize:13,marginTop:7}}>Suavidad general: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
