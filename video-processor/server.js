@@ -39,7 +39,7 @@ app.post('/render',async(req,res)=>{
     const base=['-hide_banner','-loglevel','error','-y','-i',video,'-stream_loop','-1','-ss',String(start),'-i',music];
     const opts=['-map','0:v:0','-c:v','libx264','-preset','superfast','-crf','23','-vf','scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30','-pix_fmt','yuv420p','-c:a','aac','-b:a','160k','-t',String(duration),'-movflags','+faststart',output];
     try{
-      await run('ffmpeg',[...base,'-filter_complex',`[0:a:0]volume=${voice}[voice];[1:a:0]volume=${song}[song];[voice][song]amix=inputs=2:duration=first:normalize=0[a]`,'-map','[a]',...opts]);
+      await run('ffmpeg',[...base,'-filter_complex',`[0:a:0]volume=${voice}[voice];[1:a:0]volume=${song}[song];[voice][song]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,atrim=duration=${duration},asetpts=N/SR/TB[a]`,'-map','[a]',...opts]);
     }catch(err){
       // For videos without an audio track, preserve music rather than fail.
       if(!String(err.message).includes('matches no streams'))throw err;
