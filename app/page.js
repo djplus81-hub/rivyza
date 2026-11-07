@@ -696,39 +696,29 @@ export default function HomePage(){
     {id:"mono",name:"B/N",css:"grayscale(1) contrast(1.12)"},
     {id:"soft",name:"Suave",css:"contrast(.92) brightness(1.07) saturate(.92)"}
   ];
-  async function applyPhotoFilter(){
-    if(uploadType!=="photo"||!uploadPreview||photoFilterBusy)return;
-    if(photoFilter==="original"||photoFilterStrength===0){setPhotoFilterOpen(false);return;}
-    setPhotoFilterBusy(true);setPhotoFilterError("");
-    try{
-      const image=await createImage(uploadPreview);
-      const canvas=document.createElement("canvas");
-      const scale=Math.min(1,4096/Math.max(image.naturalWidth,image.naturalHeight));
-      canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
-      canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
-      const ctx=canvas.getContext("2d");
-      if(!ctx)throw new Error("No se pudo preparar la imagen.");
-       // Componer en un lienzo separado para conservar fielmente la intensidad.
-       ctx.drawImage(image,0,0,canvas.width,canvas.height);
-       const layer=document.createElement("canvas");
-       layer.width=canvas.width;layer.height=canvas.height;
-       const layerCtx=layer.getContext("2d");
-       if(!layerCtx)throw new Error("No se pudo preparar el filtro.");
-       const preset=photoFilterPresets.find(p=>p.id===photoFilter);
-       layerCtx.filter=preset?.css||"none";
-       layerCtx.drawImage(image,0,0,layer.width,layer.height);
-       ctx.globalAlpha=Math.max(0,Math.min(1,photoFilterStrength/100));
-       ctx.drawImage(layer,0,0);
-       ctx.globalAlpha=1;
-      const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.95));
-      if(!blob)throw new Error("No se pudo guardar el filtro.");
-      const file=new File([blob],`rivyza-filter-${Date.now()}.jpg`,{type:"image/jpeg"});
-      const url=URL.createObjectURL(file);
-      setUploadFile(file);setUploadPreview(url);setPhotoFilter("original");setPhotoFilterOpen(false);
-      URL.revokeObjectURL(uploadPreview);
-    }catch(e){setPhotoFilterError(e.message||"No se pudo aplicar el filtro.");}
-    finally{setPhotoFilterBusy(false);}
-  }
+   // La vista previa conserva el filtro al cerrar EF; solo se graba al publicar.
+   const photoFilterCss=photoFilter==="original"?"none":({
+     vivid:`saturate(${1+.65*photoFilterStrength/100}) contrast(${1+.12*photoFilterStrength/100})`,
+     warm:`sepia(${.28*photoFilterStrength/100}) saturate(${1+.22*photoFilterStrength/100})`,
+     cool:`hue-rotate(${14*photoFilterStrength/100}deg) saturate(${1+.12*photoFilterStrength/100})`,
+     mono:`grayscale(${photoFilterStrength/100}) contrast(${1+.12*photoFilterStrength/100})`,
+     soft:`contrast(${1-.08*photoFilterStrength/100}) brightness(${1+.07*photoFilterStrength/100}) saturate(${1-.08*photoFilterStrength/100})`
+   }[photoFilter]||"none");
+   async function getPhotoForPublishing(){
+     if(photoFilterCss==="none")return uploadFile;
+     const image=await createImage(uploadPreview);
+     const canvas=document.createElement("canvas");
+     const scale=Math.min(1,4096/Math.max(image.naturalWidth,image.naturalHeight));
+     canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+     canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+     const ctx=canvas.getContext("2d");
+     if(!ctx)throw new Error("No se pudo preparar el filtro de la foto.");
+     ctx.filter=photoFilterCss;
+     ctx.drawImage(image,0,0,canvas.width,canvas.height);
+     const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.95));
+     if(!blob)throw new Error("No se pudo guardar la fotografía con filtro.");
+     return new File([blob],`rivyza-photo-${Date.now()}.jpg`,{type:"image/jpeg"});
+   }
 
   async function applyPostCrop(){
     if(!uploadPreview||!postCropPixels||postCropBusy)return;
@@ -2645,15 +2635,16 @@ export default function HomePage(){
    setPublishStage("Subiendo foto o video…");
 
    try{
-     const ext=(uploadFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
+     const publishFile=uploadType==="photo"?await getPhotoForPublishing():uploadFile;
+     const ext=(publishFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
      const path=`${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
      if(uploadType==="video"){
        await uploadVideoResumable(uploadFile,path);
      }else{
        const {error:uploadError}=await withPublishTimeout(
-         supabase.storage.from("media").upload(path,uploadFile,{
-           cacheControl:"3600",upsert:false,contentType:uploadFile.type
+         supabase.storage.from("media").upload(path,publishFile,{
+           cacheControl:"3600",upsert:false,contentType:publishFile.type
          }),90,"Subir foto"
        );
        if(uploadError)throw uploadError;
@@ -3035,7 +3026,7 @@ export default function HomePage(){
            <div className="rivyza-music-stage">
              <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
                {uploadType==="photo"
-                 ? <img src={uploadPreview} alt="Vista previa" style={{filter:photoFilter!=="original"?({vivid:`saturate(${1+.65*photoFilterStrength/100}) contrast(${1+.12*photoFilterStrength/100})`,warm:`sepia(${.28*photoFilterStrength/100}) saturate(${1+.22*photoFilterStrength/100})`,cool:`hue-rotate(${14*photoFilterStrength/100}deg) saturate(${1+.12*photoFilterStrength/100})`,mono:`grayscale(${photoFilterStrength/100}) contrast(${1+.12*photoFilterStrength/100})`,soft:`contrast(${1-.08*photoFilterStrength/100}) brightness(${1+.07*photoFilterStrength/100}) saturate(${1-.08*photoFilterStrength/100})`}[photoFilter]||"none"):"none",transition:"filter .15s"}}/>
+                 ? <img src={uploadPreview} alt="Vista previa" style={{filter:photoFilterCss,transition:"filter .15s"}}/>
                  : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="auto" style={{width:"100%"}}
                      onLoadedMetadata={e=>{const v=e.currentTarget,d=v.duration;if(Number.isFinite(d)&&d>0){setEditorVideoDuration(d);/* iOS: seek to a decoded frame so the editor does not open black. */try{v.currentTime=Math.min(0.18,Math.max(0,d-0.05));}catch(_){}}}}
                      onPlaying={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
@@ -3058,7 +3049,7 @@ export default function HomePage(){
            {uploadType==="photo"&&photoFilterOpen&&<div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",left:12,right:116,zIndex:10,background:"rgba(15,15,20,.94)",backdropFilter:"blur(14px)",borderRadius:16,padding:12,color:"white"}}>
              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,fontWeight:700,fontSize:13}}><span>EF · Filtros de fotografía</span><button type="button" onClick={()=>setPhotoFilterOpen(false)} style={{color:"white",background:"transparent",border:0,fontSize:20}}>×</button></div>
              <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:8}}>{photoFilterPresets.map(p=><button key={p.id} type="button" onClick={()=>{setPhotoFilter(p.id);setPhotoFilterError("");}} style={{flex:"0 0 auto",fontSize:12,color:"white",border:photoFilter===p.id?"2px solid #ff37ad":"1px solid #777",borderRadius:12,background:photoFilter===p.id?"#642453":"#292930",padding:"9px 12px"}}>{p.name}</button>)}</div>
-             {photoFilter!=="original"&&<><label style={{display:"flex",alignItems:"center",gap:9,fontSize:12,marginTop:8}}>Intensidad <input aria-label="Intensidad del filtro" type="range" min="0" max="100" value={photoFilterStrength} onChange={e=>setPhotoFilterStrength(Number(e.target.value))} style={{flex:1}}/>{photoFilterStrength}%</label><button type="button" disabled={photoFilterBusy} onClick={applyPhotoFilter} style={{width:"100%",marginTop:10,background:"linear-gradient(90deg,#ec29a9,#168bff)",border:0,borderRadius:10,padding:10,color:"white",fontWeight:700}}>{photoFilterBusy?"Aplicando…":"Aplicar filtro"}</button></>}
+             {photoFilter!=="original"&&<label style={{display:"flex",alignItems:"center",gap:9,fontSize:12,marginTop:8}}>Intensidad <input aria-label="Intensidad del filtro" type="range" min="0" max="100" value={photoFilterStrength} onChange={e=>setPhotoFilterStrength(Number(e.target.value))} style={{flex:1}}/>{photoFilterStrength}%</label>}
              {photoFilterError&&<small style={{color:"#ff9999"}}>{photoFilterError}</small>}
            </div>}
            {postCropOpen && uploadType==="photo" && <div style={{position:"fixed",inset:0,zIndex:100000,background:"#080808",display:"flex",flexDirection:"column",color:"white"}}>
@@ -3066,7 +3057,6 @@ export default function HomePage(){
              <div style={{position:"relative",flex:1,minHeight:150,background:"#151515"}}><Cropper image={uploadPreview} crop={postCrop} zoom={postZoom} aspect={postCropAspect} onCropChange={setPostCrop} onZoomChange={setPostZoom} onCropComplete={(_,pixels)=>setPostCropPixels(pixels)} showGrid={true}/></div>
              <div style={{padding:"15px 20px calc(24px + env(safe-area-inset-bottom))",display:"flex",flexDirection:"column",gap:14}}><div style={{display:"flex",gap:8,justifyContent:"center"}}>{[[9/16,"Pantalla 9:16"],[3/4,"Foto 3:4"],[1,"Cuadrada"]].map(([aspect,label])=><button key={label} onClick={()=>{setPostCropAspect(aspect);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);}} style={{padding:"9px",borderRadius:12,border:postCropAspect===aspect?"2px solid #ec29a9":"1px solid #777",background:"#252525",color:"white"}}>{label}</button>)}</div><label style={{display:"flex",alignItems:"center",gap:12}}>Zoom <input type="range" min="1" max="3" step="0.01" value={postZoom} onChange={e=>setPostZoom(Number(e.target.value))} style={{flex:1}}/></label><small style={{textAlign:"center",color:"#bbb"}}>Arrastra para mover la imagen. Usa dos dedos para acercar o alejar.</small>{postCropError&&<p style={{color:"#ff8888"}}>{postCropError}</p>}</div>
            </div>}
-           {musicSelected&&<div className="rivyza-music-selected">♫ Muévelo Sin Pensar (Remastered) · DJ Plus</div>}
            {musicPanel&&renderMusicSheet(false)}
 
            <label className="upload-field">
