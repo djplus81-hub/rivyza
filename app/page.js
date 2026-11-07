@@ -712,13 +712,28 @@ export default function HomePage(){
   const deepARRef=useRef(null);
   const deepARContainerRef=useRef(null);
   const deepARBusyRef=useRef(false);
+  const deepARRequestRef=useRef(0);
   const [deepAREffect,setDeepAREffect]=useState(null);
   const [deepARBusy,setDeepARBusy]=useState(false);
   const [deepARError,setDeepARError]=useState("");
+  // Evitar que una promesa de DeepAR deje la interfaz en «Cargando» indefinidamente.
+  function deepARWithTimeout(promise,ms=15000){
+    let timer;
+    return Promise.race([
+      promise,
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("DEEPAR_TIMEOUT")),ms);})
+    ]).finally(()=>clearTimeout(timer));
+  }
+  function resetDeepAREngine(){
+    const engine=deepARRef.current;
+    deepARRef.current=null;
+    if(engine){try{engine.shutdown();}catch(e){console.warn("DeepAR shutdown:",e);}}
+    setDeepAREffect(null);
+  }
   async function removeDeepAREffect(){
     if(deepARBusyRef.current)return;
     const engine=deepARRef.current;
-    if(engine){try{await engine.clearEffect();}catch(e){console.warn("DeepAR clear:",e);}}
+    if(engine){try{await deepARWithTimeout(Promise.resolve().then(()=>engine.clearEffect()),8000);}catch(e){resetDeepAREngine();}}
     setDeepAREffect(null);setDeepARError("");
   }
   async function chooseDeepAREffect(effect){
@@ -729,19 +744,33 @@ export default function HomePage(){
     if(!video || !holder || !cameraStream){setDeepARError("Abre la cámara primero.");return;}
     const license=process.env.NEXT_PUBLIC_DEEPAR_LICENSE_KEY;
     if(!license){setDeepARError("Falta NEXT_PUBLIC_DEEPAR_LICENSE_KEY en Vercel.");return;}
+    const request=++deepARRequestRef.current;
     deepARBusyRef.current=true;setDeepARBusy(true);setDeepARError("");
     try{
       if(!deepARRef.current){
-        const deepar=await import('deepar');
-        if(!holder.isConnected)throw new Error("La cámara se cerró.");
-        const engine=await deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
+        const deepar=await deepARWithTimeout(import('deepar'),15000);
+        if(request!==deepARRequestRef.current || !holder.isConnected)throw new Error("La cámara se cerró.");
+        const initialization=deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
+        // Si initialize termina después del timeout, cerrar ese motor tardío.
+        initialization.then(engine=>{
+          if(request!==deepARRequestRef.current || !holder.isConnected){try{engine.shutdown();}catch(e){}}
+        }).catch(()=>{});
+        const engine=await deepARWithTimeout(initialization,15000);
+        if(request!==deepARRequestRef.current || !holder.isConnected){try{engine.shutdown();}catch(e){}throw new Error("La cámara se cerró.");}
         deepARRef.current=engine;
         engine.setVideoElement(video,cameraFacing==="user");
       }
-      await deepARRef.current.switchEffect(effect.url);
-      setDeepAREffect(effect.id);
-    }catch(e){console.error("DeepAR:",e);setDeepARError("No se pudo cargar este efecto. Comprueba el archivo y la licencia.");}
-    finally{deepARBusyRef.current=false;setDeepARBusy(false);}
+      await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url)),15000);
+      if(request===deepARRequestRef.current)setDeepAREffect(effect.id);
+    }catch(e){
+      console.error("DeepAR:",e);
+      // Un switchEffect bloqueado puede dejar el motor inutilizable: descartarlo
+      // para que el próximo toque lo inicialice de nuevo sin cerrar RIVYZA.
+      resetDeepAREngine();
+      if(request===deepARRequestRef.current)setDeepARError(e?.message==="DEEPAR_TIMEOUT"?"El efecto tardó demasiado. Selecciona otro efecto o inténtalo de nuevo.":"No se pudo cargar este efecto. Inténtalo de nuevo.");
+    }finally{
+      if(request===deepARRequestRef.current){deepARBusyRef.current=false;setDeepARBusy(false);}
+    }
   }
 
   useEffect(()=>{
@@ -2055,7 +2084,9 @@ export default function HomePage(){
 
  async function stopCamera(){
    stopCameraProcessing();
-   if(deepARRef.current){try{deepARRef.current.shutdown();}catch(e){}deepARRef.current=null;}
+   deepARRequestRef.current++;
+   deepARBusyRef.current=false;setDeepARBusy(false);
+   resetDeepAREngine();
    setDeepAREffect(null);setDeepARError("");
    cameraZoomTrackRef.current=null;
    setCameraZoomRange(null);
