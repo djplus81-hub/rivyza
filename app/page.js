@@ -708,12 +708,18 @@ export default function HomePage(){
       canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
       const ctx=canvas.getContext("2d");
       if(!ctx)throw new Error("No se pudo preparar la imagen.");
-      ctx.drawImage(image,0,0,canvas.width,canvas.height);
-      const preset=photoFilterPresets.find(p=>p.id===photoFilter);
-      ctx.filter=preset?.css||"none";
-      ctx.globalAlpha=photoFilterStrength/100;
-      ctx.drawImage(image,0,0,canvas.width,canvas.height);
-      ctx.filter="none";ctx.globalAlpha=1;
+       // Componer en un lienzo separado para conservar fielmente la intensidad.
+       ctx.drawImage(image,0,0,canvas.width,canvas.height);
+       const layer=document.createElement("canvas");
+       layer.width=canvas.width;layer.height=canvas.height;
+       const layerCtx=layer.getContext("2d");
+       if(!layerCtx)throw new Error("No se pudo preparar el filtro.");
+       const preset=photoFilterPresets.find(p=>p.id===photoFilter);
+       layerCtx.filter=preset?.css||"none";
+       layerCtx.drawImage(image,0,0,layer.width,layer.height);
+       ctx.globalAlpha=Math.max(0,Math.min(1,photoFilterStrength/100));
+       ctx.drawImage(layer,0,0);
+       ctx.globalAlpha=1;
       const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.95));
       if(!blob)throw new Error("No se pudo guardar el filtro.");
       const file=new File([blob],`rivyza-filter-${Date.now()}.jpg`,{type:"image/jpeg"});
@@ -3043,13 +3049,13 @@ export default function HomePage(){
                  onTimeUpdate={e=>{const a=e.currentTarget;const clip=uploadType==="video"&&editorVideoDuration>0?editorVideoDuration:musicLength;if(a.currentTime>=musicStart+clip){if(musicPreviewRef.current || uploadType==="photo"){a.currentTime=musicStart;if(musicPreviewRef.current && a.paused)a.play().catch(()=>{});}else a.pause();}}}/>}
              </div>
            </div>
-           <div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",left:12,right:12,zIndex:9,display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
-             {uploadType==="photo"&&<button type="button" onClick={()=>{setPhotoFilterOpen(false);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);setPostCropAspect(9/16);setPostCropError("");setPostCropOpen(true);}} style={{background:"rgba(18,18,24,.76)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"9px 2px",fontSize:12,fontWeight:700}}>✂ Ajustar</button>}
-             {uploadType==="photo"&&<button type="button" onClick={()=>setPhotoFilterOpen(v=>!v)} style={{background:photoFilterOpen?"#71315f":"rgba(18,18,24,.76)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"9px 2px",fontSize:12,fontWeight:700}}>EF Filtros</button>}
-             <button type="button" onClick={()=>{setPhotoFilterOpen(false);setMusicPanel("library");}} style={{background:"rgba(18,18,24,.76)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"9px 2px",fontSize:12,fontWeight:700}}>♫ Música</button>
-             <button type="button" onClick={()=>{setPhotoFilterOpen(false);setMusicPanel("audio");}} style={{background:"rgba(18,18,24,.76)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"9px 2px",fontSize:12,fontWeight:700}}>☷ Audio</button>
+           <div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",right:12,zIndex:9,display:"flex",flexDirection:"column",gap:8,width:92}}>
+             {uploadType==="photo"&&<button type="button" onClick={()=>{setPhotoFilterOpen(false);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);setPostCropAspect(9/16);setPostCropError("");setPostCropOpen(true);}} style={{background:"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>✂ Ajustar</button>}
+             {uploadType==="photo"&&<button type="button" onClick={()=>setPhotoFilterOpen(v=>!v)} style={{background:photoFilterOpen?"#71315f":"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>EF Filtros</button>}
+             <button type="button" onClick={()=>{setPhotoFilterOpen(false);setMusicPanel("library");}} style={{background:"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>♫ Música</button>
+             <button type="button" onClick={()=>{setPhotoFilterOpen(false);setMusicPanel("audio");}} style={{background:"rgba(18,18,24,.70)",color:"white",border:"1px solid #7777",borderRadius:13,padding:"10px 4px",fontSize:12,fontWeight:700}}>☷ Audio</button>
            </div>
-           {uploadType==="photo"&&photoFilterOpen&&<div style={{position:"absolute",top:"calc(143px + env(safe-area-inset-top))",left:12,right:12,zIndex:10,background:"rgba(15,15,20,.94)",backdropFilter:"blur(14px)",borderRadius:16,padding:12,color:"white"}}>
+           {uploadType==="photo"&&photoFilterOpen&&<div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",left:12,right:116,zIndex:10,background:"rgba(15,15,20,.94)",backdropFilter:"blur(14px)",borderRadius:16,padding:12,color:"white"}}>
              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,fontWeight:700,fontSize:13}}><span>EF · Filtros de fotografía</span><button type="button" onClick={()=>setPhotoFilterOpen(false)} style={{color:"white",background:"transparent",border:0,fontSize:20}}>×</button></div>
              <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:8}}>{photoFilterPresets.map(p=><button key={p.id} type="button" onClick={()=>{setPhotoFilter(p.id);setPhotoFilterError("");}} style={{flex:"0 0 auto",fontSize:12,color:"white",border:photoFilter===p.id?"2px solid #ff37ad":"1px solid #777",borderRadius:12,background:photoFilter===p.id?"#642453":"#292930",padding:"9px 12px"}}>{p.name}</button>)}</div>
              {photoFilter!=="original"&&<><label style={{display:"flex",alignItems:"center",gap:9,fontSize:12,marginTop:8}}>Intensidad <input aria-label="Intensidad del filtro" type="range" min="0" max="100" value={photoFilterStrength} onChange={e=>setPhotoFilterStrength(Number(e.target.value))} style={{flex:1}}/>{photoFilterStrength}%</label><button type="button" disabled={photoFilterBusy} onClick={applyPhotoFilter} style={{width:"100%",marginTop:10,background:"linear-gradient(90deg,#ec29a9,#168bff)",border:0,borderRadius:10,padding:10,color:"white",fontWeight:700}}>{photoFilterBusy?"Aplicando…":"Aplicar filtro"}</button></>}
