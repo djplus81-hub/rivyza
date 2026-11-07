@@ -704,23 +704,65 @@ export default function HomePage(){
      mono:`grayscale(${photoFilterStrength/100}) contrast(${1+.12*photoFilterStrength/100})`,
      soft:`contrast(${1-.08*photoFilterStrength/100}) brightness(${1+.07*photoFilterStrength/100}) saturate(${1-.08*photoFilterStrength/100})`
    }[photoFilter]||"none");
+   // Grabar los filtros en los píxeles: ctx.filter no está soportado de forma
+   // consistente por Safari/iOS y puede subir la foto original sin avisar.
    async function getPhotoForPublishing(){
-     if(photoFilterCss==="none")return uploadFile;
+     if(photoFilter==="original" || photoFilterStrength===0)return uploadFile;
+     if(!uploadFile || !uploadPreview)throw new Error("No hay fotografía para publicar.");
      const image=await createImage(uploadPreview);
+     const scale=Math.min(1,2560/Math.max(image.naturalWidth,image.naturalHeight));
      const canvas=document.createElement("canvas");
-     const scale=Math.min(1,4096/Math.max(image.naturalWidth,image.naturalHeight));
      canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
      canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
-     const ctx=canvas.getContext("2d");
+     const ctx=canvas.getContext("2d",{willReadFrequently:true});
      if(!ctx)throw new Error("No se pudo preparar el filtro de la foto.");
-     ctx.filter=photoFilterCss;
      ctx.drawImage(image,0,0,canvas.width,canvas.height);
+     const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
+     const pixels=frame.data;
+     const intensity=Math.max(0,Math.min(1,photoFilterStrength/100));
+     const clamp=v=>Math.max(0,Math.min(255,v));
+     // Equivalentes matemáticos de saturate, contrast, sepia, hue-rotate,
+     // grayscale y brightness utilizados en la vista previa CSS.
+     const saturation=(rgb,f)=>{
+       const [r,g,b]=rgb;
+       return [(.213+.787*f)*r+(.715-.715*f)*g+(.072-.072*f)*b,
+         (.213-.213*f)*r+(.715+.285*f)*g+(.072-.072*f)*b,
+         (.213-.213*f)*r+(.715-.715*f)*g+(.072+.928*f)*b];
+     };
+     const contrast=(rgb,f)=>rgb.map(v=>(v-127.5)*f+127.5);
+     const sepia=(rgb,f)=>{
+       const [r,g,b]=rgb;
+       return [r*(1-.607*f)+g*(.769*f)+b*(.189*f),
+         r*(.349*f)+g*(1-.314*f)+b*(.168*f),
+         r*(.272*f)+g*(.534*f)+b*(1-.869*f)];
+     };
+     const hue=(rgb,degrees)=>{
+       const rad=degrees*Math.PI/180,c=Math.cos(rad),v=Math.sin(rad);
+       const [r,g,b]=rgb;
+       return [r*(.213+c*.787-v*.213)+g*(.715-c*.715-v*.715)+b*(.072-c*.072+v*.928),
+         r*(.213-c*.213+v*.143)+g*(.715+c*.285+v*.140)+b*(.072-c*.072-v*.283),
+         r*(.213-c*.213-v*.787)+g*(.715-c*.715+v*.715)+b*(.072+c*.928+v*.072)];
+     };
+     for(let i=0;i<pixels.length;i+=4){
+       let rgb=[pixels[i],pixels[i+1],pixels[i+2]];
+       switch(photoFilter){
+         case "vivid": rgb=contrast(saturation(rgb,1+.65*intensity),1+.12*intensity);break;
+         case "warm": rgb=saturation(sepia(rgb,.28*intensity),1+.22*intensity);break;
+         case "cool": rgb=saturation(hue(rgb,14*intensity),1+.12*intensity);break;
+         case "mono": rgb=contrast(saturation(rgb,1-intensity),1+.12*intensity);break;
+         case "soft": rgb=saturation(contrast(rgb,1-.08*intensity).map(v=>v*(1+.07*intensity)),1-.08*intensity);break;
+         default: throw new Error("Filtro de fotografía desconocido.");
+       }
+       pixels[i]=clamp(Math.round(rgb[0]));
+       pixels[i+1]=clamp(Math.round(rgb[1]));
+       pixels[i+2]=clamp(Math.round(rgb[2]));
+     }
+     ctx.putImageData(frame,0,0);
      const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",.95));
      if(!blob)throw new Error("No se pudo guardar la fotografía con filtro.");
-     return new File([blob],`rivyza-photo-${Date.now()}.jpg`,{type:"image/jpeg"});
+     return new File([blob],`rivyza-photo-filtered-${Date.now()}.jpg`,{type:"image/jpeg"});
    }
-
-  async function applyPostCrop(){
+async function applyPostCrop(){
     if(!uploadPreview||!postCropPixels||postCropBusy)return;
     setPostCropBusy(true);setPostCropError("");
     try{
@@ -3057,7 +3099,6 @@ export default function HomePage(){
              <div style={{position:"relative",flex:1,minHeight:150,background:"#151515"}}><Cropper image={uploadPreview} crop={postCrop} zoom={postZoom} aspect={postCropAspect} onCropChange={setPostCrop} onZoomChange={setPostZoom} onCropComplete={(_,pixels)=>setPostCropPixels(pixels)} showGrid={true}/></div>
              <div style={{padding:"15px 20px calc(24px + env(safe-area-inset-bottom))",display:"flex",flexDirection:"column",gap:14}}><div style={{display:"flex",gap:8,justifyContent:"center"}}>{[[9/16,"Pantalla 9:16"],[3/4,"Foto 3:4"],[1,"Cuadrada"]].map(([aspect,label])=><button key={label} onClick={()=>{setPostCropAspect(aspect);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);}} style={{padding:"9px",borderRadius:12,border:postCropAspect===aspect?"2px solid #ec29a9":"1px solid #777",background:"#252525",color:"white"}}>{label}</button>)}</div><label style={{display:"flex",alignItems:"center",gap:12}}>Zoom <input type="range" min="1" max="3" step="0.01" value={postZoom} onChange={e=>setPostZoom(Number(e.target.value))} style={{flex:1}}/></label><small style={{textAlign:"center",color:"#bbb"}}>Arrastra para mover la imagen. Usa dos dedos para acercar o alejar.</small>{postCropError&&<p style={{color:"#ff8888"}}>{postCropError}</p>}</div>
            </div>}
-           {musicSelected&&<div className="rivyza-music-selected">♫ Muévelo Sin Pensar (Remastered) · DJ Plus</div>}
            {musicPanel&&renderMusicSheet(false)}
 
            <label className="upload-field">
