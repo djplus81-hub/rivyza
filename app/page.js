@@ -631,6 +631,21 @@ export default function HomePage(){
   const [socialListLoading,setSocialListLoading]=useState(false);
   const [feedTab,setFeedTab]=useState("forYou");
   const [feedPosts,setFeedPosts]=useState([]);
+  // Preparar los primeros fotogramas antes de que el usuario deslice el feed.
+  // El navegador puede reutilizar el recurso ya descargado al montar el reproductor.
+  useEffect(()=>{
+    if(typeof document==="undefined")return;
+    const urls=[...new Set(feedPosts.filter(p=>p.media_type==="video"&&p.media_path).map(p=>p.media_path))].slice(0,8);
+    const warmers=urls.map(src=>{
+      const v=document.createElement("video");
+      v.preload="auto";v.muted=true;v.playsInline=true;
+      v.src=src;
+      try{v.load();}catch(_){}
+      return v;
+    });
+    return()=>warmers.forEach(v=>{v.removeAttribute("src");try{v.load();}catch(_){}});
+  },[feedPosts]);
+
   const [newFeedPostsAvailable,setNewFeedPostsAvailable]=useState(false);
   const feedNewestIdRef=useRef(null);
   const feedCheckBusyRef=useRef(false);
