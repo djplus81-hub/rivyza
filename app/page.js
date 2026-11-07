@@ -867,6 +867,7 @@ export default function HomePage(){
   const [cameraSegmentBoundaries,setCameraSegmentBoundaries]=useState([]);
   const [cameraExporting,setCameraExporting]=useState(false);
   const cameraFinishRef=useRef(false);
+  const cameraFinalizingRef=useRef(false);
   const cameraDeletePendingRef=useRef(false);
   const cameraSegmentDurationRef=useRef(0);
   const [cameraSegmentSaving,setCameraSegmentSaving]=useState(false);
@@ -2085,7 +2086,9 @@ export default function HomePage(){
      }
 
      const stream=await navigator.mediaDevices.getUserMedia({
-       video:{facingMode:{ideal:facing},width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:9/16}},
+       video:cameraMode==="photo"
+         ? {facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:960},aspectRatio:{ideal:4/3}}
+         : {facingMode:{ideal:facing},width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:9/16}},
        audio:cameraMode==="video"
      });
 
@@ -2131,7 +2134,7 @@ export default function HomePage(){
    if(!sourceW||!sourceH){setCameraError("La cámara todavía no está lista para tomar fotos.");return;}
    const bounds=rawVideo?.getBoundingClientRect?.()||source.getBoundingClientRect();
    const displayW=bounds.width||9,displayH=bounds.height||16;
-   const ratio=displayW/displayH;
+   const ratio=cameraMode==="photo" && !deepAREffect ? sourceW/sourceH : displayW/displayH;
    let cropW=sourceW,cropH=sourceH;
    if(sourceW/sourceH>ratio)cropW=sourceH*ratio;
    else cropH=sourceW/ratio;
@@ -2192,7 +2195,15 @@ export default function HomePage(){
          pctx.scale(-1,1);
        }
        pctx.drawImage(source,cropX,cropY,cropW,cropH,0,0,photoSource.width,photoSource.height);
-       paintCameraEffects(ctx,photoSource,0,0,canvas.width,canvas.height);
+       // Aplicar color/luz una sola vez. Evitar el segundo dibujo de
+       // suavizado en fotografías, que puede dejar una imagen fantasma.
+       const previousEffects=cameraEffectsRef.current;
+       try{
+         cameraEffectsRef.current={...previousEffects,soft:0};
+         paintCameraEffects(ctx,photoSource,0,0,canvas.width,canvas.height);
+       }finally{
+         cameraEffectsRef.current=previousEffects;
+       }
      }
      const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.92));
      if(!blob)throw new Error("No se pudo guardar la fotografía.");
@@ -2338,13 +2349,16 @@ export default function HomePage(){
      setRecordSeconds(recordElapsedRef.current);
      cameraSegmentDurationRef.current=recordElapsedRef.current-cameraSegmentStartRef.current;
      rec.stop();
-   }else if(rec?.state==="inactive" && !cameraSegmentSavingRef.current){
+   }else if((!rec || rec.state==="inactive") && !cameraSegmentSavingRef.current){
      cameraFinishRef.current=false;void finishCameraSegments();
    }
+   // Si el segmento sigue cerrándose, onstop completará la exportación.
  }
  async function finishCameraSegments(){
+   if(cameraFinalizingRef.current)return;
+   cameraFinalizingRef.current=true;
    const segments=cameraSegmentsRef.current;
-   if(!segments.length){setRecording(false);setRecordPaused(false);return;}
+   if(!segments.length){cameraFinalizingRef.current=false;setCameraError("No se pudo guardar el video. Intenta grabar nuevamente.");setRecording(false);setRecordPaused(false);return;}
    setCameraExporting(true);
    try{
      let blob=segments[0].blob;
@@ -2378,7 +2392,7 @@ export default function HomePage(){
      console.error("RIVYZA segment export",err);
      setCameraError("No se pudieron unir los segmentos en este dispositivo. La grabación sigue disponible; intenta terminar de nuevo. "+(err.message||""));
      setRecordPaused(true);
-   }finally{setCameraExporting(false);}
+   }finally{cameraFinalizingRef.current=false;setCameraExporting(false);}
  }
 
  function resetUpload(){
@@ -2711,7 +2725,7 @@ export default function HomePage(){
                autoPlay
                muted
                playsInline
-               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1}}
+               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1,objectFit:cameraMode==="photo"?"contain":undefined}}
              />
              <div ref={deepARContainerRef} style={{position:"absolute",inset:0,pointerEvents:"none",opacity:deepAREffect?1:0,filter:cameraFilterValue()}}/>
 
@@ -2860,7 +2874,7 @@ export default function HomePage(){
                    </button>
                  )}
 
-                 {recording?<button className="rivyza-finish-record" type="button" onClick={stopRecording} disabled={cameraExporting} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setCameraEffectsOpen(v=>!v)}>
+                 {recording&&recordPaused?<button className="rivyza-finish-record" type="button" onClick={stopRecording} disabled={cameraExporting} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setCameraEffectsOpen(v=>!v)}>
                    <span>✦</span>
                    <small>Efectos</small>
                  </button>}
