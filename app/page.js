@@ -867,7 +867,6 @@ export default function HomePage(){
   const [cameraSegmentBoundaries,setCameraSegmentBoundaries]=useState([]);
   const [cameraExporting,setCameraExporting]=useState(false);
   const cameraFinishRef=useRef(false);
-  const cameraFinalizingRef=useRef(false);
   const cameraDeletePendingRef=useRef(false);
   const cameraSegmentDurationRef=useRef(0);
   const [cameraSegmentSaving,setCameraSegmentSaving]=useState(false);
@@ -2349,16 +2348,13 @@ export default function HomePage(){
      setRecordSeconds(recordElapsedRef.current);
      cameraSegmentDurationRef.current=recordElapsedRef.current-cameraSegmentStartRef.current;
      rec.stop();
-   }else if((!rec || rec.state==="inactive") && !cameraSegmentSavingRef.current){
+   }else if(rec?.state==="inactive" && !cameraSegmentSavingRef.current){
      cameraFinishRef.current=false;void finishCameraSegments();
    }
-   // Si el segmento sigue cerrándose, onstop completará la exportación.
  }
  async function finishCameraSegments(){
-   if(cameraFinalizingRef.current)return;
-   cameraFinalizingRef.current=true;
    const segments=cameraSegmentsRef.current;
-   if(!segments.length){cameraFinalizingRef.current=false;setCameraError("No se pudo guardar el video. Intenta grabar nuevamente.");setRecording(false);setRecordPaused(false);return;}
+   if(!segments.length){setRecording(false);setRecordPaused(false);return;}
    setCameraExporting(true);
    try{
      let blob=segments[0].blob;
@@ -2392,7 +2388,7 @@ export default function HomePage(){
      console.error("RIVYZA segment export",err);
      setCameraError("No se pudieron unir los segmentos en este dispositivo. La grabación sigue disponible; intenta terminar de nuevo. "+(err.message||""));
      setRecordPaused(true);
-   }finally{cameraFinalizingRef.current=false;setCameraExporting(false);}
+   }finally{setCameraExporting(false);}
  }
 
  function resetUpload(){
@@ -2874,7 +2870,7 @@ export default function HomePage(){
                    </button>
                  )}
 
-                 {recording&&recordPaused?<button className="rivyza-finish-record" type="button" onClick={stopRecording} disabled={cameraExporting} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setCameraEffectsOpen(v=>!v)}>
+                 {recording&&recordPaused?<button className="rivyza-finish-record" type="button" onClick={stopRecording} disabled={cameraExporting||cameraSegmentSaving} aria-label="Terminar grabación"><Check size={27}/><small>Terminar</small></button>:<button className="camera-effects-placeholder" type="button" onClick={()=>setCameraEffectsOpen(v=>!v)}>
                    <span>✦</span>
                    <small>Efectos</small>
                  </button>}
@@ -2900,8 +2896,8 @@ export default function HomePage(){
              <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
                {uploadType==="photo"
                  ? <img src={uploadPreview} alt="Vista previa"/>
-                 : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="metadata" style={{width:"100%"}}
-                     onLoadedMetadata={e=>{const d=e.currentTarget.duration;if(Number.isFinite(d)&&d>0)setEditorVideoDuration(d);}}
+                 : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="auto" style={{width:"100%"}}
+                     onLoadedMetadata={e=>{const v=e.currentTarget,d=v.duration;if(Number.isFinite(d)&&d>0){setEditorVideoDuration(d);/* iOS: seek to a decoded frame so the editor does not open black. */try{v.currentTime=Math.min(0.18,Math.max(0,d-0.05));}catch(_){}}}}
                      onPlaying={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
                      onSeeked={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(v&&a&&musicSelected)a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));}}
                      onTimeUpdate={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v||!a||!musicSelected||v.paused)return;const target=musicStart+v.currentTime;if(Math.abs(a.currentTime-target)>.22)a.currentTime=target;}}
