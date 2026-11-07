@@ -617,6 +617,53 @@ export default function HomePage(){
     const tones={natural:'',warm:'sepia(.18) saturate(1.12)',cool:'hue-rotate(12deg) saturate(1.06)',vivid:'saturate(1.45) contrast(1.08)',mono:'grayscale(1)'};
     return `${tones[tone]||''} brightness(${Math.max(.7,1+light/100)}) blur(${soft/30*.65}px)`;
   }
+  // Pixel-based effects: iOS Safari may ignore ctx.filter when exporting video.
+  // This path applies all color presets and lighting to the actual recorded pixels.
+  function paintCameraEffects(ctx,video,dx,dy,dw,dh){
+    const {tone,light,soft}=cameraEffectsRef.current;
+    ctx.filter='none';
+    ctx.drawImage(video,dx,dy,dw,dh);
+    const frame=ctx.getImageData(dx,dy,dw,dh);
+    const px=frame.data;
+    const brightness=Math.max(.7,1+light/100);
+    for(let i=0;i<px.length;i+=4){
+      let r=px[i],g=px[i+1],b=px[i+2];
+      if(tone==='mono'){
+        r=g=b=.2126*r+.7152*g+.0722*b;
+      }else if(tone==='warm'){
+        const nr=.947*r+.045*g+.008*b;
+        const ng=.025*r+.960*g+.015*b;
+        const nb=.020*r+.085*g+.895*b;
+        r=nr*1.045;g=ng;b=nb*.96;
+      }else if(tone==='cool'){
+        r=r*.94;g=g*1.012;b=b*1.095+3;
+      }else if(tone==='vivid'){
+        const gray=.2126*r+.7152*g+.0722*b;
+        r=(gray+(r-gray)*1.45-128)*1.08+128;
+        g=(gray+(g-gray)*1.45-128)*1.08+128;
+        b=(gray+(b-gray)*1.45-128)*1.08+128;
+      }
+      px[i]=Math.max(0,Math.min(255,Math.round(r*brightness)));
+      px[i+1]=Math.max(0,Math.min(255,Math.round(g*brightness)));
+      px[i+2]=Math.max(0,Math.min(255,Math.round(b*brightness)));
+    }
+    ctx.putImageData(frame,dx,dy);
+    // Gentle overall softening (not face-aware beauty retouch).
+    // Downscale and blend, independent of unsupported canvas blur filters.
+    if(soft>0){
+      const helper=ctx.canvas._rivyzaSoftCanvas||(ctx.canvas._rivyzaSoftCanvas=document.createElement('canvas'));
+      const factor=soft>=20?0.48:0.72;
+      helper.width=Math.max(1,Math.round(dw*factor));
+      helper.height=Math.max(1,Math.round(dh*factor));
+      const hctx=helper.getContext('2d',{alpha:false});
+      if(hctx){
+        hctx.drawImage(ctx.canvas,dx,dy,dw,dh,0,0,helper.width,helper.height);
+        ctx.save();ctx.globalAlpha=(soft/30)*.28;ctx.imageSmoothingEnabled=true;
+        ctx.drawImage(helper,0,0,helper.width,helper.height,dx,dy,dw,dh);
+        ctx.restore();
+      }
+    }
+  }
   function stopCameraProcessing(){
     const state=cameraProcessingRef.current;
     if(state){cancelAnimationFrame(state.raf);state.stream?.getVideoTracks().forEach(t=>t.stop());}
@@ -639,24 +686,7 @@ export default function HomePage(){
       if(video.readyState>=2){
         ctx.save();
         const effects=cameraEffectsRef.current;
-        // iPhone: apply monochrome to actual canvas pixels, not just the CSS preview.
-        // This guarantees that MediaRecorder receives grayscale frames even if
-        // CanvasRenderingContext2D.filter is unsupported or inconsistent.
-        if(effects.tone==='mono'){
-          ctx.filter='none';
-          ctx.drawImage(video,0,0,canvas.width,canvas.height);
-          const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
-          const px=frame.data;
-          const brightness=Math.max(.7,1+effects.light/100);
-          for(let i=0;i<px.length;i+=4){
-            const gray=Math.min(255,Math.round((.2126*px[i]+.7152*px[i+1]+.0722*px[i+2])*brightness));
-            px[i]=gray;px[i+1]=gray;px[i+2]=gray;
-          }
-          ctx.putImageData(frame,0,0);
-        }else{
-          ctx.filter=cameraFilterValue();
-          ctx.drawImage(video,0,0,canvas.width,canvas.height);
-        }
+        paintCameraEffects(ctx,video,0,0,canvas.width,canvas.height);
         ctx.restore();
       }
       state.raf=requestAnimationFrame(draw);
@@ -1967,8 +1997,10 @@ export default function HomePage(){
      ctx.translate(canvas.width,0);
      ctx.scale(-1,1);
    }
-   ctx.filter=cameraFilterValue();
-   ctx.drawImage(video,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
+   const photoSource=document.createElement('canvas');
+   photoSource.width=canvas.width;photoSource.height=canvas.height;
+   photoSource.getContext('2d').drawImage(video,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
+   paintCameraEffects(ctx,photoSource,0,0,canvas.width,canvas.height);
 
    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.92));
    if(!blob)return;
@@ -2015,7 +2047,23 @@ export default function HomePage(){
    recordTimerRef.current=setInterval(()=>{
      const elapsed=recordElapsedRef.current+(Date.now()-recordStartedAtRef.current)/1000;
      setRecordSeconds(Math.min(recordLimit,elapsed));
-     if(elapsed>=recordLimit)stopRecording();
+     if(elapsed>=recordLimit){
+       // Auto-pause at the selected limit, including uninterrupted recordings.
+       // Do not finalize/export: show the existing Terminar button first.
+       clearInterval(recordTimerRef.current);
+       recordTimerRef.current=null;
+       const rec=mediaRecorderRef.current;
+       if(rec?.state==="recording" && !cameraSegmentSavingRef.current){
+         recordElapsedRef.current=recordLimit;
+         setRecordSeconds(recordLimit);
+         cameraMusicRef.current?.pause();
+         setRecordPaused(true);
+         cameraSegmentDurationRef.current=Math.max(0,recordLimit-cameraSegmentStartRef.current);
+         cameraSegmentSavingRef.current=true;
+         setCameraSegmentSaving(true);
+         rec.stop();
+       }
+     }
    },80);
  }
  async function startRecording(){
@@ -2046,6 +2094,7 @@ export default function HomePage(){
      cameraSegmentSavingRef.current=true;setCameraSegmentSaving(true);
      rec.stop();
    }else{
+     if(recordElapsedRef.current>=recordLimit-0.01)return;
      if(rec?.state!=="inactive" || cameraSegmentSavingRef.current || cameraDeletePendingRef.current)return;
      try{
        createCameraSegment();setRecordPaused(false);cameraTick();
@@ -2546,7 +2595,7 @@ export default function HomePage(){
 
                {cameraMode==="video"&&<div className="rivyza-record-status">
                  <span>{Math.floor(recordSeconds)}s / {recordLimit}s</span>
-                 {recording&&<span>{cameraExporting?"Uniendo segmentos…":recordPaused?"En pausa":"Grabando…"}</span>}
+                 {recording&&<span>{cameraExporting?"Uniendo segmentos…":recordPaused?(recordSeconds>=recordLimit?"Tiempo completo":"En pausa"):"Grabando…"}</span>}
                </div>}
                <div className="camera-controls-row">
                  {recording&&recordPaused?<button type="button" className="rivyza-delete-segment" onClick={deleteLastCameraSegment} disabled={cameraExporting} aria-label="Borrar último segmento"><X size={34} strokeWidth={4}/><small>{cameraSegmentSaving?"Borrando…":"Borrar"}</small></button>:<label className="gallery-button camera-profile-thumb" aria-label="Abrir galería">
@@ -2599,7 +2648,7 @@ export default function HomePage(){
                          })}
                        </svg>
                      )}
-                     <span>{recording?(recordPaused?<Play size={23}/>:<Pause size={23}/>):null}</span>
+                     <span>{recording?(recordPaused?(recordSeconds>=recordLimit?<Check size={23}/>:<Play size={23}/>):<Pause size={23}/>):null}</span>
                    </button>
                  )}
 
