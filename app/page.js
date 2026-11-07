@@ -2085,7 +2085,7 @@ export default function HomePage(){
      }
 
      const stream=await navigator.mediaDevices.getUserMedia({
-       video:{facingMode:{ideal:facing},width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:9/16}},
+       video:{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:960}},
        audio:cameraMode==="video"
      });
 
@@ -2121,91 +2121,44 @@ export default function HomePage(){
  }
 
  async function capturePhoto(){
-   // Solo fotografía. No modificar la ruta de grabación de video.
-   const rawVideo=cameraVideoRef.current;
-   const arCanvas=deepAREffect ? deepARRef.current?.getCanvas?.() : null;
-   const source=arCanvas||rawVideo;
-   if(!source)return;
-   const sourceW=source.videoWidth||source.width;
-   const sourceH=source.videoHeight||source.height;
-   if(!sourceW||!sourceH){setCameraError("La cámara todavía no está lista para tomar fotos.");return;}
-   const bounds=rawVideo?.getBoundingClientRect?.()||source.getBoundingClientRect();
-   const displayW=bounds.width||9,displayH=bounds.height||16;
-   const ratio=displayW/displayH;
-   let cropW=sourceW,cropH=sourceH;
-   if(sourceW/sourceH>ratio)cropW=sourceH*ratio;
-   else cropH=sourceW/ratio;
-   const cropX=(sourceW-cropW)/2,cropY=(sourceH-cropH)/2;
+   const video=deepAREffect && deepARRef.current?.getCanvas?.() || cameraVideoRef.current;
+   if(!video || !video.videoWidth && !video.width)return;
+
    const canvas=document.createElement("canvas");
-   canvas.width=Math.max(1,Math.round(cropW));
-   canvas.height=Math.max(1,Math.round(cropH));
-   const ctx=canvas.getContext("2d",{willReadFrequently:true});
-   if(!ctx){setCameraError("No se pudo preparar la fotografía.");return;}
-   try{
-     if(deepAREffect){
-       // WebGL puede entregar un buffer negro al leerlo fuera de su renderizado.
-       // El SDK proporciona una captura sincronizada con su renderizador.
-       const engine=deepARRef.current;
-       let screenshot=null;
-       if(typeof engine?.takeScreenshot==="function"){
-         screenshot=await engine.takeScreenshot();
-       }
-       if(screenshot){
-         let image=null,objectUrl=null;
-         try{
-           if(typeof screenshot==="string"){
-             image=await createImage(screenshot.startsWith("data:")||screenshot.startsWith("blob:")?screenshot:`data:image/png;base64,${screenshot}`);
-           }else if(screenshot instanceof Blob){
-             objectUrl=URL.createObjectURL(screenshot);
-             image=await createImage(objectUrl);
-           }else if(screenshot instanceof HTMLCanvasElement||screenshot instanceof HTMLImageElement||screenshot instanceof ImageBitmap){
-             image=screenshot;
-           }
-           if(image){
-             const iw=image.naturalWidth||image.videoWidth||image.width;
-             const ih=image.naturalHeight||image.videoHeight||image.height;
-             const sw=iw/ih>ratio?ih*ratio:iw;
-             const sh=iw/ih>ratio?ih:iw/ratio;
-             ctx.drawImage(image,(iw-sw)/2,(ih-sh)/2,sw,sh,0,0,canvas.width,canvas.height);
-           }else ctx.drawImage(source,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
-         }finally{if(objectUrl)URL.revokeObjectURL(objectUrl);}
-       }else{
-         // Dar oportunidad a DeepAR de renderizar un fotograma reciente.
-         await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-         ctx.drawImage(source,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
-       }
-       // Evitar guardar silenciosamente un fotograma WebGL vacío.
-       const sample=ctx.getImageData(0,0,canvas.width,canvas.height).data;
-       let lit=0;
-       for(let i=0;i<sample.length;i+=Math.max(4,Math.floor(sample.length/1600/4)*4)){
-         if(sample[i]+sample[i+1]+sample[i+2]>24){lit++;if(lit>8)break;}
-       }
-       if(lit<=8)throw new Error("DeepAR devolvió una imagen vacía. Prueba otra vez; no se guardó una foto negra.");
-     }else{
-       // Invertir una sola vez en el lienzo de origen, nunca en el lienzo
-       // que aplica los filtros (suavidad usaba esa transformación de nuevo).
-       const photoSource=document.createElement("canvas");
-       photoSource.width=canvas.width;photoSource.height=canvas.height;
-       const pctx=photoSource.getContext("2d");
-       if(cameraFacing==="user"){
-         pctx.translate(photoSource.width,0);
-         pctx.scale(-1,1);
-       }
-       pctx.drawImage(source,cropX,cropY,cropW,cropH,0,0,photoSource.width,photoSource.height);
-       paintCameraEffects(ctx,photoSource,0,0,canvas.width,canvas.height);
-     }
-     const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.92));
-     if(!blob)throw new Error("No se pudo guardar la fotografía.");
-     const file=new File([blob],`rivyza-photo-${Date.now()}.jpg`,{type:"image/jpeg"});
-     setUploadType("photo");
-     setUploadFile(file);
-     if(uploadPreview)URL.revokeObjectURL(uploadPreview);
-     setUploadPreview(URL.createObjectURL(file));
-     await stopCamera();
-   }catch(err){
-     console.error("RIVYZA foto:",err);
-     setCameraError(err?.message||"No se pudo capturar la foto. Intenta otra vez.");
+   // Match the visible full-screen object-fit:cover preview, without stretching.
+   const bounds=video.getBoundingClientRect();
+   const displayW=bounds.width || 9;
+   const displayH=bounds.height || 16;
+   const sourceW=video.videoWidth || video.width;
+   const sourceH=video.videoHeight || video.height;
+   const targetRatio=displayW/displayH;
+   let cropW=sourceW, cropH=sourceH;
+   if(sourceW/sourceH>targetRatio) cropW=sourceH*targetRatio;
+   else cropH=sourceW/targetRatio;
+   const cropX=(sourceW-cropW)/2;
+   const cropY=(sourceH-cropH)/2;
+   canvas.width=Math.round(cropW);
+   canvas.height=Math.round(cropH);
+   const ctx=canvas.getContext("2d");
+
+   if(cameraFacing==="user" && !deepAREffect){
+     ctx.translate(canvas.width,0);
+     ctx.scale(-1,1);
    }
+   const photoSource=document.createElement('canvas');
+   photoSource.width=canvas.width;photoSource.height=canvas.height;
+   photoSource.getContext('2d').drawImage(video,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
+   paintCameraEffects(ctx,photoSource,0,0,canvas.width,canvas.height);
+
+   const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.92));
+   if(!blob)return;
+
+   const file=new File([blob],`rivyza-photo-${Date.now()}.jpg`,{type:"image/jpeg"});
+   setUploadType("photo");
+   setUploadFile(file);
+   if(uploadPreview) URL.revokeObjectURL(uploadPreview);
+   setUploadPreview(URL.createObjectURL(file));
+   await stopCamera();
  }
 
  // Cada tramo se graba en su propio archivo; así X realmente puede descartarlo.
@@ -2705,13 +2658,15 @@ export default function HomePage(){
        {!uploadFile ? (
          <>
            <div className="camera-stage">
+             {/* Vista completa del sensor: evita el recorte/zoom visual de object-fit:cover. */}
+             <style>{`.camera-composer .camera-stage .camera-live{object-fit:contain!important;background:#08080c}`}</style>
              <video
                ref={cameraVideoRef}
                className={`camera-live ${cameraFacing==="user"?"mirror":""}`}
                autoPlay
                muted
                playsInline
-               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1}}
+               style={{filter:cameraFilterValue(),opacity:deepAREffect?0:1,objectFit:"contain"}}
              />
              <div ref={deepARContainerRef} style={{position:"absolute",inset:0,pointerEvents:"none",opacity:deepAREffect?1:0,filter:cameraFilterValue()}}/>
 
