@@ -2922,7 +2922,28 @@ export default function HomePage(){
            </div>
          </>
        ) : (
-         <div className="post-editor-screen">
+         <div className="post-editor-screen rivyza-transparent-review">
+           <style>{`
+             .camera-composer .rivyza-transparent-review{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;background:#000!important;display:block!important;isolation:isolate;color:white!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-stage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;background:#000!important;border:0!important;overflow:hidden!important;z-index:0!important}
+             .camera-composer .rivyza-transparent-review .upload-preview.editor-preview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:none!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#000!important;overflow:hidden!important}
+             .camera-composer .rivyza-transparent-review .upload-preview.editor-preview>img,.camera-composer .rivyza-transparent-review .upload-preview.editor-preview>video{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:none!important;object-fit:cover!important;border-radius:0!important;background:transparent!important}
+             .camera-composer .rivyza-transparent-review .upload-header{position:absolute!important;top:0!important;left:0!important;right:0!important;z-index:4!important;display:flex!important;align-items:center!important;padding-top:max(12px,env(safe-area-inset-top))!important;background:linear-gradient(to bottom,rgba(0,0,0,.58),transparent)!important;border:0!important;color:#fff!important}
+             .camera-composer .rivyza-transparent-review .upload-header button{color:#fff!important;background:rgba(0,0,0,.28)!important;border-radius:50%!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-overlay-actions{position:absolute!important;top:calc(65px + env(safe-area-inset-top))!important;right:12px!important;left:auto!important;bottom:auto!important;z-index:3!important;display:flex!important;flex-direction:column!important;gap:8px!important;background:transparent!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-overlay-actions button{background:rgba(0,0,0,.34)!important;color:white!important;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2)!important;border-radius:20px!important}
+             .camera-composer .rivyza-transparent-review>.upload-field{position:absolute!important;left:12px!important;right:12px!important;width:auto!important;z-index:3!important;margin:0!important;padding:9px 12px!important;border:1px solid rgba(255,255,255,.18)!important;border-radius:14px!important;background:rgba(0,0,0,.30)!important;backdrop-filter:blur(9px);color:#fff!important}
+             .camera-composer .rivyza-transparent-review>.upload-field:nth-of-type(1){bottom:calc(145px + env(safe-area-inset-bottom))!important}
+             .camera-composer .rivyza-transparent-review>.upload-field:nth-of-type(2){bottom:calc(83px + env(safe-area-inset-bottom))!important}
+             .camera-composer .rivyza-transparent-review>.upload-field textarea{background:transparent!important;color:white!important;border:0!important;resize:none!important;min-height:35px!important;max-height:55px!important;padding:3px!important}
+             .camera-composer .rivyza-transparent-review>.upload-field textarea::placeholder{color:rgba(255,255,255,.78)!important}
+             .camera-composer .rivyza-transparent-review>.upload-field select{background:rgba(0,0,0,.48)!important;color:white!important;border:1px solid rgba(255,255,255,.2)!important}
+             .camera-composer .rivyza-transparent-review .rivyza-publish-footer{position:absolute!important;bottom:0!important;left:0!important;right:0!important;z-index:4!important;padding:8px 14px calc(10px + env(safe-area-inset-bottom))!important;background:linear-gradient(to top,rgba(0,0,0,.55),transparent)!important;border:0!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-selected{position:absolute!important;top:calc(154px + env(safe-area-inset-top))!important;left:12px!important;right:12px!important;width:fit-content!important;max-width:85%!important;z-index:3!important;background:rgba(0,0,0,.30)!important;border-radius:12px!important;padding:5px 9px!important;color:white!important}
+             .camera-composer .rivyza-transparent-review .upload-message{position:absolute!important;bottom:calc(220px + env(safe-area-inset-bottom))!important;left:12px!important;right:12px!important;z-index:5!important;background:rgba(0,0,0,.55)!important;color:white!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-sheet{z-index:10!important}
+             @media(max-height:650px){.camera-composer .rivyza-transparent-review>.upload-field:nth-of-type(1){bottom:calc(126px + env(safe-area-inset-bottom))!important}.camera-composer .rivyza-transparent-review>.upload-field:nth-of-type(2){bottom:calc(70px + env(safe-area-inset-bottom))!important}}
+           `}</style>
            <div className="upload-header">
              <button onClick={()=>{resetUpload();setTimeout(()=>startCamera(cameraFacing),0);}}>←</button>
              <strong>Nueva publicación</strong>
