@@ -62,12 +62,6 @@ const DEEPAR_EFFECTS = [
     "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/MakeupLook.deepar"
   },
   {
-    "id": "Neon_Devil_Horns",
-    "label": "Neon Devil Horns",
-    "category": "accessories",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Neon_Devil_Horns.deepar"
-  },
-  {
     "id": "Ping_Pong",
     "label": "Ping Pong",
     "category": "fun",
@@ -2719,9 +2713,7 @@ export default function HomePage(){
                  <small style={{fontSize:11,opacity:.95}}>Estos ajustes se guardan para la próxima vez. La belleza facial profesional se añadirá después.</small>
                  <button type="button" onClick={()=>{setCameraLight(0);setCameraSoft(0)}} style={{display:'block',background:'rgba(0,0,0,.24)',border:'1px solid #ffffff66',borderRadius:10,color:'#fff',padding:'5px 10px',marginTop:6}}>Restablecer belleza</button>
                </div>}
-               {cameraEffectsTab==='face'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='face').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
-               {cameraEffectsTab==='accessories'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='accessories').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
-               {cameraEffectsTab==='fun'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='fun').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
+                                             {cameraEffectsTab==='fun'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
              </div>}
 
              <div
