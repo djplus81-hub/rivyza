@@ -617,6 +617,53 @@ export default function HomePage(){
     const tones={natural:'',warm:'sepia(.18) saturate(1.12)',cool:'hue-rotate(12deg) saturate(1.06)',vivid:'saturate(1.45) contrast(1.08)',mono:'grayscale(1)'};
     return `${tones[tone]||''} brightness(${Math.max(.7,1+light/100)}) blur(${soft/30*.65}px)`;
   }
+  // Pixel-based effects: iOS Safari may ignore ctx.filter when exporting video.
+  // This path applies all color presets and lighting to the actual recorded pixels.
+  function paintCameraEffects(ctx,video,dx,dy,dw,dh){
+    const {tone,light,soft}=cameraEffectsRef.current;
+    ctx.filter='none';
+    ctx.drawImage(video,dx,dy,dw,dh);
+    const frame=ctx.getImageData(dx,dy,dw,dh);
+    const px=frame.data;
+    const brightness=Math.max(.7,1+light/100);
+    for(let i=0;i<px.length;i+=4){
+      let r=px[i],g=px[i+1],b=px[i+2];
+      if(tone==='mono'){
+        r=g=b=.2126*r+.7152*g+.0722*b;
+      }else if(tone==='warm'){
+        const nr=.947*r+.045*g+.008*b;
+        const ng=.025*r+.960*g+.015*b;
+        const nb=.020*r+.085*g+.895*b;
+        r=nr*1.045;g=ng;b=nb*.96;
+      }else if(tone==='cool'){
+        r=r*.94;g=g*1.012;b=b*1.095+3;
+      }else if(tone==='vivid'){
+        const gray=.2126*r+.7152*g+.0722*b;
+        r=(gray+(r-gray)*1.45-128)*1.08+128;
+        g=(gray+(g-gray)*1.45-128)*1.08+128;
+        b=(gray+(b-gray)*1.45-128)*1.08+128;
+      }
+      px[i]=Math.max(0,Math.min(255,Math.round(r*brightness)));
+      px[i+1]=Math.max(0,Math.min(255,Math.round(g*brightness)));
+      px[i+2]=Math.max(0,Math.min(255,Math.round(b*brightness)));
+    }
+    ctx.putImageData(frame,dx,dy);
+    // Gentle overall softening (not face-aware beauty retouch).
+    // Downscale and blend, independent of unsupported canvas blur filters.
+    if(soft>0){
+      const helper=ctx.canvas._rivyzaSoftCanvas||(ctx.canvas._rivyzaSoftCanvas=document.createElement('canvas'));
+      const factor=soft>=20?0.48:0.72;
+      helper.width=Math.max(1,Math.round(dw*factor));
+      helper.height=Math.max(1,Math.round(dh*factor));
+      const hctx=helper.getContext('2d',{alpha:false});
+      if(hctx){
+        hctx.drawImage(ctx.canvas,dx,dy,dw,dh,0,0,helper.width,helper.height);
+        ctx.save();ctx.globalAlpha=(soft/30)*.28;ctx.imageSmoothingEnabled=true;
+        ctx.drawImage(helper,0,0,helper.width,helper.height,dx,dy,dw,dh);
+        ctx.restore();
+      }
+    }
+  }
   function stopCameraProcessing(){
     const state=cameraProcessingRef.current;
     if(state){cancelAnimationFrame(state.raf);state.stream?.getVideoTracks().forEach(t=>t.stop());}
@@ -637,8 +684,9 @@ export default function HomePage(){
     const state={raf:0,stream:null};
     const draw=()=>{
       if(video.readyState>=2){
-        ctx.save();ctx.filter=cameraFilterValue();
-        ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        ctx.save();
+        const effects=cameraEffectsRef.current;
+        paintCameraEffects(ctx,video,0,0,canvas.width,canvas.height);
         ctx.restore();
       }
       state.raf=requestAnimationFrame(draw);
@@ -1949,8 +1997,10 @@ export default function HomePage(){
      ctx.translate(canvas.width,0);
      ctx.scale(-1,1);
    }
-   ctx.filter=cameraFilterValue();
-   ctx.drawImage(video,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
+   const photoSource=document.createElement('canvas');
+   photoSource.width=canvas.width;photoSource.height=canvas.height;
+   photoSource.getContext('2d').drawImage(video,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
+   paintCameraEffects(ctx,photoSource,0,0,canvas.width,canvas.height);
 
    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.92));
    if(!blob)return;
