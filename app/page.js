@@ -2755,11 +2755,15 @@ async function applyPostCrop(){
          });
        });
      }
+     // Cerrar la cámara y regresar al feed tras una publicación confirmada.
+     // La actualización del perfil no debe impedir la navegación.
+     await stopCamera();
      resetUpload();
      setUploadOpen(false);
      setSelectedPost(null);
-     setView("publicProfile");
-     await loadProfilePosts();
+     setFeedTab("forYou");
+     setView("home");
+     void loadProfilePosts().catch(error=>console.warn("No se pudo actualizar el perfil tras publicar",error));
    }catch(err){
      console.error(err);
      setUploadMessage("Error al publicar: "+(err?.message || "No se pudo publicar. Revisa la conexión y las columnas de música en Supabase."));
