@@ -77,12 +77,7 @@ const DEEPAR_EFFECTS = [
     "category": "fun",
     "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Snail.deepar"
   },
-  {
-    "id": "Split_View_Look",
-    "label": "Split View Look",
-    "category": "beauty",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Split_View_Look.deepar"
-  },
+
   {
     "id": "Stallone",
     "label": "Stallone",
@@ -2977,10 +2972,9 @@ async function applyPostCrop(){
              </div>
 {cameraError && <div className="camera-error">{cameraError}</div>}
              {musicPanel==="library"&&renderMusicSheet(true)}
-             {cameraEffectsOpen&&<div style={{position:'absolute',left:8,right:8,bottom:230,zIndex:60,background:'rgba(12,12,22,.045)',backdropFilter:'none',WebkitBackdropFilter:'none',color:'#fff',border:'1px solid rgba(255,255,255,.25)',borderRadius:18,padding:'10px 10px 12px',boxShadow:'0 3px 16px rgba(0,0,0,.10)',textShadow:'0 1px 3px rgba(0,0,0,.85)'}}>
+             {cameraEffectsOpen&&<div style={{position:'absolute',left:8,right:8,top:'calc(88px + env(safe-area-inset-top, 0px))',maxHeight:'calc(100dvh - 190px)',overflowY:'auto',zIndex:60,background:'rgba(12,12,22,.13)',color:'#fff',border:'1px solid rgba(255,255,255,.25)',borderRadius:18,padding:'10px 10px 12px',boxShadow:'0 3px 16px rgba(0,0,0,.10)',textShadow:'0 1px 3px rgba(0,0,0,.85)'}}>
                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong style={{fontSize:15}}>✦ RIVYZA Efectos</strong><button type="button" aria-label="Cerrar efectos" onClick={()=>setCameraEffectsOpen(false)} style={{color:'#fff',background:'rgba(0,0,0,.22)',border:'1px solid #ffffff55',borderRadius:20,fontSize:21,width:30,height:30}}>×</button></div>
                <div style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:5,marginBottom:8,WebkitOverflowScrolling:'touch'}}>{[['filters','Filtros'],['beauty','Belleza'],['face','Rostro'],['accessories','Accesorios'],['fun','Divertidos']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraEffectsTab(key)} style={{background:cameraEffectsTab===key?'rgba(233,47,156,.85)':'rgba(0,0,0,.22)',border:'1px solid rgba(255,255,255,.32)',borderRadius:20,color:'#fff',padding:'7px 10px',fontSize:12,fontWeight:cameraEffectsTab===key?700:500,whiteSpace:'nowrap',textShadow:'0 1px 2px #0009'}}>{label}</button>)}</div>
-               {deepAREffect&&<button type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(null)} style={{color:'#fff',background:'#9d215f',borderRadius:9,padding:'6px 10px',marginBottom:6}}>Quitar efecto AR</button>}
                {deepARBusy&&<div style={{fontSize:12}}>Cargando efecto DeepAR…</div>}
                {deepARError&&<div role="alert" style={{fontSize:12,color:'#ffb3c9'}}>{deepARError}</div>}
                {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:3}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'rgba(233,47,156,.88)':'rgba(0,0,0,.24)',border:'1px solid rgba(255,255,255,.4)',borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap',fontWeight:cameraTone===key?700:500}}>{label}</button>)}</div>}
