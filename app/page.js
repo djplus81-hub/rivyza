@@ -13,6 +13,10 @@ import {
 
 // Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
 const DEEPAR_EFFECTS = [
+  {"id": "baseBeauty", "label": "Belleza Natural", "category": "beauty", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/baseBeauty.deepar"},
+  {"id": "look1", "label": "Belleza 1", "category": "beauty", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/look1.deepar"},
+  {"id": "look2", "label": "Belleza 2", "category": "beauty", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/look2.deepar"},
+
   {
     "id": "8bitHearts",
     "label": "8bitHearts",
@@ -2981,13 +2985,14 @@ async function applyPostCrop(){
                {deepARError&&<div role="alert" style={{fontSize:12,color:'#ffb3c9'}}>{deepARError}</div>}
                {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:3}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'rgba(233,47,156,.88)':'rgba(0,0,0,.24)',border:'1px solid rgba(255,255,255,.4)',borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap',fontWeight:cameraTone===key?700:500}}>{label}</button>)}</div>}
                {cameraEffectsTab==='filters'&&cameraTone!=='natural'&&<label style={{display:'block',marginTop:12,padding:'6px 8px',background:'rgba(0,0,0,.20)',borderRadius:10,fontSize:13}}>Intensidad del filtro: {cameraToneIntensity}%<input type="range" min="0" max="100" step="1" value={cameraToneIntensity} onChange={e=>setCameraToneIntensity(Number(e.target.value))} style={{display:'block',width:'100%',marginTop:7,accentColor:'#ed3b9f',touchAction:'auto'}} aria-label="Ajustar intensidad del filtro"/></label>}
+               {cameraEffectsTab==='beauty'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='beauty').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
                {cameraEffectsTab==='beauty'&&<div style={{background:'rgba(0,0,0,.16)',borderRadius:12,padding:'8px 10px'}}>
                  <label style={{display:'block',fontSize:13}}>Iluminación: {cameraLight} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="-30" max="30" value={cameraLight} onChange={e=>setCameraLight(Number(e.target.value))}/></label>
                  <label style={{display:'block',fontSize:13,marginTop:7}}>Distorsión: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
-                 <small style={{fontSize:11,opacity:.95}}>Estos ajustes se guardan para la próxima vez. La belleza facial profesional se añadirá después.</small>
+                 <small style={{fontSize:11,opacity:.95}}>Estos ajustes se guardan para la próxima vez. Selecciona un efecto de belleza arriba o ajusta estos controles.</small>
                  <button type="button" onClick={()=>{setCameraLight(0);setCameraSoft(0)}} style={{display:'block',background:'rgba(0,0,0,.24)',border:'1px solid #ffffff66',borderRadius:10,color:'#fff',padding:'5px 10px',marginTop:6}}>Restablecer belleza</button>
                </div>}
-                                             {cameraEffectsTab==='fun'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
+                                             {cameraEffectsTab==='fun'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='fun').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
              </div>}
 
              <div
