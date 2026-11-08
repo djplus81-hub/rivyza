@@ -25,6 +25,7 @@ const DEEPAR_EFFECTS = [
   {"id":"butterfly-headband","label":"Butterfly Headband","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/butterfly-headband.deepar"},
   {"id":"makeup-kim","label":"Makeup Kim","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/makeup-kim.deepar"},
   {"id":"spring-deer","label":"Spring Deer","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/spring-deer.deepar"},
+  {"id":"spring-fairy","label":"Spring Fairy","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/spring-fairy.deepar"},
 
   {"id": "look1", "label": "Belleza 1", "category": "beauty", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/look1.deepar"},
   {"id": "look2", "label": "Belleza 2", "category": "beauty", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/look2.deepar"},
@@ -76,12 +77,6 @@ const DEEPAR_EFFECTS = [
     "label": "MakeupLook",
     "category": "beauty",
     "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/MakeupLook.deepar"
-  },
-  {
-    "id": "Ping_Pong",
-    "label": "Ping Pong",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ping_Pong.deepar"
   },
   {
     "id": "Snail",
