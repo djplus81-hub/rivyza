@@ -58,6 +58,16 @@ export async function GET(req) {
     if (!auth) return json({ error: 'Inicia sesión' }, 401);
     const db = adminClient();
     const params = new URL(req.url).searchParams;
+    if (params.get('mode') === 'likes') {
+      const room = await getRoom(db, params.get('room'));
+      if (!room || room.status !== 'live') return json({error:'El LIVE ya terminó'},404);
+      const {data:blocked,error:blockError} = await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',auth.user.id).maybeSingle();
+      if (blockError) throw blockError;
+      if (blocked) return json({error:'No tienes acceso a este LIVE'},403);
+      const {data,error} = await db.from('rivyza_live_like_totals').select('likes_count').eq('room_id',room.id).maybeSingle();
+      if (error) throw error;
+      return json({count:Number(data?.likes_count || 0)});
+    }
     if (params.get('mode') === 'status') {
       await cleanupAbsentHosts(db);
       const room = await getRoom(db, params.get('room'));
@@ -145,6 +155,19 @@ export async function POST(req) {
     const isHost = room.host_id === uid;
     const moderator = !isHost && await isModerator(db, room.host_id, uid);
     const canModerate = isHost || moderator;
+    if (input.action === 'like') {
+      const {data:blocked,error:blockError} = await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',uid).maybeSingle();
+      if (blockError) throw blockError;
+      if (blocked) return json({error:'No tienes acceso a este LIVE'},403);
+      const amount = Number(input.amount);
+      if (!Number.isInteger(amount) || amount < 1 || amount > 30) return json({error:'Cantidad de likes inválida'},400);
+      if (typeof input.requestId !== 'string' || !/^[0-9a-f-]{36}$/i.test(input.requestId)) return json({error:'Solicitud inválida'},400);
+      const {data,error} = await db.rpc('rivyza_live_add_likes',{
+        p_room:room.id,p_user:uid,p_request:input.requestId,p_amount:amount
+      });
+      if (error) throw error;
+      return json({count:Number(data || 0)});
+    }
     if (input.action === 'layout') {
       if (!canModerate) return json({error:'No autorizado'},403);
       const svc = roomService();
