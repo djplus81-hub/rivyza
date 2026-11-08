@@ -371,7 +371,7 @@ export default function HomePage(){
     return()=>clearTimeout(timeout);
   },[view,activeLivePreview,discoverLiveRooms.length]);
   useEffect(()=>{
-    if(!["livePreview","alerts"].includes(view) || !supabase || !user?.id)return;
+    if(!["home","livePreview","alerts"].includes(view) || !supabase || !user?.id)return;
     let active=true;
     const refresh=async()=>{
       try{
@@ -4773,13 +4773,20 @@ async function applyPostCrop(){
   }
 
   return <main className="feed-shell">
-      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }`}</style>
+      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }
+      .feed-shell .feed-tabs button.rivyza-home-live-active {
+        border: 2px solid #ff263c !important;
+        border-radius: 7px !important;
+        box-shadow: 0 0 7px rgba(255,38,60,.32) !important;
+        padding: 5px 9px !important;
+        box-sizing: border-box !important;
+      }`}</style>
     <header className="feed-topbar">
       <div className="top-brand">RIVYZA</div>
       <div className="feed-tabs">
         <button onClick={openConnections}>{t("Conexiones")}</button>
         <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>{t("Para ti")}</button>
-        <button onClick={()=>setView("livePreview")}>LIVE</button>
+        <button type="button" className={(liveHostRooms.length > 0 || discoverLiveRooms.length > 0) ? "rivyza-home-live-active" : ""} style={(liveHostRooms.length > 0 || discoverLiveRooms.length > 0) ? {border:"2px solid #ff263c",borderRadius:7,boxShadow:"0 0 7px rgba(255,38,60,.42)",padding:"5px 9px",boxSizing:"border-box",background:"rgba(255,38,60,.10)"} : undefined} onClick={()=>setView("livePreview")}>LIVE</button>
       </div>
       <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label={t("Buscar usuarios")}><Search size={23}/></button>
     </header>
