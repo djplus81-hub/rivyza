@@ -7,6 +7,7 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
   const root=useRef(null),video=useRef(null),music=useRef(null),audioMix=useRef(null);
   const playedOnce=useRef(false);
   const [visible,setVisible]=useState(false);
+  const [nearViewport,setNearViewport]=useState(false);
   const [posterReady,setPosterReady]=useState(false);
   const [firstFrameReady,setFirstFrameReady]=useState(false);
   // El JPG se publica junto al video con la misma ruta + .jpg.
@@ -26,6 +27,18 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     },{threshold:[0,.35,.65,1]});
     observer.observe(node);return()=>observer.disconnect();
   },[]);
+
+  // Precargar únicamente videos cercanos: no competir con todos los videos del feed.
+  // El reproductor visible conserva la máxima prioridad de descarga.
+  useEffect(()=>{
+    if(post.media_type!=="video")return;
+    const node=root.current;if(!node)return;
+    const observer=new IntersectionObserver(entries=>{
+      setNearViewport(Boolean(entries[0]?.isIntersecting));
+    },{rootMargin:"100% 0px 100% 0px",threshold:0});
+    observer.observe(node);
+    return()=>observer.disconnect();
+  },[post.media_type,post.media_path]);
 
   // Photos have no video element: play their selected music segment independently.
   useEffect(()=>{
@@ -172,7 +185,7 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
   useEffect(()=>()=>{const mix=audioMix.current;if(mix){mix.ctx.close().catch(()=>{});audioMix.current=null;}},[]);
   return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"} style={{position:"relative"}}>
     {post.media_type==="video"?<>
-      <video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} autoPlay playsInline loop preload="auto" poster={posterReady?posterUrl:undefined} onLoadedData={()=>{if(video.current?.readyState>=2&&!video.current.seeking)setFirstFrameReady(true);}} onPlaying={()=>setFirstFrameReady(true)} onSeeked={()=>{if(video.current?.readyState>=2)setFirstFrameReady(true);}} controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>
+      <video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} playsInline loop preload={visible||nearViewport?"auto":"none"} poster={posterReady?posterUrl:undefined} onLoadedData={()=>{if(video.current?.readyState>=2&&!video.current.seeking)setFirstFrameReady(true);}} onPlaying={()=>setFirstFrameReady(true)} onSeeked={()=>{if(video.current?.readyState>=2)setFirstFrameReady(true);}} controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>
       {posterUrl&&!posterReady&&<img src={posterUrl} alt="" aria-hidden="true" onLoad={()=>setPosterReady(true)} onError={()=>setPosterReady(false)} style={{display:"none"}}/>}
       {posterReady&&!firstFrameReady&&<img src={posterUrl} alt="" aria-hidden="true" className={detail?"":"feed-media"} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}}/>}
     </>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
