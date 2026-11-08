@@ -5,12 +5,13 @@ import {useEffect,useRef,useState} from "react";
 let activeStop=null;
 export default function PostMusicMedia({post,detail=false,videoRef=null}){
   const root=useRef(null),video=useRef(null),music=useRef(null),audioMix=useRef(null);
+  const playedOnce=useRef(false);
   const [visible,setVisible]=useState(false);
   const [posterReady,setPosterReady]=useState(false);
   const [firstFrameReady,setFirstFrameReady]=useState(false);
   // El JPG se publica junto al video con la misma ruta + .jpg.
   const posterUrl=post.media_type==="video"&&post.media_path?`${post.media_path}.jpg`:"";
-  useEffect(()=>{setPosterReady(false);setFirstFrameReady(false);},[post.media_path]);
+  useEffect(()=>{setPosterReady(false);setFirstFrameReady(false);playedOnce.current=false;},[post.media_path]);
   const hasMusic=Boolean(post.music_path);
   const start=Math.max(0,Number(post.music_start_seconds)||0);
   const originalVolume=Math.max(0,Math.min(1,Number(post.original_volume??50)/100));
@@ -75,7 +76,22 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     if(!v)return;
     let disposed=false;
     const stop=()=>{v.pause();a?.pause();};
-    if(!visible){stop();return;}
+    if(!visible){
+      stop();
+      // Al salir del video, regresar al comienzo. Nunca reiniciar durante
+      // el primer montaje: en Safari eso puede provocar un fotograma negro.
+      if(playedOnce.current){
+        try{if(v.readyState>=1 && v.currentTime>0.01)v.currentTime=0;}catch(_){}
+        if(a){try{a.currentTime=start;}catch(_){}}
+      }
+      return;
+    }
+    // Al volver a un video ya visto, iniciar desde el segundo cero.
+    if(playedOnce.current){
+      try{if(v.readyState>=1 && v.currentTime>0.01)v.currentTime=0;}catch(_){}
+      if(a){try{a.currentTime=start;}catch(_){}}
+    }
+    playedOnce.current=true;
     if(activeStop)activeStop();activeStop=stop;
 
     // IMPORTANT: creating MediaElementSource during autoplay on iOS can silence
