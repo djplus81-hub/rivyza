@@ -21,15 +21,13 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const participants = useParticipants();
   const room = useRoomContext();
   const [profiles, setProfiles] = useState({});
-  // LIVE likes: feedback inmediato en cada dispositivo y contador sincronizado
-  // por el anfitrión. No modifica cámaras, posiciones ni controles de LIVE.
+  // v3.63: El anfitrión mantiene el total del LIVE y lo comparte con todos.
   const [liveLikes, setLiveLikes] = useState(0);
   const likesRef = useRef(0);
-  const pendingLikes = useRef(0);
   const [floatingLikes, setFloatingLikes] = useState([]);
   const likeSerial = useRef(0);
   const lastTapAt = useRef(0);
-  const likesFormat = value => value >= 1000000 ? `${(value / 1000000).toFixed(1).replace(/\\.0$/, '')}M` : value >= 1000 ? `${(value / 1000).toFixed(1).replace(/\\.0$/, '')}K` : String(value);
+  const likesFormat = value => value >= 1000000 ? `${(value / 1000000).toFixed(1).replace(/\.0$/, '')}M` : value >= 1000 ? `${(value / 1000).toFixed(1).replace(/\.0$/, '')}K` : String(value);
   const setLikesCount = useCallback(value => {
     const count = Math.max(0, Math.floor(Number(value) || 0));
     likesRef.current = count;
@@ -38,58 +36,57 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const sendLikeData = useCallback(async (data, destination) => {
     try {
       await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(data)), {
-        reliable: true,
-        topic: 'rivyza-live-likes-v344',
+        reliable: true, topic: 'rivyza-live-likes-v344',
         ...(destination ? {destinationIdentities:[destination]} : {})
       });
       return true;
-    } catch (e) {
-      console.warn('LIVE like delivery failed', e);
-      return false;
-    }
+    } catch (e) { console.warn('LIVE like delivery failed', e); return false; }
   }, [room]);
   const showFloatingLikes = useCallback((amount = 1) => {
     const entries = Array.from({length: Math.min(amount, 4)}, () => ({id: ++likeSerial.current, left: 12 + Math.random() * 65}));
     setFloatingLikes(previous => [...previous.slice(-15), ...entries]);
     entries.forEach(entry => setTimeout(() => setFloatingLikes(previous => previous.filter(item => item.id !== entry.id)), 1450));
   }, []);
+  useEffect(() => { setLikesCount(0); }, [liveRoomId, setLikesCount]);
   useEffect(() => {
-    setLikesCount(0);
-    pendingLikes.current = 0;
-  }, [liveRoomId, setLikesCount]);
-  useEffect(() => {
+    // Los paquetes de datos no guardan historial. Solicitar y anunciar el
+    // contador periódicamente recupera espectadores que entran tarde.
+    const announce = (destination) => sendLikeData({type:'count',roomId:liveRoomId,count:likesRef.current,from:room.localParticipant.identity}, destination);
+    const sync = () => {
+      if (room.state !== 'connected') return;
+      if (isHost) announce();
+      else sendLikeData({type:'sync',roomId:liveRoomId});
+    };
     const receiveLikes = (payload, sender, _kind, topic) => {
-      if (topic !== 'rivyza-live-likes-v344') return;
+      if (topic !== 'rivyza-live-likes-v344' || !sender?.identity) return;
       let data;
       try { data = JSON.parse(new TextDecoder().decode(payload)); } catch { return; }
-      if (data?.roomId !== liveRoomId || !sender?.identity) return;
+      if (data?.roomId !== liveRoomId) return;
       if (data.type === 'like' && isHost) {
-        const next = likesRef.current + 1;
-        setLikesCount(next);
-        sendLikeData({type:'count',roomId:liveRoomId,count:next});
+        setLikesCount(likesRef.current + 1);
+        announce();
       } else if (data.type === 'count' && !isHost &&
-          (sender.identity === hostId || sender.identity === room.remoteParticipants.get(hostId)?.identity)) {
-        // Los likes enviados localmente ya aparecen en pantalla; el anfitrión
-        // confirma el total para que todos vean la misma cantidad.
-        pendingLikes.current = 0;
-        setLikesCount(Math.max(likesRef.current, Number(data.count) || 0));
+          (sender.identity === hostId || data.from === hostId)) {
+        // Nunca sumar contadores de dos teléfonos: todos usan el total del host.
+        setLikesCount(data.count);
       } else if (data.type === 'sync' && isHost) {
-        sendLikeData({type:'count',roomId:liveRoomId,count:likesRef.current},sender.identity);
+        announce(sender.identity);
       }
       if (data.type === 'like' && sender.identity !== room.localParticipant.identity) showFloatingLikes();
-    };
-    const sync = () => {
-      if (!isHost && room.state === 'connected')
-        sendLikeData({type:'sync',roomId:liveRoomId});
     };
     room.on(RoomEvent.DataReceived, receiveLikes);
     room.on(RoomEvent.Connected, sync);
     room.on(RoomEvent.Reconnected, sync);
+    const onJoin = () => { if (isHost) announce(); else sync(); };
+    room.on(RoomEvent.ParticipantConnected, onJoin);
     sync();
+    const timer = setInterval(sync, 3000);
     return () => {
+      clearInterval(timer);
       room.off(RoomEvent.DataReceived, receiveLikes);
       room.off(RoomEvent.Connected, sync);
       room.off(RoomEvent.Reconnected, sync);
+      room.off(RoomEvent.ParticipantConnected, onJoin);
     };
   }, [room, liveRoomId, hostId, isHost, sendLikeData, setLikesCount, showFloatingLikes]);
   const giveLike = useCallback(() => {
@@ -100,12 +97,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     if (isHost) {
       const next = likesRef.current + 1;
       setLikesCount(next);
-      sendLikeData({type:'count',roomId:liveRoomId,count:next});
+      sendLikeData({type:'count',roomId:liveRoomId,count:next,from:room.localParticipant.identity});
       sendLikeData({type:'like',roomId:liveRoomId});
     } else {
-      // El espectador ve inmediatamente su toque, sin esperar a la red.
-      pendingLikes.current += 1;
-      setLikesCount(likesRef.current + 1);
+      // Respuesta visual inmediata; el número oficial viene del anfitrión.
       sendLikeData({type:'like',roomId:liveRoomId});
     }
   }, [isHost, liveRoomId, sendLikeData, setLikesCount, showFloatingLikes]);
@@ -819,7 +814,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className={`rivyza-v318-video ${mirrorStates[t.identity] === true ? "rivyza-camera-mirrored" : ""}`} /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
       </div>)}
     </div>
-    {!typing && !target && !viewersOpen && <div className="rivyza-v344-like-zone" role="button" tabIndex={0} aria-label="Dar Likes al LIVE" onPointerDown={e => {if(e.pointerType !== "mouse"){e.preventDefault();giveLike();}}} onClick={e => {if(e.detail === 0 || e.nativeEvent?.pointerType === "mouse")giveLike();}} onKeyDown={e => {if(e.key === 'Enter' || e.key === ' ') {e.preventDefault();giveLike();}}}><span className="rivyza-v344-like-hint"><span className="rivyza-v344-like-heart" aria-hidden="true">💗</span><span>Likes</span></span></div>}
+    {!typing && !target && !viewersOpen && <div className="rivyza-v344-like-zone" role="button" tabIndex={0} aria-label="Dar Likes al LIVE" onPointerDown={e => {e.preventDefault(); giveLike();}} onKeyDown={e => {if(e.key === 'Enter' || e.key === ' ') {e.preventDefault();giveLike();}}}><span className="rivyza-v344-like-hint"><span className="rivyza-v344-like-heart" aria-hidden="true">💗</span><span>Likes</span></span></div>}
     <div className="rivyza-v344-floating" aria-hidden="true">{floatingLikes.map(item => <svg key={item.id} className="rivyza-v344-float-heart" style={{left:`${item.left}%`}} viewBox="0 0 24 24"><defs><linearGradient id={`rivyza-like-${item.id}`} x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#ff4da9"/><stop offset="100%" stopColor="#963cff"/></linearGradient></defs><path d="M12 21s-9-5.7-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.3-9 12-9 12Z" fill={`url(#rivyza-like-${item.id})`}/></svg>)}</div>
     {typeof document !== 'undefined' && document.querySelector('.rivyza-live-header-center') && createPortal(<div className="rivyza-v344-like-counter"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><defs><linearGradient id="rivyza-like-counter-gradient" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#ff4da9"/><stop offset="100%" stopColor="#963cff"/></linearGradient></defs><path d="M12 21s-9-5.7-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.3-9 12-9 12Z" fill="url(#rivyza-like-counter-gradient)"/></svg><span>{likesFormat(liveLikes)} Likes</span></div>, document.querySelector('.rivyza-live-header-center'))}
     {(moveMode || moveTarget) && <p className="rivyza-live-hint">{moveTarget || selected !== null ? 'Selecciona la posición de destino' : tr.moveHint}<button onClick={()=>{setMoveTarget(null);setMoveMode(false);setSelected(null)}}>Cancelar</button></p>}
@@ -1236,7 +1231,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-stage{min-height:0}
 .rivyza-live-header-center{display:flex!important;flex-wrap:wrap;align-items:center;justify-content:center;column-gap:5px;row-gap:0}
 .rivyza-v344-like-counter{display:flex;flex-basis:100%;justify-content:center;align-items:center;gap:4px;font-size:10px;font-weight:600;line-height:13px;color:#f3d6ff;white-space:nowrap}
-.rivyza-v344-like-zone{position:fixed;right:12px;bottom:calc(145px + env(safe-area-inset-bottom));width:clamp(100px,30vw,160px);height:100px;z-index:85;touch-action:manipulation;user-select:none;-webkit-user-select:none;display:flex;align-items:flex-end;justify-content:flex-end;cursor:pointer}
+.rivyza-v344-like-zone{position:fixed;right:12px;bottom:calc(145px + env(safe-area-inset-bottom));width:clamp(100px,30vw,160px);height:100px;z-index:35;touch-action:manipulation;user-select:none;-webkit-user-select:none;display:flex;align-items:flex-end;justify-content:flex-end;cursor:pointer}
 .rivyza-v344-like-hint{font-size:10px;line-height:12px;padding:4px 5px;color:#f4d9ff;background:#3d204e99;border:1px solid #9a4bc888;border-radius:15px;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:35px;box-sizing:border-box;white-space:nowrap}
 .rivyza-v344-like-heart{font-size:14px;line-height:15px;display:block}
 .rivyza-v344-floating{position:fixed;right:8px;bottom:calc(235px + env(safe-area-inset-bottom));width:130px;height:180px;z-index:36;pointer-events:none;overflow:visible}
