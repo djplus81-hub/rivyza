@@ -58,6 +58,24 @@ export async function GET(req) {
     if (!auth) return json({ error: 'Inicia sesión' }, 401);
     const db = adminClient();
     const params = new URL(req.url).searchParams;
+    if (params.get('mode') === 'likes_top') {
+      const room = await getRoom(db, params.get('room'));
+      if (!room || room.status !== 'live') return json({error:'El LIVE ya terminó'},404);
+      if (room.host_id !== auth.user.id) return json({error:'Solo el anfitrión puede ver el Top 8'},403);
+      const {data:leaders,error} = await db.from('rivyza_live_like_users')
+        .select('user_id,likes_count').eq('room_id',room.id)
+        .order('likes_count',{ascending:false}).order('user_id',{ascending:true}).limit(8);
+      if (error) throw error;
+      const ids=(leaders||[]).map(p=>p.user_id);
+      let profiles=[];
+      if (ids.length) {
+        const result=await db.from('profiles').select('id,display_name,username,avatar_url').in('id',ids);
+        if (result.error) throw result.error;
+        profiles=result.data||[];
+      }
+      const byId=new Map(profiles.map(p=>[p.id,p]));
+      return json({top:(leaders||[]).map(p=>({...p,...byId.get(p.user_id)}))});
+    }
     if (params.get('mode') === 'likes') {
       const room = await getRoom(db, params.get('room'));
       if (!room || room.status !== 'live') return json({error:'El LIVE ya terminó'},404);
