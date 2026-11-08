@@ -1321,6 +1321,10 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-top .rivyza-v368-counters span{display:inline!important;position:static!important;font-size:13px!important;line-height:18px!important;white-space:nowrap!important}
 .rivyza-live-top .rivyza-v368-counters .rivyza-v368-like-trigger{cursor:pointer!important}
 .rivyza-live-top .rivyza-live-header-center{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;margin:0!important;white-space:nowrap!important}
+/* v3.70: Slightly larger centered RIVYZA LIVE title; preserve counters and camera layout. */
+.rivyza-live-top .rivyza-live-header-center{font-size:clamp(20px,5.5vw,25px)!important;line-height:1.15!important;letter-spacing:-.35px!important}
+.rivyza-live-top .rivyza-live-header-center span{font-size:.78em!important;line-height:1.2!important}
+@media(max-width:390px){.rivyza-live-top .rivyza-live-header-center{font-size:20px!important}}
 @media(max-width:390px){.rivyza-live-top .rivyza-v368-counters{right:5px!important;gap:3px!important}.rivyza-live-top .rivyza-v368-counters button{font-size:12px!important;padding:2px!important}.rivyza-live-top .rivyza-v368-counters span{font-size:12px!important}}
 .rivyza-v344-like-counter{display:flex;flex-basis:auto;justify-content:center;align-items:center;gap:4px;font-size:10px;font-weight:600;line-height:13px;color:#f3d6ff;white-space:nowrap}
 .rivyza-v344-like-zone{position:fixed;right:12px;bottom:calc(145px + env(safe-area-inset-bottom));width:clamp(100px,30vw,160px);height:100px;z-index:35;touch-action:manipulation;user-select:none;-webkit-user-select:none;display:flex;align-items:flex-end;justify-content:flex-end;cursor:pointer}
