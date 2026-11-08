@@ -6,6 +6,11 @@ let activeStop=null;
 export default function PostMusicMedia({post,detail=false,videoRef=null}){
   const root=useRef(null),video=useRef(null),music=useRef(null),audioMix=useRef(null);
   const [visible,setVisible]=useState(false);
+  const [posterReady,setPosterReady]=useState(false);
+  const [firstFrameReady,setFirstFrameReady]=useState(false);
+  // El JPG se publica junto al video con la misma ruta + .jpg.
+  const posterUrl=post.media_type==="video"&&post.media_path?`${post.media_path}.jpg`:"";
+  useEffect(()=>{setPosterReady(false);setFirstFrameReady(false);},[post.media_path]);
   const hasMusic=Boolean(post.music_path);
   const start=Math.max(0,Number(post.music_start_seconds)||0);
   const originalVolume=Math.max(0,Math.min(1,Number(post.original_volume??50)/100));
@@ -134,16 +139,9 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     v.addEventListener("timeupdate",detectLoop);
     const onMusicEnded=()=>{if(!v.paused)startMusic();};
     a?.addEventListener("ended",onMusicEnded);
-    // No forzar currentTime=0: en Safari/iPhone el seek inicial borra el
-    // primer fotograma y produce un destello negro antes del primer play.
+    // No hacer seek a 0 en el primer montaje: Safari puede borrar el primer fotograma.
     if(a){a.pause();align(true);}
-    const beginVideo=()=>{
-      if(disposed||!visible)return;
-      v.play().then(()=>{if(!disposed)startMusic();}).catch(()=>{});
-    };
-    // Permitir que Safari decodifique el primer fotograma antes de iniciar.
-    if(v.readyState>=2)beginVideo();
-    else v.addEventListener("loadeddata",beginVideo,{once:true});
+    v.play().then(()=>{if(!disposed)startMusic();}).catch(()=>{});
     return()=>{
       disposed=true;
       root.current?.removeEventListener("pointerdown",onUserGesture);
@@ -156,8 +154,12 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     };
   },[visible,post.id,hasMusic,start,originalVolume,musicVolume]);
   useEffect(()=>()=>{const mix=audioMix.current;if(mix){mix.ctx.close().catch(()=>{});audioMix.current=null;}},[]);
-  return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"}>
-    {post.media_type==="video"?<video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} playsInline loop preload="auto" controls={false} controlsList="nodownload noplaybackrate nofullscreen" disablePictureInPicture/>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
+  return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"} style={{position:"relative"}}>
+    {post.media_type==="video"?<>
+      <video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} autoPlay playsInline loop preload="auto" poster={posterReady?posterUrl:undefined} onLoadedData={()=>{if(video.current?.readyState>=2)setFirstFrameReady(true);}} onPlaying={()=>setFirstFrameReady(true)} controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>
+      {posterUrl&&!posterReady&&<img src={posterUrl} alt="" aria-hidden="true" onLoad={()=>setPosterReady(true)} onError={()=>setPosterReady(false)} style={{display:"none"}}/>}
+      {posterReady&&!firstFrameReady&&<img src={posterUrl} alt="" aria-hidden="true" className={detail?"":"feed-media"} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}}/>}
+    </>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
     {hasMusic&&<audio ref={music} src={post.music_path} preload="auto"/>}
   </div>;
 }
