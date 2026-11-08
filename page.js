@@ -2687,6 +2687,35 @@ async function applyPostCrop(){
      }).catch(reject);
    });
  }
+ // Portada del primer fotograma: archivo JPG independiente, sin alterar el video ni su audio.
+ async function createVideoCover(file){
+   if(typeof document==="undefined")return null;
+   const url=URL.createObjectURL(file);
+   const v=document.createElement("video");
+   v.muted=true;v.playsInline=true;v.preload="auto";
+   try{
+     const frame=await new Promise((resolve,reject)=>{
+       const timeout=setTimeout(()=>reject(new Error("Tiempo agotado al crear portada")),12000);
+       let done=false;
+       const finish=(error)=>{if(done)return;done=true;clearTimeout(timeout);error?reject(error):resolve(true);};
+       v.onloadeddata=()=>{
+         if(v.videoWidth&&v.videoHeight){
+           if(v.duration>0.15){try{v.currentTime=0.08;}catch(e){finish();}}
+           else finish();
+         }
+       };
+       v.onseeked=()=>finish();
+       v.onerror=()=>finish(new Error("Video no disponible para portada"));
+       v.src=url;v.load();
+     });
+     if(!v.videoWidth||!v.videoHeight)return null;
+     const c=document.createElement("canvas"),scale=Math.min(1,900/Math.max(v.videoWidth,v.videoHeight));
+     c.width=Math.max(1,Math.round(v.videoWidth*scale));c.height=Math.max(1,Math.round(v.videoHeight*scale));
+     c.getContext("2d").drawImage(v,0,0,c.width,c.height);
+     return await new Promise(resolve=>c.toBlob(resolve,"image/jpeg",0.83));
+   }catch(e){console.warn("RIVYZA: portada no disponible",e);return null;}
+   finally{v.removeAttribute("src");try{v.load();}catch(e){}URL.revokeObjectURL(url);}
+ }
  async function publishPost(){
    if(!user || !supabase || !uploadFile){
      setUploadMessage("No se puede publicar: revisa tu sesión y selecciona una foto o video.");
@@ -2699,6 +2728,7 @@ async function applyPostCrop(){
 
    try{
      const publishFile=uploadType==="photo"?await getPhotoForPublishing():await getVideoForPublishing();
+     const videoCover=uploadType==="video"?await createVideoCover(publishFile):null;
      const ext=(publishFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
      const path=`${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
@@ -2735,6 +2765,15 @@ async function applyPostCrop(){
          throw new Error(renderResult.error||"No se pudo mezclar la voz con la música.");
        }
        finalPath=renderResult.outputPath;
+     }
+
+     // El JPG comparte la ruta final del video con sufijo .jpg; no requiere columna SQL.
+     // Si el iPhone no permite extraer un fotograma, publicar normalmente sin portada.
+     if(uploadType==="video"&&videoCover){
+       const {error:coverError}=await supabase.storage.from("media").upload(`${finalPath}.jpg`,videoCover,{
+         cacheControl:"31536000",upsert:true,contentType:"image/jpeg"
+       });
+       if(coverError)console.warn("RIVYZA: no se pudo subir portada",coverError);
      }
 
      setPublishStage("Guardando publicación…");
@@ -4734,13 +4773,20 @@ async function applyPostCrop(){
   }
 
   return <main className="feed-shell">
-      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }`}</style>
+      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }
+      .feed-shell .feed-tabs button.rivyza-home-live-active {
+        border: 2px solid #ff263c !important;
+        border-radius: 7px !important;
+        box-shadow: 0 0 7px rgba(255,38,60,.32) !important;
+        padding: 5px 9px !important;
+        box-sizing: border-box !important;
+      }`}</style>
     <header className="feed-topbar">
       <div className="top-brand">RIVYZA</div>
       <div className="feed-tabs">
         <button onClick={openConnections}>{t("Conexiones")}</button>
         <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>{t("Para ti")}</button>
-        <button onClick={()=>setView("livePreview")}>LIVE</button>
+        <button type="button" className={liveHostRooms.length > 0 ? "rivyza-home-live-active" : ""} onClick={()=>setView("livePreview")}>LIVE</button>
       </div>
       <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label={t("Buscar usuarios")}><Search size={23}/></button>
     </header>
