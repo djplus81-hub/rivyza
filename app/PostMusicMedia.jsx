@@ -19,7 +19,11 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
 
   useEffect(()=>{
     const node=root.current;if(!node)return;
-    const observer=new IntersectionObserver(entries=>setVisible((entries[0]?.intersectionRatio||0)>=0.65),{threshold:[0,.65,1]});
+    // Histéresis: evita que un pequeño movimiento active/desactive el video repetidamente.
+    const observer=new IntersectionObserver(entries=>{
+      const ratio=entries[0]?.intersectionRatio||0;
+      setVisible(previous=>previous?ratio>0.35:ratio>=0.65);
+    },{threshold:[0,.35,.65,1]});
     observer.observe(node);return()=>observer.disconnect();
   },[]);
 
@@ -78,18 +82,14 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     const stop=()=>{v.pause();a?.pause();};
     if(!visible){
       stop();
-      // Al salir del video, regresar al comienzo. Nunca reiniciar durante
-      // el primer montaje: en Safari eso puede provocar un fotograma negro.
+      // Reiniciar una sola vez al salir; nunca hacer un segundo seek al regresar.
       if(playedOnce.current){
+        // Mantener el fotograma actual visible mientras Safari vuelve a cero.
+        // El poster nativo queda disponible si el navegador necesita repintar.
         try{if(v.readyState>=1 && v.currentTime>0.01)v.currentTime=0;}catch(_){}
         if(a){try{a.currentTime=start;}catch(_){}}
       }
       return;
-    }
-    // Al volver a un video ya visto, iniciar desde el segundo cero.
-    if(playedOnce.current){
-      try{if(v.readyState>=1 && v.currentTime>0.01)v.currentTime=0;}catch(_){}
-      if(a){try{a.currentTime=start;}catch(_){}}
     }
     playedOnce.current=true;
     if(activeStop)activeStop();activeStop=stop;
@@ -172,7 +172,7 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
   useEffect(()=>()=>{const mix=audioMix.current;if(mix){mix.ctx.close().catch(()=>{});audioMix.current=null;}},[]);
   return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"} style={{position:"relative"}}>
     {post.media_type==="video"?<>
-      <video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} autoPlay playsInline loop preload="auto" poster={posterReady?posterUrl:undefined} onLoadedData={()=>{if(video.current?.readyState>=2)setFirstFrameReady(true);}} onPlaying={()=>setFirstFrameReady(true)} controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>
+      <video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} autoPlay playsInline loop preload="auto" poster={posterReady?posterUrl:undefined} onLoadedData={()=>{if(video.current?.readyState>=2&&!video.current.seeking)setFirstFrameReady(true);}} onPlaying={()=>setFirstFrameReady(true)} onSeeked={()=>{if(video.current?.readyState>=2)setFirstFrameReady(true);}} controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>
       {posterUrl&&!posterReady&&<img src={posterUrl} alt="" aria-hidden="true" onLoad={()=>setPosterReady(true)} onError={()=>setPosterReady(false)} style={{display:"none"}}/>}
       {posterReady&&!firstFrameReady&&<img src={posterUrl} alt="" aria-hidden="true" className={detail?"":"feed-media"} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}}/>}
     </>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
