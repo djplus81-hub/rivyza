@@ -13,6 +13,7 @@ import {
 
 // Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
 const DEEPAR_EFFECTS = [
+  {"id":"video-filter","label":"Video Filter","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Video%20Filter.deepar"},
   {"id":"ojos-1","label":"Eyes 1","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%201.deepar"},
   {"id":"ojos-2","label":"Eyes 2","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%202.deepar"},
   {"id":"ojos-3","label":"Eyes 3","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%203.deepar"},
