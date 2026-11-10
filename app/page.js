@@ -869,6 +869,10 @@ async function applyPostCrop(){
   const deepARBusyRef=useRef(false);
   const deepARRequestRef=useRef(0);
   const [deepAREffect,setDeepAREffect]=useState(null);
+  const [makeupLayerOn,setMakeupLayerOn]=useState(false);
+  const [eyesLayer,setEyesLayer]=useState(null);
+  const makeupLayerRef=useRef(false);
+  const eyesLayerRef=useRef(null);
   const makeupRestoreAttemptRef=useRef(false);
   const [deepARBusy,setDeepARBusy]=useState(false);
   const [deepARError,setDeepARError]=useState("");
@@ -885,12 +889,15 @@ async function applyPostCrop(){
     deepARRef.current=null;
     if(engine){try{engine.shutdown();}catch(e){console.warn("DeepAR shutdown:",e);}}
     setDeepAREffect(null);
+    setMakeupLayerOn(false);makeupLayerRef.current=false;
+    setEyesLayer(null);eyesLayerRef.current=null;
   }
   async function removeDeepAREffect(){
     if(deepARBusyRef.current)return;
     const engine=deepARRef.current;
-    if(engine){try{await deepARWithTimeout(Promise.resolve().then(()=>engine.clearEffect()),8000);}catch(e){resetDeepAREngine();}}
+    if(engine){try{await deepARWithTimeout(Promise.resolve().then(()=>engine.clearEffect()),8000);await deepARWithTimeout(Promise.resolve().then(()=>engine.clearEffect(1)),8000);}catch(e){resetDeepAREngine();}}
     setDeepAREffect(null);setDeepARError("");
+    setMakeupLayerOn(false);makeupLayerRef.current=false;setEyesLayer(null);eyesLayerRef.current=null;
   }
   // Un único botón para volver a la cámara original, sin efectos ni ajustes.
   async function clearAllCameraEffects(){
@@ -907,10 +914,20 @@ async function applyPostCrop(){
   async function chooseDeepAREffect(effect){
     if(deepARBusyRef.current || recording || cameraSegmentSaving)return;
     if(!effect){await removeDeepAREffect();return;}
-    // Tocar Makeup otra vez lo apaga y evita que vuelva automáticamente.
-    if(effect.id==='makeup' && deepAREffect==='makeup'){
-      await removeDeepAREffect();
+    const isMakeup=effect.id==='makeup';
+    const isEyes=/^ojos-[1-9]$/.test(effect.id);
+    // DeepAR slots: 0 maquillaje, 1 ojos. Los demás efectos siguen siendo exclusivos.
+    if(isMakeup && makeupLayerRef.current){
+      if(deepARRef.current){try{await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.clearEffect(0)),8000);}catch(e){resetDeepAREngine();}}
+      makeupLayerRef.current=false;setMakeupLayerOn(false);
+      setDeepAREffect(eyesLayerRef.current);
       if(user?.id){try{localStorage.removeItem(`rivyza-saved-makeup:${user.id}`);}catch{}}
+      return;
+    }
+    if(isEyes && eyesLayerRef.current===effect.id){
+      if(deepARRef.current){try{await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.clearEffect(1)),8000);}catch(e){resetDeepAREngine();}}
+      eyesLayerRef.current=null;setEyesLayer(null);
+      setDeepAREffect(makeupLayerRef.current?'makeup':null);
       return;
     }
     const video=cameraVideoRef.current;
@@ -934,14 +951,31 @@ async function applyPostCrop(){
         deepARRef.current=engine;
         engine.setVideoElement(video,cameraFacing==="user");
       }
-      await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url)),15000);
+      if(isMakeup || isEyes){
+        // Slot 0 = Makeup; slot 1 = Eyes. Compatible con SDK DeepAR con slots.
+        await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url,isEyes?1:0)),15000);
+      }else{
+        // Volver al comportamiento de un solo efecto para todas las demás categorías.
+        await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.clearEffect(1)),8000);
+        await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url,0)),15000);
+      }
       if(request===deepARRequestRef.current){
-        setDeepAREffect(effect.id);
-        // Guardar Makeup encendido o apagado por cuenta en este dispositivo.
+        if(isMakeup){
+          makeupLayerRef.current=true;setMakeupLayerOn(true);
+          setDeepAREffect(eyesLayerRef.current||'makeup');
+        }else if(isEyes){
+          eyesLayerRef.current=effect.id;setEyesLayer(effect.id);
+          setDeepAREffect(effect.id);
+        }else{
+          makeupLayerRef.current=false;setMakeupLayerOn(false);
+          eyesLayerRef.current=null;setEyesLayer(null);
+          setDeepAREffect(effect.id);
+        }
+        // Mantener preferencia de Makeup al seleccionar Eyes; quitarla con otros efectos.
         if(user?.id){
           try{
-            if(effect.id==='makeup')localStorage.setItem(`rivyza-saved-makeup:${user.id}`,'makeup');
-            else localStorage.removeItem(`rivyza-saved-makeup:${user.id}`);
+            if(isMakeup)localStorage.setItem(`rivyza-saved-makeup:${user.id}`,'makeup');
+            else if(!isEyes)localStorage.removeItem(`rivyza-saved-makeup:${user.id}`);
           }catch{}
         }
       }
@@ -3046,7 +3080,7 @@ async function applyPostCrop(){
                {deepARBusy&&<div style={{fontSize:12}}>Cargando efecto DeepAR…</div>}
                {deepARError&&<div role="alert" style={{fontSize:12,color:'#ffb3c9'}}>{deepARError}</div>}
                {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:3}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'rgba(233,47,156,.88)':'rgba(0,0,0,.24)',border:'1px solid rgba(255,255,255,.4)',borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap',fontWeight:cameraTone===key?700:500}}>{label}</button>)}</div>}
-               {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='filters').map(effect=><button key={effect.id} type='button' disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label} {effect.id==='makeup'?(deepAREffect==='makeup'?'· ON':'· OFF'):(deepAREffect===effect.id?'✓':'')}</button>)}</div>}
+               {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='filters').map(effect=><button key={effect.id} type='button' disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label} {effect.id==='makeup'?(makeupLayerOn?'· ON':'· OFF'):(deepAREffect===effect.id?'✓':'')}</button>)}</div>}
                {cameraEffectsTab==='filters'&&cameraTone!=='natural'&&<label style={{display:'block',marginTop:12,padding:'6px 8px',background:'rgba(0,0,0,.20)',borderRadius:10,fontSize:13}}>Intensidad del filtro: {cameraToneIntensity}%<input type="range" min="0" max="100" step="1" value={cameraToneIntensity} onChange={e=>setCameraToneIntensity(Number(e.target.value))} style={{display:'block',width:'100%',marginTop:7,accentColor:'#ed3b9f',touchAction:'auto'}} aria-label="Ajustar intensidad del filtro"/></label>}
                {cameraEffectsTab==='beauty'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='beauty').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
                {cameraEffectsTab==='beauty'&&<div style={{background:'rgba(0,0,0,.16)',borderRadius:12,padding:'8px 10px'}}>
@@ -3055,7 +3089,7 @@ async function applyPostCrop(){
                  <small style={{fontSize:11,opacity:.95}}>Estos ajustes se guardan para la próxima vez. Selecciona un efecto de belleza arriba o ajusta estos controles.</small>
                  <button type="button" onClick={()=>{setCameraLight(0);setCameraSoft(0)}} style={{display:'block',background:'rgba(0,0,0,.24)',border:'1px solid #ffffff66',borderRadius:10,color:'#fff',padding:'5px 10px',marginTop:6}}>Restablecer belleza</button>
                </div>}
-                                             {cameraEffectsTab==='face'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='face').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
+                                             {cameraEffectsTab==='face'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='face').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:(/^ojos-[1-9]$/.test(effect.id)?eyesLayer===effect.id:deepAREffect===effect.id)?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
                {cameraEffectsTab==='accessories'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='accessories').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
                {cameraEffectsTab==='fun'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='fun').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
              </div>}
