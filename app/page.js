@@ -13,6 +13,7 @@ import {
 
 // Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
 const DEEPAR_EFFECTS = [
+  {"id":"glase-r","label":"Glase R","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Glase%20R.deepar"},
   {"id":"glase","label":"Glase","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/glase.deepar"},
   {"id":"santa","label":"Santa","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/santa.deepar"},
   {"id":"troll-funk","label":"Troll Funk","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/troll-funk.deepar"},
