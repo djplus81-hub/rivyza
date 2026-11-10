@@ -915,23 +915,16 @@ async function applyPostCrop(){
     setCameraSoft(0);
     cameraEffectsRef.current={tone:'natural',intensity:100,light:0,soft:0};
   }
+  // Modo estable: un solo efecto DeepAR a la vez. Eyes 1–9 vuelven a usar el slot 0.
   async function chooseDeepAREffect(effect){
     if(deepARBusyRef.current || recording || cameraSegmentSaving)return;
     if(!effect){await removeDeepAREffect();return;}
     const isMakeup=effect.id==='makeup';
     const isEyes=/^ojos-[1-9]$/.test(effect.id);
-    // DeepAR slots: 0 maquillaje, 1 ojos. Los demás efectos siguen siendo exclusivos.
-    if(isMakeup && makeupLayerRef.current){
-      if(deepARRef.current){try{await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.clearEffect(0)),8000);}catch(e){resetDeepAREngine();}}
-      makeupLayerRef.current=false;setMakeupLayerOn(false);
-      setDeepAREffect(eyesLayerRef.current);
-      if(user?.id){try{localStorage.removeItem(`rivyza-saved-makeup:${user.id}`);}catch{}}
-      return;
-    }
-    if(isEyes && eyesLayerRef.current===effect.id){
-      if(deepARRef.current){try{await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.clearEffect(1)),8000);}catch(e){resetDeepAREngine();}}
-      eyesLayerRef.current=null;setEyesLayer(null);
-      setDeepAREffect(makeupLayerRef.current?'makeup':null);
+    // Makeup conserva su interruptor ON/OFF; los ojos se seleccionan normalmente.
+    if(deepAREffect===effect.id){
+      await removeDeepAREffect();
+      if(isMakeup && user?.id){try{localStorage.removeItem(`rivyza-saved-makeup:${user.id}`);}catch{}}
       return;
     }
     const video=cameraVideoRef.current;
@@ -946,47 +939,26 @@ async function applyPostCrop(){
         const deepar=await deepARWithTimeout(import('deepar'),15000);
         if(request!==deepARRequestRef.current || !holder.isConnected)throw new Error("La cámara se cerró.");
         const initialization=deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
-        // Si initialize termina después del timeout, cerrar ese motor tardío.
-        initialization.then(engine=>{
-          if(request!==deepARRequestRef.current || !holder.isConnected){try{engine.shutdown();}catch(e){}}
-        }).catch(()=>{});
+        initialization.then(engine=>{if(request!==deepARRequestRef.current || !holder.isConnected){try{engine.shutdown();}catch(e){}}}).catch(()=>{});
         const engine=await deepARWithTimeout(initialization,15000);
         if(request!==deepARRequestRef.current || !holder.isConnected){try{engine.shutdown();}catch(e){}throw new Error("La cámara se cerró.");}
         deepARRef.current=engine;
         engine.setVideoElement(video,cameraFacing==="user");
       }
-      if(isMakeup || isEyes){
-        // Slot 0 = Makeup; slot 1 = Eyes. Compatible con SDK DeepAR con slots.
-        await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url,isEyes?1:0)),15000);
-      }else{
-        // Volver al comportamiento de un solo efecto para todas las demás categorías.
-        await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.clearEffect(1)),8000);
-        await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url,0)),15000);
-      }
+      // Limpiar el slot adicional de la prueba de capas y usar el slot principal.
+      await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.clearEffect(1)),8000);
+      await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url,0)),15000);
       if(request===deepARRequestRef.current){
-        if(isMakeup){
-          makeupLayerRef.current=true;setMakeupLayerOn(true);
-          setDeepAREffect(eyesLayerRef.current||'makeup');
-        }else if(isEyes){
-          eyesLayerRef.current=effect.id;setEyesLayer(effect.id);
-          setDeepAREffect(effect.id);
-        }else{
-          makeupLayerRef.current=false;setMakeupLayerOn(false);
-          eyesLayerRef.current=null;setEyesLayer(null);
-          setDeepAREffect(effect.id);
-        }
-        // Mantener preferencia de Makeup al seleccionar Eyes; quitarla con otros efectos.
-        if(user?.id){
-          try{
-            if(isMakeup)localStorage.setItem(`rivyza-saved-makeup:${user.id}`,'makeup');
-            else if(!isEyes)localStorage.removeItem(`rivyza-saved-makeup:${user.id}`);
-          }catch{}
-        }
+        setDeepAREffect(effect.id);
+        makeupLayerRef.current=isMakeup;setMakeupLayerOn(isMakeup);
+        eyesLayerRef.current=isEyes?effect.id:null;setEyesLayer(isEyes?effect.id:null);
+        if(user?.id){try{
+          if(isMakeup)localStorage.setItem(`rivyza-saved-makeup:${user.id}`,'makeup');
+          else localStorage.removeItem(`rivyza-saved-makeup:${user.id}`);
+        }catch{}}
       }
     }catch(e){
       console.error("DeepAR:",e);
-      // Un switchEffect bloqueado puede dejar el motor inutilizable: descartarlo
-      // para que el próximo toque lo inicialice de nuevo sin cerrar RIVYZA.
       resetDeepAREngine();
       if(request===deepARRequestRef.current)setDeepARError(e?.message==="DEEPAR_TIMEOUT"?"El efecto tardó demasiado. Selecciona otro efecto o inténtalo de nuevo.":"No se pudo cargar este efecto. Inténtalo de nuevo.");
     }finally{
