@@ -13,6 +13,9 @@ import {
 
 // Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
 const DEEPAR_EFFECTS = [
+  {"id": "blurred-background", "label": "Blurred Background", "category": "fun", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Blurred%20Background.deepar"},
+  {"id": "tongue-out", "label": "Tongue Out", "category": "face", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Tongue%20Out.deepar"},
+  {"id": "makeup", "label": "Makeup", "category": "filters", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Makeup.deepar"},
   {"id":"video-filter","label":"Video Filter","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Video%20Filter.deepar"},
   {"id":"ojos-1","label":"Eyes 1","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%201.deepar"},
   {"id":"ojos-2","label":"Eyes 2","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%202.deepar"},
@@ -866,6 +869,7 @@ async function applyPostCrop(){
   const deepARBusyRef=useRef(false);
   const deepARRequestRef=useRef(0);
   const [deepAREffect,setDeepAREffect]=useState(null);
+  const makeupRestoreAttemptRef=useRef(false);
   const [deepARBusy,setDeepARBusy]=useState(false);
   const [deepARError,setDeepARError]=useState("");
   // Evitar que una promesa de DeepAR deje la interfaz en «Cargando» indefinidamente.
@@ -892,6 +896,8 @@ async function applyPostCrop(){
   async function clearAllCameraEffects(){
     if(deepARBusyRef.current || recording || cameraSegmentSaving)return;
     await removeDeepAREffect();
+    makeupRestoreAttemptRef.current=true;
+    if(user?.id){try{localStorage.removeItem(`rivyza-saved-makeup:${user.id}`);}catch{}}
     setCameraTone('natural');
     setCameraToneIntensity(100);
     setCameraLight(0);
@@ -923,7 +929,13 @@ async function applyPostCrop(){
         engine.setVideoElement(video,cameraFacing==="user");
       }
       await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url)),15000);
-      if(request===deepARRequestRef.current)setDeepAREffect(effect.id);
+      if(request===deepARRequestRef.current){
+        setDeepAREffect(effect.id);
+        // Solo Makeup se guarda como preferencia entre aperturas de cámara.
+        if(effect.id==='makeup' && user?.id){
+          try{localStorage.setItem(`rivyza-saved-makeup:${user.id}`,'makeup');}catch{}
+        }
+      }
     }catch(e){
       console.error("DeepAR:",e);
       // Un switchEffect bloqueado puede dejar el motor inutilizable: descartarlo
@@ -934,6 +946,24 @@ async function applyPostCrop(){
       if(request===deepARRequestRef.current){deepARBusyRef.current=false;setDeepARBusy(false);}
     }
   }
+
+  // Restaurar Makeup al abrir una nueva sesión de cámara (no afecta LIVE).
+  useEffect(()=>{
+    if(!uploadOpen || !cameraStream || !user?.id)return;
+    if(makeupRestoreAttemptRef.current)return;
+    makeupRestoreAttemptRef.current=true;
+    let saved=false;
+    try{saved=localStorage.getItem(`rivyza-saved-makeup:${user.id}`)==='makeup';}catch{}
+    if(!saved)return;
+    const timer=setTimeout(()=>{
+      if(!deepARRef.current && !deepARBusyRef.current && !deepAREffect){
+        const effect=DEEPAR_EFFECTS.find(e=>e.id==='makeup');
+        if(effect)chooseDeepAREffect(effect);
+      }
+    },400);
+    return()=>clearTimeout(timer);
+  },[uploadOpen,cameraStream,user?.id]);
+  useEffect(()=>{if(!uploadOpen)makeupRestoreAttemptRef.current=false;},[uploadOpen]);
 
   // La distorsión es temporal: siempre inicia en cero al abrir la cámara.
   useEffect(()=>{
@@ -3007,6 +3037,7 @@ async function applyPostCrop(){
                {deepARBusy&&<div style={{fontSize:12}}>Cargando efecto DeepAR…</div>}
                {deepARError&&<div role="alert" style={{fontSize:12,color:'#ffb3c9'}}>{deepARError}</div>}
                {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:3}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'rgba(233,47,156,.88)':'rgba(0,0,0,.24)',border:'1px solid rgba(255,255,255,.4)',borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap',fontWeight:cameraTone===key?700:500}}>{label}</button>)}</div>}
+               {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='filters').map(effect=><button key={effect.id} type='button' disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label} {deepAREffect===effect.id?'✓':''}</button>)}</div>}
                {cameraEffectsTab==='filters'&&cameraTone!=='natural'&&<label style={{display:'block',marginTop:12,padding:'6px 8px',background:'rgba(0,0,0,.20)',borderRadius:10,fontSize:13}}>Intensidad del filtro: {cameraToneIntensity}%<input type="range" min="0" max="100" step="1" value={cameraToneIntensity} onChange={e=>setCameraToneIntensity(Number(e.target.value))} style={{display:'block',width:'100%',marginTop:7,accentColor:'#ed3b9f',touchAction:'auto'}} aria-label="Ajustar intensidad del filtro"/></label>}
                {cameraEffectsTab==='beauty'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='beauty').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
                {cameraEffectsTab==='beauty'&&<div style={{background:'rgba(0,0,0,.16)',borderRadius:12,padding:'8px 10px'}}>
