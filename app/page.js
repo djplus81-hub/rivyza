@@ -13,6 +13,10 @@ import {
 
 // Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
 const DEEPAR_EFFECTS = [
+  {"id":"lightbulb","label":"Lightbulb","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Lightbulb.deepar"},
+  {"id":"cara-fea","label":"Cara Fea","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Cara%20Fea.deepar"},
+  {"id":"cara-alien","label":"Cara de Alien","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Cara%20de%20Alien.deepar"},
+  {"id":"lentes3","label":"Lentes 3","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Lentes%203.deepar"},
   {"id": "blurred-background", "label": "Blurred Background", "category": "fun", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Blurred%20Background.deepar"},
   {"id": "tongue-out", "label": "Tongue Out", "category": "face", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Tongue%20Out.deepar"},
   {"id": "makeup", "label": "Makeup", "category": "filters", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Makeup.deepar"},
