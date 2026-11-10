@@ -13,6 +13,15 @@ import {
 
 // Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
 const DEEPAR_EFFECTS = [
+  {"id":"ojos-1","label":"Ojos 1","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ojos1.deepar"},
+  {"id":"ojos-2","label":"Ojos 2","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ojos%202.deepar"},
+  {"id":"ojos-3","label":"Ojos 3","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ojos%203.deepar"},
+  {"id":"ojos-4","label":"Ojos 4","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ojos%204.deepar"},
+  {"id":"ojos-5","label":"Ojos 5","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ojos%205.deepar"},
+  {"id":"ojos-6","label":"Ojos 6","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ojos%206.deepar"},
+  {"id":"ojos-7","label":"Ojos 7","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ojos%207.deepar"},
+  {"id":"ojos-8","label":"Ojos 8","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ojos%208.deepar"},
+  {"id":"ojos-9","label":"Ojos 9","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ojos%209.deepar"},
   {"id":"glase-r","label":"Glase R","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Glase%20R.deepar"},
   {"id":"glase","label":"Glase","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/glase.deepar"},
   {"id":"santa","label":"Santa","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/santa.deepar"},
