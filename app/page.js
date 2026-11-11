@@ -13,116 +13,56 @@ import {
 
 // Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
 const DEEPAR_EFFECTS = [
-  {"id":"lightbulb","label":"Lightbulb","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Lightbulb.deepar"},
-  {"id":"cara-fea","label":"Cara Fea","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Cara%20Fea.deepar"},
-  {"id":"cara-alien","label":"Cara de Alien","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Cara%20de%20Alien.deepar"},
-  {"id":"lentes3","label":"Lentes 3","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Lentes%203.deepar"},
-  {"id": "blurred-background", "label": "Blurred Background", "category": "fun", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Blurred%20Background.deepar"},
-  {"id": "tongue-out", "label":"Lengua afuera","labelEn":"Tongue Out", "category":"fun", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Tongue%20Out.deepar"},
-  {"id":"video-filter","label":"Video Filter","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Video%20Filter.deepar"},
-  {"id":"ojos-1","label":"Eyes 1","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%201.deepar"},
-  {"id":"ojos-2","label":"Eyes 2","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%202.deepar"},
-  {"id":"ojos-3","label":"Eyes 3","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%203.deepar"},
-  {"id":"ojos-4","label":"Eyes 4","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%204.deepar"},
-  {"id":"ojos-5","label":"Eyes 5","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%205.deepar"},
-  {"id":"ojos-6","label":"Eyes 6","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%206.deepar"},
-  {"id":"ojos-7","label":"Eyes 7","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%207.deepar"},
-  {"id":"ojos-8","label":"Eyes 8","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%208.deepar"},
-  {"id":"ojos-9","label":"Eyes 9","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%209.deepar"},
-  {"id":"glase-r","label":"Glase R","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Glase%20R.deepar"},
-  {"id":"glase","label":"Glase","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/glase.deepar"},
-  {"id":"santa","label":"Santa","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/santa.deepar"},
-  {"id":"troll-funk","label":"Troll Funk","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/troll-funk.deepar"},
-  {"id":"troll-reggaeton","label":"Troll Reggaeton","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/troll-reggaeton.deepar"},
-  {"id":"cute-virtual-pet","label":"Cute Virtual Pet","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/cute-virtual-pet.deepar"},
+  {"id":"lightbulb","label":"Bombilla","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Lightbulb.deepar","labelEn":"Lightbulb"},
+  {"id":"cara-fea","label":"Cara fea","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Cara%20Fea.deepar","labelEn":"Ugly Face"},
+  {"id":"cara-alien","label":"Cara de extraterrestre","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Cara%20de%20Alien.deepar","labelEn":"Alien Face"},
+  {"id":"lentes3","label":"Lentes 3","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Lentes%203.deepar","labelEn":"Glasses 3"},
+  {"id":"blurred-background","label":"Fondo desenfocado","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Blurred%20Background.deepar","labelEn":"Blurred Background"},
+  {"id":"tongue-out","label":"Lengua afuera","labelEn":"Tongue Out","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Tongue%20Out.deepar"},
+  {"id":"video-filter","label":"Filtro de video","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Video%20Filter.deepar","labelEn":"Video Filter"},
+  {"id":"ojos-1","label":"Ojos 1","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%201.deepar","labelEn":"Eyes 1"},
+  {"id":"ojos-2","label":"Ojos 2","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%202.deepar","labelEn":"Eyes 2"},
+  {"id":"ojos-3","label":"Ojos 3","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%203.deepar","labelEn":"Eyes 3"},
+  {"id":"ojos-4","label":"Ojos 4","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%204.deepar","labelEn":"Eyes 4"},
+  {"id":"ojos-5","label":"Ojos 5","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%205.deepar","labelEn":"Eyes 5"},
+  {"id":"ojos-6","label":"Ojos 6","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%206.deepar","labelEn":"Eyes 6"},
+  {"id":"ojos-7","label":"Ojos 7","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%207.deepar","labelEn":"Eyes 7"},
+  {"id":"ojos-8","label":"Ojos 8","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%208.deepar","labelEn":"Eyes 8"},
+  {"id":"ojos-9","label":"Ojos 9","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%209.deepar","labelEn":"Eyes 9"},
+  {"id":"glase-r","label":"Lentes R","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Glase%20R.deepar","labelEn":"Glasses R"},
+  {"id":"glase","label":"Lentes","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/glase.deepar","labelEn":"Glasses"},
+  {"id":"santa","label":"Papá Noel","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/santa.deepar","labelEn":"Santa"},
+  {"id":"troll-funk","label":"Trol funk","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/troll-funk.deepar","labelEn":"Funk Troll"},
+  {"id":"troll-reggaeton","label":"Trol reguetón","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/troll-reggaeton.deepar","labelEn":"Reggaeton Troll"},
+  {"id":"cute-virtual-pet","label":"Mascota virtual adorable","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/cute-virtual-pet.deepar","labelEn":"Cute Virtual Pet"},
   {"id":"bunny-ears","label":"Orejas de conejo","labelEn":"Bunny Ears","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/bunny-ears.deepar"},
-  {"id":"derp","label":"Derp","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/derp.deepar"},
+  {"id":"derp","label":"Cara graciosa","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/derp.deepar","labelEn":"Derp"},
   {"id":"sequin-butterfly","label":"Mariposa brillante","labelEn":"Sequin Butterfly","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/sequin-butterfly.deepar"},
-  {"id":"amanita-look","label":"Amanita","labelEn":"Amanita Look","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/amanita-look.deepar"},
-  {"id":"shiny-glitter-face","label":"Shiny Glitter Face","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/shiny-glitter-face.deepar"},
+  {"id":"amanita-look","label":"Estilo amanita","labelEn":"Amanita Look","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/amanita-look.deepar"},
+  {"id":"shiny-glitter-face","label":"Rostro brillante","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/shiny-glitter-face.deepar","labelEn":"Shiny Glitter Face"},
   {"id":"butterfly-headband","label":"Diadema de mariposa","labelEn":"Butterfly Headband","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/butterfly-headband.deepar"},
-  {"id":"makeup-kim","label":"Makeup Kim","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/makeup-kim.deepar"},
-  {"id":"spring-deer","label":"Spring Deer","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/spring-deer.deepar"},
-  {"id":"spring-fairy","label":"Spring Fairy","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/spring-fairy.deepar"},
+  {"id":"makeup-kim","label":"Maquillaje Kim","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/makeup-kim.deepar","labelEn":"Makeup Kim"},
+  {"id":"spring-deer","label":"Ciervo primaveral","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/spring-deer.deepar","labelEn":"Spring Deer"},
+  {"id":"spring-fairy","label":"Hada primaveral","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/spring-fairy.deepar","labelEn":"Spring Fairy"},
   {"id":"cuernos","label":"Cuernos","labelEn":"Horns","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/cuernos.deepar"},
-  {"id":"luz","label":"Luz","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/luz.deepar"},
+  {"id":"luz","label":"Luz","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/luz.deepar","labelEn":"Light"},
 
-  {"id": "look1", "label": "Belleza 1", "category": "beauty", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/look1.deepar"},
-  {"id": "look2", "label": "Belleza 2", "category": "beauty", "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/look2.deepar"},
+  {"id":"look1","label":"Belleza 1","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/look1.deepar","labelEn":"Beauty 1"},
+  {"id":"look2","label":"Belleza 2","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/look2.deepar","labelEn":"Beauty 2"},
 
-  {
-    "id": "8bitHearts",
-    "label": "8bitHearts",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/8bitHearts.deepar"
-  },
-  {
-    "id": "Elephant_Trunk",
-    "label": "Elephant Trunk",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Elephant_Trunk.deepar"
-  },
-{
-    "id": "Fire_Effect",
-    "label": "Fire Effect",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Fire_Effect.deepar"
-  },
-  {
-    "id": "Hope",
-    "label": "Hope",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Hope.deepar"
-  },
-  {
-    "id": "Humanoid",
-    "label":"Humanoide","labelEn":"Humanoid",
-    "category":"fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Humanoid.deepar"
-  },
-  {
-    "id": "Snail",
-    "label": "Snail",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Snail.deepar"
-  },
+  {"id":"8bitHearts","label":"Corazones de 8 bits","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/8bitHearts.deepar","labelEn":"8-bit Hearts"},
+  {"id":"Elephant_Trunk","label":"Trompa de elefante","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Elephant_Trunk.deepar","labelEn":"Elephant Trunk"},
+{"id":"Fire_Effect","label":"Efecto de fuego","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Fire_Effect.deepar","labelEn":"Fire Effect"},
+  {"id":"Hope","label":"Esperanza","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Hope.deepar","labelEn":"Hope"},
+  {"id":"Humanoid","label":"Humanoide","labelEn":"Humanoid","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Humanoid.deepar"},
+  {"id":"Snail","label":"Caracol","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Snail.deepar","labelEn":"Snail"},
 
-  {
-    "id": "Stallone",
-    "label":"Stallone","labelEn":"Stallone",
-    "category":"fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Stallone.deepar"
-  },
-  {
-    "id": "Vendetta_Mask",
-    "label":"Máscara Vendetta","labelEn":"Vendetta Mask",
-    "category":"fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Vendetta_Mask.deepar"
-  },
-  {
-    "id": "burning_effect",
-    "label": "burning effect",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/burning_effect.deepar"
-  },
-  {
-    "id": "flower_face",
-    "label": "flower face",
-    "category": "accessories",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/flower_face.deepar"
-  },
-  {
-    "id": "galaxy_background",
-    "label": "galaxy background",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/galaxy_background.deepar"
-  },
-  {
-    "id": "viking_helmet",
-    "label": "viking helmet",
-    "category": "accessories",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/viking_helmet.deepar"
-  }
+  {"id":"Stallone","label":"Stallone","labelEn":"Stallone","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Stallone.deepar"},
+  {"id":"Vendetta_Mask","label":"Máscara Vendetta","labelEn":"Vendetta Mask","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Vendetta_Mask.deepar"},
+  {"id":"burning_effect","label":"Efecto ardiente","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/burning_effect.deepar","labelEn":"Burning Effect"},
+  {"id":"flower_face","label":"Rostro floral","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/flower_face.deepar","labelEn":"Flower Face"},
+  {"id":"galaxy_background","label":"Fondo de galaxia","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/galaxy_background.deepar","labelEn":"Galaxy Background"},
+  {"id":"viking_helmet","label":"Casco vikingo","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/viking_helmet.deepar","labelEn":"Viking Helmet"}
 ];
 
 function createImage(url){return new Promise((resolve,reject)=>{const i=new Image();i.addEventListener("load",()=>resolve(i));i.addEventListener("error",reject);i.setAttribute("crossOrigin","anonymous");i.src=url;});}
