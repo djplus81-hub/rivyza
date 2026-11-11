@@ -62,13 +62,7 @@ const DEEPAR_EFFECTS = [
     "category": "fun",
     "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Elephant_Trunk.deepar"
   },
-  {
-    "id": "Emotion_Meter",
-    "label": "Emotion Meter",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Emotion_Meter.deepar"
-  },
-  {
+{
     "id": "Fire_Effect",
     "label": "Fire Effect",
     "category": "fun",
