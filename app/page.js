@@ -69,12 +69,6 @@ const DEEPAR_EFFECTS = [
     "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Emotion_Meter.deepar"
   },
   {
-    "id": "Emotions_Exaggerator",
-    "label": "Emotions Exaggerator",
-    "category": "face",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Emotions_Exaggerator.deepar"
-  },
-  {
     "id": "Fire_Effect",
     "label": "Fire Effect",
     "category": "fun",
@@ -91,12 +85,6 @@ const DEEPAR_EFFECTS = [
     "label": "Humanoid",
     "category": "face",
     "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Humanoid.deepar"
-  },
-  {
-    "id": "MakeupLook",
-    "label": "MakeupLook",
-    "category": "beauty",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/MakeupLook.deepar"
   },
   {
     "id": "Snail",
