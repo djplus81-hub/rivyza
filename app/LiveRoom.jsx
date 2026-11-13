@@ -414,6 +414,51 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       room.off(RoomEvent.Reconnected, requestStates);
     };
   }, [room, updateMirrorState]);
+  // v3.71: Independent Supabase Broadcast path for mirror states. This is
+  // intentionally separate from the LiveKit peer-connection data channel:
+  // guests can update the host even when LiveKit reports "PC manager is closed".
+  const mirrorChannelRef = useRef(null);
+  useEffect(() => {
+    if (!supabase || !liveRoomId) return;
+    const channel = supabase.channel(`rivyza-mirror-v371:${liveRoomId}`, {
+      config: {broadcast: {self: false}}
+    });
+    mirrorChannelRef.current = channel;
+    const sendOwn = () => {
+      const identity = room.localParticipant.identity;
+      if (!identity) return;
+      channel.send({type:'broadcast',event:'mirror-state',payload:{
+        identity, enabled:mirrorStatesRef.current[identity] === true
+      }}).catch(() => {});
+    };
+    channel.on('broadcast',{event:'mirror-state'},({payload}) => {
+      const identity = payload?.identity;
+      if (!identity || typeof payload.enabled !== 'boolean') return;
+      // Only accept states from people currently connected to this LIVE.
+      if (identity !== room.localParticipant.identity && !room.remoteParticipants.has(identity)) return;
+      updateMirrorState(identity,payload.enabled);
+    });
+    channel.on('broadcast',{event:'mirror-request'},sendOwn);
+    channel.subscribe(status => {
+      if (status === 'SUBSCRIBED') {
+        sendOwn();
+        channel.send({type:'broadcast',event:'mirror-request',payload:{}}).catch(() => {});
+      }
+    });
+    const timer = setInterval(sendOwn,2500);
+    return () => {
+      clearInterval(timer);
+      if (mirrorChannelRef.current === channel) mirrorChannelRef.current = null;
+      supabase.removeChannel(channel);
+    };
+  },[supabase,liveRoomId,room,updateMirrorState]);
+  const broadcastMirrorFallback = useCallback(() => {
+    const identity = room.localParticipant.identity;
+    if (!identity || !mirrorChannelRef.current) return;
+    mirrorChannelRef.current.send({type:'broadcast',event:'mirror-state',payload:{
+      identity,enabled:mirrorStatesRef.current[identity] === true
+    }}).catch(error => console.warn('Mirror Supabase broadcast:',error));
+  },[room]);
   // Keep the mirror visible locally even when LiveKit's data channel is temporarily closed.
   const pendingMirrorRef = useRef(false);
   const sendMirrorState = useCallback(async () => {
@@ -466,6 +511,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     // Local effect must never depend on the data channel being open.
     updateMirrorState(identity, enabled);
     pendingMirrorRef.current = true;
+    broadcastMirrorFallback();
     setMirrorBusy(true);
     try { await sendMirrorState(); }
     finally { setMirrorBusy(false); }
@@ -942,7 +988,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'
         tabIndex={0}
         onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') ) { e.preventDefault(); if(moveMode) swap(i); else chooseTile(t,i); } }}>
-        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className={`rivyza-v318-video ${mirrorStates[t.identity] === true ? "rivyza-camera-mirrored" : ""}`} /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
+        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className={`rivyza-v318-video ${mirrorStates[t.identity] === true ? "rivyza-camera-mirrored" : ""}`} style={{transform: mirrorStates[t.identity] === true ? "scaleX(-1)" : "scaleX(1)", WebkitTransform: mirrorStates[t.identity] === true ? "scaleX(-1)" : "scaleX(1)"}} /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'58%',height:'58%',borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
       </div>)}
     </div>
     {!typing && !target && !viewersOpen && <div className="rivyza-v344-like-zone" role="button" tabIndex={0} aria-label="Dar Likes al LIVE" onPointerDown={e => {e.preventDefault(); giveLike();}} onKeyDown={e => {if(e.key === 'Enter' || e.key === ' ') {e.preventDefault();giveLike();}}}><span className="rivyza-v344-like-hint"><span className="rivyza-v344-like-heart" aria-hidden="true">💗</span><span>Likes</span></span></div>}
