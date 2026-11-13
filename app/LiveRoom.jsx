@@ -439,6 +439,26 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     room.on(RoomEvent.Reconnected, retry);
     return () => { room.off(RoomEvent.Connected, retry); room.off(RoomEvent.Reconnected, retry); };
   }, [room, sendMirrorState]);
+  // v3.70: Periodic state reconciliation for guests/hosts whose LiveKit data
+  // channel was not ready at the moment Mirror Camera was toggled.
+  // Every client advertises its own state, including OFF, so a missed packet
+  // does not leave other participants showing an outdated orientation.
+  useEffect(() => {
+    const sync = () => {
+      if (room.state === 'connected' && room.localParticipant.identity) {
+        void sendMirrorState();
+      }
+    };
+    const timer = setInterval(sync, 2500);
+    room.on(RoomEvent.Connected, sync);
+    room.on(RoomEvent.Reconnected, sync);
+    sync();
+    return () => {
+      clearInterval(timer);
+      room.off(RoomEvent.Connected, sync);
+      room.off(RoomEvent.Reconnected, sync);
+    };
+  }, [room, sendMirrorState]);
   async function toggleMirrorCamera() {
     if (mirrorBusy || !room.localParticipant.identity) return;
     const identity = room.localParticipant.identity;
