@@ -855,13 +855,15 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     return () => room.off(RoomEvent.RoomMetadataChanged, receive);
   }, [room]);
   async function broadcastLayout(nextPositions, nextSlots = slots) {
-    const normalized = {};
-    const used = new Set();
+    const normalized = {...stableSlotsRef.current.slots, ...positions, ...nextPositions};
+    const used = new Set(Object.values(normalized).filter(i => Number.isInteger(i) && i >= 0 && i < nextSlots));
     // Complete the effective order so a swap cannot displace a third participant.
     const occupants = ordered.filter(Boolean).sort((a,b)=>a.identity===hostId?-1:b.identity===hostId?1:0);
+    // Preserve the host reservation even when the host is temporarily offline.
+    if (hostId && normalized[hostId] === undefined) normalized[hostId] = 0;
     for (const p of occupants) {
-      const desired = nextPositions[p.identity] ?? ordered.findIndex(x=>x?.identity===p.identity);
-      if (desired >= 0 && desired < nextSlots && !used.has(desired)) {normalized[p.identity]=desired;used.add(desired);}
+      const desired = normalized[p.identity] ?? ordered.findIndex(x=>x?.identity===p.identity);
+      if (desired >= 0 && desired < nextSlots) {normalized[p.identity]=desired;used.add(desired);}
     }
     for (const p of occupants) {
       if (normalized[p.identity] !== undefined) continue;
@@ -871,20 +873,46 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     try { await onModerate('layout', {positions:normalized, slots:nextSlots}); }
     catch(e) { onError(e.message); }
   }
-  const shown = [...participants].filter(p => p.identity === hostId || p.permissions?.canPublish).sort((a,b) => (a.identity === hostId ? -1 : b.identity === hostId ? 1 : a.identity.localeCompare(b.identity))).slice(0, slots);
+  // Keep a participant's camera slot reserved during temporary disconnects.
+  // In particular, slot 1 belongs to the host even while LiveKit cannot see them.
+  // Never compact the remaining guests into an absent participant's position.
+  const stableSlotsRef = useRef({roomId:liveRoomId, slots:{}});
+  if (stableSlotsRef.current.roomId !== liveRoomId) {
+    stableSlotsRef.current = {roomId:liveRoomId, slots:{}};
+  }
+  const shown = [...participants].filter(p => p.identity === hostId || p.permissions?.canPublish)
+    .sort((a,b) => (a.identity === hostId ? -1 : b.identity === hostId ? 1 : a.identity.localeCompare(b.identity))).slice(0, slots);
   const ordered = Array(slots).fill(null);
   const trackById = new Map(tracks.map(t => [t.participant.identity, t]));
+  const remembered = stableSlotsRef.current.slots;
+  // Metadata positions take priority, including host/guest movements made by moderators.
+  // Keep disconnected identities in the reservation map, not just active LiveKit participants.
+  for (const [id, index] of Object.entries(positions)) {
+    if (Number.isInteger(index) && index >= 0 && index < slots) remembered[id] = index;
+  }
+  if (hostId && remembered[hostId] === undefined) remembered[hostId] = 0;
   const placed = new Set();
+  const occupied = new Set();
   for (const t of shown) {
-    const index = positions[t.identity] ?? (t.identity === hostId ? 0 : undefined);
-    if (Number.isInteger(index) && index >= 0 && index < slots && !ordered[index]) {
-      ordered[index] = t; placed.add(t.identity);
+    const index = remembered[t.identity];
+    if (Number.isInteger(index) && index >= 0 && index < slots && !occupied.has(index)) {
+      ordered[index] = t;
+      occupied.add(index);
+      placed.add(t.identity);
     }
   }
+  // Reserve every remembered slot, even when its occupant is temporarily absent.
+  const reserved = new Set(Object.entries(remembered)
+    .filter(([id,index]) => Number.isInteger(index) && index >= 0 && index < slots && !shown.some(p => p.identity === id))
+    .map(([,index]) => index));
   for (const t of shown) {
     if (placed.has(t.identity)) continue;
-    const free = ordered.findIndex(x => !x);
-    if (free >= 0) ordered[free] = t;
+    const free = ordered.findIndex((x,i) => !x && !reserved.has(i));
+    if (free >= 0) {
+      ordered[free] = t;
+      remembered[t.identity] = free;
+      occupied.add(free);
+    }
   }
   function swap(index) {
     if (!(isHost || isModerator) || !moveMode) return;
