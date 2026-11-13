@@ -367,51 +367,69 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   },[room,liveRoomId,user?.id,appendChat]);
   const [comment, setComment] = useState('');
   const [flipping, setFlipping] = useState(false);
-  // v3.30: use LiveKit data messages instead of restricted participant metadata.
+  // Mirror is a display preference synchronized with all LIVE participants.
   const [mirrorStates, setMirrorStates] = useState({});
+  const mirrorStatesRef = useRef({});
   const mirrorEnabled = mirrorStates[room.localParticipant.identity] === true;
   const [mirrorBusy, setMirrorBusy] = useState(false);
+  const updateMirrorState = useCallback((identity, enabled) => {
+    if (!identity) return;
+    mirrorStatesRef.current = {...mirrorStatesRef.current, [identity]: enabled};
+    setMirrorStates(mirrorStatesRef.current);
+  }, []);
   useEffect(() => {
+    mirrorStatesRef.current = {};
+    setMirrorStates({});
+    const sendState = (destination) => room.localParticipant.publishData(
+      new TextEncoder().encode(JSON.stringify({type:'mirror-state',enabled:mirrorStatesRef.current[room.localParticipant.identity] === true})),
+      {reliable:true,topic:'rivyza-camera-mirror',...(destination ? {destinationIdentities:[destination]} : {})}
+    );
     const receiveMirror = (payload, sender, _kind, topic) => {
       if (topic !== 'rivyza-camera-mirror' || !sender?.identity) return;
       try {
         const data = JSON.parse(new TextDecoder().decode(payload));
-        if (data?.type === 'mirror-state' && typeof data.enabled === 'boolean') {
-          setMirrorStates(prev => ({...prev, [sender.identity]: data.enabled}));
-        }
+        if (data?.type === 'mirror-state' && typeof data.enabled === 'boolean')
+          updateMirrorState(sender.identity, data.enabled);
+        else if (data?.type === 'mirror-request') sendState(sender.identity).catch(() => {});
       } catch {}
     };
-    const onConnected = p => {
-      // Share our current setting with anyone joining later.
-      room.localParticipant.publishData(
-        new TextEncoder().encode(JSON.stringify({type:'mirror-state',enabled:mirrorEnabled})),
-        {reliable:true,topic:'rivyza-camera-mirror',destinationIdentities:[p.identity]}
-      ).catch(() => {});
+    const onConnected = p => { if (p?.identity) sendState(p.identity).catch(() => {}); };
+    const onDisconnected = p => {
+      const next = {...mirrorStatesRef.current}; delete next[p.identity];
+      mirrorStatesRef.current = next; setMirrorStates(next);
     };
-    const onDisconnected = p => setMirrorStates(prev => {
-      const next = {...prev}; delete next[p.identity]; return next;
-    });
+    const requestStates = () => room.localParticipant.publishData(
+      new TextEncoder().encode(JSON.stringify({type:'mirror-request'})),
+      {reliable:true,topic:'rivyza-camera-mirror'}
+    ).catch(() => {});
     room.on(RoomEvent.DataReceived, receiveMirror);
     room.on(RoomEvent.ParticipantConnected, onConnected);
     room.on(RoomEvent.ParticipantDisconnected, onDisconnected);
+    room.on(RoomEvent.Reconnected, requestStates);
+    if (room.state === 'connected') requestStates();
     return () => {
       room.off(RoomEvent.DataReceived, receiveMirror);
       room.off(RoomEvent.ParticipantConnected, onConnected);
       room.off(RoomEvent.ParticipantDisconnected, onDisconnected);
+      room.off(RoomEvent.Reconnected, requestStates);
     };
-  }, [room, mirrorEnabled]);
+  }, [room, updateMirrorState]);
   async function toggleMirrorCamera() {
     if (mirrorBusy) return;
-    const enabled = !mirrorEnabled;
+    const identity = room.localParticipant.identity;
+    const previous = mirrorStatesRef.current[identity] === true;
+    const enabled = !previous;
     setMirrorBusy(true);
+    updateMirrorState(identity, enabled); // The local video changes immediately.
     try {
       await room.localParticipant.publishData(
         new TextEncoder().encode(JSON.stringify({type:'mirror-state',enabled})),
         {reliable:true,topic:'rivyza-camera-mirror'}
       );
-      setMirrorStates(prev => ({...prev, [room.localParticipant.identity]: enabled}));
-    } catch (e) { onError('No se pudo cambiar Mirror Camera: ' + (e?.message || 'Error')); }
-    finally { setMirrorBusy(false); }
+    } catch (e) {
+      updateMirrorState(identity, previous);
+      onError?.('No se pudo sincronizar Mirror Camera: ' + (e?.message || 'Error'));
+    } finally { setMirrorBusy(false); }
   }
 
   const [facing, setFacing] = useState('user');
@@ -517,12 +535,22 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     if (flipping) return;
     setFlipping(true);
     try {
-      const next = facing === 'user' ? 'environment' : 'user';
-      const track = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-      if (track) { await track.restartTrack({facingMode:next}); await room.localParticipant.setCameraEnabled(true); }
-      else await room.localParticipant.setCameraEnabled(true, {facingMode:next});
+      const publication = room.localParticipant.getTrackPublication(Track.Source.Camera);
+      const track = publication?.track;
+      const settings = track?.mediaStreamTrack?.getSettings?.() || {};
+      const current = settings.facingMode === 'environment' || settings.facingMode === 'user'
+        ? settings.facingMode : facing;
+      const next = current === 'user' ? 'environment' : 'user';
+      if (track) {
+        await track.restartTrack({facingMode:{ideal:next}});
+      } else {
+        await room.localParticipant.setCameraEnabled(true, {facingMode:{ideal:next}});
+      }
+      const updated = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+      const actual = updated?.mediaStreamTrack?.getSettings?.().facingMode;
+      if (actual && actual !== next) throw new Error('Este dispositivo no cambió a la cámara solicitada.');
       setFacing(next);
-    } catch(e) { onError('No se pudo voltear la cámara: ' + e.message); }
+    } catch(e) { onError?.('No se pudo voltear la cámara: ' + (e?.message || 'Comprueba los permisos y las cámaras disponibles.')); }
     finally { setFlipping(false); }
   }
   const [soundReady, setSoundReady] = useState(false);
@@ -804,7 +832,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     catch(e) { onError(e.message); }
   }
   return <>
-    <style>{`.rivyza-live-grid-square .rivyza-live-square video.rivyza-camera-mirrored { transform: scaleX(-1) !important; -webkit-transform: scaleX(-1) !important; }
+    <style>{`.rivyza-live-stage .rivyza-live-tile video.rivyza-camera-mirrored { transform: scaleX(-1) !important; -webkit-transform: scaleX(-1) !important; }
 /* v3.50: Override legacy square-camera layout ONLY for nine slots. */
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9:not(.rivyza-live-solo) {
   display: grid !important;
@@ -1048,7 +1076,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
           <div className="rivyza-v313-actions">
             <button type="button" onClick={() => {onViewProfile?.(target.identity);setTarget(null);}}><span className="rivyza-v313-glyph">♙</span><span>{lang === 'es' ? 'Ver perfil' : 'View profile'}</span></button>
             {target.identity === localParticipant.identity && publish && <>
-              <button onClick={flipCamera} disabled={flipping}>🔄 Voltear cámara</button>
+              <button onClick={flipCamera} disabled={flipping}>{flipping ? "Cambiando cámara…" : "🔄 Voltear cámara"}</button>
               <button type="button" onClick={toggleMirrorCamera} disabled={mirrorBusy} aria-pressed={mirrorEnabled}>↔️ Mirror Camera {mirrorEnabled ? 'ON' : 'OFF'}</button>
               <button onClick={toggleCam}>{cam ? 'Apagar cámara' : 'Encender cámara'}</button>
               <button onClick={toggleMic}>{mic ? 'Silenciar micrófono' : 'Activar micrófono'}</button>
