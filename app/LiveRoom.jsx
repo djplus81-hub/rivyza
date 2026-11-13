@@ -414,22 +414,41 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       room.off(RoomEvent.Reconnected, requestStates);
     };
   }, [room, updateMirrorState]);
-  async function toggleMirrorCamera() {
-    if (mirrorBusy) return;
+  // Keep the mirror visible locally even when LiveKit's data channel is temporarily closed.
+  const pendingMirrorRef = useRef(false);
+  const sendMirrorState = useCallback(async () => {
+    if (room.state !== 'connected') return false;
     const identity = room.localParticipant.identity;
-    const previous = mirrorStatesRef.current[identity] === true;
-    const enabled = !previous;
-    setMirrorBusy(true);
-    updateMirrorState(identity, enabled); // The local video changes immediately.
+    if (!identity) return false;
     try {
       await room.localParticipant.publishData(
-        new TextEncoder().encode(JSON.stringify({type:'mirror-state',enabled})),
+        new TextEncoder().encode(JSON.stringify({type:'mirror-state',enabled:mirrorStatesRef.current[identity] === true})),
         {reliable:true,topic:'rivyza-camera-mirror'}
       );
-    } catch (e) {
-      updateMirrorState(identity, previous);
-      onError?.('No se pudo sincronizar Mirror Camera: ' + (e?.message || 'Error'));
-    } finally { setMirrorBusy(false); }
+      pendingMirrorRef.current = false;
+      return true;
+    } catch (error) {
+      pendingMirrorRef.current = true;
+      console.warn('Mirror Camera: synchronization deferred until LiveKit reconnects', error);
+      return false;
+    }
+  }, [room]);
+  useEffect(() => {
+    const retry = () => { if (pendingMirrorRef.current) void sendMirrorState(); };
+    room.on(RoomEvent.Connected, retry);
+    room.on(RoomEvent.Reconnected, retry);
+    return () => { room.off(RoomEvent.Connected, retry); room.off(RoomEvent.Reconnected, retry); };
+  }, [room, sendMirrorState]);
+  async function toggleMirrorCamera() {
+    if (mirrorBusy || !room.localParticipant.identity) return;
+    const identity = room.localParticipant.identity;
+    const enabled = mirrorStatesRef.current[identity] !== true;
+    // Local effect must never depend on the data channel being open.
+    updateMirrorState(identity, enabled);
+    pendingMirrorRef.current = true;
+    setMirrorBusy(true);
+    try { await sendMirrorState(); }
+    finally { setMirrorBusy(false); }
   }
 
   const [facing, setFacing] = useState('user');
