@@ -660,6 +660,54 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   // Filtros LIVE: se procesan ANTES de publicar en LiveKit, no como overlay local.
   // Etapa de prueba segura: filtros de color. DeepAR se integrará tras validar su salida WebRTC.
   const [liveEffect, setLiveEffect] = useState('original');
+  const [filterIntensity, setFilterIntensity] = useState(100);
+  const intensityRef = useRef(100);
+  const [cameraPreviewOpen, setCameraPreviewOpen] = useState(false);
+  const [previewStream, setPreviewStream] = useState(null);
+  const previewVideoRef = useRef(null);
+  const [previewError, setPreviewError] = useState('');
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [previewFilter, setPreviewFilter] = useState('original');
+  const [previewIntensity, setPreviewIntensity] = useState(100);
+  const [previewTab, setPreviewTab] = useState('filters');
+  const previewStreamRef = useRef(null);
+  const closePreview = useCallback(() => {
+    previewStreamRef.current?.getTracks().forEach(track=>track.stop());
+    previewStreamRef.current=null;
+    setPreviewStream(null);
+    setCameraPreviewOpen(false);
+    setPreviewError('');
+  }, []);
+  useEffect(()=>()=>{previewStreamRef.current?.getTracks().forEach(track=>track.stop());},[]);
+  useEffect(()=>{
+    if(previewVideoRef.current && previewStream){
+      previewVideoRef.current.srcObject=previewStream;
+      previewVideoRef.current.play().catch(()=>{});
+    }
+  },[previewStream,cameraPreviewOpen]);
+  async function openCameraPreview(){
+    setPreviewError('');setPreviewFilter(liveEffect);setPreviewIntensity(filterIntensity);
+    setCameraPreviewOpen(true);
+    try {
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+      previewStreamRef.current=stream;
+      setPreviewStream(stream);
+    } catch(e){setPreviewError('No se pudo abrir la vista previa. Revisa el permiso de cámara.');}
+  }
+  async function confirmCameraPreview(){
+    if(previewBusy||!previewStreamRef.current)return;
+    setPreviewBusy(true);
+    try {
+      // Private preview is never published; LiveKit only starts its camera after confirmation.
+      closePreview();
+      await localParticipant.setCameraEnabled(true);
+      intensityRef.current=previewIntensity;
+      setFilterIntensity(previewIntensity);
+      if(previewFilter!=='original')await chooseLiveEffect(previewFilter);
+      else {await restoreEffect();setLiveEffect('original');}
+    }catch(e){onError?.(e?.message||'No se pudo encender la cámara.');}
+    finally{setPreviewBusy(false);}
+  }
   const [effectsOpen, setEffectsOpen] = useState(false);
   const [effectBusy, setEffectBusy] = useState(false);
   const effectSession = useRef(null);
@@ -707,6 +755,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if (!effectOptions.some(option=>option[0]===id)) throw new Error('Filtro desconocido');
       if (effectSession.current) {
         effectSession.current.filter = id;
+        effectSession.current.intensity = intensityRef.current;
         setLiveEffect(id);
         return;
       }
@@ -729,7 +778,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       const stream = canvas.captureStream(20);
       const processed = stream.getVideoTracks()[0];
       if (!processed) {stream.getTracks().forEach(t=>t.stop());throw new Error('No se pudo crear la cámara procesada.');}
-      const state = {publication, original, video, stream, frame:0, filter:id};
+      const state = {publication, original, video, stream, frame:0, filter:id, intensity:intensityRef.current};
       effectSession.current = state;
       const draw = () => {
         if (effectSession.current !== state) return;
@@ -755,7 +804,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
                 g=Math.max(0,Math.min(255,(g-gray)*1.48+gray));
                 b=Math.max(0,Math.min(255,(b-gray)*1.48+gray));
               }
-              pixels[i]=r;pixels[i+1]=g;pixels[i+2]=b;
+              const blend=Math.max(0,Math.min(1,(state.intensity??100)/100));
+              pixels[i]=Math.round(pixels[i]*(1-blend)+r*blend);
+              pixels[i+1]=Math.round(pixels[i+1]*(1-blend)+g*blend);
+              pixels[i+2]=Math.round(pixels[i+2]*(1-blend)+b*blend);
             }
             ctx.putImageData(frame,0,0);
           }
@@ -777,6 +829,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     catch (e) { onError(e?.message || 'No se pudo cambiar el micrófono'); }
   }
   async function toggleCam() {
+    if(!localParticipant.isCameraEnabled){await openCameraPreview();return;}
+    setEffectsOpen(false);
     try { if (effectSession.current) { await restoreEffect(); setLiveEffect('original'); } await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); }
     catch (e) { onError(e?.message || 'No se pudo encender la cámara. Comprueba los permisos del navegador.'); }
   }
@@ -1254,16 +1308,30 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>
     </div>}
     <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
+    {publish && cameraPreviewOpen && <div role="dialog" aria-modal="true" aria-label="Preparar cámara" style={{position:'fixed',inset:0,zIndex:2147483001,background:'rgba(0,0,0,.94)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:14,color:'#fff'}}>
+      <div style={{width:'100%',maxWidth:400,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}><strong>Prepara tu cámara</strong><button type="button" onClick={closePreview} style={{background:'transparent',border:0,color:'#fff',fontSize:25}}>✕</button></div>
+      <div style={{width:'100%',maxWidth:400,height:'min(49vh,460px)',background:'#15151d',borderRadius:14,overflow:'hidden',position:'relative'}}>
+        {previewStream?<video ref={previewVideoRef} muted playsInline autoPlay style={{width:'100%',height:'100%',objectFit:'cover',transform:'scaleX(-1)',filter:previewFilter==='bw'?`grayscale(${previewIntensity/100})`:previewFilter==='warm'?`sepia(${.28*previewIntensity/100}) saturate(${1+.2*previewIntensity/100})`:previewFilter==='cool'?`hue-rotate(${13*previewIntensity/100}deg) saturate(${1+.12*previewIntensity/100})`:previewFilter==='vivid'?`saturate(${1+.5*previewIntensity/100}) contrast(${1+.08*previewIntensity/100})`:'none'}}/>:<div style={{padding:20,textAlign:'center'}}>Solicitando acceso a cámara…</div>}
+        <span style={{position:'absolute',top:8,left:8,fontSize:11,background:'#0009',padding:6,borderRadius:8}}>PRIVADO · No estás transmitiendo</span>
+      </div>
+      <div style={{display:'flex',gap:8,marginTop:12}}>{[['filters','Filtros'],['beauty','Belleza'],['deepar','DeepAR']].map(([id,label])=><button key={id} type="button" onClick={()=>setPreviewTab(id)} style={{border:0,borderRadius:15,padding:'8px 13px',background:previewTab===id?'#d32f86':'#333',color:'#fff'}}>{label}</button>)}</div>
+      <div style={{width:'100%',maxWidth:400,marginTop:12,minHeight:85}}>
+        {previewTab==='filters'?<><div style={{display:'flex',gap:6,overflowX:'auto'}}>{effectOptions.map(([id,label])=><button type="button" key={id} onClick={()=>setPreviewFilter(id)} style={{flexShrink:0,border:'1px solid #666',borderRadius:9,padding:8,background:previewFilter===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div><label style={{display:'block',marginTop:12}}>Intensidad: {previewIntensity}% <input aria-label="Intensidad del filtro" type="range" min="1" max="100" value={previewIntensity} onChange={e=>setPreviewIntensity(Number(e.target.value))} style={{width:'100%'}}/></label></>:<p style={{fontSize:13,color:'#ddd'}}>Los controles {previewTab==='deepar'?'DeepAR':'faciales'} necesitan la conexión del procesador de video antes de activarse. No se aplicarán efectos falsos.</p>}
+      </div>
+      {previewError&&<p role="alert" style={{color:'#ff9db8'}}>{previewError}</p>}
+      <button type="button" disabled={!previewStream||previewBusy} onClick={confirmCameraPreview} style={{marginTop:10,width:'100%',maxWidth:400,padding:14,border:0,borderRadius:30,background:'#ef287e',color:'white',fontWeight:700,opacity:!previewStream||previewBusy?.6:1}}>{previewBusy?'Encendiendo…':'Encender cámara'}</button>
+    </div>}
     {publish && effectsOpen && <div role="dialog" aria-label="Filtros LIVE" style={{position:'absolute',bottom:88,left:12,right:12,maxWidth:'calc(100% - 24px)',boxSizing:'border-box',zIndex:65,background:'rgba(12,12,18,.96)',border:'1px solid #ffffff44',borderRadius:14,padding:10,color:'#fff'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:9}}><strong>EF · Filtros LIVE</strong><button type="button" onClick={()=>setEffectsOpen(false)} style={{background:'transparent',border:0,color:'#fff',fontSize:20}}>✕</button></div>
       <div style={{display:'flex',gap:7,overflowX:'auto',maxWidth:'100%',WebkitOverflowScrolling:'touch',paddingBottom:4}}>{effectOptions.map(([id,label])=><button type="button" key={id} disabled={effectBusy} onClick={()=>chooseLiveEffect(id)} style={{flex:'0 0 auto',padding:'8px 10px',borderRadius:10,border:'1px solid #ffffff55',background:liveEffect===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div>
+      <label style={{display:'block',marginTop:8,fontSize:13}}>Intensidad: {filterIntensity}% <input type="range" min="1" max="100" value={filterIntensity} onChange={e=>{const value=Number(e.target.value);setFilterIntensity(value);intensityRef.current=value;if(effectSession.current)effectSession.current.intensity=value;}} style={{width:'100%'}}/></label>
       <small style={{display:'block',marginTop:8,color:'#ccc'}}>El filtro se aplica al video enviado. Para voltear la cámara, selecciona «Sin efecto».</small>
     </div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
       <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
       {!typing && <>
-        {publish && <button type="button" className="rivyza-v32-icon" onClick={()=>setEffectsOpen(x=>!x)} aria-label="Filtros LIVE" aria-expanded={effectsOpen} title="Filtros LIVE">EF</button>}
+        {publish && cam && <button type="button" className="rivyza-v32-icon" onClick={()=>setEffectsOpen(x=>!x)} aria-label="Filtros LIVE" aria-expanded={effectsOpen} title="Filtros LIVE">EF</button>}
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? '📹' : '📷'}</button>}
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleMic} aria-label={mic ? 'Silenciar micrófono' : 'Activar micrófono'} title={mic ? 'Silenciar micrófono' : 'Activar micrófono'}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mic ? "#FFFFFF" : "#FF3B45"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:"block",width:"22px",height:"22px",flexShrink:0,margin:"auto"}}>
           <rect x="9" y="2" width="6" height="12" rx="3" />
