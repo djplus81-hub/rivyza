@@ -712,10 +712,29 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [deepARCategory,setDeepARCategory]=useState('fun');
   const deeparCategories=[['fun','Divertidos'],['beauty','Belleza'],['face','Rostro'],['accessories','Accesorios']];
   async function shutdownDeepAR(ref){const engine=ref.current;ref.current=null;if(engine){try{await engine.shutdown();}catch(_){}}}
+   // v3.72: Preserve source proportions when copying a DeepAR WebGL frame.
+   // Cropping (cover) is permitted; horizontal/vertical stretching is not.
+   function drawARWithoutDistortion(ctx,source,width,height){
+     const sw=source.videoWidth||source.width;
+     const sh=source.videoHeight||source.height;
+     if(!sw||!sh)return;
+     const scale=Math.max(width/sw,height/sh);
+     const dw=sw*scale,dh=sh*scale;
+     ctx.drawImage(source,(width-dw)/2,(height-dh)/2,dw,dh);
+   }
   async function makeDeepAREngine(holder,video){
     const license=process.env.NEXT_PUBLIC_DEEPAR_LICENSE_KEY;
     if(!license)throw new Error('Falta NEXT_PUBLIC_DEEPAR_LICENSE_KEY en Vercel.');
     if(!holder||!video)throw new Error('La cámara no está lista.');
+     // DeepAR's render target must have the same aspect ratio as its input.
+     // The old 240x320 target could squeeze a wider camera into 3:4.
+     const sourceWidth=video.videoWidth||video.srcObject?.getVideoTracks?.()[0]?.getSettings?.().width||480;
+     const sourceHeight=video.videoHeight||video.srcObject?.getVideoTracks?.()[0]?.getSettings?.().height||640;
+     if(holder===deepARHolderRef.current){
+       const width=240;
+       holder.style.width=`${width}px`;
+       holder.style.height=`${Math.max(1,Math.round(width*sourceHeight/sourceWidth))}px`;
+     }
     const deepar=await import('deepar');
     const engine=await deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
     engine.setVideoElement(video,true);
@@ -828,7 +847,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
                       state.lastARFrame.height=canvas.height;
                       state.lastARContext=state.lastARFrame.getContext('2d');
                     }
-                    state.lastARContext?.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                    if(state.lastARContext)drawARWithoutDistortion(state.lastARContext,arCanvas,canvas.width,canvas.height);
                     state.lastARAt=performance.now();
                   }
                 }catch(e){if(!state.warned){console.warn('DeepAR canvas capture:',e);state.warned=true;}}
@@ -950,8 +969,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       try { await video.play(); } catch(error) { inputTrack.stop(); throw error; }
       const settings = original.getSettings?.() || {};
       const canvas = document.createElement('canvas');
-      canvas.width = Math.min(480, settings.width || video.videoWidth || 480);
-      canvas.height = Math.max(1, Math.round(canvas.width * ((settings.height || video.videoHeight || 480) / (settings.width || video.videoWidth || 640))));
+      canvas.width = Math.min(480, video.videoWidth || settings.width || 480);
+      canvas.height = Math.max(1, Math.round(canvas.width * ((video.videoHeight || settings.height || 480) / (video.videoWidth || settings.width || 640))));
       const ctx = canvas.getContext('2d', {alpha:false});
       if (!ctx) throw new Error('No se pudo iniciar el procesador de video.');
       const stream = canvas.captureStream(20);
@@ -988,7 +1007,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
                 for(let i=0;i<pixels.length;i+=4){
                   if(pixels[i+3]>160 && pixels[i]+pixels[i+1]+pixels[i+2]>45)visible++;
                 }
-                if(visible>32)ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                if(visible>32)drawARWithoutDistortion(ctx,arCanvas,canvas.width,canvas.height);
                 else if(!state.arEmptyWarned){
                   console.warn('DeepAR LIVE returned an empty/black canvas; camera fallback active.');
                   state.arEmptyWarned=true;
