@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { LIVE_DEEPAR_EFFECTS } from './liveDeepAREffects';
 import { createPortal } from 'react-dom';
 import { LiveKitRoom, RoomAudioRenderer, VideoTrack, useTracks, useLocalParticipant, useParticipants, useRoomContext } from '@livekit/components-react';
 import { Track, RoomEvent, DisconnectReason } from 'livekit-client';
@@ -235,6 +236,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const historyKey = `rivyza-live-chat-v323:${liveRoomId}:${user?.id || 'viewer'}`;
   const scrollKey = `${historyKey}:scroll`;
   const chatRef = useRef(null);
+  const gridRef = useRef(null);
+  const [chatBoundary, setChatBoundary] = useState(null);
+  const [chatReadingOld, setChatReadingOld] = useState(false);
   const readingOld = useRef(false);
   const restoringChat = useRef(true);
   const [chat, setChat] = useState(() => {
@@ -271,15 +275,19 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         if (saved?.atBottom === false) {
           node.scrollTop = Math.max(0, saved.top || 0);
           readingOld.current = true;
+          setChatReadingOld(true);
         } else node.scrollTop = node.scrollHeight;
       } catch { node.scrollTop = node.scrollHeight; }
     } else if (!readingOld.current) node.scrollTop = node.scrollHeight;
   }, [chat, scrollKey]);
+  // El chat puede desplazarse en TODOS los modos; solo el modo 14 recorta
+  // la parte que invadiría la rejilla. Se mide la rejilla real, no valores fijos.
   const onChatScroll = () => {
     const el = chatRef.current;
     if (!el) return;
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 28;
     readingOld.current = !bottom;
+    setChatReadingOld(!bottom);
     try { localStorage.setItem(scrollKey, JSON.stringify({atBottom:bottom, top:el.scrollTop})); } catch {}
   };
   // LIVE activity is stored as regular chat events so it remains in history.
@@ -617,7 +625,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     } catch(err) { onError(err.message); }
   }
   async function flipCamera() {
-    if (flipping) return;
+    if (flipping || liveEffect !== 'original') { if(liveEffect !== 'original') onError?.('Quita el filtro antes de voltear la cámara.'); return; }
     setFlipping(true);
     try {
       const publication = room.localParticipant.getTrackPublication(Track.Source.Camera);
@@ -651,19 +659,322 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     return () => {room.off(RoomEvent.ActiveSpeakersChanged,speaking);room.off(RoomEvent.Reconnected,reconnected)};
   }, [room,isHost,onLeaveCamera]);
   const [slots, setSlots] = useState(10);
+  useEffect(() => {
+    if (slots !== 14) { setChatBoundary(null); return; }
+    const grid = gridRef.current;
+    if (!grid) return;
+    const update = () => setChatBoundary(Math.max(0,grid.getBoundingClientRect().bottom-(chatRef.current?.getBoundingClientRect().top ?? grid.getBoundingClientRect().bottom)));
+    update();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    observer?.observe(grid);
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {observer?.disconnect();window.removeEventListener('resize', update);window.removeEventListener('orientationchange', update);};
+  }, [slots]);
+  const goToLatest = () => {
+    const el = chatRef.current;
+    if (!el) return;
+    readingOld.current = false;
+    setChatReadingOld(false);
+    el.scrollTo({top:el.scrollHeight,behavior:'smooth'});
+    try { localStorage.setItem(scrollKey,JSON.stringify({atBottom:true,top:el.scrollHeight})); } catch {}
+  };
+
   const [target, setTarget] = useState(null);
   const [expelling, setExpelling] = useState(false);
   const [blockedOpen, setBlockedOpen] = useState(false);
   const [reason, setReason] = useState('Insultos o lenguaje ofensivo');
   const [details, setDetails] = useState('');
   const [moveTarget, setMoveTarget] = useState(null);
+  // Filtros LIVE: se procesan ANTES de publicar en LiveKit, no como overlay local.
+  // Etapa de prueba segura: filtros de color. DeepAR se integrará tras validar su salida WebRTC.
+  const [liveEffect, setLiveEffect] = useState('original');
+  const [filterIntensity, setFilterIntensity] = useState(100);
+  const intensityRef = useRef(100);
+  const [cameraPreviewOpen, setCameraPreviewOpen] = useState(false);
+  const [previewStream, setPreviewStream] = useState(null);
+  const previewVideoRef = useRef(null);
+  const [previewError, setPreviewError] = useState('');
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [previewFilter, setPreviewFilter] = useState('original');
+  const [previewIntensity, setPreviewIntensity] = useState(100);
+  const [previewTab, setPreviewTab] = useState('filters');
+
+  // Cada participante administra su propio procesador DeepAR; nunca se aplica a otras cámaras.
+  const [selectedDeepAR,setSelectedDeepAR]=useState(null);
+  const [previewDeepAR,setPreviewDeepAR]=useState(null);
+  const [deepARBusy,setDeepARBusy]=useState(false);
+  const [deepARError,setDeepARError]=useState('');
+  const deepAREngineRef=useRef(null);
+  const deepARHolderRef=useRef(null);
+  const previewARHolderRef=useRef(null);
+  const previewEngineRef=useRef(null);
+  const [deepARCategory,setDeepARCategory]=useState('fun');
+  const deeparCategories=[['fun','Divertidos'],['beauty','Belleza'],['face','Rostro'],['accessories','Accesorios']];
+  async function shutdownDeepAR(ref){const engine=ref.current;ref.current=null;if(engine){try{await engine.shutdown();}catch(_){}}}
+  async function makeDeepAREngine(holder,video){
+    const license=process.env.NEXT_PUBLIC_DEEPAR_LICENSE_KEY;
+    if(!license)throw new Error('Falta NEXT_PUBLIC_DEEPAR_LICENSE_KEY en Vercel.');
+    if(!holder||!video)throw new Error('La cámara no está lista.');
+    const deepar=await import('deepar');
+    const engine=await deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
+    engine.setVideoElement(video,true);
+    return engine;
+  }
+  async function selectPreviewDeepAR(effect){
+    if(deepARBusy||!previewStreamRef.current)return;
+    setDeepARBusy(true);setDeepARError('');
+    try{
+      if(!effect){await shutdownDeepAR(previewEngineRef);setPreviewDeepAR(null);return;}
+      if(!previewEngineRef.current)previewEngineRef.current=await makeDeepAREngine(previewARHolderRef.current,previewVideoRef.current);
+      await previewEngineRef.current.switchEffect(effect.url);
+      setPreviewDeepAR(effect);
+    }catch(e){setDeepARError(e?.message||'No se pudo cargar el efecto DeepAR.');}
+    finally{setDeepARBusy(false);}
+  }
+  async function selectLiveDeepAR(effect){
+    if(deepARBusy||!publish||!room.localParticipant.isCameraEnabled)return;
+    setDeepARBusy(true);setDeepARError('');
+    try{
+      if(!effect){await shutdownDeepAR(deepAREngineRef);if(effectSession.current)effectSession.current.deepAR=null;setSelectedDeepAR(null);return;}
+      // El procesador Canvas existente publica el resultado por LiveKit, no un overlay local.
+      if(!effectSession.current){
+        const old=intensityRef.current;
+        try { intensityRef.current=0; await chooseLiveEffect('vivid'); }
+        finally { intensityRef.current=old; }
+      }
+      const state=effectSession.current;
+      if(!state || state.stream?.getVideoTracks?.()[0]?.readyState!=='live')throw new Error('No se pudo iniciar el video procesado.');
+      state.intensity=intensityRef.current;
+      if(!deepAREngineRef.current)deepAREngineRef.current=await makeDeepAREngine(deepARHolderRef.current,state.video);
+      await deepAREngineRef.current.switchEffect(effect.url);
+      state.deepAR=deepAREngineRef.current;
+      setSelectedDeepAR(effect);
+    }catch(e){await shutdownDeepAR(deepAREngineRef);if(effectSession.current)effectSession.current.deepAR=null;setDeepARError(e?.message||'No se pudo aplicar DeepAR.');}
+    finally{setDeepARBusy(false);}
+  }
+  useEffect(()=>()=>{shutdownDeepAR(previewEngineRef);shutdownDeepAR(deepAREngineRef);},[]);
+
+  const previewStreamRef = useRef(null);
+  const closePreview = useCallback(() => {
+    shutdownDeepAR(previewEngineRef);setPreviewDeepAR(null);
+    previewStreamRef.current?.getTracks().forEach(track=>track.stop());
+    previewStreamRef.current=null;
+    setPreviewStream(null);
+    setCameraPreviewOpen(false);
+    setPreviewError('');
+  }, []);
+  useEffect(()=>()=>{previewStreamRef.current?.getTracks().forEach(track=>track.stop());},[]);
+  useEffect(()=>{
+    if(previewVideoRef.current && previewStream){
+      previewVideoRef.current.srcObject=previewStream;
+      previewVideoRef.current.play().catch(()=>{});
+    }
+  },[previewStream,cameraPreviewOpen]);
+  async function openCameraPreview(){
+    setPreviewError('');setPreviewFilter(liveEffect);setPreviewIntensity(filterIntensity);
+    setCameraPreviewOpen(true);
+    try {
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+      previewStreamRef.current=stream;
+      setPreviewStream(stream);
+    } catch(e){setPreviewError('No se pudo abrir la vista previa. Revisa el permiso de cámara.');}
+  }
+  async function confirmCameraPreview(){
+    if(previewBusy||!previewStreamRef.current)return;
+    setPreviewBusy(true);
+    try {
+      // Private preview is never published; LiveKit only starts its camera after confirmation.
+      const chosenAR=previewDeepAR;
+      // Release the preview WebGL context before starting the LIVE renderer.
+      // iOS Safari can limit simultaneous camera/WebGL processing contexts.
+      await shutdownDeepAR(previewEngineRef);
+      closePreview();
+      await localParticipant.setCameraEnabled(true);
+      intensityRef.current=previewIntensity;
+      setFilterIntensity(previewIntensity);
+      if(previewFilter!=='original')await chooseLiveEffect(previewFilter);
+      else {await restoreEffect();setLiveEffect('original');}
+      if(chosenAR)await selectLiveDeepAR(chosenAR);
+    }catch(e){onError?.(e?.message||'No se pudo encender la cámara.');}
+    finally{setPreviewBusy(false);}
+  }
+  const [effectsOpen, setEffectsOpen] = useState(false);
+  const [effectBusy, setEffectBusy] = useState(false);
+  const effectSession = useRef(null);
+  const effectOptions = [
+    ['original','Sin efecto','none'],
+    ['warm','Cálido','sepia(.28) saturate(1.2)'],
+    ['cool','Frío','hue-rotate(13deg) saturate(1.12)'],
+    ['vivid','Vivo','saturate(1.5) contrast(1.08)'],
+    ['bw','Blanco y negro','grayscale(1)']
+  ];
+  const restoreEffect = useCallback(async () => {
+    const state = effectSession.current;
+    if (!state) return;
+    effectSession.current = null;
+    cancelAnimationFrame(state.frame);
+    try {
+      if (state.publication?.track && state.original?.readyState === 'live') {
+        await state.publication.track.replaceTrack(state.original, true);
+      }
+    } finally {
+      state.stream.getTracks().forEach(t=>t.stop());
+      state.video.pause();
+      state.video.srcObject = null;
+    }
+  }, []);
+  useEffect(() => () => {
+    const state = effectSession.current;
+    if (!state) return;
+    effectSession.current = null;
+    cancelAnimationFrame(state.frame);
+    // On unmount the LiveKit room is also leaving; don't republish a stopped track.
+    state.stream.getTracks().forEach(t=>t.stop());
+    state.video.pause();
+    state.video.srcObject = null;
+  }, []);
+  async function chooseLiveEffect(id) {
+    if (effectBusy || !publish) return;
+    setEffectBusy(true);
+    try {
+      if (id === 'original') {
+        if(effectSession.current?.deepAR){
+          effectSession.current.filter='original';
+          effectSession.current.intensity=0;
+        }else{
+          await restoreEffect();
+        }
+        setLiveEffect('original');
+        return;
+      }
+      if (!effectOptions.some(option=>option[0]===id)) throw new Error('Filtro desconocido');
+      if (effectSession.current) {
+        effectSession.current.filter = id;
+        effectSession.current.intensity = intensityRef.current;
+        setLiveEffect(id);
+        return;
+      }
+      const publication = room.localParticipant.getTrackPublication(Track.Source.Camera);
+      const localTrack = publication?.track;
+      const original = localTrack?.mediaStreamTrack;
+      if (!original || original.readyState !== 'live') throw new Error('Enciende tu cámara antes de aplicar el filtro.');
+      if (typeof HTMLCanvasElement.prototype.captureStream !== 'function') throw new Error('Este navegador no permite transmitir filtros de video.');
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = new MediaStream([original]);
+      await video.play();
+      const settings = original.getSettings?.() || {};
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.min(480, settings.width || video.videoWidth || 480);
+      canvas.height = Math.max(1, Math.round(canvas.width * ((settings.height || video.videoHeight || 480) / (settings.width || video.videoWidth || 640))));
+      const ctx = canvas.getContext('2d', {alpha:false});
+      if (!ctx) throw new Error('No se pudo iniciar el procesador de video.');
+      const stream = canvas.captureStream(20);
+      const processed = stream.getVideoTracks()[0];
+      if (!processed) {stream.getTracks().forEach(t=>t.stop());throw new Error('No se pudo crear la cámara procesada.');}
+      const state = {publication, original, video, stream, frame:0, filter:id, intensity:intensityRef.current};
+      effectSession.current = state;
+      const draw = () => {
+        if (effectSession.current !== state) return;
+        if (video.readyState >= 2) {
+          // Safari iOS does not reliably support CanvasRenderingContext2D.filter.
+          // Process pixels explicitly so the effect is baked into the transmitted track.
+          // Always draw the real camera first. DeepAR may expose a canvas
+          // before its WebGL output has rendered a usable frame (notably iOS).
+          ctx.drawImage(video,0,0,canvas.width,canvas.height);
+          // Safari: copying WebGL to a tiny canvas and reading its pixels can
+          // fail even when the DeepAR preview is rendered correctly. Draw the
+          // actual output directly into the published canvas instead.
+          // The camera frame above remains the fallback if the AR canvas is not ready.
+          const arCanvas=state.deepAR?.getCanvas?.() || deepARHolderRef.current?.querySelector('canvas');
+          if (state.deepAR && arCanvas?.width > 0 && arCanvas?.height > 0) {
+            try {
+              // Never replace the original frame with a blank/black WebGL frame.
+              // iOS Safari can create a valid-sized DeepAR canvas before it renders.
+              if (!state.arProbe) {
+                state.arProbe=document.createElement('canvas');
+                state.arProbe.width=16;state.arProbe.height=16;
+                state.arProbeCtx=state.arProbe.getContext('2d',{willReadFrequently:true});
+              }
+              const probe=state.arProbeCtx;
+              if (probe) {
+                probe.clearRect(0,0,16,16);
+                probe.drawImage(arCanvas,0,0,16,16);
+                const pixels=probe.getImageData(0,0,16,16).data;
+                let nonBlack=0, opaque=0;
+                for(let i=0;i<pixels.length;i+=4){
+                  if(pixels[i+3]>180){opaque++;if(pixels[i]+pixels[i+1]+pixels[i+2]>36)nonBlack++;}
+                }
+                // Require a genuinely rendered image, not an empty canvas.
+                // If WebGL readback is blocked, preserve the original camera.
+                if(opaque>180 && nonBlack>24){
+                  ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                  state.arLastValid=performance.now();
+                }
+              }
+            }catch(error){
+              if(!state.arDrawWarned){console.warn('DeepAR LIVE canvas not readable; original camera preserved:',error);state.arDrawWarned=true;}
+            }
+          }
+          if (state.filter !== 'none' && state.filter !== 'original' && state.intensity > 0) {
+            const frame = ctx.getImageData(0,0,canvas.width,canvas.height);
+            const pixels = frame.data;
+            for (let i=0;i<pixels.length;i+=4) {
+              let r=pixels[i],g=pixels[i+1],b=pixels[i+2];
+              if (state.filter === 'bw') {
+                const gray=Math.round(.2126*r+.7152*g+.0722*b);
+                r=g=b=gray;
+              } else if (state.filter === 'warm') {
+                r=Math.min(255,r*1.09+9);g=Math.min(255,g*1.015+2);b=Math.max(0,b*.85);
+              } else if (state.filter === 'cool') {
+                r=Math.max(0,r*.9);g=Math.min(255,g*1.025+2);b=Math.min(255,b*1.12+7);
+              } else if (state.filter === 'vivid') {
+                const gray=.2126*r+.7152*g+.0722*b;
+                r=Math.max(0,Math.min(255,(r-gray)*1.48+gray));
+                g=Math.max(0,Math.min(255,(g-gray)*1.48+gray));
+                b=Math.max(0,Math.min(255,(b-gray)*1.48+gray));
+              }
+              const blend=Math.max(0,Math.min(1,(state.intensity??100)/100));
+              pixels[i]=Math.round(pixels[i]*(1-blend)+r*blend);
+              pixels[i+1]=Math.round(pixels[i+1]*(1-blend)+g*blend);
+              pixels[i+2]=Math.round(pixels[i+2]*(1-blend)+b*blend);
+            }
+            ctx.putImageData(frame,0,0);
+          }
+        }
+        state.frame = requestAnimationFrame(draw);
+      };
+      // Wait for the camera to supply a frame before replacing its LIVE track.
+      if(video.readyState<2 || !video.videoWidth){
+        await new Promise((resolve,reject)=>{
+          const timeout=setTimeout(()=>{cleanup();reject(new Error('La cámara todavía no produce imagen.'));},4000);
+          const ready=()=>{if(video.videoWidth){cleanup();resolve();}};
+          const cleanup=()=>{clearTimeout(timeout);video.removeEventListener('loadeddata',ready);};
+          video.addEventListener('loadeddata',ready);
+          ready();
+        });
+      }
+      draw();
+      try {await localTrack.replaceTrack(processed, true);}
+      catch (error) {await restoreEffect().catch(()=>{});throw error;}
+      setLiveEffect(id);
+    } catch (error) {
+      onError?.('Filtro LIVE: '+(error?.message || 'No se pudo aplicar.'));
+      setLiveEffect('original');
+    } finally {setEffectBusy(false);}
+  }
   const { localParticipant, isMicrophoneEnabled: mic, isCameraEnabled: cam } = useLocalParticipant();
   async function toggleMic() {
     try { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); }
     catch (e) { onError(e?.message || 'No se pudo cambiar el micrófono'); }
   }
   async function toggleCam() {
-    try { await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); }
+    if(!localParticipant.isCameraEnabled){await openCameraPreview();return;}
+    setEffectsOpen(false);
+    await shutdownDeepAR(deepAREngineRef);setSelectedDeepAR(null);
+    try { if (effectSession.current) { await restoreEffect(); setLiveEffect('original'); } await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); }
     catch (e) { onError(e?.message || 'No se pudo encender la cámara. Comprueba los permisos del navegador.'); }
   }
   // v3.35: invitations inside RIVYZA use existing follows, profiles and messages.
@@ -1002,10 +1313,12 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   display: grid !important;
   width: 100% !important;
   max-width: 100% !important;
-  height: min(62dvh, 660px) !important;
+  height: auto !important;
   min-height: 0 !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  grid-template-rows: minmax(0, 2fr) repeat(3, minmax(0, 1fr)) !important;
+  grid-template-rows: none !important;
+  grid-auto-rows: max-content !important;
+  align-content: start !important;
   grid-auto-flow: row !important;
   gap: 3px !important;
   overflow: hidden !important;
@@ -1015,16 +1328,16 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   position: relative !important;
   display: block !important;
   width: 100% !important;
-  height: 100% !important;
+  height: auto !important;
   min-width: 0 !important;
   min-height: 0 !important;
   max-width: none !important;
   max-height: none !important;
-  aspect-ratio: auto !important;
+  aspect-ratio: 1 / 1 !important;
   grid-column: auto !important;
   grid-row: auto !important;
   justify-self: stretch !important;
-  align-self: stretch !important;
+  align-self: start !important;
   overflow: hidden !important;
 }
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-14 > .rivyza-live-tile.rivyza-live-square:nth-child(1) {
@@ -1054,7 +1367,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
           return <span key={i} className="rivyza-v358-particle" style={{left:`${x}%`,top:`${y}%`,fontSize:`${size}px`,animationDuration:`${duration}s`,animationDelay:`-${fract(i*.731)*duration}s`,opacity:.5+fract(i*.293)*.48}}>{symbol}</span>;
         })}
       </div>,document.querySelector('.rivyza-live-stage'))}
-    <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>
+    <div ref={gridRef} className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''} ${speakers.includes(t?.identity) ? 'rivyza-v314-speaking' : ''}`}
         onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'
@@ -1137,11 +1450,38 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         </div>
       </div>
     </div>}
-    <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
+    <div className="rivyza-v314-chat" style={slots===14 && chatBoundary!==null ? {clipPath:`inset(${Math.ceil(chatBoundary)}px 0 0 0)`} : undefined} ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatReadingOld && <button type="button" onClick={goToLatest} aria-label="Ir al mensaje más reciente" style={{position:'fixed',bottom:'calc(242px + env(safe-area-inset-bottom))',left:14,zIndex:49,border:'1px solid #ffffff66',borderRadius:20,padding:'7px 12px',background:'rgba(32,19,44,.94)',color:'white',fontSize:12}}>↓ Ir al más reciente</button>}{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
+    {publish && cameraPreviewOpen && <div role="dialog" aria-modal="true" aria-label="Preparar cámara" style={{position:'fixed',inset:0,zIndex:2147483001,background:'rgba(0,0,0,.94)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:14,color:'#fff'}}>
+      <div style={{width:'100%',maxWidth:400,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}><strong>Prepara tu cámara</strong><button type="button" onClick={closePreview} style={{background:'transparent',border:0,color:'#fff',fontSize:25}}>✕</button></div>
+      <div style={{width:'100%',maxWidth:400,height:'min(49vh,460px)',background:'#15151d',borderRadius:14,overflow:'hidden',position:'relative'}}>
+        {previewStream?<video ref={previewVideoRef} muted playsInline autoPlay style={{width:'100%',height:'100%',objectFit:'cover',transform:'scaleX(-1)',filter:previewFilter==='bw'?`grayscale(${previewIntensity/100})`:previewFilter==='warm'?`sepia(${.28*previewIntensity/100}) saturate(${1+.2*previewIntensity/100})`:previewFilter==='cool'?`hue-rotate(${13*previewIntensity/100}deg) saturate(${1+.12*previewIntensity/100})`:previewFilter==='vivid'?`saturate(${1+.5*previewIntensity/100}) contrast(${1+.08*previewIntensity/100})`:'none'}}/>:<div style={{padding:20,textAlign:'center'}}>Solicitando acceso a cámara…</div>}
+        <div ref={previewARHolderRef} style={{position:'absolute',inset:0,pointerEvents:'none',opacity:previewDeepAR?1:0}}/>
+        <span style={{position:'absolute',top:8,left:8,fontSize:11,background:'#0009',padding:6,borderRadius:8}}>PRIVADO · No estás transmitiendo</span>
+      </div>
+      <div style={{display:'flex',gap:8,marginTop:12}}>{[['filters','Filtros'],['beauty','Belleza'],['deepar','DeepAR']].map(([id,label])=><button key={id} type="button" onClick={()=>setPreviewTab(id)} style={{border:0,borderRadius:15,padding:'8px 13px',background:previewTab===id?'#d32f86':'#333',color:'#fff'}}>{label}</button>)}</div>
+      <div style={{width:'100%',maxWidth:400,marginTop:12,minHeight:85}}>
+        {previewTab==='filters'?<><div style={{display:'flex',gap:6,overflowX:'auto'}}>{effectOptions.map(([id,label])=><button type="button" key={id} onClick={()=>setPreviewFilter(id)} style={{flexShrink:0,border:'1px solid #666',borderRadius:9,padding:8,background:previewFilter===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div><label style={{display:'block',marginTop:12}}>Intensidad: {previewIntensity}% <input aria-label="Intensidad del filtro" type="range" min="1" max="100" value={previewIntensity} onChange={e=>setPreviewIntensity(Number(e.target.value))} style={{width:'100%'}}/></label></>:previewTab==='deepar'?<><div style={{display:'flex',gap:6,overflowX:'auto',marginBottom:8}}>{deeparCategories.map(([id,label])=><button key={id} type="button" onClick={()=>setDeepARCategory(id)} style={{padding:7,borderRadius:10,background:deepARCategory===id?'#d32f86':'#333',color:'#fff'}}>{label}</button>)}</div><div style={{display:'flex',gap:7,overflowX:'auto'}}><button type="button" disabled={deepARBusy} onClick={()=>selectPreviewDeepAR(null)}>Sin efecto</button>{LIVE_DEEPAR_EFFECTS.filter(x=>x.category===deepARCategory).map(effect=><button key={effect.id} type="button" disabled={deepARBusy} onClick={()=>selectPreviewDeepAR(effect)} style={{flexShrink:0,padding:9,borderRadius:9,background:previewDeepAR?.id===effect.id?'#d32f86':'#333',color:'#fff'}}>{effect.label}</button>)}</div></>:<p style={{fontSize:13,color:'#ddd'}}>Los ajustes faciales independientes requieren efectos compatibles con esos parámetros.</p>}
+      </div>
+      {deepARError&&<p role="alert" style={{color:'#ff9db8'}}>{deepARError}</p>}
+      {previewError&&<p role="alert" style={{color:'#ff9db8'}}>{previewError}</p>}
+      <button type="button" disabled={!previewStream||previewBusy} onClick={confirmCameraPreview} style={{marginTop:10,width:'100%',maxWidth:400,padding:14,border:0,borderRadius:30,background:'#ef287e',color:'white',fontWeight:700,opacity:!previewStream||previewBusy?.6:1}}>{previewBusy?'Encendiendo…':'Encender cámara'}</button>
+    </div>}
+    {/* Keep WebGL within the visible viewport; a zero-opacity/offscreen renderer can be throttled on iOS. */}
+    <div ref={deepARHolderRef} style={{position:'fixed',left:'-10000px',top:0,width:480,height:640,overflow:'hidden',opacity:1,pointerEvents:'none',zIndex:-1}} aria-hidden="true"/>
+    {publish && effectsOpen && <div role="dialog" aria-label="Filtros LIVE" style={{position:'absolute',bottom:88,left:12,right:12,maxWidth:'calc(100% - 24px)',boxSizing:'border-box',zIndex:65,background:'rgba(12,12,18,.96)',border:'1px solid #ffffff44',borderRadius:14,padding:10,color:'#fff'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:9}}><strong>EF · Filtros LIVE</strong><button type="button" onClick={()=>setEffectsOpen(false)} style={{background:'transparent',border:0,color:'#fff',fontSize:20}}>✕</button></div>
+      <div style={{display:'flex',gap:7,overflowX:'auto',maxWidth:'100%',WebkitOverflowScrolling:'touch',paddingBottom:4}}>{effectOptions.map(([id,label])=><button type="button" key={id} disabled={effectBusy} onClick={()=>chooseLiveEffect(id)} style={{flex:'0 0 auto',padding:'8px 10px',borderRadius:10,border:'1px solid #ffffff55',background:liveEffect===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div>
+      <label style={{display:'block',marginTop:8,fontSize:13}}>Intensidad: {filterIntensity}% <input type="range" min="1" max="100" value={filterIntensity} onChange={e=>{const value=Number(e.target.value);setFilterIntensity(value);intensityRef.current=value;if(effectSession.current)effectSession.current.intensity=value;}} style={{width:'100%'}}/></label>
+      <div style={{display:'flex',gap:6,overflowX:'auto',marginTop:10}}>{deeparCategories.map(([id,label])=><button key={id} type="button" onClick={()=>setDeepARCategory(id)} style={{flexShrink:0,padding:7,borderRadius:10,background:deepARCategory===id?'#d32f86':'#333',color:'#fff'}}>{label}</button>)}</div>
+      <div style={{display:'flex',gap:7,overflowX:'auto',marginTop:7}}><button type="button" disabled={deepARBusy} onClick={()=>selectLiveDeepAR(null)} aria-pressed={!selectedDeepAR} style={{flexShrink:0,padding:8,borderRadius:10,border:"1px solid #666",background:!selectedDeepAR?"#d32f86":"#333",color:"#fff",opacity:deepARBusy?0.6:1}}>Sin DeepAR</button>{LIVE_DEEPAR_EFFECTS.filter(x=>x.category===deepARCategory).map(effect=><button key={effect.id} type="button" disabled={deepARBusy} onClick={()=>selectLiveDeepAR(effect)} style={{flexShrink:0,padding:8,borderRadius:10,background:selectedDeepAR?.id===effect.id?'#d32f86':'#333',color:'#fff'}}>{effect.label}</button>)}</div>
+      {deepARError&&<p role="alert" style={{color:'#ff9db8'}}>{deepARError}</p>}
+      <small style={{display:'block',marginTop:8,color:'#ccc'}}>El filtro se aplica al video enviado. Para voltear la cámara, selecciona «Sin efecto».</small>
+    </div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
       <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
       {!typing && <>
+        {publish && cam && <button type="button" className="rivyza-v32-icon" onClick={()=>setEffectsOpen(x=>!x)} aria-label="Filtros LIVE" aria-expanded={effectsOpen} title="Filtros LIVE">EF</button>}
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? '📹' : '📷'}</button>}
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleMic} aria-label={mic ? 'Silenciar micrófono' : 'Activar micrófono'} title={mic ? 'Silenciar micrófono' : 'Activar micrófono'}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mic ? "#FFFFFF" : "#FF3B45"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:"block",width:"22px",height:"22px",flexShrink:0,margin:"auto"}}>
           <rect x="9" y="2" width="6" height="12" rx="3" />
