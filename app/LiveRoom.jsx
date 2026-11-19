@@ -822,6 +822,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       state.stream.getTracks().forEach(t=>t.stop());
       state.video.pause();
       state.video.srcObject = null;
+      state.inputTrack?.stop();
     }
   }, []);
   useEffect(() => () => {
@@ -833,6 +834,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     state.stream.getTracks().forEach(t=>t.stop());
     state.video.pause();
     state.video.srcObject = null;
+      state.inputTrack?.stop();
   }, []);
   async function chooseLiveEffect(id) {
     if (effectBusy || !publish) return;
@@ -863,8 +865,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       const video = document.createElement('video');
       video.muted = true;
       video.playsInline = true;
-      video.srcObject = new MediaStream([original]);
-      await video.play();
+      const inputTrack = original.clone();
+      video.srcObject = new MediaStream([inputTrack]);
+      try { await video.play(); } catch(error) { inputTrack.stop(); throw error; }
       const settings = original.getSettings?.() || {};
       const canvas = document.createElement('canvas');
       canvas.width = Math.min(480, settings.width || video.videoWidth || 480);
@@ -874,7 +877,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       const stream = canvas.captureStream(20);
       const processed = stream.getVideoTracks()[0];
       if (!processed) {stream.getTracks().forEach(t=>t.stop());throw new Error('No se pudo crear la cámara procesada.');}
-      const state = {publication, original, video, stream, frame:0, filter:id, intensity:intensityRef.current};
+      const state = {publication, original, inputTrack, video, stream, frame:0, filter:id, intensity:intensityRef.current};
       effectSession.current = state;
       const draw = () => {
         if (effectSession.current !== state) return;
