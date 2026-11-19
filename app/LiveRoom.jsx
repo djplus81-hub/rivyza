@@ -625,26 +625,73 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     } catch(err) { onError(err.message); }
   }
   async function flipCamera() {
-    if (flipping || liveEffect !== 'original') { if(liveEffect !== 'original') onError?.('Quita el filtro antes de voltear la cámara.'); return; }
+    if (flipping || previewBusy || deepARBusy) return;
     setFlipping(true);
+    let nextStream = null;
     try {
+      const state = effectSession.current;
       const publication = room.localParticipant.getTrackPublication(Track.Source.Camera);
       const track = publication?.track;
-      const settings = track?.mediaStreamTrack?.getSettings?.() || {};
-      const current = settings.facingMode === 'environment' || settings.facingMode === 'user'
-        ? settings.facingMode : facing;
+      const current = facing;
       const next = current === 'user' ? 'environment' : 'user';
-      if (track) {
+
+      if (state?.previewSource) {
+        // The LIVE publishes a canvas track, not the physical camera track.
+        // Switching that canvas track via restartTrack() does NOT flip its input.
+        // Acquire the replacement camera first, then feed it to the SAME video
+        // element. This preserves the published LiveKit track and its effects.
+        nextStream = await navigator.mediaDevices.getUserMedia({
+          video: {facingMode: {ideal: next}}, audio: false
+        });
+        const nextTrack = nextStream.getVideoTracks()[0];
+        const actual = nextTrack?.getSettings?.().facingMode;
+        if (actual && actual !== next) throw new Error('Este dispositivo no cambió a la cámara solicitada.');
+        const video = state.video;
+        if (!video) throw new Error('No se encontró la cámara del procesador.');
+        const previousStream = previewStreamRef.current;
+        const previousVideoStream = video.srcObject;
+        video.srcObject = nextStream;
+        try {
+          await video.play();
+          if (video.readyState < 2 || !video.videoWidth) {
+            await new Promise((resolve,reject) => {
+              const timeout = setTimeout(() => {cleanup();reject(new Error('La nueva cámara no produjo imagen.'));},5000);
+              const ready = () => {if(video.videoWidth && video.readyState >= 2){cleanup();resolve();}};
+              const cleanup = () => {clearTimeout(timeout);video.removeEventListener('loadeddata',ready);};
+              video.addEventListener('loadeddata',ready);ready();
+            });
+          }
+          // DeepAR reads from this same video element. Re-bind it after the
+          // stream change so the SDK refreshes its camera input on iOS.
+          const engine = previewEngineRef.current;
+          if (engine) engine.setVideoElement(video,true);
+        } catch (error) {
+          video.srcObject = previousVideoStream;
+          await video.play().catch(() => {});
+          throw error;
+        }
+        previewStreamRef.current = nextStream;
+        setPreviewStream(nextStream);
+        previousStream?.getTracks().forEach(t => t.stop());
+        nextStream = null;
+      } else if (state) {
+        // Older canvas-filter sessions use a cloned input camera track.
+        // Avoid restarting the published canvas (which cannot switch lenses).
+        throw new Error('Apaga y vuelve a encender la cámara para cambiar de lente en este modo de filtro.');
+      } else if (track) {
         await track.restartTrack({facingMode:{ideal:next}});
+        const actual = track.mediaStreamTrack?.getSettings?.().facingMode;
+        if (actual && actual !== next) throw new Error('Este dispositivo no cambió a la cámara solicitada.');
       } else {
-        await room.localParticipant.setCameraEnabled(true, {facingMode:{ideal:next}});
+        await room.localParticipant.setCameraEnabled(true,{facingMode:{ideal:next}});
       }
-      const updated = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
-      const actual = updated?.mediaStreamTrack?.getSettings?.().facingMode;
-      if (actual && actual !== next) throw new Error('Este dispositivo no cambió a la cámara solicitada.');
       setFacing(next);
-    } catch(e) { onError?.('No se pudo voltear la cámara: ' + (e?.message || 'Comprueba los permisos y las cámaras disponibles.')); }
-    finally { setFlipping(false); }
+    } catch(e) {
+      onError?.('No se pudo voltear la cámara: ' + (e?.message || 'Comprueba los permisos y las cámaras disponibles.'));
+    } finally {
+      nextStream?.getTracks().forEach(t => t.stop());
+      setFlipping(false);
+    }
   }
   const [soundReady, setSoundReady] = useState(false);
   async function activateAudio() {
