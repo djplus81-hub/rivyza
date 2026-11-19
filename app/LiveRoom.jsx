@@ -819,9 +819,24 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
                   const px=state.probeCtx.getImageData(0,0,16,16).data;
                   let nonblack=0;
                   for(let i=0;i<px.length;i+=4)if(px[i+3]>100&&(px[i]+px[i+1]+px[i+2])>30)nonblack++;
-                  if(nonblack>8)ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                  if(nonblack>8){
+                    // Cache the last usable AR frame. A momentary empty WebGL
+                    // frame must not flash the unfiltered camera in LIVE.
+                    if(!state.lastARFrame){
+                      state.lastARFrame=document.createElement('canvas');
+                      state.lastARFrame.width=canvas.width;
+                      state.lastARFrame.height=canvas.height;
+                      state.lastARContext=state.lastARFrame.getContext('2d');
+                    }
+                    state.lastARContext?.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                    state.lastARAt=performance.now();
+                  }
                 }catch(e){if(!state.warned){console.warn('DeepAR canvas capture:',e);state.warned=true;}}
               }
+              // Hold only short WebGL interruptions; avoid freezing a face
+              // indefinitely if DeepAR genuinely stops producing frames.
+              if(state.lastARFrame && performance.now()-state.lastARAt<500)
+                ctx.drawImage(state.lastARFrame,0,0,canvas.width,canvas.height);
             }
             if(state.filter!=='original'&&state.intensity>0){
               const frame=ctx.getImageData(0,0,canvas.width,canvas.height),px=frame.data;
