@@ -908,7 +908,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
                 for(let i=0;i<pixels.length;i+=4){
                   if(pixels[i+3]>160 && pixels[i]+pixels[i+1]+pixels[i+2]>45)visible++;
                 }
-                if(visible>32)ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                if(visible>0)ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
                 else if(!state.arEmptyWarned){
                   console.warn('DeepAR LIVE returned an empty/black canvas; camera fallback active.');
                   state.arEmptyWarned=true;
@@ -1471,7 +1471,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       <button type="button" disabled={!previewStream||previewBusy} onClick={confirmCameraPreview} style={{marginTop:10,width:'100%',maxWidth:400,padding:14,border:0,borderRadius:30,background:'#ef287e',color:'white',fontWeight:700,opacity:!previewStream||previewBusy?.6:1}}>{previewBusy?'Encendiendo…':'Encender cámara'}</button>
     </div>}
     {/* Keep WebGL within the visible viewport; a zero-opacity/offscreen renderer can be throttled on iOS. */}
-    <div ref={deepARHolderRef} style={{position:'fixed',left:0,top:0,width:240,height:320,overflow:'hidden',opacity:0.01,pointerEvents:'none',zIndex:1}} aria-hidden="true"/>
+    <div ref={deepARHolderRef} style={{position:'fixed',left:0,top:0,width:240,height:320,overflow:'hidden',opacity:1,pointerEvents:'none',zIndex:-1}} aria-hidden="true"/>
     {publish && effectsOpen && <div role="dialog" aria-label="Filtros LIVE" style={{position:'absolute',bottom:88,left:12,right:12,maxWidth:'calc(100% - 24px)',boxSizing:'border-box',zIndex:65,background:'rgba(12,12,18,.96)',border:'1px solid #ffffff44',borderRadius:14,padding:10,color:'#fff'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:9}}><strong>EF · Filtros LIVE</strong><button type="button" onClick={()=>setEffectsOpen(false)} style={{background:'transparent',border:0,color:'#fff',fontSize:20}}>✕</button></div>
       <div style={{display:'flex',gap:7,overflowX:'auto',maxWidth:'100%',WebkitOverflowScrolling:'touch',paddingBottom:4}}>{effectOptions.map(([id,label])=><button type="button" key={id} disabled={effectBusy} onClick={()=>chooseLiveEffect(id)} style={{flex:'0 0 auto',padding:'8px 10px',borderRadius:10,border:'1px solid #ffffff55',background:liveEffect===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div>
