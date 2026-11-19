@@ -8,7 +8,7 @@ import LivePreviewPlayer from "./LivePreviewPlayer";
 import PostMusicMedia from "./PostMusicMedia";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
-  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send
+  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send, Download
 } from "lucide-react";
 
 // Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
@@ -1996,6 +1996,35 @@ async function applyPostCrop(){
     try{await navigator.clipboard.writeText(`${window.location.origin}/?post=${encodeURIComponent(sharePost.id)}`);setShareSuccess("Enlace copiado.");setShareError("");}
     catch{setShareError("No se pudo copiar el enlace.");}
   }
+  // Primera fase: descarga exclusivamente del autor. Los permisos para terceros
+  // requieren validación en servidor antes de habilitarse.
+  const [shareDownloading,setShareDownloading]=useState(false);
+  async function downloadOwnSharedPost(){
+    if(!sharePost?.id || !user?.id || shareDownloading)return;
+    setShareError("");setShareSuccess("");
+    setShareDownloading(true);
+    try{
+      // No confiar en la copia de la publicación recibida desde el feed.
+      const {data:post,error}=await supabase.from("posts")
+        .select("id,user_id,media_path,media_type")
+        .eq("id",sharePost.id).eq("user_id",user.id).maybeSingle();
+      if(error || !post?.media_path)throw new Error("Solo el dueño puede descargar esta publicación.");
+      const mediaUrl=new URL(post.media_path,window.location.origin);
+      if(!["http:","https:"].includes(mediaUrl.protocol))throw new Error("Archivo no disponible.");
+      const response=await fetch(mediaUrl.toString(),{mode:"cors",credentials:"omit"});
+      if(!response.ok)throw new Error("No se pudo obtener el archivo.");
+      const blob=await response.blob();
+      const ext=post.media_type==="photo"?(blob.type.includes("png")?"png":blob.type.includes("webp")?"webp":"jpg"):(blob.type.includes("quicktime")?"mov":"mp4");
+      const objectUrl=URL.createObjectURL(blob);
+      try{
+        const link=document.createElement("a");
+        link.href=objectUrl;link.download=`RIVYZA-${post.id}.${ext}`;
+        document.body.appendChild(link);link.click();link.remove();
+        setShareSuccess("Descarga iniciada. En iPhone, revisa Archivos o las descargas de Safari.");
+      }finally{setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);}
+    }catch(e){setShareError(e.message||"No se pudo descargar la publicación.");}
+    finally{setShareDownloading(false);}
+  }
   useEffect(()=>{
     if(!user?.id||!supabase||typeof window==="undefined")return;
     const postId=new URLSearchParams(window.location.search).get("post");
@@ -2025,6 +2054,7 @@ async function applyPostCrop(){
         <div className="rivyza-share-external">
           <button type="button" onClick={shareOutside}><span className="rivyza-share-round"><Share2/></span><small>Más aplicaciones</small></button>
           <button type="button" onClick={copyShareLink}><span className="rivyza-share-round"><LinkIcon/></span><small>Copiar enlace</small></button>
+          {sharePost?.user_id===user?.id&&<button type="button" disabled={shareDownloading} onClick={downloadOwnSharedPost}><span className="rivyza-share-round"><Download/></span><small>{shareDownloading?"Descargando…":"Descargar"}</small></button>}
         </div>
         <p className="rivyza-share-hint">Al tocar «Más aplicaciones», tu teléfono mostrará WhatsApp, Facebook, Mensajes y otras aplicaciones compatibles que tengas instaladas.</p>
         {sharePrivate&&<p className="rivyza-share-warning">Esta publicación no es pública. Los enlaces externos están desactivados.</p>}
