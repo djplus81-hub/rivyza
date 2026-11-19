@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { LIVE_DEEPAR_EFFECTS } from './liveDeepAREffects';
 import { createPortal } from 'react-dom';
 import { LiveKitRoom, RoomAudioRenderer, VideoTrack, useTracks, useLocalParticipant, useParticipants, useRoomContext } from '@livekit/components-react';
 import { Track, RoomEvent, DisconnectReason } from 'livekit-client';
@@ -698,8 +699,64 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [previewFilter, setPreviewFilter] = useState('original');
   const [previewIntensity, setPreviewIntensity] = useState(100);
   const [previewTab, setPreviewTab] = useState('filters');
+
+  // Cada participante administra su propio procesador DeepAR; nunca se aplica a otras cámaras.
+  const [selectedDeepAR,setSelectedDeepAR]=useState(null);
+  const [previewDeepAR,setPreviewDeepAR]=useState(null);
+  const [deepARBusy,setDeepARBusy]=useState(false);
+  const [deepARError,setDeepARError]=useState('');
+  const deepAREngineRef=useRef(null);
+  const deepARHolderRef=useRef(null);
+  const previewARHolderRef=useRef(null);
+  const previewEngineRef=useRef(null);
+  const [deepARCategory,setDeepARCategory]=useState('fun');
+  const deeparCategories=[['fun','Divertidos'],['beauty','Belleza'],['face','Rostro'],['accessories','Accesorios']];
+  async function shutdownDeepAR(ref){const engine=ref.current;ref.current=null;if(engine){try{await engine.shutdown();}catch(_){}}}
+  async function makeDeepAREngine(holder,video){
+    const license=process.env.NEXT_PUBLIC_DEEPAR_LICENSE_KEY;
+    if(!license)throw new Error('Falta NEXT_PUBLIC_DEEPAR_LICENSE_KEY en Vercel.');
+    if(!holder||!video)throw new Error('La cámara no está lista.');
+    const deepar=await import('deepar');
+    const engine=await deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
+    engine.setVideoElement(video,true);
+    return engine;
+  }
+  async function selectPreviewDeepAR(effect){
+    if(deepARBusy||!previewStreamRef.current)return;
+    setDeepARBusy(true);setDeepARError('');
+    try{
+      if(!effect){await shutdownDeepAR(previewEngineRef);setPreviewDeepAR(null);return;}
+      if(!previewEngineRef.current)previewEngineRef.current=await makeDeepAREngine(previewARHolderRef.current,previewVideoRef.current);
+      await previewEngineRef.current.switchEffect(effect.url,0);
+      setPreviewDeepAR(effect);
+    }catch(e){setDeepARError(e?.message||'No se pudo cargar el efecto DeepAR.');}
+    finally{setDeepARBusy(false);}
+  }
+  async function selectLiveDeepAR(effect){
+    if(deepARBusy||!publish||!localParticipant?.isCameraEnabled)return;
+    setDeepARBusy(true);setDeepARError('');
+    try{
+      if(!effect){await shutdownDeepAR(deepAREngineRef);if(effectSession.current)effectSession.current.deepAR=null;setSelectedDeepAR(null);return;}
+      // El procesador Canvas existente publica el resultado por LiveKit, no un overlay local.
+      if(!effectSession.current){
+        const old=intensityRef.current;intensityRef.current=0;
+        await chooseLiveEffect('vivid');
+        intensityRef.current=old;
+      }
+      const state=effectSession.current;
+      if(!state)throw new Error('No se pudo iniciar el video procesado.');
+      if(!deepAREngineRef.current)deepAREngineRef.current=await makeDeepAREngine(deepARHolderRef.current,state.video);
+      await deepAREngineRef.current.switchEffect(effect.url,0);
+      state.deepAR=deepAREngineRef.current;
+      setSelectedDeepAR(effect);
+    }catch(e){setDeepARError(e?.message||'No se pudo aplicar DeepAR.');}
+    finally{setDeepARBusy(false);}
+  }
+  useEffect(()=>()=>{shutdownDeepAR(previewEngineRef);shutdownDeepAR(deepAREngineRef);},[]);
+
   const previewStreamRef = useRef(null);
   const closePreview = useCallback(() => {
+    shutdownDeepAR(previewEngineRef);setPreviewDeepAR(null);
     previewStreamRef.current?.getTracks().forEach(track=>track.stop());
     previewStreamRef.current=null;
     setPreviewStream(null);
@@ -727,12 +784,14 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     setPreviewBusy(true);
     try {
       // Private preview is never published; LiveKit only starts its camera after confirmation.
+      const chosenAR=previewDeepAR;
       closePreview();
       await localParticipant.setCameraEnabled(true);
       intensityRef.current=previewIntensity;
       setFilterIntensity(previewIntensity);
       if(previewFilter!=='original')await chooseLiveEffect(previewFilter);
       else {await restoreEffect();setLiveEffect('original');}
+      if(chosenAR)await selectLiveDeepAR(chosenAR);
     }catch(e){onError?.(e?.message||'No se pudo encender la cámara.');}
     finally{setPreviewBusy(false);}
   }
@@ -776,6 +835,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     setEffectBusy(true);
     try {
       if (id === 'original') {
+        await shutdownDeepAR(deepAREngineRef);setSelectedDeepAR(null);
         await restoreEffect();
         setLiveEffect('original');
         return;
@@ -813,7 +873,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         if (video.readyState >= 2) {
           // Safari iOS does not reliably support CanvasRenderingContext2D.filter.
           // Process pixels explicitly so the effect is baked into the transmitted track.
-          ctx.drawImage(video,0,0,canvas.width,canvas.height);
+          const arCanvas=state.deepAR?.getCanvas?.();
+          ctx.drawImage(arCanvas?.width&&arCanvas?.height ? arCanvas : video,0,0,canvas.width,canvas.height);
           if (state.filter !== 'none') {
             const frame = ctx.getImageData(0,0,canvas.width,canvas.height);
             const pixels = frame.data;
@@ -859,6 +920,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   async function toggleCam() {
     if(!localParticipant.isCameraEnabled){await openCameraPreview();return;}
     setEffectsOpen(false);
+    await shutdownDeepAR(deepAREngineRef);setSelectedDeepAR(null);
     try { if (effectSession.current) { await restoreEffect(); setLiveEffect('original'); } await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); }
     catch (e) { onError(e?.message || 'No se pudo encender la cámara. Comprueba los permisos del navegador.'); }
   }
@@ -1340,19 +1402,25 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       <div style={{width:'100%',maxWidth:400,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}><strong>Prepara tu cámara</strong><button type="button" onClick={closePreview} style={{background:'transparent',border:0,color:'#fff',fontSize:25}}>✕</button></div>
       <div style={{width:'100%',maxWidth:400,height:'min(49vh,460px)',background:'#15151d',borderRadius:14,overflow:'hidden',position:'relative'}}>
         {previewStream?<video ref={previewVideoRef} muted playsInline autoPlay style={{width:'100%',height:'100%',objectFit:'cover',transform:'scaleX(-1)',filter:previewFilter==='bw'?`grayscale(${previewIntensity/100})`:previewFilter==='warm'?`sepia(${.28*previewIntensity/100}) saturate(${1+.2*previewIntensity/100})`:previewFilter==='cool'?`hue-rotate(${13*previewIntensity/100}deg) saturate(${1+.12*previewIntensity/100})`:previewFilter==='vivid'?`saturate(${1+.5*previewIntensity/100}) contrast(${1+.08*previewIntensity/100})`:'none'}}/>:<div style={{padding:20,textAlign:'center'}}>Solicitando acceso a cámara…</div>}
+        <div ref={previewARHolderRef} style={{position:'absolute',inset:0,pointerEvents:'none',opacity:previewDeepAR?1:0}}/>
         <span style={{position:'absolute',top:8,left:8,fontSize:11,background:'#0009',padding:6,borderRadius:8}}>PRIVADO · No estás transmitiendo</span>
       </div>
       <div style={{display:'flex',gap:8,marginTop:12}}>{[['filters','Filtros'],['beauty','Belleza'],['deepar','DeepAR']].map(([id,label])=><button key={id} type="button" onClick={()=>setPreviewTab(id)} style={{border:0,borderRadius:15,padding:'8px 13px',background:previewTab===id?'#d32f86':'#333',color:'#fff'}}>{label}</button>)}</div>
       <div style={{width:'100%',maxWidth:400,marginTop:12,minHeight:85}}>
-        {previewTab==='filters'?<><div style={{display:'flex',gap:6,overflowX:'auto'}}>{effectOptions.map(([id,label])=><button type="button" key={id} onClick={()=>setPreviewFilter(id)} style={{flexShrink:0,border:'1px solid #666',borderRadius:9,padding:8,background:previewFilter===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div><label style={{display:'block',marginTop:12}}>Intensidad: {previewIntensity}% <input aria-label="Intensidad del filtro" type="range" min="1" max="100" value={previewIntensity} onChange={e=>setPreviewIntensity(Number(e.target.value))} style={{width:'100%'}}/></label></>:<p style={{fontSize:13,color:'#ddd'}}>Los controles {previewTab==='deepar'?'DeepAR':'faciales'} necesitan la conexión del procesador de video antes de activarse. No se aplicarán efectos falsos.</p>}
+        {previewTab==='filters'?<><div style={{display:'flex',gap:6,overflowX:'auto'}}>{effectOptions.map(([id,label])=><button type="button" key={id} onClick={()=>setPreviewFilter(id)} style={{flexShrink:0,border:'1px solid #666',borderRadius:9,padding:8,background:previewFilter===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div><label style={{display:'block',marginTop:12}}>Intensidad: {previewIntensity}% <input aria-label="Intensidad del filtro" type="range" min="1" max="100" value={previewIntensity} onChange={e=>setPreviewIntensity(Number(e.target.value))} style={{width:'100%'}}/></label></>:previewTab==='deepar'?<><div style={{display:'flex',gap:6,overflowX:'auto',marginBottom:8}}>{deeparCategories.map(([id,label])=><button key={id} type="button" onClick={()=>setDeepARCategory(id)} style={{padding:7,borderRadius:10,background:deepARCategory===id?'#d32f86':'#333',color:'#fff'}}>{label}</button>)}</div><div style={{display:'flex',gap:7,overflowX:'auto'}}><button type="button" disabled={deepARBusy} onClick={()=>selectPreviewDeepAR(null)}>Sin efecto</button>{LIVE_DEEPAR_EFFECTS.filter(x=>x.category===deepARCategory).map(effect=><button key={effect.id} type="button" disabled={deepARBusy} onClick={()=>selectPreviewDeepAR(effect)} style={{flexShrink:0,padding:9,borderRadius:9,background:previewDeepAR?.id===effect.id?'#d32f86':'#333',color:'#fff'}}>{effect.label}</button>)}</div></>:<p style={{fontSize:13,color:'#ddd'}}>Los ajustes faciales independientes requieren efectos compatibles con esos parámetros.</p>}
       </div>
+      {deepARError&&<p role="alert" style={{color:'#ff9db8'}}>{deepARError}</p>}
       {previewError&&<p role="alert" style={{color:'#ff9db8'}}>{previewError}</p>}
       <button type="button" disabled={!previewStream||previewBusy} onClick={confirmCameraPreview} style={{marginTop:10,width:'100%',maxWidth:400,padding:14,border:0,borderRadius:30,background:'#ef287e',color:'white',fontWeight:700,opacity:!previewStream||previewBusy?.6:1}}>{previewBusy?'Encendiendo…':'Encender cámara'}</button>
     </div>}
+    <div ref={deepARHolderRef} style={{position:'fixed',left:'-10000px',top:0,width:480,height:640,overflow:'hidden',opacity:0,pointerEvents:'none'}} aria-hidden="true"/>
     {publish && effectsOpen && <div role="dialog" aria-label="Filtros LIVE" style={{position:'absolute',bottom:88,left:12,right:12,maxWidth:'calc(100% - 24px)',boxSizing:'border-box',zIndex:65,background:'rgba(12,12,18,.96)',border:'1px solid #ffffff44',borderRadius:14,padding:10,color:'#fff'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:9}}><strong>EF · Filtros LIVE</strong><button type="button" onClick={()=>setEffectsOpen(false)} style={{background:'transparent',border:0,color:'#fff',fontSize:20}}>✕</button></div>
       <div style={{display:'flex',gap:7,overflowX:'auto',maxWidth:'100%',WebkitOverflowScrolling:'touch',paddingBottom:4}}>{effectOptions.map(([id,label])=><button type="button" key={id} disabled={effectBusy} onClick={()=>chooseLiveEffect(id)} style={{flex:'0 0 auto',padding:'8px 10px',borderRadius:10,border:'1px solid #ffffff55',background:liveEffect===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div>
       <label style={{display:'block',marginTop:8,fontSize:13}}>Intensidad: {filterIntensity}% <input type="range" min="1" max="100" value={filterIntensity} onChange={e=>{const value=Number(e.target.value);setFilterIntensity(value);intensityRef.current=value;if(effectSession.current)effectSession.current.intensity=value;}} style={{width:'100%'}}/></label>
+      <div style={{display:'flex',gap:6,overflowX:'auto',marginTop:10}}>{deeparCategories.map(([id,label])=><button key={id} type="button" onClick={()=>setDeepARCategory(id)} style={{flexShrink:0,padding:7,borderRadius:10,background:deepARCategory===id?'#d32f86':'#333',color:'#fff'}}>{label}</button>)}</div>
+      <div style={{display:'flex',gap:7,overflowX:'auto',marginTop:7}}><button type="button" disabled={deepARBusy} onClick={()=>selectLiveDeepAR(null)}>Sin DeepAR</button>{LIVE_DEEPAR_EFFECTS.filter(x=>x.category===deepARCategory).map(effect=><button key={effect.id} type="button" disabled={deepARBusy} onClick={()=>selectLiveDeepAR(effect)} style={{flexShrink:0,padding:8,borderRadius:10,background:selectedDeepAR?.id===effect.id?'#d32f86':'#333',color:'#fff'}}>{effect.label}</button>)}</div>
+      {deepARError&&<p role="alert" style={{color:'#ff9db8'}}>{deepARError}</p>}
       <small style={{display:'block',marginTop:8,color:'#ccc'}}>El filtro se aplica al video enviado. Para voltear la cámara, selecciona «Sin efecto».</small>
     </div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
