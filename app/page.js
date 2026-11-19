@@ -2015,13 +2015,29 @@ async function applyPostCrop(){
       if(!response.ok)throw new Error("No se pudo obtener el archivo.");
       const blob=await response.blob();
       const ext=post.media_type==="photo"?(blob.type.includes("png")?"png":blob.type.includes("webp")?"webp":"jpg"):(blob.type.includes("quicktime")?"mov":"mp4");
-      const objectUrl=URL.createObjectURL(blob);
-      try{
-        const link=document.createElement("a");
-        link.href=objectUrl;link.download=`RIVYZA-${post.id}.${ext}`;
-        document.body.appendChild(link);link.click();link.remove();
-        setShareSuccess("Descarga iniciada. En iPhone, revisa Archivos o las descargas de Safari.");
-      }finally{setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);}
+      // iOS: compartir el archivo real (no un enlace) permite ofrecer Guardar imagen/video.
+      const mime=blob.type || (ext==="jpg"?"image/jpeg":ext==="png"?"image/png":ext==="webp"?"image/webp":ext==="mov"?"video/quicktime":"video/mp4");
+      const file=new File([blob],`RIVYZA-${post.id}.${ext}`,{type:mime});
+      let shared=false;
+      if(typeof navigator.share==="function" && typeof navigator.canShare==="function" && navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file]});
+          shared=true;
+          setShareSuccess("Archivo enviado al menú de compartir. Si aparece, selecciona Guardar imagen o Guardar video.");
+        }catch(shareErr){
+          if(shareErr?.name==="AbortError")return;
+          // Safari puede rechazar el menú si se perdió la activación de usuario.
+        }
+      }
+      if(!shared){
+        const objectUrl=URL.createObjectURL(blob);
+        try{
+          const link=document.createElement("a");
+          link.href=objectUrl;link.download=file.name;
+          document.body.appendChild(link);link.click();link.remove();
+          setShareSuccess("El navegador descargó el archivo. Si no aparece Guardar en Fotos, ábrelo desde Archivos y usa Compartir allí.");
+        }finally{setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);}
+      }
     }catch(e){setShareError(e.message||"No se pudo descargar la publicación.");}
     finally{setShareDownloading(false);}
   }
