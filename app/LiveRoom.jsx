@@ -733,18 +733,15 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     finally{setDeepARBusy(false);}
   }
   async function selectLiveDeepAR(effect){
-    if(deepARBusy||!publish)return;
+    if(deepARBusy||!publish||!room.localParticipant.isCameraEnabled)return;
     setDeepARBusy(true);setDeepARError('');
     try{
       if(!effect){await shutdownDeepAR(deepAREngineRef);if(effectSession.current)effectSession.current.deepAR=null;setSelectedDeepAR(null);return;}
       // El procesador Canvas existente publica el resultado por LiveKit, no un overlay local.
       if(!effectSession.current){
-        // Start a canvas pipeline without introducing a visible color filter.
-        await chooseLiveEffect('vivid');
-        if(effectSession.current){
-          effectSession.current.filter=liveEffect;
-          effectSession.current.intensity=liveEffect==='original'?0:intensityRef.current;
-        }
+        const old=intensityRef.current;
+        try { intensityRef.current=0; await chooseLiveEffect('vivid'); }
+        finally { intensityRef.current=old; }
       }
       const state=effectSession.current;
       if(!state || state.stream?.getVideoTracks?.()[0]?.readyState!=='live')throw new Error('No se pudo iniciar el video procesado.');
@@ -783,31 +780,89 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       setPreviewStream(stream);
     } catch(e){setPreviewError('No se pudo abrir la vista previa. Revisa el permiso de cámara.');}
   }
+  // Publish the SAME preview processor rather than restarting camera + DeepAR.
+  // The preview DOM stays mounted (visually hidden) while the LIVE is active.
   async function confirmCameraPreview(){
     if(previewBusy||!previewStreamRef.current)return;
-    setPreviewBusy(true);
+    setPreviewBusy(true);setDeepARError('');
+    let outputStream=null;
     try {
-      // Private preview is never published; LiveKit only starts its camera after confirmation.
-      const chosenAR=previewDeepAR;
-      // Release the preview WebGL context before starting the LIVE renderer.
-      // iOS Safari can limit simultaneous camera/WebGL processing contexts.
-      await shutdownDeepAR(previewEngineRef);
-      closePreview();
-      await localParticipant.setCameraEnabled(true);
+      const inputVideo=previewVideoRef.current;
+      if(!inputVideo || inputVideo.readyState<2)throw new Error('La vista previa todavía no tiene imagen.');
+      if(typeof HTMLCanvasElement.prototype.captureStream!=='function')throw new Error('Safari no permite transmitir este video procesado.');
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.min(480,inputVideo.videoWidth||480);
+      canvas.height=Math.max(1,Math.round(canvas.width*(inputVideo.videoHeight||640)/(inputVideo.videoWidth||480)));
+      const ctx=canvas.getContext('2d',{alpha:false,willReadFrequently:true});
+      if(!ctx)throw new Error('No se pudo crear el procesador de cámara.');
+      outputStream=canvas.captureStream(20);
+      const outputTrack=outputStream.getVideoTracks()[0];
+      if(!outputTrack)throw new Error('No se pudo crear el video para LIVE.');
+      const state={
+        stream:outputStream,video:inputVideo,frame:0,filter:previewFilter,
+        intensity:previewIntensity,previewSource:true,
+        original:null,inputTrack:null,publication:null
+      };
+      const draw=()=>{
+        if(effectSession.current!==state)return;
+        try {
+          if(inputVideo.readyState>=2){
+            ctx.drawImage(inputVideo,0,0,canvas.width,canvas.height);
+            if(previewEngineRef.current){
+              const arCanvas=previewEngineRef.current.getCanvas?.()||previewARHolderRef.current?.querySelector('canvas');
+              if(arCanvas?.width>0&&arCanvas?.height>0){
+                // Keep camera as fallback if Safari does not expose readable WebGL pixels.
+                try {
+                  if(!state.probe){state.probe=document.createElement('canvas');state.probe.width=16;state.probe.height=16;state.probeCtx=state.probe.getContext('2d',{willReadFrequently:true});}
+                  state.probeCtx.clearRect(0,0,16,16);
+                  state.probeCtx.drawImage(arCanvas,0,0,16,16);
+                  const px=state.probeCtx.getImageData(0,0,16,16).data;
+                  let nonblack=0;
+                  for(let i=0;i<px.length;i+=4)if(px[i+3]>100&&(px[i]+px[i+1]+px[i+2])>30)nonblack++;
+                  if(nonblack>8)ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                }catch(e){if(!state.warned){console.warn('DeepAR canvas capture:',e);state.warned=true;}}
+              }
+            }
+            if(state.filter!=='original'&&state.intensity>0){
+              const frame=ctx.getImageData(0,0,canvas.width,canvas.height),px=frame.data;
+              const blend=Math.max(0,Math.min(1,state.intensity/100));
+              for(let i=0;i<px.length;i+=4){
+                const r=px[i],g=px[i+1],b=px[i+2];
+                let nr=r,ng=g,nb=b;
+                if(state.filter==='bw'){nr=ng=nb=.2126*r+.7152*g+.0722*b;}
+                else if(state.filter==='warm'){nr=Math.min(255,r*1.09+9);ng=Math.min(255,g*1.015+2);nb=b*.85;}
+                else if(state.filter==='cool'){nr=r*.9;ng=Math.min(255,g*1.025+2);nb=Math.min(255,b*1.12+7);}
+                else if(state.filter==='vivid'){const gray=.2126*r+.7152*g+.0722*b;nr=Math.max(0,Math.min(255,(r-gray)*1.48+gray));ng=Math.max(0,Math.min(255,(g-gray)*1.48+gray));nb=Math.max(0,Math.min(255,(b-gray)*1.48+gray));}
+                px[i]=r*(1-blend)+nr*blend;px[i+1]=g*(1-blend)+ng*blend;px[i+2]=b*(1-blend)+nb*blend;
+              }
+              ctx.putImageData(frame,0,0);
+            }
+          }
+        }catch(e){if(!state.drawWarned){console.warn('RIVYZA preview to LIVE:',e);state.drawWarned=true;}}
+        state.frame=requestAnimationFrame(draw);
+      };
+      effectSession.current=state;
+      draw();
+      // Do not start a second getUserMedia camera through setCameraEnabled(true).
+      const existing=room.localParticipant.getTrackPublication(Track.Source.Camera);
+      if(existing?.track)await room.localParticipant.unpublishTrack(existing.track);
+      const publication=await room.localParticipant.publishTrack(outputTrack,{source:Track.Source.Camera,name:'RIVYZA DeepAR'});
+      state.publication=publication;
       intensityRef.current=previewIntensity;
       setFilterIntensity(previewIntensity);
-      if(previewFilter!=='original')await chooseLiveEffect(previewFilter);
-      else {await restoreEffect();setLiveEffect('original');}
-      if(chosenAR)await selectLiveDeepAR(chosenAR);
-      // React state updates are asynchronous: write the chosen preview filter
-      // directly to the published canvas session after AR initialization.
-      if(effectSession.current){
-        effectSession.current.filter=previewFilter;
-        effectSession.current.intensity=previewFilter==='original'?0:previewIntensity;
+      setLiveEffect(previewFilter);
+      setSelectedDeepAR(previewDeepAR);
+      setCameraPreviewOpen(false);
+    }catch(e){
+      if(effectSession.current?.previewSource){
+        cancelAnimationFrame(effectSession.current.frame);
+        effectSession.current=null;
       }
-    }catch(e){onError?.(e?.message||'No se pudo encender la cámara.');}
-    finally{setPreviewBusy(false);}
+      outputStream?.getTracks().forEach(t=>t.stop());
+      onError?.(e?.message||'No se pudo encender la cámara procesada.');
+    }finally{setPreviewBusy(false);}
   }
+
   const [effectsOpen, setEffectsOpen] = useState(false);
   const [effectBusy, setEffectBusy] = useState(false);
   const effectSession = useRef(null);
@@ -824,16 +879,17 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     effectSession.current = null;
     cancelAnimationFrame(state.frame);
     try {
-      if (state.publication?.track && state.original?.readyState === 'live') {
+      if (state.previewSource) {
+        if(state.publication?.track)await room.localParticipant.unpublishTrack(state.publication.track);
+      } else if (state.publication?.track && state.original?.readyState === 'live') {
         await state.publication.track.replaceTrack(state.original, true);
       }
     } finally {
       state.stream.getTracks().forEach(t=>t.stop());
-      state.video.pause();
-      state.video.srcObject = null;
+      if(!state.previewSource){state.video.pause();state.video.srcObject=null;}
       state.inputTrack?.stop();
     }
-  }, []);
+  }, [room]);
   useEffect(() => () => {
     const state = effectSession.current;
     if (!state) return;
@@ -987,7 +1043,16 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     if(!localParticipant.isCameraEnabled){await openCameraPreview();return;}
     setEffectsOpen(false);
     await shutdownDeepAR(deepAREngineRef);setSelectedDeepAR(null);
-    try { if (effectSession.current) { await restoreEffect(); setLiveEffect('original'); } await localParticipant.setCameraEnabled(!localParticipant.isCameraEnabled); }
+    try {
+      if(effectSession.current?.previewSource){
+        await restoreEffect();
+        closePreview();
+        setLiveEffect('original');
+      }else{
+        if(effectSession.current){await restoreEffect();setLiveEffect('original');}
+        await localParticipant.setCameraEnabled(false);
+      }
+    }
     catch (e) { onError(e?.message || 'No se pudo encender la cámara. Comprueba los permisos del navegador.'); }
   }
   // v3.35: invitations inside RIVYZA use existing follows, profiles and messages.
@@ -1464,7 +1529,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>
     </div>}
     <div className="rivyza-v314-chat" style={slots===14 && chatBoundary!==null ? {clipPath:`inset(${Math.ceil(chatBoundary)}px 0 0 0)`} : undefined} ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatReadingOld && <button type="button" onClick={goToLatest} aria-label="Ir al mensaje más reciente" style={{position:'fixed',bottom:'calc(242px + env(safe-area-inset-bottom))',left:14,zIndex:49,border:'1px solid #ffffff66',borderRadius:20,padding:'7px 12px',background:'rgba(32,19,44,.94)',color:'white',fontSize:12}}>↓ Ir al más reciente</button>}{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
-    {publish && cameraPreviewOpen && <div role="dialog" aria-modal="true" aria-label="Preparar cámara" style={{position:'fixed',inset:0,zIndex:2147483001,background:'rgba(0,0,0,.94)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:14,color:'#fff'}}>
+    {publish && (cameraPreviewOpen || previewStream) && <div role="dialog" aria-modal={cameraPreviewOpen} aria-label="Preparar cámara" style={{position:'fixed',inset:0,zIndex:cameraPreviewOpen?2147483001:-1,opacity:cameraPreviewOpen?1:0,pointerEvents:cameraPreviewOpen?'auto':'none',background:'rgba(0,0,0,.94)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:14,color:'#fff'}}>
       <div style={{width:'100%',maxWidth:400,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}><strong>Prepara tu cámara</strong><button type="button" onClick={closePreview} style={{background:'transparent',border:0,color:'#fff',fontSize:25}}>✕</button></div>
       <div style={{width:'100%',maxWidth:400,height:'min(49vh,460px)',background:'#15151d',borderRadius:14,overflow:'hidden',position:'relative'}}>
         {previewStream?<video ref={previewVideoRef} muted playsInline autoPlay style={{width:'100%',height:'100%',objectFit:'cover',transform:'scaleX(-1)',filter:previewFilter==='bw'?`grayscale(${previewIntensity/100})`:previewFilter==='warm'?`sepia(${.28*previewIntensity/100}) saturate(${1+.2*previewIntensity/100})`:previewFilter==='cool'?`hue-rotate(${13*previewIntensity/100}deg) saturate(${1+.12*previewIntensity/100})`:previewFilter==='vivid'?`saturate(${1+.5*previewIntensity/100}) contrast(${1+.08*previewIntensity/100})`:'none'}}/>:<div style={{padding:20,textAlign:'center'}}>Solicitando acceso a cámara…</div>}
@@ -1480,7 +1545,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       <button type="button" disabled={!previewStream||previewBusy} onClick={confirmCameraPreview} style={{marginTop:10,width:'100%',maxWidth:400,padding:14,border:0,borderRadius:30,background:'#ef287e',color:'white',fontWeight:700,opacity:!previewStream||previewBusy?.6:1}}>{previewBusy?'Encendiendo…':'Encender cámara'}</button>
     </div>}
     {/* Keep WebGL within the visible viewport; a zero-opacity/offscreen renderer can be throttled on iOS. */}
-    <div ref={deepARHolderRef} style={{position:'fixed',left:0,top:0,width:240,height:320,overflow:'hidden',opacity:1,pointerEvents:'none',zIndex:-1}} aria-hidden="true"/>
+    <div ref={deepARHolderRef} style={{position:'fixed',left:0,top:0,width:240,height:320,overflow:'hidden',opacity:0.01,pointerEvents:'none',zIndex:1}} aria-hidden="true"/>
     {publish && effectsOpen && <div role="dialog" aria-label="Filtros LIVE" style={{position:'absolute',bottom:88,left:12,right:12,maxWidth:'calc(100% - 24px)',boxSizing:'border-box',zIndex:65,background:'rgba(12,12,18,.96)',border:'1px solid #ffffff44',borderRadius:14,padding:10,color:'#fff'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:9}}><strong>EF · Filtros LIVE</strong><button type="button" onClick={()=>setEffectsOpen(false)} style={{background:'transparent',border:0,color:'#fff',fontSize:20}}>✕</button></div>
       <div style={{display:'flex',gap:7,overflowX:'auto',maxWidth:'100%',WebkitOverflowScrolling:'touch',paddingBottom:4}}>{effectOptions.map(([id,label])=><button type="button" key={id} disabled={effectBusy} onClick={()=>chooseLiveEffect(id)} style={{flex:'0 0 auto',padding:'8px 10px',borderRadius:10,border:'1px solid #ffffff55',background:liveEffect===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div>
@@ -1494,7 +1559,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
       <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
       {!typing && <>
-        {publish && cam && <button type="button" className="rivyza-v32-icon" onClick={()=>setEffectsOpen(x=>!x)} aria-label="Filtros LIVE" aria-expanded={effectsOpen} title="Filtros LIVE">EF</button>}
+
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? '📹' : '📷'}</button>}
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleMic} aria-label={mic ? 'Silenciar micrófono' : 'Activar micrófono'} title={mic ? 'Silenciar micrófono' : 'Activar micrófono'}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mic ? "#FFFFFF" : "#FF3B45"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:"block",width:"22px",height:"22px",flexShrink:0,margin:"auto"}}>
           <rect x="9" y="2" width="6" height="12" rx="3" />
