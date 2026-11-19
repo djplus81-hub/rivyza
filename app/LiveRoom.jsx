@@ -706,7 +706,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       }
       if (!effectOptions.some(option=>option[0]===id)) throw new Error('Filtro desconocido');
       if (effectSession.current) {
-        effectSession.current.filter = effectOptions.find(option=>option[0]===id)[2];
+        effectSession.current.filter = id;
         setLiveEffect(id);
         return;
       }
@@ -722,21 +722,43 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       await video.play();
       const settings = original.getSettings?.() || {};
       const canvas = document.createElement('canvas');
-      canvas.width = Math.min(640, settings.width || video.videoWidth || 640);
+      canvas.width = Math.min(480, settings.width || video.videoWidth || 480);
       canvas.height = Math.max(1, Math.round(canvas.width * ((settings.height || video.videoHeight || 480) / (settings.width || video.videoWidth || 640))));
       const ctx = canvas.getContext('2d', {alpha:false});
       if (!ctx) throw new Error('No se pudo iniciar el procesador de video.');
-      const stream = canvas.captureStream(24);
+      const stream = canvas.captureStream(20);
       const processed = stream.getVideoTracks()[0];
       if (!processed) {stream.getTracks().forEach(t=>t.stop());throw new Error('No se pudo crear la cámara procesada.');}
-      const state = {publication, original, video, stream, frame:0, filter:effectOptions.find(option=>option[0]===id)[2]};
+      const state = {publication, original, video, stream, frame:0, filter:id};
       effectSession.current = state;
       const draw = () => {
         if (effectSession.current !== state) return;
         if (video.readyState >= 2) {
-          ctx.filter = state.filter;
+          // Safari iOS does not reliably support CanvasRenderingContext2D.filter.
+          // Process pixels explicitly so the effect is baked into the transmitted track.
           ctx.drawImage(video,0,0,canvas.width,canvas.height);
-          ctx.filter = 'none';
+          if (state.filter !== 'none') {
+            const frame = ctx.getImageData(0,0,canvas.width,canvas.height);
+            const pixels = frame.data;
+            for (let i=0;i<pixels.length;i+=4) {
+              let r=pixels[i],g=pixels[i+1],b=pixels[i+2];
+              if (state.filter === 'bw') {
+                const gray=Math.round(.2126*r+.7152*g+.0722*b);
+                r=g=b=gray;
+              } else if (state.filter === 'warm') {
+                r=Math.min(255,r*1.09+9);g=Math.min(255,g*1.015+2);b=Math.max(0,b*.85);
+              } else if (state.filter === 'cool') {
+                r=Math.max(0,r*.9);g=Math.min(255,g*1.025+2);b=Math.min(255,b*1.12+7);
+              } else if (state.filter === 'vivid') {
+                const gray=.2126*r+.7152*g+.0722*b;
+                r=Math.max(0,Math.min(255,(r-gray)*1.48+gray));
+                g=Math.max(0,Math.min(255,(g-gray)*1.48+gray));
+                b=Math.max(0,Math.min(255,(b-gray)*1.48+gray));
+              }
+              pixels[i]=r;pixels[i+1]=g;pixels[i+2]=b;
+            }
+            ctx.putImageData(frame,0,0);
+          }
         }
         state.frame = requestAnimationFrame(draw);
       };
@@ -1232,10 +1254,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>
     </div>}
     <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
-    {publish && effectsOpen && <div role="dialog" aria-label="Filtros LIVE" style={{position:'absolute',bottom:100,left:10,right:10,zIndex:65,background:'rgba(12,12,18,.96)',border:'1px solid #ffffff44',borderRadius:14,padding:12,color:'#fff'}}>
+    {publish && effectsOpen && <div role="dialog" aria-label="Filtros LIVE" style={{position:'absolute',bottom:88,left:12,right:12,maxWidth:'calc(100% - 24px)',boxSizing:'border-box',zIndex:65,background:'rgba(12,12,18,.96)',border:'1px solid #ffffff44',borderRadius:14,padding:10,color:'#fff'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:9}}><strong>EF · Filtros LIVE</strong><button type="button" onClick={()=>setEffectsOpen(false)} style={{background:'transparent',border:0,color:'#fff',fontSize:20}}>✕</button></div>
-      <div style={{display:'flex',gap:7,overflowX:'auto'}}>{effectOptions.map(([id,label])=><button type="button" key={id} disabled={effectBusy} onClick={()=>chooseLiveEffect(id)} style={{flex:'0 0 auto',padding:'9px 12px',borderRadius:10,border:'1px solid #ffffff55',background:liveEffect===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div>
-      <small style={{display:'block',marginTop:8,color:'#ccc'}}>Prueba: el filtro se envía a los espectadores. Para voltear la cámara, selecciona «Sin efecto».</small>
+      <div style={{display:'flex',gap:7,overflowX:'auto',maxWidth:'100%',WebkitOverflowScrolling:'touch',paddingBottom:4}}>{effectOptions.map(([id,label])=><button type="button" key={id} disabled={effectBusy} onClick={()=>chooseLiveEffect(id)} style={{flex:'0 0 auto',padding:'8px 10px',borderRadius:10,border:'1px solid #ffffff55',background:liveEffect===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div>
+      <small style={{display:'block',marginTop:8,color:'#ccc'}}>El filtro se aplica al video enviado. Para voltear la cámara, selecciona «Sin efecto».</small>
     </div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
