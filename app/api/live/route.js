@@ -194,7 +194,7 @@ export async function POST(req) {
       const previous = metadata.rivyzaLayout || {slots:10,positions:{}};
       const slots = input.slots;
       const positions = input.positions;
-      if (!Number.isInteger(slots) || slots < 1 || slots > 10 || !positions || typeof positions !== 'object' || Array.isArray(positions)) return json({error:'Distribución inválida'},400);
+      if (!Number.isInteger(slots) || slots < 1 || slots > 14 || !positions || typeof positions !== 'object' || Array.isArray(positions)) return json({error:'Distribución inválida'},400);
       const members = await svc.listParticipants(`rivyza-${room.id}`);
       const ids = new Set(members.filter(p=>p.identity===room.host_id || p.permission?.canPublish).map(p=>p.identity));
       // Include host even during a brief connection gap.
