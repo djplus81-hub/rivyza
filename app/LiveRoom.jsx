@@ -1002,10 +1002,12 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   display: grid !important;
   width: 100% !important;
   max-width: 100% !important;
-  height: min(62dvh, 660px) !important;
+  height: auto !important;
   min-height: 0 !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  grid-template-rows: minmax(0, 2fr) repeat(3, minmax(0, 1fr)) !important;
+  grid-template-rows: none !important;
+  grid-auto-rows: max-content !important;
+  align-content: start !important;
   grid-auto-flow: row !important;
   gap: 3px !important;
   overflow: hidden !important;
@@ -1015,16 +1017,16 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   position: relative !important;
   display: block !important;
   width: 100% !important;
-  height: 100% !important;
+  height: auto !important;
   min-width: 0 !important;
   min-height: 0 !important;
   max-width: none !important;
   max-height: none !important;
-  aspect-ratio: auto !important;
+  aspect-ratio: 1 / 1 !important;
   grid-column: auto !important;
   grid-row: auto !important;
   justify-self: stretch !important;
-  align-self: stretch !important;
+  align-self: start !important;
   overflow: hidden !important;
 }
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-14 > .rivyza-live-tile.rivyza-live-square:nth-child(1) {
