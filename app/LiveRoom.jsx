@@ -235,6 +235,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const historyKey = `rivyza-live-chat-v323:${liveRoomId}:${user?.id || 'viewer'}`;
   const scrollKey = `${historyKey}:scroll`;
   const chatRef = useRef(null);
+  const gridRef = useRef(null);
+  const [chatBoundary, setChatBoundary] = useState(null);
+  const [chatReadingOld, setChatReadingOld] = useState(false);
   const readingOld = useRef(false);
   const restoringChat = useRef(true);
   const [chat, setChat] = useState(() => {
@@ -271,15 +274,19 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         if (saved?.atBottom === false) {
           node.scrollTop = Math.max(0, saved.top || 0);
           readingOld.current = true;
+          setChatReadingOld(true);
         } else node.scrollTop = node.scrollHeight;
       } catch { node.scrollTop = node.scrollHeight; }
     } else if (!readingOld.current) node.scrollTop = node.scrollHeight;
   }, [chat, scrollKey]);
+  // El chat puede desplazarse en TODOS los modos; solo el modo 14 recorta
+  // la parte que invadiría la rejilla. Se mide la rejilla real, no valores fijos.
   const onChatScroll = () => {
     const el = chatRef.current;
     if (!el) return;
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 28;
     readingOld.current = !bottom;
+    setChatReadingOld(!bottom);
     try { localStorage.setItem(scrollKey, JSON.stringify({atBottom:bottom, top:el.scrollTop})); } catch {}
   };
   // LIVE activity is stored as regular chat events so it remains in history.
@@ -651,6 +658,27 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     return () => {room.off(RoomEvent.ActiveSpeakersChanged,speaking);room.off(RoomEvent.Reconnected,reconnected)};
   }, [room,isHost,onLeaveCamera]);
   const [slots, setSlots] = useState(10);
+  useEffect(() => {
+    if (slots !== 14) { setChatBoundary(null); return; }
+    const grid = gridRef.current;
+    if (!grid) return;
+    const update = () => setChatBoundary(Math.max(0,grid.getBoundingClientRect().bottom-(chatRef.current?.getBoundingClientRect().top ?? grid.getBoundingClientRect().bottom)));
+    update();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    observer?.observe(grid);
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {observer?.disconnect();window.removeEventListener('resize', update);window.removeEventListener('orientationchange', update);};
+  }, [slots]);
+  const goToLatest = () => {
+    const el = chatRef.current;
+    if (!el) return;
+    readingOld.current = false;
+    setChatReadingOld(false);
+    el.scrollTo({top:el.scrollHeight,behavior:'smooth'});
+    try { localStorage.setItem(scrollKey,JSON.stringify({atBottom:true,top:el.scrollHeight})); } catch {}
+  };
+
   const [target, setTarget] = useState(null);
   const [expelling, setExpelling] = useState(false);
   const [blockedOpen, setBlockedOpen] = useState(false);
@@ -1224,7 +1252,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
           return <span key={i} className="rivyza-v358-particle" style={{left:`${x}%`,top:`${y}%`,fontSize:`${size}px`,animationDuration:`${duration}s`,animationDelay:`-${fract(i*.731)*duration}s`,opacity:.5+fract(i*.293)*.48}}>{symbol}</span>;
         })}
       </div>,document.querySelector('.rivyza-live-stage'))}
-    <div className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>
+    <div ref={gridRef} className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''} ${speakers.includes(t?.identity) ? 'rivyza-v314-speaking' : ''}`}
         onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'
@@ -1307,7 +1335,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         </div>
       </div>
     </div>}
-    <div className="rivyza-v314-chat" ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
+    <div className="rivyza-v314-chat" style={slots===14 && chatBoundary!==null ? {clipPath:`inset(${Math.ceil(chatBoundary)}px 0 0 0)`} : undefined} ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatReadingOld && <button type="button" onClick={goToLatest} aria-label="Ir al mensaje más reciente" style={{position:'fixed',bottom:'calc(242px + env(safe-area-inset-bottom))',left:14,zIndex:49,border:'1px solid #ffffff66',borderRadius:20,padding:'7px 12px',background:'rgba(32,19,44,.94)',color:'white',fontSize:12}}>↓ Ir al más reciente</button>}{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
     {publish && cameraPreviewOpen && <div role="dialog" aria-modal="true" aria-label="Preparar cámara" style={{position:'fixed',inset:0,zIndex:2147483001,background:'rgba(0,0,0,.94)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:14,color:'#fff'}}>
       <div style={{width:'100%',maxWidth:400,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}><strong>Prepara tu cámara</strong><button type="button" onClick={closePreview} style={{background:'transparent',border:0,color:'#fff',fontSize:25}}>✕</button></div>
       <div style={{width:'100%',maxWidth:400,height:'min(49vh,460px)',background:'#15151d',borderRadius:14,overflow:'hidden',position:'relative'}}>
