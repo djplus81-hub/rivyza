@@ -733,7 +733,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     finally{setDeepARBusy(false);}
   }
   async function selectLiveDeepAR(effect){
-    if(deepARBusy||!publish||!localParticipant?.isCameraEnabled)return;
+    if(deepARBusy||!publish||!room.localParticipant.isCameraEnabled)return;
     setDeepARBusy(true);setDeepARError('');
     try{
       if(!effect){await shutdownDeepAR(deepAREngineRef);if(effectSession.current)effectSession.current.deepAR=null;setSelectedDeepAR(null);return;}
@@ -914,7 +914,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
               if(!state.arDrawWarned){console.warn('DeepAR LIVE canvas not readable; original camera preserved:',error);state.arDrawWarned=true;}
             }
           }
-          if (state.filter !== 'none') {
+          if (state.filter !== 'none' && state.filter !== 'original' && state.intensity > 0) {
             const frame = ctx.getImageData(0,0,canvas.width,canvas.height);
             const pixels = frame.data;
             for (let i=0;i<pixels.length;i+=4) {
@@ -1451,7 +1451,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       <div style={{width:'100%',maxWidth:400,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}><strong>Prepara tu cámara</strong><button type="button" onClick={closePreview} style={{background:'transparent',border:0,color:'#fff',fontSize:25}}>✕</button></div>
       <div style={{width:'100%',maxWidth:400,height:'min(49vh,460px)',background:'#15151d',borderRadius:14,overflow:'hidden',position:'relative'}}>
         {previewStream?<video ref={previewVideoRef} muted playsInline autoPlay style={{width:'100%',height:'100%',objectFit:'cover',transform:'scaleX(-1)',filter:previewFilter==='bw'?`grayscale(${previewIntensity/100})`:previewFilter==='warm'?`sepia(${.28*previewIntensity/100}) saturate(${1+.2*previewIntensity/100})`:previewFilter==='cool'?`hue-rotate(${13*previewIntensity/100}deg) saturate(${1+.12*previewIntensity/100})`:previewFilter==='vivid'?`saturate(${1+.5*previewIntensity/100}) contrast(${1+.08*previewIntensity/100})`:'none'}}/>:<div style={{padding:20,textAlign:'center'}}>Solicitando acceso a cámara…</div>}
-        <div ref={previewARHolderRef} style={{position:'absolute',inset:0,pointerEvents:'none',opacity:previewDeepAR?1:0}}/>
+        <div ref={previewARHolderRef} style={{position:'absolute',inset:0,pointerEvents:'none',opacity:previewDeepAR?1:0,filter:previewFilter==='bw'?`grayscale(${previewIntensity/100})`:previewFilter==='warm'?`sepia(${.28*previewIntensity/100}) saturate(${1+.2*previewIntensity/100})`:previewFilter==='cool'?`hue-rotate(${13*previewIntensity/100}deg) saturate(${1+.12*previewIntensity/100})`:previewFilter==='vivid'?`saturate(${1+.5*previewIntensity/100}) contrast(${1+.08*previewIntensity/100})`:'none'}}/>
         <span style={{position:'absolute',top:8,left:8,fontSize:11,background:'#0009',padding:6,borderRadius:8}}>PRIVADO · No estás transmitiendo</span>
       </div>
       <div style={{display:'flex',gap:8,marginTop:12}}>{[['filters','Filtros'],['beauty','Belleza'],['deepar','DeepAR']].map(([id,label])=><button key={id} type="button" onClick={()=>setPreviewTab(id)} style={{border:0,borderRadius:15,padding:'8px 13px',background:previewTab===id?'#d32f86':'#333',color:'#fff'}}>{label}</button>)}</div>
