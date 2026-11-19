@@ -747,8 +747,15 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if(!state)throw new Error('No se pudo iniciar el video procesado.');
       if(!deepAREngineRef.current)deepAREngineRef.current=await makeDeepAREngine(deepARHolderRef.current,state.video);
       await deepAREngineRef.current.switchEffect(effect.url,0);
-      state.deepAR=deepAREngineRef.current;
-      setSelectedDeepAR(effect);
+       state.deepAR=deepAREngineRef.current;
+       state.arFrames=0;
+       setSelectedDeepAR(effect);
+       // Do not silently show a selected effect if the renderer has no frames.
+       setTimeout(()=>{
+         if(effectSession.current===state && state.deepAR===deepAREngineRef.current && !state.arFrames){
+           setDeepARError('DeepAR cargó el efecto, pero no produjo imagen. Comprueba la licencia y la salida WebGL en Safari.');
+         }
+       },3500);
     }catch(e){setDeepARError(e?.message||'No se pudo aplicar DeepAR.');}
     finally{setDeepARBusy(false);}
   }
@@ -876,8 +883,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
           // Always draw the real camera first. DeepAR may expose a canvas
           // before its WebGL output has rendered a usable frame (notably iOS).
           ctx.drawImage(video,0,0,canvas.width,canvas.height);
-          const arCanvas=state.deepAR?.getCanvas?.();
-          if (arCanvas?.width > 0 && arCanvas?.height > 0) {
+           // DeepAR Web SDK may render into the previewElement canvas instead
+           // of exposing a public getCanvas() method. Use the actual renderer.
+           const arCanvas = state.deepAR?.getCanvas?.() || deepARHolderRef.current?.querySelector('canvas');
+           if (arCanvas?.width > 0 && arCanvas?.height > 0) {
             try {
               // A transparent or fully black DeepAR canvas must never replace
               // the working camera stream. Sample a small image cheaply.
@@ -895,9 +904,12 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
                 for(let i=0;i<data.length;i+=4){
                   if(data[i+3]>32){visible++;bright+=data[i]+data[i+1]+data[i+2];}
                 }
-                // Only switch to AR after a nonempty frame is ready.
-                if(visible>10 && bright>visible*12) {
-                  ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                 // Composite transparent AR overlays over the working camera.
+                 // Opaque AR output replaces the frame; transparent output
+                 // keeps the original video visible beneath it.
+                 if(visible>0 && bright>0) {
+                   ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                   state.arFrames=(state.arFrames||0)+1;
                 }
               }
             }catch(error){
@@ -1453,7 +1465,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       {previewError&&<p role="alert" style={{color:'#ff9db8'}}>{previewError}</p>}
       <button type="button" disabled={!previewStream||previewBusy} onClick={confirmCameraPreview} style={{marginTop:10,width:'100%',maxWidth:400,padding:14,border:0,borderRadius:30,background:'#ef287e',color:'white',fontWeight:700,opacity:!previewStream||previewBusy?.6:1}}>{previewBusy?'Encendiendo…':'Encender cámara'}</button>
     </div>}
-    <div ref={deepARHolderRef} style={{position:'fixed',left:'-10000px',top:0,width:480,height:640,overflow:'hidden',opacity:0,pointerEvents:'none'}} aria-hidden="true"/>
+    <div ref={deepARHolderRef} style={{position:'fixed',left:'-10000px',top:0,width:480,height:640,overflow:'hidden',opacity:1,pointerEvents:'none'}} aria-hidden="true"/>
     {publish && effectsOpen && <div role="dialog" aria-label="Filtros LIVE" style={{position:'absolute',bottom:88,left:12,right:12,maxWidth:'calc(100% - 24px)',boxSizing:'border-box',zIndex:65,background:'rgba(12,12,18,.96)',border:'1px solid #ffffff44',borderRadius:14,padding:10,color:'#fff'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:9}}><strong>EF · Filtros LIVE</strong><button type="button" onClick={()=>setEffectsOpen(false)} style={{background:'transparent',border:0,color:'#fff',fontSize:20}}>✕</button></div>
       <div style={{display:'flex',gap:7,overflowX:'auto',maxWidth:'100%',WebkitOverflowScrolling:'touch',paddingBottom:4}}>{effectOptions.map(([id,label])=><button type="button" key={id} disabled={effectBusy} onClick={()=>chooseLiveEffect(id)} style={{flex:'0 0 auto',padding:'8px 10px',borderRadius:10,border:'1px solid #ffffff55',background:liveEffect===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div>
