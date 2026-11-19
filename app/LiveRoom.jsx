@@ -745,6 +745,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       }
       const state=effectSession.current;
       if(!state || state.stream?.getVideoTracks?.()[0]?.readyState!=='live')throw new Error('No se pudo iniciar el video procesado.');
+      state.intensity=intensityRef.current;
       if(!deepAREngineRef.current)deepAREngineRef.current=await makeDeepAREngine(deepARHolderRef.current,state.video);
       await deepAREngineRef.current.switchEffect(effect.url);
       state.deepAR=deepAREngineRef.current;
@@ -886,9 +887,31 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
           const arCanvas=state.deepAR?.getCanvas?.() || deepARHolderRef.current?.querySelector('canvas');
           if (state.deepAR && arCanvas?.width > 0 && arCanvas?.height > 0) {
             try {
-              ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+              // Never replace the original frame with a blank/black WebGL frame.
+              // iOS Safari can create a valid-sized DeepAR canvas before it renders.
+              if (!state.arProbe) {
+                state.arProbe=document.createElement('canvas');
+                state.arProbe.width=16;state.arProbe.height=16;
+                state.arProbeCtx=state.arProbe.getContext('2d',{willReadFrequently:true});
+              }
+              const probe=state.arProbeCtx;
+              if (probe) {
+                probe.clearRect(0,0,16,16);
+                probe.drawImage(arCanvas,0,0,16,16);
+                const pixels=probe.getImageData(0,0,16,16).data;
+                let nonBlack=0, opaque=0;
+                for(let i=0;i<pixels.length;i+=4){
+                  if(pixels[i+3]>180){opaque++;if(pixels[i]+pixels[i+1]+pixels[i+2]>36)nonBlack++;}
+                }
+                // Require a genuinely rendered image, not an empty canvas.
+                // If WebGL readback is blocked, preserve the original camera.
+                if(opaque>180 && nonBlack>24){
+                  ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                  state.arLastValid=performance.now();
+                }
+              }
             }catch(error){
-              if(!state.arDrawWarned){console.warn('DeepAR LIVE output:',error);state.arDrawWarned=true;}
+              if(!state.arDrawWarned){console.warn('DeepAR LIVE canvas not readable; original camera preserved:',error);state.arDrawWarned=true;}
             }
           }
           if (state.filter !== 'none') {
