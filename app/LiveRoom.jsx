@@ -739,12 +739,12 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if(!effect){await shutdownDeepAR(deepAREngineRef);if(effectSession.current)effectSession.current.deepAR=null;setSelectedDeepAR(null);return;}
       // El procesador Canvas existente publica el resultado por LiveKit, no un overlay local.
       if(!effectSession.current){
-        const old=intensityRef.current;intensityRef.current=0;
-        await chooseLiveEffect('vivid');
-        intensityRef.current=old;
+        const old=intensityRef.current;
+        try { intensityRef.current=0; await chooseLiveEffect('vivid'); }
+        finally { intensityRef.current=old; }
       }
       const state=effectSession.current;
-      if(!state)throw new Error('No se pudo iniciar el video procesado.');
+      if(!state || state.stream?.getVideoTracks?.()[0]?.readyState!=='live')throw new Error('No se pudo iniciar el video procesado.');
       if(!deepAREngineRef.current)deepAREngineRef.current=await makeDeepAREngine(deepARHolderRef.current,state.video);
       await deepAREngineRef.current.switchEffect(effect.url);
       state.deepAR=deepAREngineRef.current;
@@ -785,6 +785,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     try {
       // Private preview is never published; LiveKit only starts its camera after confirmation.
       const chosenAR=previewDeepAR;
+      // Release the preview WebGL context before starting the LIVE renderer.
+      // iOS Safari can limit simultaneous camera/WebGL processing contexts.
+      await shutdownDeepAR(previewEngineRef);
       closePreview();
       await localParticipant.setCameraEnabled(true);
       intensityRef.current=previewIntensity;
@@ -876,35 +879,16 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
           // Always draw the real camera first. DeepAR may expose a canvas
           // before its WebGL output has rendered a usable frame (notably iOS).
           ctx.drawImage(video,0,0,canvas.width,canvas.height);
-          // DeepAR Web: prefer the renderer canvas; getCanvas() may be absent.
-          // The renderer must remain inside the viewport for reliable iOS WebGL rendering.
+          // Safari: copying WebGL to a tiny canvas and reading its pixels can
+          // fail even when the DeepAR preview is rendered correctly. Draw the
+          // actual output directly into the published canvas instead.
+          // The camera frame above remains the fallback if the AR canvas is not ready.
           const arCanvas=state.deepAR?.getCanvas?.() || deepARHolderRef.current?.querySelector('canvas');
-          if (arCanvas?.width > 0 && arCanvas?.height > 0) {
+          if (state.deepAR && arCanvas?.width > 0 && arCanvas?.height > 0) {
             try {
-              // A transparent or fully black DeepAR canvas must never replace
-              // the working camera stream. Sample a small image cheaply.
-              if (!state.arProbe) {
-                state.arProbe=document.createElement('canvas');
-                state.arProbe.width=12;state.arProbe.height=12;
-                state.arProbeCtx=state.arProbe.getContext('2d',{willReadFrequently:true});
-              }
-              const probe=state.arProbeCtx;
-              if (probe) {
-                probe.clearRect(0,0,12,12);
-                probe.drawImage(arCanvas,0,0,12,12);
-                const data=probe.getImageData(0,0,12,12).data;
-                let bright=0,visible=0;
-                for(let i=0;i<data.length;i+=4){
-                  if(data[i+3]>32){visible++;bright+=data[i]+data[i+1]+data[i+2];}
-                }
-                // Only switch to AR after a nonempty frame is ready.
-                if(visible>10 && bright>visible*12) {
-                  ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
-                }
-              }
+              ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
             }catch(error){
-              // WebGL security/readback errors: retain the original video.
-              if(!state.arProbeWarned){console.warn('DeepAR frame fallback:',error);state.arProbeWarned=true;}
+              if(!state.arDrawWarned){console.warn('DeepAR LIVE output:',error);state.arDrawWarned=true;}
             }
           }
           if (state.filter !== 'none') {
