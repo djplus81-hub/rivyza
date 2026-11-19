@@ -887,7 +887,31 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
           // Copy the DeepAR output into the already published LiveKit canvas.
           const arCanvas=state.deepAR?.getCanvas?.() || deepARHolderRef.current?.querySelector('canvas');
           if(state.deepAR && arCanvas?.width > 0 && arCanvas?.height > 0){
-            try { ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height); }
+            try {
+              // Do not replace the real camera with an unrendered black WebGL frame.
+              // Probe a small sample before copying; if Safari blocks readback,
+              // retain the camera rather than publishing black video.
+              if (!state.arProbe) {
+                state.arProbe=document.createElement('canvas');
+                state.arProbe.width=24;state.arProbe.height=24;
+                state.arProbeCtx=state.arProbe.getContext('2d',{willReadFrequently:true});
+              }
+              const probe=state.arProbeCtx;
+              if(probe){
+                probe.clearRect(0,0,24,24);
+                probe.drawImage(arCanvas,0,0,24,24);
+                const pixels=probe.getImageData(0,0,24,24).data;
+                let visible=0;
+                for(let i=0;i<pixels.length;i+=4){
+                  if(pixels[i+3]>160 && pixels[i]+pixels[i+1]+pixels[i+2]>45)visible++;
+                }
+                if(visible>32)ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                else if(!state.arEmptyWarned){
+                  console.warn('DeepAR LIVE returned an empty/black canvas; camera fallback active.');
+                  state.arEmptyWarned=true;
+                }
+              }
+            }
             catch(error){
               if(!state.arDrawWarned){
                 console.warn('DeepAR LIVE canvas copy failed:',error);
