@@ -873,8 +873,38 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         if (video.readyState >= 2) {
           // Safari iOS does not reliably support CanvasRenderingContext2D.filter.
           // Process pixels explicitly so the effect is baked into the transmitted track.
+          // Always draw the real camera first. DeepAR may expose a canvas
+          // before its WebGL output has rendered a usable frame (notably iOS).
+          ctx.drawImage(video,0,0,canvas.width,canvas.height);
           const arCanvas=state.deepAR?.getCanvas?.();
-          ctx.drawImage(arCanvas?.width&&arCanvas?.height ? arCanvas : video,0,0,canvas.width,canvas.height);
+          if (arCanvas?.width > 0 && arCanvas?.height > 0) {
+            try {
+              // A transparent or fully black DeepAR canvas must never replace
+              // the working camera stream. Sample a small image cheaply.
+              if (!state.arProbe) {
+                state.arProbe=document.createElement('canvas');
+                state.arProbe.width=12;state.arProbe.height=12;
+                state.arProbeCtx=state.arProbe.getContext('2d',{willReadFrequently:true});
+              }
+              const probe=state.arProbeCtx;
+              if (probe) {
+                probe.clearRect(0,0,12,12);
+                probe.drawImage(arCanvas,0,0,12,12);
+                const data=probe.getImageData(0,0,12,12).data;
+                let bright=0,visible=0;
+                for(let i=0;i<data.length;i+=4){
+                  if(data[i+3]>32){visible++;bright+=data[i]+data[i+1]+data[i+2];}
+                }
+                // Only switch to AR after a nonempty frame is ready.
+                if(visible>10 && bright>visible*12) {
+                  ctx.drawImage(arCanvas,0,0,canvas.width,canvas.height);
+                }
+              }
+            }catch(error){
+              // WebGL security/readback errors: retain the original video.
+              if(!state.arProbeWarned){console.warn('DeepAR frame fallback:',error);state.arProbeWarned=true;}
+            }
+          }
           if (state.filter !== 'none') {
             const frame = ctx.getImageData(0,0,canvas.width,canvas.height);
             const pixels = frame.data;
@@ -903,6 +933,16 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         }
         state.frame = requestAnimationFrame(draw);
       };
+      // Wait for the camera to supply a frame before replacing its LIVE track.
+      if(video.readyState<2 || !video.videoWidth){
+        await new Promise((resolve,reject)=>{
+          const timeout=setTimeout(()=>{cleanup();reject(new Error('La cámara todavía no produce imagen.'));},4000);
+          const ready=()=>{if(video.videoWidth){cleanup();resolve();}};
+          const cleanup=()=>{clearTimeout(timeout);video.removeEventListener('loadeddata',ready);};
+          video.addEventListener('loadeddata',ready);
+          ready();
+        });
+      }
       draw();
       try {await localTrack.replaceTrack(processed, true);}
       catch (error) {await restoreEffect().catch(()=>{});throw error;}
