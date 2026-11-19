@@ -839,8 +839,12 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     setEffectBusy(true);
     try {
       if (id === 'original') {
-        await shutdownDeepAR(deepAREngineRef);setSelectedDeepAR(null);
-        await restoreEffect();
+        if(effectSession.current?.deepAR){
+          effectSession.current.filter='original';
+          effectSession.current.intensity=0;
+        }else{
+          await restoreEffect();
+        }
         setLiveEffect('original');
         return;
       }
@@ -1451,7 +1455,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       <div style={{width:'100%',maxWidth:400,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}><strong>Prepara tu cámara</strong><button type="button" onClick={closePreview} style={{background:'transparent',border:0,color:'#fff',fontSize:25}}>✕</button></div>
       <div style={{width:'100%',maxWidth:400,height:'min(49vh,460px)',background:'#15151d',borderRadius:14,overflow:'hidden',position:'relative'}}>
         {previewStream?<video ref={previewVideoRef} muted playsInline autoPlay style={{width:'100%',height:'100%',objectFit:'cover',transform:'scaleX(-1)',filter:previewFilter==='bw'?`grayscale(${previewIntensity/100})`:previewFilter==='warm'?`sepia(${.28*previewIntensity/100}) saturate(${1+.2*previewIntensity/100})`:previewFilter==='cool'?`hue-rotate(${13*previewIntensity/100}deg) saturate(${1+.12*previewIntensity/100})`:previewFilter==='vivid'?`saturate(${1+.5*previewIntensity/100}) contrast(${1+.08*previewIntensity/100})`:'none'}}/>:<div style={{padding:20,textAlign:'center'}}>Solicitando acceso a cámara…</div>}
-        <div ref={previewARHolderRef} style={{position:'absolute',inset:0,pointerEvents:'none',opacity:previewDeepAR?1:0,filter:previewFilter==='bw'?`grayscale(${previewIntensity/100})`:previewFilter==='warm'?`sepia(${.28*previewIntensity/100}) saturate(${1+.2*previewIntensity/100})`:previewFilter==='cool'?`hue-rotate(${13*previewIntensity/100}deg) saturate(${1+.12*previewIntensity/100})`:previewFilter==='vivid'?`saturate(${1+.5*previewIntensity/100}) contrast(${1+.08*previewIntensity/100})`:'none'}}/>
+        <div ref={previewARHolderRef} style={{position:'absolute',inset:0,pointerEvents:'none',opacity:previewDeepAR?1:0}}/>
         <span style={{position:'absolute',top:8,left:8,fontSize:11,background:'#0009',padding:6,borderRadius:8}}>PRIVADO · No estás transmitiendo</span>
       </div>
       <div style={{display:'flex',gap:8,marginTop:12}}>{[['filters','Filtros'],['beauty','Belleza'],['deepar','DeepAR']].map(([id,label])=><button key={id} type="button" onClick={()=>setPreviewTab(id)} style={{border:0,borderRadius:15,padding:'8px 13px',background:previewTab===id?'#d32f86':'#333',color:'#fff'}}>{label}</button>)}</div>
@@ -1463,7 +1467,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       <button type="button" disabled={!previewStream||previewBusy} onClick={confirmCameraPreview} style={{marginTop:10,width:'100%',maxWidth:400,padding:14,border:0,borderRadius:30,background:'#ef287e',color:'white',fontWeight:700,opacity:!previewStream||previewBusy?.6:1}}>{previewBusy?'Encendiendo…':'Encender cámara'}</button>
     </div>}
     {/* Keep WebGL within the visible viewport; a zero-opacity/offscreen renderer can be throttled on iOS. */}
-    <div ref={deepARHolderRef} style={{position:'fixed',right:0,top:0,width:240,height:320,overflow:'hidden',opacity:0.015,pointerEvents:'none',zIndex:0}} aria-hidden="true"/>
+    <div ref={deepARHolderRef} style={{position:'fixed',left:'-10000px',top:0,width:480,height:640,overflow:'hidden',opacity:1,pointerEvents:'none',zIndex:-1}} aria-hidden="true"/>
     {publish && effectsOpen && <div role="dialog" aria-label="Filtros LIVE" style={{position:'absolute',bottom:88,left:12,right:12,maxWidth:'calc(100% - 24px)',boxSizing:'border-box',zIndex:65,background:'rgba(12,12,18,.96)',border:'1px solid #ffffff44',borderRadius:14,padding:10,color:'#fff'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:9}}><strong>EF · Filtros LIVE</strong><button type="button" onClick={()=>setEffectsOpen(false)} style={{background:'transparent',border:0,color:'#fff',fontSize:20}}>✕</button></div>
       <div style={{display:'flex',gap:7,overflowX:'auto',maxWidth:'100%',WebkitOverflowScrolling:'touch',paddingBottom:4}}>{effectOptions.map(([id,label])=><button type="button" key={id} disabled={effectBusy} onClick={()=>chooseLiveEffect(id)} style={{flex:'0 0 auto',padding:'8px 10px',borderRadius:10,border:'1px solid #ffffff55',background:liveEffect===id?'#b12d92':'#222',color:'#fff'}}>{label}</button>)}</div>
