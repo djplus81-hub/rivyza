@@ -5,3 +5,11 @@
 .rivyza-media-song{font-size:clamp(11px,3.1vw,14px);margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .rivyza-media-glow{width:132px;max-width:90%;height:3px;margin-top:6px;background:linear-gradient(90deg,#00cfff,#8130ff,#ff36d2);box-shadow:0 0 7px rgba(111,60,255,.75);border-radius:3px}
 .feed-media-wrap,.post-detail-media{position:relative}
+
+/* En el feed la marca reemplaza nombre y sonido anteriores, sin superponerse. */
+.creator-copy .rivyza-feed-brand-wrap{position:relative;display:block;margin-bottom:5px;max-width:100%;}
+.creator-copy .rivyza-media-mark{position:relative;left:auto;bottom:auto;max-width:100%;display:inline-block;}
+.creator-copy .rivyza-media-brand{font-size:22px;}
+.creator-copy .rivyza-media-user{font-size:15px;}
+.creator-copy .rivyza-media-song{font-size:13px;}
+.creator-copy .rivyza-media-glow{margin-top:4px;}

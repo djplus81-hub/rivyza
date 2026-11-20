@@ -4631,16 +4631,11 @@ async function applyPostCrop(){
           <article className="video-card feed-post-card" key={post.id}>
             <div className="feed-media-wrap">
               <PostMusicMedia post={post}/>
-              <RIVYZAWatermark post={post}/>
             </div>
 
             <div className="creator-copy">
-              <button className="creator-profile-link" onClick={()=>openFeedCreator(post)}>
-                <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
-              </button>
-              <div className="handle">@{post.creator?.username||"usuario"}</div>
+              <div className="rivyza-feed-brand-wrap"><RIVYZAWatermark post={post}/></div>
               {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
-              <div className="audio-line"><Music2 size={15}/> {post.music_title ? `${post.music_title} · DJ Plus` : "Sonido original · RIVYZA"}</div>
               <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
             </div>
 
@@ -4878,16 +4873,11 @@ async function applyPostCrop(){
         <article className="video-card feed-post-card" key={post.id}>
           <div className="feed-media-wrap">
             <PostMusicMedia post={post}/>
-              <RIVYZAWatermark post={post}/>
           </div>
 
           <div className="creator-copy">
-            <button className="creator-profile-link" onClick={()=>openFeedCreator(post)}>
-              <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
-            </button>
-            <div className="handle">@{post.creator?.username||"usuario"}</div>
+            <div className="rivyza-feed-brand-wrap"><RIVYZAWatermark post={post}/></div>
             {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
-            <div className="audio-line"><Music2 size={15}/> {post.music_title ? `${post.music_title} · DJ Plus` : "Sonido original · RIVYZA"}</div>
               <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
           </div>
 
