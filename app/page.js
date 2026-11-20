@@ -4672,7 +4672,7 @@ async function applyPostCrop(){
               </button>
               <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
               <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
-              {post.user_id===user?.id&&<button onClick={()=>openShare(post)}><Download/><span>Descargar</span></button>}
+
               <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
             </div>
           </article>
@@ -4915,7 +4915,7 @@ async function applyPostCrop(){
             </button>
             <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
             <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
-              {post.user_id===user?.id&&<button onClick={()=>openShare(post)}><Download/><span>Descargar</span></button>}
+
             <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
           </div>
         </article>
