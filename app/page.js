@@ -2123,7 +2123,7 @@ async function applyPostCrop(){
   function renderShareSheet(){
     if(!sharePost)return null;
     const people=sharePeople.filter(p=>`${p.display_name||""} ${p.username||""}`.toLocaleLowerCase().includes(shareSearch.trim().toLocaleLowerCase()));
-    return createPortal(<div className="rivyza-share-backdrop" onClick={()=>{if(!shareSending)setSharePost(null);}}>
+    return createPortal(<div className="rivyza-share-backdrop" style={{position:"fixed",inset:0,zIndex:2147483647,pointerEvents:"auto"}} onClick={()=>{if(!shareSending)setSharePost(null);}}>
       <section className="rivyza-share-sheet" role="dialog" aria-modal="true" aria-label="Compartir publicación" onClick={e=>e.stopPropagation()}>
         <div className="rivyza-share-grip"/><header><strong>Compartir publicación</strong><button type="button" onClick={()=>setSharePost(null)} aria-label="Cerrar"><X size={22}/></button></header>
         <div className="rivyza-share-search"><Search size={19}/><input placeholder="Buscar amigos de RIVYZA" value={shareSearch} onChange={e=>setShareSearch(e.target.value)}/></div>
