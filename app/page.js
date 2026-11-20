@@ -1144,7 +1144,7 @@ async function applyPostCrop(){
     });
 
     const counts=await getCommentCounts(sorted.map(p=>p.id));
-    setProfilePosts(sorted.map(p=>({...p,comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
+    setProfilePosts(sorted.map(p=>({...p,creator:{username:profile?.username,display_name:profile?.display_name},comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
   async function loadMyLikedPosts(){
@@ -1433,7 +1433,7 @@ async function applyPostCrop(){
       return new Date(b.created_at)-new Date(a.created_at);
     });
     const counts=await getCommentCounts(sorted.map(p=>p.id));
-    setViewedProfilePosts(sorted.map(p=>({...p,comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
+    setViewedProfilePosts(sorted.map(p=>({...p,creator:{username:targetProfile.username,display_name:targetProfile.display_name},comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
   async function searchPeople(term=peopleSearch){
@@ -1839,7 +1839,25 @@ async function applyPostCrop(){
   }
 
   async function openPost(post){
-    setSelectedPost(post);
+    // Resolver el autor de la publicación, no el usuario que la está mirando.
+    const knownCreator = post?.creator?.username
+      ? post.creator
+      : post?.user_id === user?.id && profile?.username
+        ? {username:profile.username,display_name:profile.display_name}
+        : post?.user_id === viewedProfile?.id && viewedProfile?.username
+          ? {username:viewedProfile.username,display_name:viewedProfile.display_name}
+          : null;
+    setSelectedPost(knownCreator ? {...post,creator:knownCreator} : post);
+    if(!knownCreator?.username && post?.user_id && supabase){
+      supabase.from("profiles").select("username,display_name")
+        .eq("id",post.user_id).maybeSingle()
+        .then(({data,error})=>{
+          if(!error && data?.username){
+            setSelectedPost(current=>current?.id===post.id
+              ? {...current,creator:{...current.creator,...data}} : current);
+          }
+        });
+    }
     setPostMenuOpen(false);
     setCommentsOpen(false);
     setPostActionMessage("");
@@ -2015,7 +2033,9 @@ async function applyPostCrop(){
         .eq("id",sharePost.id).eq("user_id",user.id).maybeSingle();
       if(error || !post?.media_path)throw new Error("Solo el dueño puede descargar esta publicación.");
       const {data:ownerProfile}=await supabase.from("profiles").select("username").eq("id",post.user_id).maybeSingle();
-      post.creator={username:ownerProfile?.username || sharePost?.creator?.username || "usuario"};
+      if(!ownerProfile?.username && !sharePost?.creator?.username)
+        throw new Error("No se pudo identificar al creador. Inténtalo de nuevo.");
+      post.creator={username:ownerProfile?.username || sharePost.creator.username};
       // Para fotos con música, primero se prepara el MP4. Safari exige un segundo
       // toque del usuario para abrir la hoja nativa «Guardar video».
       if(post.media_type==="photo" && post.music_path && preparedMusicVideo?.postId!==post.id){

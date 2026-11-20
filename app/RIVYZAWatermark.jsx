@@ -2,14 +2,14 @@
 import React from "react";
 
 export function getPostMark(post) {
-  const username = post?.creator?.username || post?.username || post?.author?.username || "usuario";
-  return { username: String(username).replace(/^@/, "").slice(0,40), song: String(post?.music_title || post?.music_name || "").slice(0,90) };
+  const username = post?.creator?.username || post?.author?.username || post?.username || "";
+  return { username: String(username).replace(/^@/, "").trim().slice(0,40), song: String(post?.music_title || post?.music_name || "").slice(0,90) };
 }
 export default function RIVYZAWatermark({post}) {
   const {username,song}=getPostMark(post);
   return <div className="rivyza-media-mark" aria-label={`RIVYZA, @${username}`}>
     <div className="rivyza-media-brand">RIVYZA</div>
-    <div className="rivyza-media-user">@{username}</div>
+    {username && <div className="rivyza-media-user">@{username}</div>}
     {post?.music_path && song && <div className="rivyza-media-song">♫ {song}</div>}
     <div className="rivyza-media-glow"/>
   </div>;
@@ -27,7 +27,7 @@ export async function makeWatermarkPNG(post,width=480,height=854) {
   grad.addColorStop(0,"#00cfff");grad.addColorStop(.45,"#075cff");grad.addColorStop(.72,"#8b2cff");grad.addColorStop(1,"#ff36d2");
   ctx.fillStyle=grad;ctx.fillText("RIVYZA",x,brandY);
   ctx.font=`600 ${15*scale}px Arial, sans-serif`;ctx.fillStyle="#fff";
-  ctx.fillText(`@${username}`,x,brandY+21*scale,390*scale);
+  if(username)ctx.fillText(`@${username}`,x,brandY+21*scale,390*scale);
   if(lines===3){ctx.font=`500 ${13*scale}px Arial, sans-serif`;ctx.fillText(`♫ ${song}`,x,brandY+40*scale,390*scale);}
   ctx.shadowBlur=0;
   const lineY=brandY+(lines===3?51:32)*scale;
