@@ -4660,10 +4660,10 @@ async function applyPostCrop(){
             </div>
 
             <div className="side-actions">
-              <button className="avatar-action" onClick={()=>openFeedCreator(post)}>
+              <button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
                 {post.creator?.avatar_url
                   ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
-                  : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+                  : <div className="mini-avatar" style={{position:"absolute",inset:0,width:"100%",height:"100%",margin:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transform:"none",textAlign:"center",boxSizing:"border-box"}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
                             {onlineDot(post.creator?.id||post.user_id)}
               </button>
               <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
@@ -4902,10 +4902,10 @@ async function applyPostCrop(){
           </div>
 
           <div className="side-actions">
-            <button className="avatar-action" onClick={()=>openFeedCreator(post)}>
+            <button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
               {post.creator?.avatar_url
                 ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
-                : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+                : <div className="mini-avatar" style={{position:"absolute",inset:0,width:"100%",height:"100%",margin:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transform:"none",textAlign:"center",boxSizing:"border-box"}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
               {onlineDot(post.creator?.id||post.user_id)}
             </button>
 
