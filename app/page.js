@@ -4632,7 +4632,11 @@ async function applyPostCrop(){
 
   if(view==="friends"){
     return <main className="feed-shell friends-feed-shell">
-      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }`}</style>
+      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }
+      .friends-feed-shell .friends-feed-topbar{position:relative!important;top:auto!important;left:auto!important;right:auto!important;transform:none!important;z-index:6!important;flex-shrink:0!important;box-sizing:border-box!important;margin:0!important;padding-top:calc(env(safe-area-inset-top,0px) + 12px)!important;padding-bottom:12px!important;background:#050507!important;}
+      .friends-feed-shell .rz-stories-strip{position:relative!important;top:auto!important;flex-shrink:0!important;z-index:5!important;}
+      .friends-feed-shell{display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+      .friends-feed-shell > .video-feed{flex:1 1 auto!important;min-height:0!important;position:relative!important;}`}</style>
       <header className="friends-topbar friends-feed-topbar">
         <h1>{t("Amigos")}</h1>
         <p>Solo personas que tú sigues y que también te siguen.</p>
