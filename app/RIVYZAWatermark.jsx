@@ -43,9 +43,12 @@ export async function markPhoto(post) {
   await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=post.media_path;});
   const canvas=document.createElement("canvas");canvas.width=1080;canvas.height=1920;
   const ctx=canvas.getContext("2d");
-  const cover=Math.max(canvas.width/img.naturalWidth,canvas.height/img.naturalHeight);
-  const w=img.naturalWidth*cover,h=img.naturalHeight*cover;
-  ctx.drawImage(img,(1080-w)/2,(1920-h)/2,w,h);
+  // Igual que la visualización sin zoom: imagen completa y bandas negras si sobran espacios.
+  ctx.fillStyle="#000";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  const fit=Math.min(canvas.width/img.naturalWidth,canvas.height/img.naturalHeight);
+  const w=img.naturalWidth*fit,h=img.naturalHeight*fit;
+  ctx.drawImage(img,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
   const mark=await makeWatermarkPNG(post,1080,1920);
   const overlay=new Image();const url=URL.createObjectURL(mark);
   try {await new Promise((resolve,reject)=>{overlay.onload=resolve;overlay.onerror=reject;overlay.src=url;});ctx.drawImage(overlay,0,0);}

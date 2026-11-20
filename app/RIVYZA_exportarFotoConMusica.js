@@ -38,12 +38,12 @@ export async function exportPhotoWithMusic(post, onProgress = () => {}) {
     const volume = Math.max(0, Math.min(1, Number(post.music_volume ?? 50) / 100));
     onProgress("Creando video con música… Puede tardar un poco.");
     // Escala reducida para evitar sobrecargar la memoria de Safari iOS.
-    // La imagen se mantiene completa sobre un fondo negro (sin recortar).
+    // Se conserva toda la imagen, centrada, con fondo negro donde haga falta.
     const result = await ffmpeg.exec([
       "-loop", "1", "-framerate", "12", "-i", `foto.${imageExt}`,
       "-ss", String(start), "-t", String(duration), "-i", `musica.${audioExt}`,
       "-i", "marca.png",
-      "-filter_complex", "[0:v]scale=480:854:force_original_aspect_ratio=increase,crop=480:854,setsar=1[base];[base][2:v]overlay=0:0:format=auto,format=yuv420p[v]",
+      "-filter_complex", "[0:v]scale=480:854:force_original_aspect_ratio=decrease,pad=480:854:(ow-iw)/2:(oh-ih)/2:black,setsar=1[base];[base][2:v]overlay=0:0:format=auto,format=yuv420p[v]",
       "-map", "[v]", "-map", "1:a:0",
       "-r", "12", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "29", "-pix_fmt", "yuv420p",
       "-c:a", "aac", "-b:a", "128k", "-af", `volume=${volume}`,
@@ -81,7 +81,7 @@ export async function exportVideoWithMark(post,onProgress=()=>{}) {
     onProgress("Incorporando RIVYZA al video…");
     const result=await ffmpeg.exec([
       "-i","entrada.mp4","-i","marca.png",
-      "-filter_complex","[0:v]scale=480:854:force_original_aspect_ratio=increase,crop=480:854,setsar=1[base];[base][1:v]overlay=0:0:format=auto,format=yuv420p[v]",
+      "-filter_complex","[0:v]scale=480:854:force_original_aspect_ratio=decrease,pad=480:854:(ow-iw)/2:(oh-ih)/2:black,setsar=1[base];[base][1:v]overlay=0:0:format=auto,format=yuv420p[v]",
       "-map","[v]","-map","0:a?","-c:v","libx264","-preset","ultrafast","-crf","27","-pix_fmt","yuv420p",
       "-c:a","aac","-b:a","128k","-movflags","+faststart","salida.mp4"
     ]);
