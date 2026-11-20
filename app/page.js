@@ -6,7 +6,9 @@ import Cropper from "react-easy-crop";
 import LiveRoom from "./LiveRoom";
 import LivePreviewPlayer from "./LivePreviewPlayer";
 import PostMusicMedia from "./PostMusicMedia";
-import { exportPhotoWithMusic } from "./RIVYZA_exportarFotoConMusica";
+import { exportPhotoWithMusic, exportVideoWithMark } from "./RIVYZA_exportarFotoConMusica";
+import RIVYZAWatermark, { markPhoto } from "./RIVYZAWatermark";
+import "./RIVYZAWatermark.css";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
   AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send, Download
@@ -2009,9 +2011,11 @@ async function applyPostCrop(){
     try{
       // No confiar en la copia de la publicación recibida desde el feed.
       const {data:post,error}=await supabase.from("posts")
-        .select("id,user_id,media_path,media_type,music_path,music_start_seconds,music_clip_seconds,music_volume")
+        .select("id,user_id,media_path,media_type,music_path,music_title,music_start_seconds,music_clip_seconds,music_volume")
         .eq("id",sharePost.id).eq("user_id",user.id).maybeSingle();
       if(error || !post?.media_path)throw new Error("Solo el dueño puede descargar esta publicación.");
+      const {data:ownerProfile}=await supabase.from("profiles").select("username").eq("id",post.user_id).maybeSingle();
+      post.creator={username:ownerProfile?.username || sharePost?.creator?.username || "usuario"};
       // Para fotos con música, primero se prepara el MP4. Safari exige un segundo
       // toque del usuario para abrir la hoja nativa «Guardar video».
       if(post.media_type==="photo" && post.music_path && preparedMusicVideo?.postId!==post.id){
@@ -2021,7 +2025,13 @@ async function applyPostCrop(){
         setShareSuccess("Video con música preparado. Toca «Guardar video» para enviarlo a Fotos.");
         return;
       }
-      const readyFile=post.media_type==="photo"&&post.music_path&&preparedMusicVideo?.postId===post.id?preparedMusicVideo.file:null;
+      if(post.media_type==="video" && preparedMusicVideo?.postId!==post.id){
+        const videoFile=await exportVideoWithMark(post,setShareDownloadStage);
+        setPreparedMusicVideo({postId:post.id,file:videoFile});
+        setShareSuccess("Video con marca preparado. Toca «Guardar video».");
+        return;
+      }
+      const readyFile=preparedMusicVideo?.postId===post.id?preparedMusicVideo.file:null;
       if(readyFile){
         if(typeof navigator.share==="function" && navigator.canShare?.({files:[readyFile]})){
           try{await navigator.share({files:[readyFile]});setShareSuccess("Selecciona «Guardar video» en tu iPhone.");return;}
@@ -2033,6 +2043,15 @@ async function applyPostCrop(){
         setTimeout(()=>URL.revokeObjectURL(videoUrl),60000);
         setShareSuccess("Video descargado. Si es necesario, ábrelo desde Archivos y guárdalo en Fotos.");
         return;
+      }
+      if(post.media_type==="photo" && !post.music_path){
+        const photoFile=await markPhoto(post);
+        if(navigator.canShare?.({files:[photoFile]})){
+          try{await navigator.share({files:[photoFile]});setShareSuccess("Selecciona «Guardar imagen».");return;}
+          catch(e){if(e?.name==="AbortError")return;}
+        }
+        const u=URL.createObjectURL(photoFile);const a=document.createElement("a");a.href=u;a.download=photoFile.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);
+        setShareSuccess("Foto con marca descargada.");return;
       }
       const mediaUrl=new URL(post.media_path,window.location.origin);
       if(!["http:","https:"].includes(mediaUrl.protocol))throw new Error("Archivo no disponible.");
@@ -4207,6 +4226,7 @@ async function applyPostCrop(){
           </header>
           <div className="post-detail-media post-swipe-viewer" onTouchStart={handlePostTouchStart} onTouchEnd={handlePostTouchEnd} onWheel={handlePostWheel}>
             <PostMusicMedia key={selectedPost.id} post={selectedPost} detail videoRef={postViewerVideoRef}/>
+            <RIVYZAWatermark post={selectedPost}/>
           </div>
           <div className="post-detail-info">
             {selectedPost.caption && <p className="post-detail-caption">{renderMentionText(selectedPost.caption)}</p>}
@@ -4365,6 +4385,7 @@ async function applyPostCrop(){
             onWheel={handlePostWheel}
           >
             <PostMusicMedia key={selectedPost.id} post={selectedPost} detail videoRef={postViewerVideoRef}/>
+            <RIVYZAWatermark post={selectedPost}/>
           </div>
 
           <div className="post-detail-info">
@@ -4610,6 +4631,7 @@ async function applyPostCrop(){
           <article className="video-card feed-post-card" key={post.id}>
             <div className="feed-media-wrap">
               <PostMusicMedia post={post}/>
+              <RIVYZAWatermark post={post}/>
             </div>
 
             <div className="creator-copy">
@@ -4635,6 +4657,7 @@ async function applyPostCrop(){
               </button>
               <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
               <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
+              {post.user_id===user?.id&&<button onClick={()=>openShare(post)}><Download/><span>Descargar</span></button>}
               <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
             </div>
           </article>
@@ -4855,6 +4878,7 @@ async function applyPostCrop(){
         <article className="video-card feed-post-card" key={post.id}>
           <div className="feed-media-wrap">
             <PostMusicMedia post={post}/>
+              <RIVYZAWatermark post={post}/>
           </div>
 
           <div className="creator-copy">
@@ -4881,6 +4905,7 @@ async function applyPostCrop(){
             </button>
             <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
             <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
+              {post.user_id===user?.id&&<button onClick={()=>openShare(post)}><Download/><span>Descargar</span></button>}
             <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
           </div>
         </article>
