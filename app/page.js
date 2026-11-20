@@ -4,6 +4,7 @@ import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import LiveRoom from "./LiveRoom";
+import RivyzaStories from "./RivyzaStories";
 import LivePreviewPlayer from "./LivePreviewPlayer";
 import PostMusicMedia from "./PostMusicMedia";
 import { exportPhotoWithMusic, exportVideoWithMark } from "./RIVYZA_exportarFotoConMusica";
@@ -4636,6 +4637,8 @@ async function applyPostCrop(){
         <h1>{t("Amigos")}</h1>
         <p>Solo personas que tú sigues y que también te siguen.</p>
       </header>
+
+      <RivyzaStories supabase={supabase} user={user} profile={profile} language={appLanguage}/>
 
       <section className="video-feed home-real-feed">
         {feedLoading && !feedPosts.length && (
