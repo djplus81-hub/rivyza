@@ -4548,6 +4548,8 @@ async function applyPostCrop(){
           </button>
         </div>
       </div>}
+      {/* El perfil propio también debe montar el mismo menú Compartir de Para ti. */}
+      {renderShareSheet()}
     </main>;;
 
   if(view==="liveStudio" || (profileFromLive && (view==="otherProfile" || view==="publicProfile"))){
