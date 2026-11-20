@@ -6,6 +6,7 @@ import Cropper from "react-easy-crop";
 import LiveRoom from "./LiveRoom";
 import LivePreviewPlayer from "./LivePreviewPlayer";
 import PostMusicMedia from "./PostMusicMedia";
+import { exportPhotoWithMusic } from "./RIVYZA_exportarFotoConMusica";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
   AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send, Download
@@ -1999,6 +2000,8 @@ async function applyPostCrop(){
   // Primera fase: descarga exclusivamente del autor. Los permisos para terceros
   // requieren validación en servidor antes de habilitarse.
   const [shareDownloading,setShareDownloading]=useState(false);
+  const [shareDownloadStage,setShareDownloadStage]=useState("");
+  const [preparedMusicVideo,setPreparedMusicVideo]=useState(null);
   async function downloadOwnSharedPost(){
     if(!sharePost?.id || !user?.id || shareDownloading)return;
     setShareError("");setShareSuccess("");
@@ -2006,9 +2009,31 @@ async function applyPostCrop(){
     try{
       // No confiar en la copia de la publicación recibida desde el feed.
       const {data:post,error}=await supabase.from("posts")
-        .select("id,user_id,media_path,media_type")
+        .select("id,user_id,media_path,media_type,music_path,music_start_seconds,music_clip_seconds,music_volume")
         .eq("id",sharePost.id).eq("user_id",user.id).maybeSingle();
       if(error || !post?.media_path)throw new Error("Solo el dueño puede descargar esta publicación.");
+      // Para fotos con música, primero se prepara el MP4. Safari exige un segundo
+      // toque del usuario para abrir la hoja nativa «Guardar video».
+      if(post.media_type==="photo" && post.music_path && preparedMusicVideo?.postId!==post.id){
+        const videoFile=await exportPhotoWithMusic(post,setShareDownloadStage);
+        setPreparedMusicVideo({postId:post.id,file:videoFile});
+        setShareDownloadStage("");
+        setShareSuccess("Video con música preparado. Toca «Guardar video» para enviarlo a Fotos.");
+        return;
+      }
+      const readyFile=post.media_type==="photo"&&post.music_path&&preparedMusicVideo?.postId===post.id?preparedMusicVideo.file:null;
+      if(readyFile){
+        if(typeof navigator.share==="function" && navigator.canShare?.({files:[readyFile]})){
+          try{await navigator.share({files:[readyFile]});setShareSuccess("Selecciona «Guardar video» en tu iPhone.");return;}
+          catch(e){if(e?.name==="AbortError")return;}
+        }
+        const videoUrl=URL.createObjectURL(readyFile);
+        const link=document.createElement("a");link.href=videoUrl;link.download=readyFile.name;
+        document.body.appendChild(link);link.click();link.remove();
+        setTimeout(()=>URL.revokeObjectURL(videoUrl),60000);
+        setShareSuccess("Video descargado. Si es necesario, ábrelo desde Archivos y guárdalo en Fotos.");
+        return;
+      }
       const mediaUrl=new URL(post.media_path,window.location.origin);
       if(!["http:","https:"].includes(mediaUrl.protocol))throw new Error("Archivo no disponible.");
       const response=await fetch(mediaUrl.toString(),{mode:"cors",credentials:"omit"});
@@ -2039,7 +2064,7 @@ async function applyPostCrop(){
         }finally{setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);}
       }
     }catch(e){setShareError(e.message||"No se pudo descargar la publicación.");}
-    finally{setShareDownloading(false);}
+    finally{setShareDownloading(false);setShareDownloadStage("");}
   }
   useEffect(()=>{
     if(!user?.id||!supabase||typeof window==="undefined")return;
@@ -2070,7 +2095,7 @@ async function applyPostCrop(){
         <div className="rivyza-share-external">
           <button type="button" onClick={shareOutside}><span className="rivyza-share-round"><Share2/></span><small>Más aplicaciones</small></button>
           <button type="button" onClick={copyShareLink}><span className="rivyza-share-round"><LinkIcon/></span><small>Copiar enlace</small></button>
-          {sharePost?.user_id===user?.id&&<button type="button" disabled={shareDownloading} onClick={downloadOwnSharedPost}><span className="rivyza-share-round"><Download/></span><small>{shareDownloading?"Descargando…":"Descargar"}</small></button>}
+          {sharePost?.user_id===user?.id&&<button type="button" disabled={shareDownloading} onClick={downloadOwnSharedPost}><span className="rivyza-share-round"><Download/></span><small>{shareDownloading?(shareDownloadStage||"Preparando…"):(preparedMusicVideo?.postId===sharePost?.id?"Guardar video":"Descargar")}</small></button>}
         </div>
         <p className="rivyza-share-hint">Al tocar «Más aplicaciones», tu teléfono mostrará WhatsApp, Facebook, Mensajes y otras aplicaciones compatibles que tengas instaladas.</p>
         {sharePrivate&&<p className="rivyza-share-warning">Esta publicación no es pública. Los enlaces externos están desactivados.</p>}
