@@ -203,6 +203,7 @@ export default function HomePage(){
   const [likedPostsError,setLikedPostsError]=useState("");
   const [socialNotices,setSocialNotices]=useState([]);
   const [socialMessages,setSocialMessages]=useState([]);
+  const [storyReplyMedia,setStoryReplyMedia]=useState({});
   const [hiddenMessageIds,setHiddenMessageIds]=useState([]);
   const [conversationCutoffs,setConversationCutoffs]=useState({});
   const [swipedConversationId,setSwipedConversationId]=useState(null);
@@ -3487,6 +3488,19 @@ async function applyPostCrop(){
       const {data:noticePosts}=postIds.length?await supabase.from("posts").select("id,media_path,media_type").in("id",postIds):{data:[]};
       const postsById=Object.fromEntries((noticePosts||[]).map(post=>[post.id,post]));
       setSocialNotices((notices.data||[]).map(n=>({...n,actor:byId[n.actor_id],relatedPost:postsById[n.post_id]||null})));
+      // Miniaturas de historias respondidas: consultar únicamente historias aún vigentes.
+      // No almacenar copias de imágenes en mensajes; al expirar desaparecen.
+      const storyIds=[...new Set((messages.data||[]).map(m=>m.story_id).filter(Boolean))];
+      if(storyIds.length){
+        const {data:replyStories,error:storyLookupError}=await supabase.from("rivyza_stories")
+          .select("id,user_id,media_path,media_type,expires_at").in("id",storyIds)
+          .gt("expires_at",new Date().toISOString());
+        if(!storyLookupError){
+          const storyMap={};
+          (replyStories||[]).forEach(st=>{storyMap[st.id]={...st,url:supabase.storage.from("rivyza-stories").getPublicUrl(st.media_path).data.publicUrl};});
+          setStoryReplyMedia(storyMap);
+        }
+      }else setStoryReplyMedia({});
       setSocialMessages((messages.data||[]).filter(m=>!m.deleted_for_all && (!m.audio_path || !m.audio_expires_at || new Date(m.audio_expires_at)>new Date())).map(m=>({...m,sender:byId[m.sender_id],recipient:byId[m.recipient_id]})));
       if(!hidden.error)setHiddenMessageIds((hidden.data||[]).map(x=>x.message_id));
       if(!cleared.error)setConversationCutoffs(Object.fromEntries((cleared.data||[]).map(x=>[x.peer_id,x.cleared_at])));
@@ -3981,7 +3995,15 @@ async function applyPostCrop(){
           onTouchStart={e=>{swipeStartRef.current={id:m.id,x:e.touches[0].clientX,y:e.touches[0].clientY};}}
           onTouchEnd={e=>{const start=swipeStartRef.current;swipeStartRef.current=null;if(!start||start.id!==m.id)return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.abs(dy)>Math.abs(dx))return;if(dx< -55)setSwipedMessageId(m.id);else if(dx>35)setSwipedMessageId(null);}}>
           <div className="rivyza-swipe-actions"><button type="button" onClick={()=>hideSocialMessage(m.id)}>{t("Eliminar para mí")}</button>{m.sender_id===user.id&&Date.now()-new Date(m.created_at).getTime()<180000&&<button type="button" className="rivyza-delete-everyone" onClick={()=>deleteSocialMessageForEveryone(m)}>{t("Eliminar para todos")}</button>}</div>
-          <div className={"social-bubble"+(m.audio_path?" rivyza-audio-message":"")}>{m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
+          <div className={"social-bubble"+(m.audio_path?" rivyza-audio-message":"")}>
+            {m.story_id&&<div className="rivyza-story-reply-context" style={{display:'flex',alignItems:'center',gap:10,padding:'8px',marginBottom:8,borderRadius:12,background:'rgba(255,255,255,.1)',borderLeft:'3px solid #38bdf8'}}>
+              {storyReplyMedia[m.story_id] ? <>
+                <div style={{width:55,height:72,flexShrink:0,overflow:'hidden',borderRadius:8,background:'#141925'}}>
+                  {storyReplyMedia[m.story_id].media_type==='video'?<video src={storyReplyMedia[m.story_id].url+'#t=0.1'} muted playsInline preload="metadata" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<img src={storyReplyMedia[m.story_id].url} alt="Historia respondida" loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
+                </div><span style={{fontSize:12,lineHeight:1.35}}>{appLanguage==='en'?'Reply to this story':'Respuesta a esta historia'}{storyReplyMedia[m.story_id].media_type==='video'?' ▶':''}</span>
+              </>:<span style={{fontSize:12,opacity:.8}}>{appLanguage==='en'?'Story expired or deleted':'Historia caducada o eliminada'}</span>}
+            </div>}
+            {m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
             {Array.from({length:30},(_,i)=><span key={i} className={i/30<=(voiceProgress[m.id]||0)?"played":""} style={{height:(6+Math.round(Math.abs(Math.sin((i+1)*1.71)*Math.cos((i+2)*.49))*18))+"px"}}/>)}
           </div><small>{Math.min(60,m.audio_duration||0)}s</small></div> : /[?&]live=[a-zA-Z0-9_-]{1,100}/.test(m.body||'') ? (()=>{
             const body=m.body||'';
