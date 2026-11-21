@@ -4657,41 +4657,33 @@ async function applyPostCrop(){
 
   if(view==="friends"){
     return <main className={"feed-shell friends-feed-shell"+(friendsStoriesCompact?" stories-compact":"")}>
-      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }
-      .friends-feed-shell .friends-feed-topbar{position:relative!important;top:auto!important;left:auto!important;right:auto!important;transform:none!important;z-index:6!important;flex-shrink:0!important;box-sizing:border-box!important;margin:0!important;padding-top:calc(env(safe-area-inset-top,0px) + 12px)!important;padding-bottom:12px!important;background:#050507!important;}
-      .friends-feed-shell .rz-stories-strip{position:relative!important;top:auto!important;flex-shrink:0!important;z-index:5!important;transition:padding .22s ease,gap .22s ease;}
-      .friends-feed-shell.stories-compact .rz-stories-strip{position:absolute!important;top:calc(env(safe-area-inset-top,0px) + 60px)!important;left:0!important;right:0!important;width:100%!important;box-sizing:border-box!important;background:linear-gradient(180deg,rgba(5,5,7,.88),rgba(5,5,7,.55))!important;padding:5px 10px!important;gap:8px!important;z-index:9!important;max-height:49px!important;overflow-y:hidden!important;}
+      <style>{`
+      /* Amigos V5: el feed tiene el mismo lienzo que Para ti; historias superpuestas. */
+      .friends-feed-shell{display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+      .friends-feed-shell .friends-feed-topbar{position:relative!important;top:auto!important;left:auto!important;right:auto!important;transform:none!important;z-index:12!important;flex-shrink:0!important;box-sizing:border-box!important;margin:0!important;padding-top:calc(env(safe-area-inset-top,0px) + 12px)!important;padding-bottom:7px!important;background:#050507!important;}
+      .friends-feed-shell .friends-feed-topbar p{position:relative!important;top:-5px!important;margin-bottom:0!important;}
+      .friends-feed-shell .friends-feed-stage{position:relative!important;flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;}
+      .friends-feed-shell .friends-feed-stage > .video-feed{position:relative!important;width:100%!important;height:100%!important;min-height:0!important;overflow-y:auto!important;scroll-snap-type:y mandatory!important;}
+      .friends-feed-shell .friends-feed-stage > .rz-stories-strip{position:absolute!important;top:0!important;left:0!important;right:0!important;width:100%!important;box-sizing:border-box!important;z-index:15!important;background:transparent!important;overflow-x:auto!important;overflow-y:hidden!important;pointer-events:auto!important;padding:9px 12px 5px!important;gap:12px!important;transition:padding .2s ease,gap .2s ease!important;}
+      .friends-feed-shell .friends-feed-stage .rz-story-avatar{filter:drop-shadow(0 2px 3px #000a);}
+      .friends-feed-shell.stories-compact .friends-feed-stage > .rz-stories-strip{padding:5px 10px!important;gap:8px!important;max-height:48px!important;}
       .friends-feed-shell.stories-compact .rz-story-own-wrap,.friends-feed-shell.stories-compact .rz-story-avatar{min-width:36px!important;max-width:36px!important;width:36px!important;flex-basis:36px!important;}
       .friends-feed-shell.stories-compact .rz-story-ring{width:34px!important;height:34px!important;padding:2px!important;border-width:2px!important;box-sizing:border-box!important;}
       .friends-feed-shell.stories-compact .rz-story-avatar{font-size:0!important;gap:0!important;}
       .friends-feed-shell.stories-compact .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell.stories-compact .rz-story-count{display:none!important;}
       .friends-feed-shell.stories-compact .rz-story-plus-action{top:22px!important;right:-3px!important;width:16px!important;height:16px!important;}
       .friends-feed-shell.stories-compact .rz-story-plus-action svg{width:11px;height:11px;}
-      .friends-feed-shell{display:flex!important;flex-direction:column!important;overflow:hidden!important;}
-      .friends-feed-shell > .video-feed{flex:1 1 auto!important;min-height:0!important;position:relative!important;overflow-y:auto!important;scroll-snap-type:y mandatory!important;}
-      .friends-feed-shell .feed-post-card{height:100%!important;min-height:100%!important;max-height:100%!important;box-sizing:border-box!important;position:relative!important;scroll-snap-align:start!important;overflow:hidden!important;}
-      .friends-feed-shell .feed-post-card .feed-media-wrap{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;}
-      .friends-feed-shell .feed-post-card .feed-media-wrap img,.friends-feed-shell .feed-post-card .feed-media-wrap video{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;}
-      .friends-feed-shell .feed-post-card .creator-copy,.friends-feed-shell .feed-post-card .side-actions{z-index:3!important;}
-      .friends-feed-shell.stories-compact .friends-feed-topbar{flex-shrink:0!important;}
-      /* V3: acercar el subtitulo y dejar las historias compactas superpuestas. */
-      .friends-feed-shell .friends-feed-topbar p{position:relative!important;top:-5px!important;margin-bottom:0!important;}
-      .friends-feed-shell.stories-compact .rz-stories-strip{top:calc(env(safe-area-inset-top,0px) + 60px)!important;}
-      /* En compactado, ocupar el lienzo del post sin bandas negras por object-fit contain. */
-      .friends-feed-shell.stories-compact .feed-post-card .feed-media-wrap img,
-      .friends-feed-shell.stories-compact .feed-post-card .feed-media-wrap video{object-fit:cover!important;object-position:center center!important;}
-      /* Proteger el texto de la publicación y la fecha frente a la navegación inferior. */
-      /* V4: mantener nombre, descripcion y fecha por encima de la barra inferior, sin mover encabezado ni historias. */
-      .friends-feed-shell .feed-post-card .creator-copy{bottom:76px!important;padding-bottom:0!important;box-sizing:border-box!important;max-height:calc(100% - 130px)!important;overflow:visible!important;}
-      .friends-feed-shell .feed-post-card .post-date-time{margin-top:5px!important;line-height:1.3!important;white-space:normal!important;}
-      .friends-feed-shell .feed-post-card .post-date-time{display:block!important;visibility:visible!important;opacity:1!important;}
-
+      /* Mantener el mismo encuadre y posicionamiento del contenido que Para ti. */
+      .friends-feed-shell .friends-feed-stage .feed-post-card{height:100%!important;min-height:100%!important;max-height:100%!important;box-sizing:border-box!important;scroll-snap-align:start!important;}
+      .friends-feed-shell .friends-feed-stage .feed-post-card .creator-copy{z-index:3!important;}
+      .friends-feed-shell .friends-feed-stage .feed-post-card .post-date-time{display:block!important;visibility:visible!important;opacity:1!important;}
       `}</style>
       <header className="friends-topbar friends-feed-topbar">
         <h1>{t("Amigos")}</h1>
         <p>Solo personas que tú sigues y que también te siguen.</p>
       </header>
 
+      <div className="friends-feed-stage">
       <RivyzaStories supabase={supabase} user={user} profile={profile} language={appLanguage}/>
 
       <section className="video-feed home-real-feed" onScroll={e=>{const el=e.currentTarget;if(el.scrollTop>30&&!friendsStoriesCompact)setFriendsStoriesCompact(true);else if(el.scrollTop<=8&&friendsStoriesCompact)setFriendsStoriesCompact(false);}} onTouchStart={e=>{friendsFeedTouchY.current=e.touches[0]?.clientY??null;}} onTouchMove={e=>{if(friendsFeedTouchY.current==null)return;const delta=friendsFeedTouchY.current-(e.touches[0]?.clientY??friendsFeedTouchY.current);if(delta>22&&!friendsStoriesCompact)setFriendsStoriesCompact(true);else if(delta< -22&&e.currentTarget.scrollTop<=8&&friendsStoriesCompact)setFriendsStoriesCompact(false);}}>
@@ -4737,6 +4729,7 @@ async function applyPostCrop(){
           </article>
         ))}
       </section>
+      </div>
 
       <nav className="bottom-nav">
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
