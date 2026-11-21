@@ -4693,8 +4693,12 @@ async function applyPostCrop(){
       .friends-feed-shell .feed-post-card{height:100%!important;min-height:100%!important;max-height:100%!important;box-sizing:border-box!important;position:relative!important;scroll-snap-align:start!important;scroll-snap-stop:always!important;overflow:hidden!important;}
       .friends-feed-shell .feed-post-card .feed-media-wrap{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;}
       /* Safari iPhone 11: el componente intermedio debe ocupar TODO el rectángulo. */
-      .friends-feed-shell{width:100%!important;min-width:0!important;height:100dvh!important;min-height:0!important;}
-      .friends-feed-shell > .video-feed{width:100%!important;min-width:0!important;}
+      /* V17: fijar el ancho al viewport real de Safari, no al ancho intrínseco de una foto 9:16. */
+      .friends-feed-shell{width:100vw!important;max-width:100vw!important;min-width:100vw!important;margin-left:calc(50% - 50vw)!important;height:100dvh!important;min-height:0!important;box-sizing:border-box!important;}
+      .friends-feed-shell > .video-feed,.friends-feed-shell .feed-post-card,.friends-feed-shell .feed-media-wrap{box-sizing:border-box!important;max-width:100%!important;}
+      .friends-feed-shell .feed-post-card .feed-media-wrap > .rivyza-music-feed{aspect-ratio:auto!important;}
+      .friends-feed-shell .feed-post-card .feed-media-wrap > .rivyza-music-feed > .feed-media{aspect-ratio:auto!important;}
+      .friends-feed-shell > .video-feed{width:100%!important;min-width:0!important;max-width:100%!important;align-self:stretch!important;}
       .friends-feed-shell .feed-post-card{width:100%!important;min-width:0!important;}
       .friends-feed-shell .feed-post-card .feed-media-wrap > .rivyza-music-feed{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;display:block!important;overflow:hidden!important;transform:none!important;}
       .friends-feed-shell .feed-post-card .feed-media-wrap img,.friends-feed-shell .feed-post-card .feed-media-wrap video{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center center!important;transform:none!important;}
