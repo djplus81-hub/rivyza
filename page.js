@@ -4,117 +4,69 @@ import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import LiveRoom from "./LiveRoom";
+import RivyzaStories from "./RivyzaStories";
 import LivePreviewPlayer from "./LivePreviewPlayer";
 import PostMusicMedia from "./PostMusicMedia";
+import { exportPhotoWithMusic, exportVideoWithMark } from "./RIVYZA_exportarFotoConMusica";
+import RIVYZAWatermark, { markPhoto } from "./RIVYZAWatermark";
+import "./RIVYZAWatermark.css";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
-  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send
+  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send, Download
 } from "lucide-react";
 
 // Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
 const DEEPAR_EFFECTS = [
-  {
-    "id": "8bitHearts",
-    "label": "8bitHearts",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/8bitHearts.deepar"
-  },
-  {
-    "id": "Elephant_Trunk",
-    "label": "Elephant Trunk",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Elephant_Trunk.deepar"
-  },
-  {
-    "id": "Emotion_Meter",
-    "label": "Emotion Meter",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Emotion_Meter.deepar"
-  },
-  {
-    "id": "Emotions_Exaggerator",
-    "label": "Emotions Exaggerator",
-    "category": "face",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Emotions_Exaggerator.deepar"
-  },
-  {
-    "id": "Fire_Effect",
-    "label": "Fire Effect",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Fire_Effect.deepar"
-  },
-  {
-    "id": "Hope",
-    "label": "Hope",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Hope.deepar"
-  },
-  {
-    "id": "Humanoid",
-    "label": "Humanoid",
-    "category": "face",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Humanoid.deepar"
-  },
-  {
-    "id": "MakeupLook",
-    "label": "MakeupLook",
-    "category": "beauty",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/MakeupLook.deepar"
-  },
-  {
-    "id": "Ping_Pong",
-    "label": "Ping Pong",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Ping_Pong.deepar"
-  },
-  {
-    "id": "Snail",
-    "label": "Snail",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Snail.deepar"
-  },
-  {
-    "id": "Split_View_Look",
-    "label": "Split View Look",
-    "category": "beauty",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Split_View_Look.deepar"
-  },
-  {
-    "id": "Stallone",
-    "label": "Stallone",
-    "category": "face",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Stallone.deepar"
-  },
-  {
-    "id": "Vendetta_Mask",
-    "label": "Vendetta Mask",
-    "category": "accessories",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Vendetta_Mask.deepar"
-  },
-  {
-    "id": "burning_effect",
-    "label": "burning effect",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/burning_effect.deepar"
-  },
-  {
-    "id": "flower_face",
-    "label": "flower face",
-    "category": "accessories",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/flower_face.deepar"
-  },
-  {
-    "id": "galaxy_background",
-    "label": "galaxy background",
-    "category": "fun",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/galaxy_background.deepar"
-  },
-  {
-    "id": "viking_helmet",
-    "label": "viking helmet",
-    "category": "accessories",
-    "url": "https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/viking_helmet.deepar"
-  }
+  {"id":"lightbulb","label":"Bombilla","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Lightbulb.deepar","labelEn":"Lightbulb"},
+  {"id":"cara-fea","label":"Cara fea","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Cara%20Fea.deepar","labelEn":"Ugly Face"},
+  {"id":"cara-alien","label":"Cara de extraterrestre","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Cara%20de%20Alien.deepar","labelEn":"Alien Face"},
+  {"id":"lentes3","label":"Lentes 3","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Lentes%203.deepar","labelEn":"Glasses 3"},
+  {"id":"blurred-background","label":"Fondo desenfocado","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Blurred%20Background.deepar","labelEn":"Blurred Background"},
+  {"id":"tongue-out","label":"Lengua afuera","labelEn":"Tongue Out","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Tongue%20Out.deepar"},
+  {"id":"video-filter","label":"Filtro de video","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Video%20Filter.deepar","labelEn":"Video Filter"},
+  {"id":"ojos-1","label":"Ojos 1","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%201.deepar","labelEn":"Eyes 1"},
+  {"id":"ojos-2","label":"Ojos 2","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%202.deepar","labelEn":"Eyes 2"},
+  {"id":"ojos-3","label":"Ojos 3","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%203.deepar","labelEn":"Eyes 3"},
+  {"id":"ojos-4","label":"Ojos 4","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%204.deepar","labelEn":"Eyes 4"},
+  {"id":"ojos-5","label":"Ojos 5","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%205.deepar","labelEn":"Eyes 5"},
+  {"id":"ojos-6","label":"Ojos 6","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%206.deepar","labelEn":"Eyes 6"},
+  {"id":"ojos-7","label":"Ojos 7","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%207.deepar","labelEn":"Eyes 7"},
+  {"id":"ojos-8","label":"Ojos 8","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%208.deepar","labelEn":"Eyes 8"},
+  {"id":"ojos-9","label":"Ojos 9","category":"face","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Eyes%209.deepar","labelEn":"Eyes 9"},
+  {"id":"glase-r","label":"Lentes R","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Glase%20R.deepar","labelEn":"Glasses R"},
+  {"id":"glase","label":"Lentes","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/glase.deepar","labelEn":"Glasses"},
+  {"id":"santa","label":"Papá Noel","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/santa.deepar","labelEn":"Santa"},
+  {"id":"troll-funk","label":"Trol funk","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/troll-funk.deepar","labelEn":"Funk Troll"},
+  {"id":"troll-reggaeton","label":"Trol reguetón","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/troll-reggaeton.deepar","labelEn":"Reggaeton Troll"},
+  {"id":"cute-virtual-pet","label":"Mascota virtual adorable","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/cute-virtual-pet.deepar","labelEn":"Cute Virtual Pet"},
+  {"id":"bunny-ears","label":"Orejas de conejo","labelEn":"Bunny Ears","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/bunny-ears.deepar"},
+  {"id":"derp","label":"Cara graciosa","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/derp.deepar","labelEn":"Derp"},
+  {"id":"sequin-butterfly","label":"Mariposa brillante","labelEn":"Sequin Butterfly","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/sequin-butterfly.deepar"},
+  {"id":"amanita-look","label":"Estilo amanita","labelEn":"Amanita Look","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/amanita-look.deepar"},
+  {"id":"shiny-glitter-face","label":"Rostro brillante","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/shiny-glitter-face.deepar","labelEn":"Shiny Glitter Face"},
+  {"id":"butterfly-headband","label":"Diadema de mariposa","labelEn":"Butterfly Headband","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/butterfly-headband.deepar"},
+  {"id":"makeup-kim","label":"Maquillaje Kim","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/makeup-kim.deepar","labelEn":"Makeup Kim"},
+  {"id":"spring-deer","label":"Ciervo primaveral","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/spring-deer.deepar","labelEn":"Spring Deer"},
+  {"id":"spring-fairy","label":"Hada primaveral","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/spring-fairy.deepar","labelEn":"Spring Fairy"},
+  {"id":"cuernos","label":"Cuernos","labelEn":"Horns","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/cuernos.deepar"},
+  {"id":"luz","label":"Luz","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/luz.deepar","labelEn":"Light"},
+
+  {"id":"look1","label":"Belleza 1","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/look1.deepar","labelEn":"Beauty 1"},
+  {"id":"look2","label":"Belleza 2","category":"beauty","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/look2.deepar","labelEn":"Beauty 2"},
+
+  {"id":"8bitHearts","label":"Corazones de 8 bits","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/8bitHearts.deepar","labelEn":"8-bit Hearts"},
+  {"id":"Elephant_Trunk","label":"Trompa de elefante","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Elephant_Trunk.deepar","labelEn":"Elephant Trunk"},
+{"id":"Fire_Effect","label":"Efecto de fuego","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Fire_Effect.deepar","labelEn":"Fire Effect"},
+  {"id":"Hope","label":"Esperanza","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Hope.deepar","labelEn":"Hope"},
+  {"id":"Humanoid","label":"Humanoide","labelEn":"Humanoid","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Humanoid.deepar"},
+  {"id":"Snail","label":"Caracol","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Snail.deepar","labelEn":"Snail"},
+
+  {"id":"Stallone","label":"Stallone","labelEn":"Stallone","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Stallone.deepar"},
+  {"id":"Vendetta_Mask","label":"Máscara Vendetta","labelEn":"Vendetta Mask","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/Vendetta_Mask.deepar"},
+  {"id":"burning_effect","label":"Efecto ardiente","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/burning_effect.deepar","labelEn":"Burning Effect"},
+  {"id":"flower_face","label":"Rostro floral","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/flower_face.deepar","labelEn":"Flower Face"},
+  {"id":"galaxy_background","label":"Fondo de galaxia","category":"fun","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/galaxy_background.deepar","labelEn":"Galaxy Background"},
+  {"id":"viking_helmet","label":"Casco vikingo","category":"accessories","url":"https://yxdwzsdyxejikekunojs.supabase.co/storage/v1/object/public/deepar-effects/viking_helmet.deepar","labelEn":"Viking Helmet"}
 ];
 
 function createImage(url){return new Promise((resolve,reject)=>{const i=new Image();i.addEventListener("load",()=>resolve(i));i.addEventListener("error",reject);i.setAttribute("crossOrigin","anonymous");i.src=url;});}
@@ -241,6 +193,8 @@ export default function HomePage(){
     const updated=readAccounts().filter(a=>a.id!==item.id);
     localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(updated));setSavedAccounts(updated);
   }
+  const [friendsStoriesCompact,setFriendsStoriesCompact]=useState(false);
+  const friendsFeedTouchY=useRef(null); // reservado para gestos futuros; RIVYZA Flow usa scroll real.
   const [appLanguage,setAppLanguage]=useState("es");
   useEffect(()=>{try{setAppLanguage(localStorage.getItem("rivyza-language")==="en"?"en":"es");}catch(e){}},[]);
   const changeAppLanguage=(value)=>{setAppLanguage(value);try{localStorage.setItem("rivyza-language",value);}catch(e){}};
@@ -251,6 +205,7 @@ export default function HomePage(){
   const [likedPostsError,setLikedPostsError]=useState("");
   const [socialNotices,setSocialNotices]=useState([]);
   const [socialMessages,setSocialMessages]=useState([]);
+  const [storyReplyMedia,setStoryReplyMedia]=useState({});
   const [hiddenMessageIds,setHiddenMessageIds]=useState([]);
   const [conversationCutoffs,setConversationCutoffs]=useState({});
   const [swipedConversationId,setSwipedConversationId]=useState(null);
@@ -339,6 +294,7 @@ export default function HomePage(){
   const [activeLivePreview,setActiveLivePreview]=useState(0);
   const [livePreviewInvite,setLivePreviewInvite]=useState(false);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
+  useEffect(()=>{if(view!=="friends")setFriendsStoriesCompact(false);},[view]);
   // v3.29: open shared LIVE room after login.
   useEffect(() => {
     if (!user?.id || typeof window === 'undefined') return;
@@ -371,7 +327,7 @@ export default function HomePage(){
     return()=>clearTimeout(timeout);
   },[view,activeLivePreview,discoverLiveRooms.length]);
   useEffect(()=>{
-    if(!["livePreview","alerts"].includes(view) || !supabase || !user?.id)return;
+    if(!["home","livePreview","alerts"].includes(view) || !supabase || !user?.id)return;
     let active=true;
     const refresh=async()=>{
       try{
@@ -848,6 +804,11 @@ async function applyPostCrop(){
   const deepARBusyRef=useRef(false);
   const deepARRequestRef=useRef(0);
   const [deepAREffect,setDeepAREffect]=useState(null);
+  const [makeupLayerOn,setMakeupLayerOn]=useState(false);
+  const [eyesLayer,setEyesLayer]=useState(null);
+  const makeupLayerRef=useRef(false);
+  const eyesLayerRef=useRef(null);
+  const makeupRestoreAttemptRef=useRef(false);
   const [deepARBusy,setDeepARBusy]=useState(false);
   const [deepARError,setDeepARError]=useState("");
   // Evitar que una promesa de DeepAR deje la interfaz en «Cargando» indefinidamente.
@@ -863,16 +824,37 @@ async function applyPostCrop(){
     deepARRef.current=null;
     if(engine){try{engine.shutdown();}catch(e){console.warn("DeepAR shutdown:",e);}}
     setDeepAREffect(null);
+    setMakeupLayerOn(false);makeupLayerRef.current=false;
+    setEyesLayer(null);eyesLayerRef.current=null;
   }
   async function removeDeepAREffect(){
     if(deepARBusyRef.current)return;
     const engine=deepARRef.current;
-    if(engine){try{await deepARWithTimeout(Promise.resolve().then(()=>engine.clearEffect()),8000);}catch(e){resetDeepAREngine();}}
+    if(engine){try{await deepARWithTimeout(Promise.resolve().then(()=>engine.clearEffect()),8000);await deepARWithTimeout(Promise.resolve().then(()=>engine.clearEffect(1)),8000);}catch(e){resetDeepAREngine();}}
     setDeepAREffect(null);setDeepARError("");
+    setMakeupLayerOn(false);makeupLayerRef.current=false;setEyesLayer(null);eyesLayerRef.current=null;
   }
+  // Un único botón para volver a la cámara original, sin efectos ni ajustes.
+  async function clearAllCameraEffects(){
+    if(deepARBusyRef.current || recording || cameraSegmentSaving)return;
+    await removeDeepAREffect();
+    makeupRestoreAttemptRef.current=true;
+    if(user?.id){try{localStorage.removeItem(`rivyza-saved-makeup:${user.id}`);}catch{}}
+    setCameraTone('natural');
+    setCameraToneIntensity(100);
+    setCameraLight(0);
+    setCameraSoft(0);
+    cameraEffectsRef.current={tone:'natural',intensity:100,light:0,soft:0};
+  }
+  // Modo estable: un solo efecto DeepAR a la vez. Eyes 1–9 vuelven a usar el slot 0.
   async function chooseDeepAREffect(effect){
     if(deepARBusyRef.current || recording || cameraSegmentSaving)return;
     if(!effect){await removeDeepAREffect();return;}
+    const isEyes=/^ojos-[1-9]$/.test(effect.id);
+    if(deepAREffect===effect.id){
+      await removeDeepAREffect();
+      return;
+    }
     const video=cameraVideoRef.current;
     const holder=deepARContainerRef.current;
     if(!video || !holder || !cameraStream){setDeepARError("Abre la cámara primero.");return;}
@@ -885,21 +867,23 @@ async function applyPostCrop(){
         const deepar=await deepARWithTimeout(import('deepar'),15000);
         if(request!==deepARRequestRef.current || !holder.isConnected)throw new Error("La cámara se cerró.");
         const initialization=deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
-        // Si initialize termina después del timeout, cerrar ese motor tardío.
-        initialization.then(engine=>{
-          if(request!==deepARRequestRef.current || !holder.isConnected){try{engine.shutdown();}catch(e){}}
-        }).catch(()=>{});
+        initialization.then(engine=>{if(request!==deepARRequestRef.current || !holder.isConnected){try{engine.shutdown();}catch(e){}}}).catch(()=>{});
         const engine=await deepARWithTimeout(initialization,15000);
         if(request!==deepARRequestRef.current || !holder.isConnected){try{engine.shutdown();}catch(e){}throw new Error("La cámara se cerró.");}
         deepARRef.current=engine;
         engine.setVideoElement(video,cameraFacing==="user");
       }
-      await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url)),15000);
-      if(request===deepARRequestRef.current)setDeepAREffect(effect.id);
+      // Limpiar el slot adicional de la prueba de capas y usar el slot principal.
+      await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.clearEffect(1)),8000);
+      await deepARWithTimeout(Promise.resolve().then(()=>deepARRef.current.switchEffect(effect.url,0)),15000);
+      if(request===deepARRequestRef.current){
+        setDeepAREffect(effect.id);
+        makeupLayerRef.current=false;setMakeupLayerOn(false);
+        eyesLayerRef.current=isEyes?effect.id:null;setEyesLayer(isEyes?effect.id:null);
+
+      }
     }catch(e){
       console.error("DeepAR:",e);
-      // Un switchEffect bloqueado puede dejar el motor inutilizable: descartarlo
-      // para que el próximo toque lo inicialice de nuevo sin cerrar RIVYZA.
       resetDeepAREngine();
       if(request===deepARRequestRef.current)setDeepARError(e?.message==="DEEPAR_TIMEOUT"?"El efecto tardó demasiado. Selecciona otro efecto o inténtalo de nuevo.":"No se pudo cargar este efecto. Inténtalo de nuevo.");
     }finally{
@@ -1165,7 +1149,7 @@ async function applyPostCrop(){
     });
 
     const counts=await getCommentCounts(sorted.map(p=>p.id));
-    setProfilePosts(sorted.map(p=>({...p,comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
+    setProfilePosts(sorted.map(p=>({...p,creator:{username:profile?.username,display_name:profile?.display_name},comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
   async function loadMyLikedPosts(){
@@ -1454,7 +1438,7 @@ async function applyPostCrop(){
       return new Date(b.created_at)-new Date(a.created_at);
     });
     const counts=await getCommentCounts(sorted.map(p=>p.id));
-    setViewedProfilePosts(sorted.map(p=>({...p,comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
+    setViewedProfilePosts(sorted.map(p=>({...p,creator:{username:targetProfile.username,display_name:targetProfile.display_name},comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
   async function searchPeople(term=peopleSearch){
@@ -1860,7 +1844,25 @@ async function applyPostCrop(){
   }
 
   async function openPost(post){
-    setSelectedPost(post);
+    // Resolver el autor de la publicación, no el usuario que la está mirando.
+    const knownCreator = post?.creator?.username
+      ? post.creator
+      : post?.user_id === user?.id && profile?.username
+        ? {username:profile.username,display_name:profile.display_name}
+        : post?.user_id === viewedProfile?.id && viewedProfile?.username
+          ? {username:viewedProfile.username,display_name:viewedProfile.display_name}
+          : null;
+    setSelectedPost(knownCreator ? {...post,creator:knownCreator} : post);
+    if(!knownCreator?.username && post?.user_id && supabase){
+      supabase.from("profiles").select("username,display_name")
+        .eq("id",post.user_id).maybeSingle()
+        .then(({data,error})=>{
+          if(!error && data?.username){
+            setSelectedPost(current=>current?.id===post.id
+              ? {...current,creator:{...current.creator,...data}} : current);
+          }
+        });
+    }
     setPostMenuOpen(false);
     setCommentsOpen(false);
     setPostActionMessage("");
@@ -2020,6 +2022,94 @@ async function applyPostCrop(){
     try{await navigator.clipboard.writeText(`${window.location.origin}/?post=${encodeURIComponent(sharePost.id)}`);setShareSuccess("Enlace copiado.");setShareError("");}
     catch{setShareError("No se pudo copiar el enlace.");}
   }
+  // Primera fase: descarga exclusivamente del autor. Los permisos para terceros
+  // requieren validación en servidor antes de habilitarse.
+  const [shareDownloading,setShareDownloading]=useState(false);
+  const [shareDownloadStage,setShareDownloadStage]=useState("");
+  const [preparedMusicVideo,setPreparedMusicVideo]=useState(null);
+  async function downloadOwnSharedPost(){
+    if(!sharePost?.id || !user?.id || shareDownloading)return;
+    setShareError("");setShareSuccess("");
+    setShareDownloading(true);
+    try{
+      // No confiar en la copia de la publicación recibida desde el feed.
+      const {data:post,error}=await supabase.from("posts")
+        .select("id,user_id,media_path,media_type,music_path,music_title,music_start_seconds,music_clip_seconds,music_volume")
+        .eq("id",sharePost.id).eq("user_id",user.id).maybeSingle();
+      if(error || !post?.media_path)throw new Error("Solo el dueño puede descargar esta publicación.");
+      const {data:ownerProfile}=await supabase.from("profiles").select("username").eq("id",post.user_id).maybeSingle();
+      if(!ownerProfile?.username && !sharePost?.creator?.username)
+        throw new Error("No se pudo identificar al creador. Inténtalo de nuevo.");
+      post.creator={username:ownerProfile?.username || sharePost.creator.username};
+      // Para fotos con música, primero se prepara el MP4. Safari exige un segundo
+      // toque del usuario para abrir la hoja nativa «Guardar video».
+      if(post.media_type==="photo" && post.music_path && preparedMusicVideo?.postId!==post.id){
+        const videoFile=await exportPhotoWithMusic(post,setShareDownloadStage);
+        setPreparedMusicVideo({postId:post.id,file:videoFile});
+        setShareDownloadStage("");
+        setShareSuccess("Video con música preparado. Toca «Guardar video» para enviarlo a Fotos.");
+        return;
+      }
+      if(post.media_type==="video" && preparedMusicVideo?.postId!==post.id){
+        const videoFile=await exportVideoWithMark(post,setShareDownloadStage);
+        setPreparedMusicVideo({postId:post.id,file:videoFile});
+        setShareSuccess("Video con marca preparado. Toca «Guardar video».");
+        return;
+      }
+      const readyFile=preparedMusicVideo?.postId===post.id?preparedMusicVideo.file:null;
+      if(readyFile){
+        if(typeof navigator.share==="function" && navigator.canShare?.({files:[readyFile]})){
+          try{await navigator.share({files:[readyFile]});setShareSuccess("Selecciona «Guardar video» en tu iPhone.");return;}
+          catch(e){if(e?.name==="AbortError")return;}
+        }
+        const videoUrl=URL.createObjectURL(readyFile);
+        const link=document.createElement("a");link.href=videoUrl;link.download=readyFile.name;
+        document.body.appendChild(link);link.click();link.remove();
+        setTimeout(()=>URL.revokeObjectURL(videoUrl),60000);
+        setShareSuccess("Video descargado. Si es necesario, ábrelo desde Archivos y guárdalo en Fotos.");
+        return;
+      }
+      if(post.media_type==="photo" && !post.music_path){
+        const photoFile=await markPhoto(post);
+        if(navigator.canShare?.({files:[photoFile]})){
+          try{await navigator.share({files:[photoFile]});setShareSuccess("Selecciona «Guardar imagen».");return;}
+          catch(e){if(e?.name==="AbortError")return;}
+        }
+        const u=URL.createObjectURL(photoFile);const a=document.createElement("a");a.href=u;a.download=photoFile.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);
+        setShareSuccess("Foto con marca descargada.");return;
+      }
+      const mediaUrl=new URL(post.media_path,window.location.origin);
+      if(!["http:","https:"].includes(mediaUrl.protocol))throw new Error("Archivo no disponible.");
+      const response=await fetch(mediaUrl.toString(),{mode:"cors",credentials:"omit"});
+      if(!response.ok)throw new Error("No se pudo obtener el archivo.");
+      const blob=await response.blob();
+      const ext=post.media_type==="photo"?(blob.type.includes("png")?"png":blob.type.includes("webp")?"webp":"jpg"):(blob.type.includes("quicktime")?"mov":"mp4");
+      // iOS: compartir el archivo real (no un enlace) permite ofrecer Guardar imagen/video.
+      const mime=blob.type || (ext==="jpg"?"image/jpeg":ext==="png"?"image/png":ext==="webp"?"image/webp":ext==="mov"?"video/quicktime":"video/mp4");
+      const file=new File([blob],`RIVYZA-${post.id}.${ext}`,{type:mime});
+      let shared=false;
+      if(typeof navigator.share==="function" && typeof navigator.canShare==="function" && navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file]});
+          shared=true;
+          setShareSuccess("Archivo enviado al menú de compartir. Si aparece, selecciona Guardar imagen o Guardar video.");
+        }catch(shareErr){
+          if(shareErr?.name==="AbortError")return;
+          // Safari puede rechazar el menú si se perdió la activación de usuario.
+        }
+      }
+      if(!shared){
+        const objectUrl=URL.createObjectURL(blob);
+        try{
+          const link=document.createElement("a");
+          link.href=objectUrl;link.download=file.name;
+          document.body.appendChild(link);link.click();link.remove();
+          setShareSuccess("El navegador descargó el archivo. Si no aparece Guardar en Fotos, ábrelo desde Archivos y usa Compartir allí.");
+        }finally{setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);}
+      }
+    }catch(e){setShareError(e.message||"No se pudo descargar la publicación.");}
+    finally{setShareDownloading(false);setShareDownloadStage("");}
+  }
   useEffect(()=>{
     if(!user?.id||!supabase||typeof window==="undefined")return;
     const postId=new URLSearchParams(window.location.search).get("post");
@@ -2038,7 +2128,7 @@ async function applyPostCrop(){
   function renderShareSheet(){
     if(!sharePost)return null;
     const people=sharePeople.filter(p=>`${p.display_name||""} ${p.username||""}`.toLocaleLowerCase().includes(shareSearch.trim().toLocaleLowerCase()));
-    return createPortal(<div className="rivyza-share-backdrop" onClick={()=>{if(!shareSending)setSharePost(null);}}>
+    return createPortal(<div className="rivyza-share-backdrop" style={{position:"fixed",inset:0,zIndex:2147483647,pointerEvents:"auto"}} onClick={()=>{if(!shareSending)setSharePost(null);}}>
       <section className="rivyza-share-sheet" role="dialog" aria-modal="true" aria-label="Compartir publicación" onClick={e=>e.stopPropagation()}>
         <div className="rivyza-share-grip"/><header><strong>Compartir publicación</strong><button type="button" onClick={()=>setSharePost(null)} aria-label="Cerrar"><X size={22}/></button></header>
         <div className="rivyza-share-search"><Search size={19}/><input placeholder="Buscar amigos de RIVYZA" value={shareSearch} onChange={e=>setShareSearch(e.target.value)}/></div>
@@ -2049,6 +2139,7 @@ async function applyPostCrop(){
         <div className="rivyza-share-external">
           <button type="button" onClick={shareOutside}><span className="rivyza-share-round"><Share2/></span><small>Más aplicaciones</small></button>
           <button type="button" onClick={copyShareLink}><span className="rivyza-share-round"><LinkIcon/></span><small>Copiar enlace</small></button>
+          {sharePost?.user_id===user?.id&&<button type="button" disabled={shareDownloading} onClick={downloadOwnSharedPost}><span className="rivyza-share-round"><Download/></span><small>{shareDownloading?(shareDownloadStage||"Preparando…"):(preparedMusicVideo?.postId===sharePost?.id?"Guardar video":"Descargar")}</small></button>}
         </div>
         <p className="rivyza-share-hint">Al tocar «Más aplicaciones», tu teléfono mostrará WhatsApp, Facebook, Mensajes y otras aplicaciones compatibles que tengas instaladas.</p>
         {sharePrivate&&<p className="rivyza-share-warning">Esta publicación no es pública. Los enlaces externos están desactivados.</p>}
@@ -2973,21 +3064,24 @@ async function applyPostCrop(){
              </div>
 {cameraError && <div className="camera-error">{cameraError}</div>}
              {musicPanel==="library"&&renderMusicSheet(true)}
-             {cameraEffectsOpen&&<div style={{position:'absolute',left:8,right:8,bottom:230,zIndex:60,background:'rgba(12,12,22,.13)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',color:'#fff',border:'1px solid rgba(255,255,255,.25)',borderRadius:18,padding:'10px 10px 12px',boxShadow:'0 3px 16px rgba(0,0,0,.10)',textShadow:'0 1px 3px rgba(0,0,0,.85)'}}>
+             {cameraEffectsOpen&&<div style={{position:'absolute',left:8,right:8,top:'calc(88px + env(safe-area-inset-top, 0px))',maxHeight:'calc(100dvh - 190px)',overflowY:'auto',zIndex:60,background:'rgba(12,12,22,.13)',color:'#fff',border:'1px solid rgba(255,255,255,.25)',borderRadius:18,padding:'10px 10px 12px',boxShadow:'0 3px 16px rgba(0,0,0,.10)',textShadow:'0 1px 3px rgba(0,0,0,.85)'}}>
                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong style={{fontSize:15}}>✦ RIVYZA Efectos</strong><button type="button" aria-label="Cerrar efectos" onClick={()=>setCameraEffectsOpen(false)} style={{color:'#fff',background:'rgba(0,0,0,.22)',border:'1px solid #ffffff55',borderRadius:20,fontSize:21,width:30,height:30}}>×</button></div>
-               <div style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:5,marginBottom:8,WebkitOverflowScrolling:'touch'}}>{[['filters','Filtros'],['beauty','Belleza'],['face','Rostro'],['accessories','Accesorios'],['fun','Divertidos']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraEffectsTab(key)} style={{background:cameraEffectsTab===key?'rgba(233,47,156,.85)':'rgba(0,0,0,.22)',border:'1px solid rgba(255,255,255,.32)',borderRadius:20,color:'#fff',padding:'7px 10px',fontSize:12,fontWeight:cameraEffectsTab===key?700:500,whiteSpace:'nowrap',textShadow:'0 1px 2px #0009'}}>{label}</button>)}</div>
-               {deepAREffect&&<button type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(null)} style={{color:'#fff',background:'#9d215f',borderRadius:9,padding:'6px 10px',marginBottom:6}}>Quitar efecto AR</button>}
+               <div style={{display:'flex',gap:5,overflowX:'auto',paddingBottom:5,marginBottom:8,WebkitOverflowScrolling:'touch'}}><button type="button" disabled={deepARBusy||recording||cameraSegmentSaving} onClick={clearAllCameraEffects} style={{flex:'0 0 auto',background:'rgba(233,47,156,.85)',border:'1px solid rgba(255,255,255,.4)',borderRadius:20,color:'#fff',padding:'7px 10px',fontSize:12,fontWeight:700,whiteSpace:'nowrap'}}>Sin Efecto</button>{[['filters','Filtros'],['beauty','Belleza'],['face','Rostro'],['accessories','Accesorios'],['fun','Divertidos']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraEffectsTab(key)} style={{background:cameraEffectsTab===key?'rgba(233,47,156,.85)':'rgba(0,0,0,.22)',border:'1px solid rgba(255,255,255,.32)',borderRadius:20,color:'#fff',padding:'7px 10px',fontSize:12,fontWeight:cameraEffectsTab===key?700:500,whiteSpace:'nowrap',textShadow:'0 1px 2px #0009'}}>{t(label)}</button>)}</div>
                {deepARBusy&&<div style={{fontSize:12}}>Cargando efecto DeepAR…</div>}
                {deepARError&&<div role="alert" style={{fontSize:12,color:'#ffb3c9'}}>{deepARError}</div>}
                {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:3}}>{[['natural','Original'],['warm','Cálido'],['cool','Frío'],['vivid','Vivo'],['mono','B/N']].map(([key,label])=><button key={key} type="button" onClick={()=>setCameraTone(key)} style={{background:cameraTone===key?'rgba(233,47,156,.88)':'rgba(0,0,0,.24)',border:'1px solid rgba(255,255,255,.4)',borderRadius:12,color:'#fff',padding:'9px 11px',whiteSpace:'nowrap',fontWeight:cameraTone===key?700:500}}>{label}</button>)}</div>}
+               {cameraEffectsTab==='filters'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='filters').map(effect=><button key={effect.id} type='button' disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{appLanguage==="en"?(effect.labelEn||effect.label):effect.label} {deepAREffect===effect.id?'✓':''}</button>)}</div>}
                {cameraEffectsTab==='filters'&&cameraTone!=='natural'&&<label style={{display:'block',marginTop:12,padding:'6px 8px',background:'rgba(0,0,0,.20)',borderRadius:10,fontSize:13}}>Intensidad del filtro: {cameraToneIntensity}%<input type="range" min="0" max="100" step="1" value={cameraToneIntensity} onChange={e=>setCameraToneIntensity(Number(e.target.value))} style={{display:'block',width:'100%',marginTop:7,accentColor:'#ed3b9f',touchAction:'auto'}} aria-label="Ajustar intensidad del filtro"/></label>}
+               {cameraEffectsTab==='beauty'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:8}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='beauty').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{appLanguage==="en"?(effect.labelEn||effect.label):effect.label}</button>)}</div>}
                {cameraEffectsTab==='beauty'&&<div style={{background:'rgba(0,0,0,.16)',borderRadius:12,padding:'8px 10px'}}>
                  <label style={{display:'block',fontSize:13}}>Iluminación: {cameraLight} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="-30" max="30" value={cameraLight} onChange={e=>setCameraLight(Number(e.target.value))}/></label>
                  <label style={{display:'block',fontSize:13,marginTop:7}}>Distorsión: {cameraSoft} <input style={{width:'100%',accentColor:'#ed3b9f'}} type="range" min="0" max="30" value={cameraSoft} onChange={e=>setCameraSoft(Number(e.target.value))}/></label>
-                 <small style={{fontSize:11,opacity:.95}}>Estos ajustes se guardan para la próxima vez. La belleza facial profesional se añadirá después.</small>
+                 <small style={{fontSize:11,opacity:.95}}>Estos ajustes se guardan para la próxima vez. Selecciona un efecto de belleza arriba o ajusta estos controles.</small>
                  <button type="button" onClick={()=>{setCameraLight(0);setCameraSoft(0)}} style={{display:'block',background:'rgba(0,0,0,.24)',border:'1px solid #ffffff66',borderRadius:10,color:'#fff',padding:'5px 10px',marginTop:6}}>Restablecer belleza</button>
                </div>}
-                                             {cameraEffectsTab==='fun'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{effect.label}</button>)}</div>}
+                                             {cameraEffectsTab==='face'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='face').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:(/^ojos-[1-9]$/.test(effect.id)?eyesLayer===effect.id:deepAREffect===effect.id)?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{appLanguage==="en"?(effect.labelEn||effect.label):effect.label}</button>)}</div>}
+               {cameraEffectsTab==='accessories'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='accessories').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{appLanguage==="en"?(effect.labelEn||effect.label):effect.label}</button>)}</div>}
+               {cameraEffectsTab==='fun'&&<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6}}>{DEEPAR_EFFECTS.filter(effect=>effect.category==='fun').map(effect=><button key={effect.id} type="button" disabled={deepARBusy||recording} onClick={()=>chooseDeepAREffect(effect)} style={{flex:'0 0 auto',borderRadius:12,padding:'10px 12px',background:deepAREffect===effect.id?'#e92f9c':'rgba(0,0,0,.4)',color:'white',border:'1px solid #ffffff66'}}>{appLanguage==="en"?(effect.labelEn||effect.label):effect.label}</button>)}</div>}
              </div>}
 
              <div
@@ -3397,6 +3491,19 @@ async function applyPostCrop(){
       const {data:noticePosts}=postIds.length?await supabase.from("posts").select("id,media_path,media_type").in("id",postIds):{data:[]};
       const postsById=Object.fromEntries((noticePosts||[]).map(post=>[post.id,post]));
       setSocialNotices((notices.data||[]).map(n=>({...n,actor:byId[n.actor_id],relatedPost:postsById[n.post_id]||null})));
+      // Miniaturas de historias respondidas: consultar únicamente historias aún vigentes.
+      // No almacenar copias de imágenes en mensajes; al expirar desaparecen.
+      const storyIds=[...new Set((messages.data||[]).map(m=>m.story_id).filter(Boolean))];
+      if(storyIds.length){
+        const {data:replyStories,error:storyLookupError}=await supabase.from("rivyza_stories")
+          .select("id,user_id,media_path,media_type,expires_at").in("id",storyIds)
+          .gt("expires_at",new Date().toISOString());
+        if(!storyLookupError){
+          const storyMap={};
+          (replyStories||[]).forEach(st=>{storyMap[st.id]={...st,url:supabase.storage.from("rivyza-stories").getPublicUrl(st.media_path).data.publicUrl};});
+          setStoryReplyMedia(storyMap);
+        }
+      }else setStoryReplyMedia({});
       setSocialMessages((messages.data||[]).filter(m=>!m.deleted_for_all && (!m.audio_path || !m.audio_expires_at || new Date(m.audio_expires_at)>new Date())).map(m=>({...m,sender:byId[m.sender_id],recipient:byId[m.recipient_id]})));
       if(!hidden.error)setHiddenMessageIds((hidden.data||[]).map(x=>x.message_id));
       if(!cleared.error)setConversationCutoffs(Object.fromEntries((cleared.data||[]).map(x=>[x.peer_id,x.cleared_at])));
@@ -3891,7 +3998,15 @@ async function applyPostCrop(){
           onTouchStart={e=>{swipeStartRef.current={id:m.id,x:e.touches[0].clientX,y:e.touches[0].clientY};}}
           onTouchEnd={e=>{const start=swipeStartRef.current;swipeStartRef.current=null;if(!start||start.id!==m.id)return;const dx=e.changedTouches[0].clientX-start.x,dy=e.changedTouches[0].clientY-start.y;if(Math.abs(dy)>Math.abs(dx))return;if(dx< -55)setSwipedMessageId(m.id);else if(dx>35)setSwipedMessageId(null);}}>
           <div className="rivyza-swipe-actions"><button type="button" onClick={()=>hideSocialMessage(m.id)}>{t("Eliminar para mí")}</button>{m.sender_id===user.id&&Date.now()-new Date(m.created_at).getTime()<180000&&<button type="button" className="rivyza-delete-everyone" onClick={()=>deleteSocialMessageForEveryone(m)}>{t("Eliminar para todos")}</button>}</div>
-          <div className={"social-bubble"+(m.audio_path?" rivyza-audio-message":"")}>{m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
+          <div className={"social-bubble"+(m.audio_path?" rivyza-audio-message":"")}>
+            {m.story_id&&<div className="rivyza-story-reply-context" style={{display:'flex',alignItems:'center',gap:10,padding:'8px',marginBottom:8,borderRadius:12,background:'rgba(255,255,255,.1)',borderLeft:'3px solid #38bdf8'}}>
+              {storyReplyMedia[m.story_id] ? <>
+                <div style={{width:55,height:72,flexShrink:0,overflow:'hidden',borderRadius:8,background:'#141925'}}>
+                  {storyReplyMedia[m.story_id].media_type==='video'?<video src={storyReplyMedia[m.story_id].url+'#t=0.1'} muted playsInline preload="metadata" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<img src={storyReplyMedia[m.story_id].url} alt="Historia respondida" loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
+                </div><span style={{fontSize:12,lineHeight:1.35}}>{appLanguage==='en'?'Reply to this story':'Respuesta a esta historia'}{storyReplyMedia[m.story_id].media_type==='video'?' ▶':''}</span>
+              </>:<span style={{fontSize:12,opacity:.8}}>{appLanguage==='en'?'Story expired or deleted':'Historia caducada o eliminada'}</span>}
+            </div>}
+            {m.audio_path?<div className="rivyza-voice-bubble"><button type="button" onClick={()=>playVoice(m)} aria-label={voicePlayingId===m.id?"Pausar audio":"Reproducir audio"}>{voicePlayingId===m.id?<Pause size={20}/>:<Play size={20}/>}</button><div className="rivyza-voice-seek" role="slider" tabIndex={0} aria-label="Adelantar o retroceder mensaje de voz" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((voiceProgress[m.id]||0)*100)} onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seekVoice(m,(e.clientX-r.left)/r.width);}} onKeyDown={e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seekVoice(m,(voiceProgress[m.id]||0)+(e.key==="ArrowRight"?.05:-.05));}}}>
             {Array.from({length:30},(_,i)=><span key={i} className={i/30<=(voiceProgress[m.id]||0)?"played":""} style={{height:(6+Math.round(Math.abs(Math.sin((i+1)*1.71)*Math.cos((i+2)*.49))*18))+"px"}}/>)}
           </div><small>{Math.min(60,m.audio_duration||0)}s</small></div> : /[?&]live=[a-zA-Z0-9_-]{1,100}/.test(m.body||'') ? (()=>{
             const body=m.body||'';
@@ -4157,6 +4272,7 @@ async function applyPostCrop(){
           </header>
           <div className="post-detail-media post-swipe-viewer" onTouchStart={handlePostTouchStart} onTouchEnd={handlePostTouchEnd} onWheel={handlePostWheel}>
             <PostMusicMedia key={selectedPost.id} post={selectedPost} detail videoRef={postViewerVideoRef}/>
+            <RIVYZAWatermark post={selectedPost}/>
           </div>
           <div className="post-detail-info">
             {selectedPost.caption && <p className="post-detail-caption">{renderMentionText(selectedPost.caption)}</p>}
@@ -4315,6 +4431,7 @@ async function applyPostCrop(){
             onWheel={handlePostWheel}
           >
             <PostMusicMedia key={selectedPost.id} post={selectedPost} detail videoRef={postViewerVideoRef}/>
+            <RIVYZAWatermark post={selectedPost}/>
           </div>
 
           <div className="post-detail-info">
@@ -4457,6 +4574,8 @@ async function applyPostCrop(){
           </button>
         </div>
       </div>}
+      {/* El perfil propio también debe montar el mismo menú Compartir de Para ti. */}
+      {renderShareSheet()}
     </main>;;
 
   if(view==="liveStudio" || (profileFromLive && (view==="otherProfile" || view==="publicProfile"))){
@@ -4537,14 +4656,55 @@ async function applyPostCrop(){
   }
 
   if(view==="friends"){
-    return <main className="feed-shell friends-feed-shell">
-      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }`}</style>
-      <header className="friends-topbar friends-feed-topbar">
-        <h1>{t("Amigos")}</h1>
-        <p>Solo personas que tú sigues y que también te siguen.</p>
-      </header>
+    return <main className={"feed-shell friends-feed-shell"+(friendsStoriesCompact?" stories-compact":"")}>
+      <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }
+      .friends-feed-shell{display:flex!important;flex-direction:column!important;position:relative!important;overflow:hidden!important;}
+      /* Las historias son una capa visual: nunca reducen la altura del feed. */
+      .friends-feed-shell .friends-floating-layer{position:absolute!important;top:0;left:0;right:0;z-index:20;pointer-events:none;}
+      .friends-feed-shell .friends-floating-layer .friends-feed-topbar{position:relative!important;top:auto!important;left:auto!important;right:auto!important;transform:none!important;margin:0!important;box-sizing:border-box!important;padding-top:calc(env(safe-area-inset-top,0px) + 12px)!important;padding-bottom:12px!important;background:#050507!important;pointer-events:auto;}
+      .friends-feed-shell .friends-feed-topbar p{position:relative!important;top:-5px!important;margin-bottom:0!important;}
+      .friends-feed-shell .friends-floating-layer .rz-stories-strip{position:relative!important;z-index:2!important;display:flex!important;flex-shrink:0!important;background:transparent!important;pointer-events:auto;padding:12px 13px!important;gap:12px!important;transition:padding .2s ease,gap .2s ease!important;}
+      .friends-feed-shell.stories-compact .rz-stories-strip{padding:5px 10px!important;gap:8px!important;max-height:49px!important;overflow-y:hidden!important;}
+      .friends-feed-shell.stories-compact .rz-story-own-wrap,.friends-feed-shell.stories-compact .rz-story-avatar{min-width:36px!important;max-width:36px!important;width:36px!important;flex-basis:36px!important;}
+      .friends-feed-shell.stories-compact .rz-story-ring{width:34px!important;height:34px!important;padding:2px!important;border-width:2px!important;box-sizing:border-box!important;}
+      .friends-feed-shell.stories-compact .rz-story-avatar{font-size:0!important;gap:0!important;}
+      .friends-feed-shell.stories-compact .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell.stories-compact .rz-story-count{font-size:0!important;line-height:0!important;max-height:0!important;overflow:hidden!important;}
+      .friends-feed-shell.stories-compact .rz-story-plus-action{top:22px!important;right:-3px!important;width:16px!important;height:16px!important;}
+      .friends-feed-shell.stories-compact .rz-story-plus-action svg{width:11px;height:11px;}
+      /* RIVYZA Flow V12: profundidad y reorganización suave de historias.
+         Animar solo la capa de historias: jamás transformar el post ni su contenedor. */
+      .friends-feed-shell .rz-stories-strip{transform-origin:top center!important;will-change:transform,padding,gap;transition:transform 650ms cubic-bezier(.22,1,.36,1),padding 650ms cubic-bezier(.22,1,.36,1),gap 650ms cubic-bezier(.22,1,.36,1),filter 650ms ease!important;}
+      .friends-feed-shell .rz-story-own-wrap,.friends-feed-shell .rz-story-avatar{transition:width 650ms cubic-bezier(.22,1,.36,1),min-width 650ms cubic-bezier(.22,1,.36,1),max-width 650ms cubic-bezier(.22,1,.36,1),flex-basis 650ms cubic-bezier(.22,1,.36,1),transform 650ms cubic-bezier(.22,1,.36,1)!important;transform-origin:center top!important;}
+      .friends-feed-shell .rz-story-ring{transition:width 650ms cubic-bezier(.22,1,.36,1),height 650ms cubic-bezier(.22,1,.36,1),padding 650ms ease,border-width 650ms ease,box-shadow 650ms ease!important;}
+      .friends-feed-shell .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell .rz-story-count{transition:opacity 180ms ease,transform 650ms ease!important;}
+      .friends-feed-shell.stories-compact .rz-stories-strip{transform:perspective(700px) translateY(-3px) rotateX(5deg)!important;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))!important;}
+      .friends-feed-shell.stories-compact .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell.stories-compact .rz-story-count{opacity:0!important;transform:translateY(-5px) scale(.8)!important;pointer-events:none!important;}
+      @media (prefers-reduced-motion:reduce){.friends-feed-shell .rz-stories-strip,.friends-feed-shell .rz-story-own-wrap,.friends-feed-shell .rz-story-avatar,.friends-feed-shell .rz-story-ring,.friends-feed-shell .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell .rz-story-count{transition:none!important;}}
+      /* Cada publicación mide exactamente una pantalla del feed: no asoma el siguiente post. */
+      .friends-feed-shell > .video-feed{flex:1 1 auto!important;height:100%!important;min-height:0!important;position:relative!important;overflow-y:auto!important;scroll-snap-type:y mandatory!important;scroll-padding-top:0!important;overscroll-behavior-y:contain!important;}
+      .friends-feed-shell .feed-post-card{height:100%!important;min-height:100%!important;max-height:100%!important;box-sizing:border-box!important;position:relative!important;scroll-snap-align:start!important;scroll-snap-stop:always!important;overflow:hidden!important;}
+      .friends-feed-shell .feed-post-card .feed-media-wrap{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;}
+      .friends-feed-shell .feed-post-card .feed-media-wrap img,.friends-feed-shell .feed-post-card .feed-media-wrap video{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:cover!important;object-position:center center!important;}
+      /* V14: PostMusicMedia agrega un contenedor intermedio. Sin dimensiones,
+         Safari calcula el ancho natural de algunas fotos y deja bandas laterales. */
+      .friends-feed-shell .feed-post-card .feed-media-wrap > .rivyza-music-feed{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;overflow:hidden!important;}
+      .friends-feed-shell .feed-post-card .feed-media-wrap > .rivyza-music-feed > img.feed-media,
+      .friends-feed-shell .feed-post-card .feed-media-wrap > .rivyza-music-feed > video.feed-media{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center center!important;}
 
-      <section className="video-feed home-real-feed">
+      .friends-feed-shell .feed-post-card .creator-copy,.friends-feed-shell .feed-post-card .side-actions{z-index:3!important;}
+      .friends-feed-shell .feed-post-card .creator-copy{bottom:76px!important;padding-bottom:0!important;box-sizing:border-box!important;max-height:calc(100% - 130px)!important;overflow:visible!important;}
+      .friends-feed-shell .feed-post-card .post-date-time{display:block!important;visibility:visible!important;opacity:1!important;margin-top:5px!important;line-height:1.3!important;white-space:normal!important;}
+
+      `}</style>
+      <div className="friends-floating-layer">
+        <header className="friends-topbar friends-feed-topbar">
+          <h1>{t("Amigos")}</h1>
+          <p>Solo personas que tú sigues y que también te siguen.</p>
+        </header>
+        <RivyzaStories supabase={supabase} user={user} profile={profile} language={appLanguage}/>
+      </div>
+
+      <section className="video-feed home-real-feed" onScroll={e=>{const y=e.currentTarget.scrollTop;setFriendsStoriesCompact(previous=>previous?(y>8):(y>24));}}>
         {feedLoading && !feedPosts.length && (
           <div className="feed-empty-state">Cargando amigos…</div>
         )}
@@ -4563,20 +4723,16 @@ async function applyPostCrop(){
             </div>
 
             <div className="creator-copy">
-              <button className="creator-profile-link" onClick={()=>openFeedCreator(post)}>
-                <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
-              </button>
-              <div className="handle">@{post.creator?.username||"usuario"}</div>
+              <div className="rivyza-feed-brand-wrap"><RIVYZAWatermark post={post}/></div>
               {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
-              <div className="audio-line"><Music2 size={15}/> {post.music_title ? `${post.music_title} · DJ Plus` : "Sonido original · RIVYZA"}</div>
               <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
             </div>
 
             <div className="side-actions">
-              <button className="avatar-action" onClick={()=>openFeedCreator(post)}>
+              <button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
                 {post.creator?.avatar_url
                   ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
-                  : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+                  : <div className="mini-avatar" style={{position:"absolute",inset:0,width:"100%",height:"100%",margin:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transform:"none",textAlign:"center",boxSizing:"border-box"}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
                             {onlineDot(post.creator?.id||post.user_id)}
               </button>
               <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
@@ -4585,6 +4741,7 @@ async function applyPostCrop(){
               </button>
               <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
               <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
+
               <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
             </div>
           </article>
@@ -4786,7 +4943,7 @@ async function applyPostCrop(){
       <div className="feed-tabs">
         <button onClick={openConnections}>{t("Conexiones")}</button>
         <button className={feedTab==="forYou"?"active-tab":""} onClick={()=>changeFeedTab("forYou")}>{t("Para ti")}</button>
-        <button type="button" className={liveHostRooms.length > 0 ? "rivyza-home-live-active" : ""} onClick={()=>setView("livePreview")}>LIVE</button>
+        <button type="button" className={(liveHostRooms.length > 0 || discoverLiveRooms.length > 0) ? "rivyza-home-live-active" : ""} style={(liveHostRooms.length > 0 || discoverLiveRooms.length > 0) ? {border:"2px solid #ff263c",borderRadius:7,boxShadow:"0 0 7px rgba(255,38,60,.42)",padding:"5px 9px",boxSizing:"border-box",background:"rgba(255,38,60,.10)"} : undefined} onClick={()=>setView("livePreview")}>LIVE</button>
       </div>
       <button className="icon-btn" onClick={()=>{setPeopleSearchOpen(true);setPeopleSearch("");setPeopleResults([]);setPeopleSearchMessage("");}} aria-label={t("Buscar usuarios")}><Search size={23}/></button>
     </header>
@@ -4808,20 +4965,16 @@ async function applyPostCrop(){
           </div>
 
           <div className="creator-copy">
-            <button className="creator-profile-link" onClick={()=>openFeedCreator(post)}>
-              <div className="display-name">{post.creator?.display_name||post.creator?.username||"Usuario"}</div>
-            </button>
-            <div className="handle">@{post.creator?.username||"usuario"}</div>
+            <div className="rivyza-feed-brand-wrap"><RIVYZAWatermark post={post}/></div>
             {post.caption&&<div className="caption">{renderMentionText(post.caption)}</div>}
-            <div className="audio-line"><Music2 size={15}/> {post.music_title ? `${post.music_title} · DJ Plus` : "Sonido original · RIVYZA"}</div>
               <div className="post-date-time">{formatPostDateTime(post.created_at)}</div>
           </div>
 
           <div className="side-actions">
-            <button className="avatar-action" onClick={()=>openFeedCreator(post)}>
+            <button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
               {post.creator?.avatar_url
                 ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
-                : <div className="mini-avatar">{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+                : <div className="mini-avatar" style={{position:"absolute",inset:0,width:"100%",height:"100%",margin:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transform:"none",textAlign:"center",boxSizing:"border-box"}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
               {onlineDot(post.creator?.id||post.user_id)}
             </button>
 
@@ -4831,6 +4984,7 @@ async function applyPostCrop(){
             </button>
             <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
             <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
+
             <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
           </div>
         </article>
