@@ -193,6 +193,8 @@ export default function HomePage(){
     const updated=readAccounts().filter(a=>a.id!==item.id);
     localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(updated));setSavedAccounts(updated);
   }
+  const [friendsStoriesCompact,setFriendsStoriesCompact]=useState(false);
+  const friendsFeedTouchY=useRef(null);
   const [appLanguage,setAppLanguage]=useState("es");
   useEffect(()=>{try{setAppLanguage(localStorage.getItem("rivyza-language")==="en"?"en":"es");}catch(e){}},[]);
   const changeAppLanguage=(value)=>{setAppLanguage(value);try{localStorage.setItem("rivyza-language",value);}catch(e){}};
@@ -292,6 +294,7 @@ export default function HomePage(){
   const [activeLivePreview,setActiveLivePreview]=useState(0);
   const [livePreviewInvite,setLivePreviewInvite]=useState(false);
   const [view,setView]=useState("home"); const [profileTab,setProfileTab]=useState("posts");
+  useEffect(()=>{if(view!=="friends")setFriendsStoriesCompact(false);},[view]);
   // v3.29: open shared LIVE room after login.
   useEffect(() => {
     if (!user?.id || typeof window === 'undefined') return;
@@ -4653,10 +4656,17 @@ async function applyPostCrop(){
   }
 
   if(view==="friends"){
-    return <main className="feed-shell friends-feed-shell">
+    return <main className={"feed-shell friends-feed-shell"+(friendsStoriesCompact?" stories-compact":"")}>
       <style>{`.feed-shell .rivyza-music-feed .rivyza-music-credit { display: none !important; }
       .friends-feed-shell .friends-feed-topbar{position:relative!important;top:auto!important;left:auto!important;right:auto!important;transform:none!important;z-index:6!important;flex-shrink:0!important;box-sizing:border-box!important;margin:0!important;padding-top:calc(env(safe-area-inset-top,0px) + 12px)!important;padding-bottom:12px!important;background:#050507!important;}
-      .friends-feed-shell .rz-stories-strip{position:relative!important;top:auto!important;flex-shrink:0!important;z-index:5!important;}
+      .friends-feed-shell .rz-stories-strip{position:relative!important;top:auto!important;flex-shrink:0!important;z-index:5!important;transition:padding .22s ease,gap .22s ease;}
+      .friends-feed-shell.stories-compact .rz-stories-strip{position:absolute!important;top:calc(env(safe-area-inset-top,0px) + 60px)!important;left:0!important;right:0!important;width:100%!important;box-sizing:border-box!important;background:linear-gradient(180deg,rgba(5,5,7,.88),rgba(5,5,7,.55))!important;padding:5px 10px!important;gap:8px!important;z-index:9!important;max-height:49px!important;overflow-y:hidden!important;}
+      .friends-feed-shell.stories-compact .rz-story-own-wrap,.friends-feed-shell.stories-compact .rz-story-avatar{min-width:36px!important;max-width:36px!important;width:36px!important;flex-basis:36px!important;}
+      .friends-feed-shell.stories-compact .rz-story-ring{width:34px!important;height:34px!important;padding:2px!important;border-width:2px!important;box-sizing:border-box!important;}
+      .friends-feed-shell.stories-compact .rz-story-avatar{font-size:0!important;gap:0!important;}
+      .friends-feed-shell.stories-compact .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell.stories-compact .rz-story-count{display:none!important;}
+      .friends-feed-shell.stories-compact .rz-story-plus-action{top:22px!important;right:-3px!important;width:16px!important;height:16px!important;}
+      .friends-feed-shell.stories-compact .rz-story-plus-action svg{width:11px;height:11px;}
       .friends-feed-shell{display:flex!important;flex-direction:column!important;overflow:hidden!important;}
       .friends-feed-shell > .video-feed{flex:1 1 auto!important;min-height:0!important;position:relative!important;}`}</style>
       <header className="friends-topbar friends-feed-topbar">
@@ -4666,7 +4676,7 @@ async function applyPostCrop(){
 
       <RivyzaStories supabase={supabase} user={user} profile={profile} language={appLanguage}/>
 
-      <section className="video-feed home-real-feed">
+      <section className="video-feed home-real-feed" onScroll={e=>{const el=e.currentTarget;if(el.scrollTop>30&&!friendsStoriesCompact)setFriendsStoriesCompact(true);else if(el.scrollTop<=8&&friendsStoriesCompact)setFriendsStoriesCompact(false);}} onTouchStart={e=>{friendsFeedTouchY.current=e.touches[0]?.clientY??null;}} onTouchMove={e=>{if(friendsFeedTouchY.current==null)return;const delta=friendsFeedTouchY.current-(e.touches[0]?.clientY??friendsFeedTouchY.current);if(delta>22&&!friendsStoriesCompact)setFriendsStoriesCompact(true);else if(delta< -22&&e.currentTarget.scrollTop<=8&&friendsStoriesCompact)setFriendsStoriesCompact(false);}}>
         {feedLoading && !feedPosts.length && (
           <div className="feed-empty-state">Cargando amigos…</div>
         )}
