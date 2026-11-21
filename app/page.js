@@ -194,7 +194,7 @@ export default function HomePage(){
     localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(updated));setSavedAccounts(updated);
   }
   const [friendsStoriesCompact,setFriendsStoriesCompact]=useState(false);
-  const friendsFeedTouchY=useRef(null);
+  const friendsFeedTouchY=useRef(null); // reservado para gestos futuros; RIVYZA Flow usa scroll real.
   const [appLanguage,setAppLanguage]=useState("es");
   useEffect(()=>{try{setAppLanguage(localStorage.getItem("rivyza-language")==="en"?"en":"es");}catch(e){}},[]);
   const changeAppLanguage=(value)=>{setAppLanguage(value);try{localStorage.setItem("rivyza-language",value);}catch(e){}};
@@ -4668,9 +4668,18 @@ async function applyPostCrop(){
       .friends-feed-shell.stories-compact .rz-story-own-wrap,.friends-feed-shell.stories-compact .rz-story-avatar{min-width:36px!important;max-width:36px!important;width:36px!important;flex-basis:36px!important;}
       .friends-feed-shell.stories-compact .rz-story-ring{width:34px!important;height:34px!important;padding:2px!important;border-width:2px!important;box-sizing:border-box!important;}
       .friends-feed-shell.stories-compact .rz-story-avatar{font-size:0!important;gap:0!important;}
-      .friends-feed-shell.stories-compact .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell.stories-compact .rz-story-count{display:none!important;}
+      .friends-feed-shell.stories-compact .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell.stories-compact .rz-story-count{font-size:0!important;line-height:0!important;max-height:0!important;overflow:hidden!important;}
       .friends-feed-shell.stories-compact .rz-story-plus-action{top:22px!important;right:-3px!important;width:16px!important;height:16px!important;}
       .friends-feed-shell.stories-compact .rz-story-plus-action svg{width:11px;height:11px;}
+      /* RIVYZA Flow V11: profundidad y reorganización suave de historias.
+         Animar solo la capa de historias: jamás transformar el post ni su contenedor. */
+      .friends-feed-shell .rz-stories-strip{transform-origin:top center!important;will-change:transform,padding,gap;transition:transform 320ms cubic-bezier(.22,1,.36,1),padding 320ms cubic-bezier(.22,1,.36,1),gap 320ms cubic-bezier(.22,1,.36,1),filter 320ms ease!important;}
+      .friends-feed-shell .rz-story-own-wrap,.friends-feed-shell .rz-story-avatar{transition:width 320ms cubic-bezier(.22,1,.36,1),min-width 320ms cubic-bezier(.22,1,.36,1),max-width 320ms cubic-bezier(.22,1,.36,1),flex-basis 320ms cubic-bezier(.22,1,.36,1),transform 320ms cubic-bezier(.22,1,.36,1)!important;transform-origin:center top!important;}
+      .friends-feed-shell .rz-story-ring{transition:width 320ms cubic-bezier(.22,1,.36,1),height 320ms cubic-bezier(.22,1,.36,1),padding 320ms ease,border-width 320ms ease,box-shadow 320ms ease!important;}
+      .friends-feed-shell .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell .rz-story-count{transition:opacity 180ms ease,transform 320ms ease!important;}
+      .friends-feed-shell.stories-compact .rz-stories-strip{transform:perspective(700px) translateY(-3px) rotateX(5deg)!important;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))!important;}
+      .friends-feed-shell.stories-compact .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell.stories-compact .rz-story-count{opacity:0!important;transform:translateY(-5px) scale(.8)!important;pointer-events:none!important;}
+      @media (prefers-reduced-motion:reduce){.friends-feed-shell .rz-stories-strip,.friends-feed-shell .rz-story-own-wrap,.friends-feed-shell .rz-story-avatar,.friends-feed-shell .rz-story-ring,.friends-feed-shell .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell .rz-story-count{transition:none!important;}}
       /* Cada publicación mide exactamente una pantalla del feed: no asoma el siguiente post. */
       .friends-feed-shell > .video-feed{flex:1 1 auto!important;height:100%!important;min-height:0!important;position:relative!important;overflow-y:auto!important;scroll-snap-type:y mandatory!important;scroll-padding-top:0!important;overscroll-behavior-y:contain!important;}
       .friends-feed-shell .feed-post-card{height:100%!important;min-height:100%!important;max-height:100%!important;box-sizing:border-box!important;position:relative!important;scroll-snap-align:start!important;scroll-snap-stop:always!important;overflow:hidden!important;}
@@ -4689,7 +4698,7 @@ async function applyPostCrop(){
         <RivyzaStories supabase={supabase} user={user} profile={profile} language={appLanguage}/>
       </div>
 
-      <section className="video-feed home-real-feed" onScroll={e=>{const shouldCompact=e.currentTarget.scrollTop>12;setFriendsStoriesCompact(previous=>previous===shouldCompact?previous:shouldCompact);}}>
+      <section className="video-feed home-real-feed" onScroll={e=>{const y=e.currentTarget.scrollTop;setFriendsStoriesCompact(previous=>previous?(y>8):(y>24));}}>
         {feedLoading && !feedPosts.length && (
           <div className="feed-empty-state">Cargando amigos…</div>
         )}
