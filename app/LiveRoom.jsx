@@ -205,7 +205,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [previewIds,setPreviewIds]=useState([]);
   const previewIdsRef=useRef(new Set());
   const [presenceRevision,setPresenceRevision]=useState(0);
+  // A welcome is acknowledged by the viewer, not merely by publishData resolving.
   const welcomeSent=useRef(new Set());
+  const welcomeLastAttempt=useRef(new Map());
   const markPreview=useCallback(id=>{
     if(!id)return;
     previewIdsRef.current.add(id);
@@ -358,6 +360,35 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     } catch(e) { previousHeight.current = null; setChatNotice('No se pudieron cargar mensajes anteriores.'); }
     finally { setLoadingOlder(false); }
   };
+  // Viewers announce that their chat is ready. LiveKit can connect a viewer
+  // before the host's ParticipantConnected handler or the viewer's data listener
+  // is ready, so this handshake is retried until the welcome is received.
+  useEffect(()=>{
+    if(isHost || !user?.id || !liveRoomId)return;
+    const key=`rivyza-welcome-seen:${liveRoomId}:${user.id}`;
+    const request=()=>{
+      try{
+        if(sessionStorage.getItem(key) || room.state!=='connected')return;
+        const host=room.remoteParticipants.get(hostId);
+        if(!host)return;
+        room.localParticipant.publishData(
+          new TextEncoder().encode(JSON.stringify({type:'welcome-ready',roomId:liveRoomId})),
+          {reliable:true,topic:'rivyza-welcome-ready',destinationIdentities:[hostId]}
+        ).catch(()=>{});
+      }catch(e){console.warn('Welcome ready request:',e);}
+    };
+    room.on(RoomEvent.Connected,request);
+    room.on(RoomEvent.Reconnected,request);
+    room.on(RoomEvent.ParticipantConnected,request);
+    request();
+    const timer=setInterval(request,2500);
+    return()=>{
+      clearInterval(timer);
+      room.off(RoomEvent.Connected,request);
+      room.off(RoomEvent.Reconnected,request);
+      room.off(RoomEvent.ParticipantConnected,request);
+    };
+  },[room,isHost,hostId,liveRoomId,user?.id]);
   useEffect(()=>{
     const receive=(payload,_sender,_kind,topic)=>{
       if(topic!=='rivyza-private-welcome')return;
@@ -366,8 +397,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         if(data.type!=='welcome'||data.roomId!==liveRoomId||!data.text)return;
         const key=`rivyza-welcome-seen:${liveRoomId}:${user?.id}`;
         if(sessionStorage.getItem(key))return;
-        sessionStorage.setItem(key,'1');
         appendChat({id:`private-welcome-${liveRoomId}-${user?.id}`,name:'💗 Bienvenida',text:data.text,privateWelcome:true,at:Date.now()});
+        sessionStorage.setItem(key,'1');
       }catch(e){console.warn('Welcome message',e)}
     };
     room.on(RoomEvent.DataReceived,receive);
@@ -573,11 +604,13 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         }
         const text=(welcomeMessage||'').trim();
         if(!text || welcomeSent.current.has(p.identity))return;
-        welcomeSent.current.add(p.identity);
+        const now=Date.now();
+        if(now-(welcomeLastAttempt.current.get(p.identity)||0)<2000)return;
+        welcomeLastAttempt.current.set(p.identity,now);
         const name=profiles[p.identity]?.display_name || p.name || 'Usuario';
         const data={type:'welcome',roomId:liveRoomId,text:`${text}\n¡Bienvenido/a, ${name}! ❤️`};
         try{await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(data)),{reliable:true,topic:'rivyza-private-welcome',destinationIdentities:[p.identity]});}
-        catch(e){welcomeSent.current.delete(p.identity);}
+        catch(e){welcomeLastAttempt.current.delete(p.identity);console.warn('Welcome delivery deferred:',e);}
       },1800);
       timers.add(timer);
     };
@@ -590,6 +623,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       } catch {}
     };
     const departed = p => {
+      welcomeLastAttempt.current.delete(p.identity);
       if (!isHost || previewIdsRef.current.has(p.identity)) return;
       // A connection only qualifies as a departure after being admitted as an attendee.
       if(!recentEntries.current.has(p.identity))return;
@@ -600,11 +634,22 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     if (isHost && (welcomeMessage || "").trim()) {
       room.remoteParticipants.forEach(entered);
     }
+    const welcomeReady=(bytes,sender,_kind,topic)=>{
+      if(!isHost || topic!=='rivyza-welcome-ready' || !sender?.identity)return;
+      try{
+        const data=JSON.parse(new TextDecoder().decode(bytes));
+        if(data?.type!=='welcome-ready' || data.roomId!==liveRoomId)return;
+        if(!room.remoteParticipants.has(sender.identity))return;
+        entered(sender);
+      }catch(e){console.warn('Welcome ready packet:',e);}
+    };
+    room.on(RoomEvent.DataReceived,welcomeReady);
     room.on(RoomEvent.ParticipantConnected, entered);
     room.on(RoomEvent.ParticipantDisconnected, departed);
     room.on(RoomEvent.DataReceived, receive);
     return () => {
       timers.forEach(clearTimeout);
+      room.off(RoomEvent.DataReceived,welcomeReady);
       room.off(RoomEvent.ParticipantConnected, entered);
       room.off(RoomEvent.ParticipantDisconnected, departed);
       room.off(RoomEvent.DataReceived, receive);
