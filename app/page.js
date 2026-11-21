@@ -4681,7 +4681,9 @@ async function applyPostCrop(){
       .friends-feed-shell.stories-compact .feed-post-card .feed-media-wrap img,
       .friends-feed-shell.stories-compact .feed-post-card .feed-media-wrap video{object-fit:cover!important;object-position:center center!important;}
       /* Proteger el texto de la publicación y la fecha frente a la navegación inferior. */
-      .friends-feed-shell .feed-post-card .creator-copy{bottom:20px!important;padding-bottom:8px!important;box-sizing:border-box!important;}
+      /* V4: mantener nombre, descripcion y fecha por encima de la barra inferior, sin mover encabezado ni historias. */
+      .friends-feed-shell .feed-post-card .creator-copy{bottom:76px!important;padding-bottom:0!important;box-sizing:border-box!important;max-height:calc(100% - 130px)!important;overflow:visible!important;}
+      .friends-feed-shell .feed-post-card .post-date-time{margin-top:5px!important;line-height:1.3!important;white-space:normal!important;}
       .friends-feed-shell .feed-post-card .post-date-time{display:block!important;visibility:visible!important;opacity:1!important;}
 
       `}</style>
