@@ -4674,6 +4674,16 @@ async function applyPostCrop(){
       .friends-feed-shell .feed-post-card .feed-media-wrap img,.friends-feed-shell .feed-post-card .feed-media-wrap video{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;}
       .friends-feed-shell .feed-post-card .creator-copy,.friends-feed-shell .feed-post-card .side-actions{z-index:3!important;}
       .friends-feed-shell.stories-compact .friends-feed-topbar{flex-shrink:0!important;}
+      /* V3: acercar el subtitulo y dejar las historias compactas superpuestas. */
+      .friends-feed-shell .friends-feed-topbar p{position:relative!important;top:-5px!important;margin-bottom:0!important;}
+      .friends-feed-shell.stories-compact .rz-stories-strip{top:calc(env(safe-area-inset-top,0px) + 60px)!important;}
+      /* En compactado, ocupar el lienzo del post sin bandas negras por object-fit contain. */
+      .friends-feed-shell.stories-compact .feed-post-card .feed-media-wrap img,
+      .friends-feed-shell.stories-compact .feed-post-card .feed-media-wrap video{object-fit:cover!important;object-position:center center!important;}
+      /* Proteger el texto de la publicación y la fecha frente a la navegación inferior. */
+      .friends-feed-shell .feed-post-card .creator-copy{bottom:20px!important;padding-bottom:8px!important;box-sizing:border-box!important;}
+      .friends-feed-shell .feed-post-card .post-date-time{display:block!important;visibility:visible!important;opacity:1!important;}
+
       `}</style>
       <header className="friends-topbar friends-feed-topbar">
         <h1>{t("Amigos")}</h1>
