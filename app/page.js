@@ -4671,12 +4671,12 @@ async function applyPostCrop(){
       .friends-feed-shell.stories-compact .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell.stories-compact .rz-story-count{font-size:0!important;line-height:0!important;max-height:0!important;overflow:hidden!important;}
       .friends-feed-shell.stories-compact .rz-story-plus-action{top:22px!important;right:-3px!important;width:16px!important;height:16px!important;}
       .friends-feed-shell.stories-compact .rz-story-plus-action svg{width:11px;height:11px;}
-      /* RIVYZA Flow V11: profundidad y reorganización suave de historias.
+      /* RIVYZA Flow V12: profundidad y reorganización suave de historias.
          Animar solo la capa de historias: jamás transformar el post ni su contenedor. */
-      .friends-feed-shell .rz-stories-strip{transform-origin:top center!important;will-change:transform,padding,gap;transition:transform 320ms cubic-bezier(.22,1,.36,1),padding 320ms cubic-bezier(.22,1,.36,1),gap 320ms cubic-bezier(.22,1,.36,1),filter 320ms ease!important;}
-      .friends-feed-shell .rz-story-own-wrap,.friends-feed-shell .rz-story-avatar{transition:width 320ms cubic-bezier(.22,1,.36,1),min-width 320ms cubic-bezier(.22,1,.36,1),max-width 320ms cubic-bezier(.22,1,.36,1),flex-basis 320ms cubic-bezier(.22,1,.36,1),transform 320ms cubic-bezier(.22,1,.36,1)!important;transform-origin:center top!important;}
-      .friends-feed-shell .rz-story-ring{transition:width 320ms cubic-bezier(.22,1,.36,1),height 320ms cubic-bezier(.22,1,.36,1),padding 320ms ease,border-width 320ms ease,box-shadow 320ms ease!important;}
-      .friends-feed-shell .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell .rz-story-count{transition:opacity 180ms ease,transform 320ms ease!important;}
+      .friends-feed-shell .rz-stories-strip{transform-origin:top center!important;will-change:transform,padding,gap;transition:transform 650ms cubic-bezier(.22,1,.36,1),padding 650ms cubic-bezier(.22,1,.36,1),gap 650ms cubic-bezier(.22,1,.36,1),filter 650ms ease!important;}
+      .friends-feed-shell .rz-story-own-wrap,.friends-feed-shell .rz-story-avatar{transition:width 650ms cubic-bezier(.22,1,.36,1),min-width 650ms cubic-bezier(.22,1,.36,1),max-width 650ms cubic-bezier(.22,1,.36,1),flex-basis 650ms cubic-bezier(.22,1,.36,1),transform 650ms cubic-bezier(.22,1,.36,1)!important;transform-origin:center top!important;}
+      .friends-feed-shell .rz-story-ring{transition:width 650ms cubic-bezier(.22,1,.36,1),height 650ms cubic-bezier(.22,1,.36,1),padding 650ms ease,border-width 650ms ease,box-shadow 650ms ease!important;}
+      .friends-feed-shell .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell .rz-story-count{transition:opacity 180ms ease,transform 650ms ease!important;}
       .friends-feed-shell.stories-compact .rz-stories-strip{transform:perspective(700px) translateY(-3px) rotateX(5deg)!important;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))!important;}
       .friends-feed-shell.stories-compact .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell.stories-compact .rz-story-count{opacity:0!important;transform:translateY(-5px) scale(.8)!important;pointer-events:none!important;}
       @media (prefers-reduced-motion:reduce){.friends-feed-shell .rz-stories-strip,.friends-feed-shell .rz-story-own-wrap,.friends-feed-shell .rz-story-avatar,.friends-feed-shell .rz-story-ring,.friends-feed-shell .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell .rz-story-count{transition:none!important;}}
