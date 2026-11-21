@@ -3,16 +3,10 @@ import {useEffect,useRef,useState} from "react";
 
 // v8.6: keep original video audio audible on iOS before AudioContext is unlocked.
 let activeStop=null;
-export default function PostMusicMedia({post,detail=false,videoRef=null}){
+export default function PostMusicMedia({post,detail=false,videoRef=null,fillFrame=false}){
   const root=useRef(null),video=useRef(null),music=useRef(null),audioMix=useRef(null);
-  const playedOnce=useRef(false);
   const [visible,setVisible]=useState(false);
-  const [nearViewport,setNearViewport]=useState(false);
-  const [posterReady,setPosterReady]=useState(false);
-  const [firstFrameReady,setFirstFrameReady]=useState(false);
-  // El JPG se publica junto al video con la misma ruta + .jpg.
-  const posterUrl=post.media_type==="video"&&post.media_path?`${post.media_path}.jpg`:"";
-  useEffect(()=>{setPosterReady(false);setFirstFrameReady(false);playedOnce.current=false;},[post.media_path]);
+  const [videoReady,setVideoReady]=useState(false);
   const hasMusic=Boolean(post.music_path);
   const start=Math.max(0,Number(post.music_start_seconds)||0);
   const originalVolume=Math.max(0,Math.min(1,Number(post.original_volume??50)/100));
@@ -20,25 +14,9 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
 
   useEffect(()=>{
     const node=root.current;if(!node)return;
-    // Histéresis: evita que un pequeño movimiento active/desactive el video repetidamente.
-    const observer=new IntersectionObserver(entries=>{
-      const ratio=entries[0]?.intersectionRatio||0;
-      setVisible(previous=>previous?ratio>0.35:ratio>=0.65);
-    },{threshold:[0,.35,.65,1]});
+    const observer=new IntersectionObserver(entries=>setVisible((entries[0]?.intersectionRatio||0)>=0.65),{threshold:[0,.65,1]});
     observer.observe(node);return()=>observer.disconnect();
   },[]);
-
-  // Precargar únicamente videos cercanos: no competir con todos los videos del feed.
-  // El reproductor visible conserva la máxima prioridad de descarga.
-  useEffect(()=>{
-    if(post.media_type!=="video")return;
-    const node=root.current;if(!node)return;
-    const observer=new IntersectionObserver(entries=>{
-      setNearViewport(Boolean(entries[0]?.isIntersecting));
-    },{rootMargin:"100% 0px 100% 0px",threshold:0});
-    observer.observe(node);
-    return()=>observer.disconnect();
-  },[post.media_type,post.media_path]);
 
   // Photos have no video element: play their selected music segment independently.
   useEffect(()=>{
@@ -93,18 +71,7 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     if(!v)return;
     let disposed=false;
     const stop=()=>{v.pause();a?.pause();};
-    if(!visible){
-      stop();
-      // Reiniciar una sola vez al salir; nunca hacer un segundo seek al regresar.
-      if(playedOnce.current){
-        // Mantener el fotograma actual visible mientras Safari vuelve a cero.
-        // El poster nativo queda disponible si el navegador necesita repintar.
-        try{if(v.readyState>=1 && v.currentTime>0.01)v.currentTime=0;}catch(_){}
-        if(a){try{a.currentTime=start;}catch(_){}}
-      }
-      return;
-    }
-    playedOnce.current=true;
+    if(!visible){stop();return;}
     if(activeStop)activeStop();activeStop=stop;
 
     // IMPORTANT: creating MediaElementSource during autoplay on iOS can silence
@@ -168,11 +135,25 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     v.addEventListener("timeupdate",detectLoop);
     const onMusicEnded=()=>{if(!v.paused)startMusic();};
     a?.addEventListener("ended",onMusicEnded);
-    // No hacer seek a 0 en el primer montaje: Safari puede borrar el primer fotograma.
-    if(a){a.pause();align(true);}
-    v.play().then(()=>{if(!disposed)startMusic();}).catch(()=>{});
+    // Do not start playback before a decoded frame is available.
+    // This avoids a black flash while moving between feed posts.
+    let startCancelled=false;
+    const beginVideo=()=>{
+      if(disposed||startCancelled||!visible)return;
+      if(v.seeking){v.addEventListener("seeked",beginVideo,{once:true});return;}
+      setVideoReady(true);
+      if(a){a.pause();align(true);}
+      v.play().then(()=>{if(!disposed)startMusic();}).catch(()=>{});
+    };
+    setVideoReady(v.readyState>=2 && !v.seeking);
+    // No forzar un seek al montar: en Safari puede provocar un segundo negro.
+    if(v.readyState>=2 && v.currentTime>0.15){try{v.currentTime=0;}catch(_){}}
+    if(v.readyState>=2)beginVideo();
+    else v.addEventListener("loadeddata",beginVideo,{once:true});
     return()=>{
-      disposed=true;
+      disposed=true;startCancelled=true;
+      v.removeEventListener("loadeddata",beginVideo);
+      v.removeEventListener("seeked",beginVideo);
       root.current?.removeEventListener("pointerdown",onUserGesture);
       root.current?.removeEventListener("touchstart",onUserGesture);
       v.removeEventListener("playing",onPlay);v.removeEventListener("pause",onPause);
@@ -183,12 +164,12 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     };
   },[visible,post.id,hasMusic,start,originalVolume,musicVolume]);
   useEffect(()=>()=>{const mix=audioMix.current;if(mix){mix.ctx.close().catch(()=>{});audioMix.current=null;}},[]);
-  return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"} style={{position:"relative"}}>
-    {post.media_type==="video"?<>
-      <video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} playsInline loop preload={visible||nearViewport?"auto":"none"} poster={posterReady?posterUrl:undefined} onLoadedData={()=>{if(video.current?.readyState>=2&&!video.current.seeking)setFirstFrameReady(true);}} onPlaying={()=>setFirstFrameReady(true)} onSeeked={()=>{if(video.current?.readyState>=2)setFirstFrameReady(true);}} controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>
-      {posterUrl&&!posterReady&&<img src={posterUrl} alt="" aria-hidden="true" onLoad={()=>setPosterReady(true)} onError={()=>setPosterReady(false)} style={{display:"none"}}/>}
-      {posterReady&&!firstFrameReady&&<img src={posterUrl} alt="" aria-hidden="true" className={detail?"":"feed-media"} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}}/>}
-    </>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
+  // En Amigos, Safari iOS debe recibir dimensiones explícitas en el elemento
+  // de medios y en su contenedor; no depender de las proporciones de la galería.
+  const frameStyle=fillFrame?{position:"absolute",inset:0,width:"100%",height:"100%",minWidth:0,minHeight:0,maxWidth:"none",maxHeight:"none",overflow:"hidden",display:"block",margin:0,padding:0}:undefined;
+  const mediaStyle=fillFrame?{position:"absolute",inset:0,width:"100%",height:"100%",minWidth:"100%",minHeight:"100%",maxWidth:"none",maxHeight:"none",objectFit:"cover",objectPosition:"50% 50%",display:"block",margin:0,padding:0,transform:"none"}:undefined;
+  return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"} style={frameStyle}>
+    {post.media_type==="video"?<video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} style={mediaStyle} src={post.media_path} poster={post.thumbnail_url||post.poster_url||post.cover_url||undefined} playsInline loop preload="auto"  controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>:<img className={detail?"":"feed-media"} style={mediaStyle} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
     {hasMusic&&<audio ref={music} src={post.music_path} preload="auto"/>}
   </div>;
 }

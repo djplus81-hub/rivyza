@@ -4724,9 +4724,9 @@ async function applyPostCrop(){
         )}
 
         {(feedTab==="friends"?feedPosts:[]).map(post=>(
-          <article className="video-card feed-post-card" key={post.id}>
-            <div className="feed-media-wrap">
-              <PostMusicMedia post={post}/>
+          <article className="video-card feed-post-card" key={post.id} style={{position:"relative",width:"100%",minWidth:"100%",maxWidth:"100%",height:"100%",minHeight:"100%",overflow:"hidden",boxSizing:"border-box"}}>
+            <div className="feed-media-wrap" style={{position:"absolute",inset:0,width:"100%",height:"100%",minWidth:0,minHeight:0,overflow:"hidden"}}>
+              <PostMusicMedia post={post} fillFrame/>
             </div>
 
             <div className="creator-copy">
