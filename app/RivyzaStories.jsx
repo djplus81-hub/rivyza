@@ -92,7 +92,37 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
  async function sendReply(){if(!story||!draft.trim()||busy)return;setBusy(true);const {error:e}=await supabase.from('rivyza_messages').insert({sender_id:user.id,recipient_id:story.user_id,body:draft.trim(),story_id:story.id});setBusy(false);if(e)setFeedback(e.message);else{setDraft('');setFeedback(tx('Mensaje enviado','Message sent'))}}
  async function loadPeople(){if(!story||!isOwn)return;const [v,l]=await Promise.all([supabase.from('rivyza_story_views').select('viewer_id,viewed_at').eq('story_id',story.id).order('viewed_at',{ascending:false}),supabase.from('rivyza_story_likes').select('user_id').eq('story_id',story.id)]);const ids=[...new Set((v.data||[]).map(x=>x.viewer_id))];const {data:p}=ids.length?await supabase.from('profiles').select('id,display_name,username,avatar_url').in('id',ids):{data:[]};const map=new Map((p||[]).map(x=>[x.id,x]));const likers=new Set((l.data||[]).map(x=>x.user_id));setPeople((v.data||[]).map(x=>({...x,person:map.get(x.viewer_id),liked:likers.has(x.viewer_id)})));setShowPeople(true)}
  async function removeStory(){if(!isOwn||!confirm(tx('¿Eliminar esta historia?','Delete this story?')))return;const path=story.media_path;const {error:e}=await supabase.from('rivyza_stories').delete().eq('id',story.id).eq('user_id',user.id);if(e){setFeedback(e.message);return}await supabase.storage.from('rivyza-stories').remove([path]);setViewer(null);await load()}
- async function downloadStory(){if(!isOwn)return;try{const {data,error:e}=await supabase.storage.from('rivyza-stories').download(story.media_path);if(e)throw e;const url=URL.createObjectURL(data);const a=document.createElement('a');a.href=url;a.download=`RIVYZA-historia-${story.id}.${story.media_path.split('.').pop()}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)}catch(e){setFeedback(e.message)}}
+ async function downloadStory(){
+  if(!isOwn||!story)return;
+  setFeedback('');
+  try{
+    const {data,error:e}=await supabase.storage.from('rivyza-stories').download(story.media_path);
+    if(e)throw e;
+    const video=story.media_type==='video';
+    const rawExt=(story.media_path.split('.').pop()||'').toLowerCase();
+    const ext=video?(rawExt==='mov'?'mov':rawExt==='webm'?'webm':'mp4'):(rawExt==='png'?'png':rawExt==='webp'?'webp':'jpg');
+    const mime=video?(ext==='mov'?'video/quicktime':ext==='webm'?'video/webm':'video/mp4'):(ext==='png'?'image/png':ext==='webp'?'image/webp':'image/jpeg');
+    const filename=`RIVYZA-historia-${story.id}.${ext}`;
+    const file=new File([data],filename,{type:mime});
+    // En iPhone, Safari suele abrir los blobs como documentos en lugar de guardarlos.
+    // La hoja nativa permite elegir «Guardar imagen» / «Guardar video».
+    if(typeof navigator.share==='function' && typeof navigator.canShare==='function' && navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file]});
+        return;
+      }catch(shareError){
+        if(shareError?.name==='AbortError')return;
+        // Si el sistema no permite compartir, intentar descarga tradicional.
+      }
+    }
+    const url=URL.createObjectURL(file);
+    const a=document.createElement('a');
+    a.href=url;a.download=filename;a.style.display='none';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    setFeedback(tx('Si se abre una vista previa, usa Compartir → Guardar imagen o Guardar video.','If a preview opens, use Share → Save Image or Save Video.'));
+  }catch(e){setFeedback(e?.message||tx('No se pudo guardar la historia','Could not save story'))}
+ }
  const closeUpload=()=>{if(busy)return;setUpload(false);setFile(null);resetEditor();setError('');};
   useEffect(()=>{if(!file){setFilePreview('');return;}const url=URL.createObjectURL(file);setFilePreview(url);return()=>URL.revokeObjectURL(url)},[file]);
   const avatar=(p)=>(p?.avatar_url?<img src={p.avatar_url} alt=""/>:<span className="rz-story-fallback">{(p?.display_name||p?.username||'R')[0].toUpperCase()}</span>);
