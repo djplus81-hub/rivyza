@@ -4688,23 +4688,10 @@ async function applyPostCrop(){
       .friends-feed-shell.stories-compact .rz-stories-strip{transform:perspective(700px) translateY(-3px) rotateX(5deg)!important;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))!important;}
       .friends-feed-shell.stories-compact .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell.stories-compact .rz-story-count{opacity:0!important;transform:translateY(-5px) scale(.8)!important;pointer-events:none!important;}
       @media (prefers-reduced-motion:reduce){.friends-feed-shell .rz-stories-strip,.friends-feed-shell .rz-story-own-wrap,.friends-feed-shell .rz-story-avatar,.friends-feed-shell .rz-story-ring,.friends-feed-shell .rz-story-avatar>span:not(.rz-story-ring),.friends-feed-shell .rz-story-count{transition:none!important;}}
-      /* Cada publicación mide exactamente una pantalla del feed: no asoma el siguiente post. */
-      .friends-feed-shell > .video-feed{flex:1 1 auto!important;height:100%!important;min-height:0!important;position:relative!important;overflow-y:auto!important;scroll-snap-type:y mandatory!important;scroll-padding-top:0!important;overscroll-behavior-y:contain!important;}
-      .friends-feed-shell .feed-post-card{height:100%!important;min-height:100%!important;max-height:100%!important;box-sizing:border-box!important;position:relative!important;scroll-snap-align:start!important;scroll-snap-stop:always!important;overflow:hidden!important;}
-      .friends-feed-shell .feed-post-card .feed-media-wrap{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;}
-      /* Safari iPhone 11: el componente intermedio debe ocupar TODO el rectángulo. */
-      /* V17: fijar el ancho al viewport real de Safari, no al ancho intrínseco de una foto 9:16. */
-      .friends-feed-shell{width:100vw!important;max-width:100vw!important;min-width:100vw!important;margin-left:calc(50% - 50vw)!important;height:100dvh!important;min-height:0!important;box-sizing:border-box!important;}
-      .friends-feed-shell > .video-feed,.friends-feed-shell .feed-post-card,.friends-feed-shell .feed-media-wrap{box-sizing:border-box!important;max-width:100%!important;}
-      .friends-feed-shell .feed-post-card .feed-media-wrap > .rivyza-music-feed{aspect-ratio:auto!important;}
-      .friends-feed-shell .feed-post-card .feed-media-wrap > .rivyza-music-feed > .feed-media{aspect-ratio:auto!important;}
-      .friends-feed-shell > .video-feed{width:100%!important;min-width:0!important;max-width:100%!important;align-self:stretch!important;}
-      .friends-feed-shell .feed-post-card{width:100%!important;min-width:0!important;}
-      .friends-feed-shell .feed-post-card .feed-media-wrap > .rivyza-music-feed{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;display:block!important;overflow:hidden!important;transform:none!important;}
-      .friends-feed-shell .feed-post-card .feed-media-wrap img,.friends-feed-shell .feed-post-card .feed-media-wrap video{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center center!important;transform:none!important;}
-      .friends-feed-shell .feed-post-card .creator-copy,.friends-feed-shell .feed-post-card .side-actions{z-index:3!important;}
-      .friends-feed-shell .feed-post-card .creator-copy{bottom:76px!important;padding-bottom:0!important;box-sizing:border-box!important;max-height:calc(100% - 130px)!important;overflow:visible!important;}
-      .friends-feed-shell .feed-post-card .post-date-time{display:block!important;visibility:visible!important;opacity:1!important;margin-top:5px!important;line-height:1.3!important;white-space:normal!important;}
+      /* V18: Amigos utiliza exactamente la misma geometría de tarjetas y medios
+         que Para ti. Sin reglas de tamaño particulares ni ajustes por dispositivo. */
+      .friends-feed-shell{position:relative!important;}
+      .friends-feed-shell .feed-post-card .post-date-time{display:block;visibility:visible;opacity:1;}
 
       `}</style>
       <div className="friends-floating-layer">
@@ -4728,9 +4715,9 @@ async function applyPostCrop(){
         )}
 
         {(feedTab==="friends"?feedPosts:[]).map(post=>(
-          <article className="video-card feed-post-card" key={post.id} style={{position:"relative",width:"100%",minWidth:"100%",maxWidth:"100%",height:"100%",minHeight:"100%",overflow:"hidden",boxSizing:"border-box"}}>
-            <div className="feed-media-wrap" style={{position:"absolute",inset:0,width:"100%",height:"100%",minWidth:0,minHeight:0,overflow:"hidden"}}>
-              <PostMusicMedia post={post} fillFrame/>
+          <article className="video-card feed-post-card" key={post.id}>
+            <div className="feed-media-wrap">
+              <PostMusicMedia post={post}/>
             </div>
 
             <div className="creator-copy">

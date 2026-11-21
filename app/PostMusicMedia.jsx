@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from "react";
 
 // v8.6: keep original video audio audible on iOS before AudioContext is unlocked.
 let activeStop=null;
-export default function PostMusicMedia({post,detail=false,videoRef=null,fillFrame=false}){
+export default function PostMusicMedia({post,detail=false,videoRef=null}){
   const root=useRef(null),video=useRef(null),music=useRef(null),audioMix=useRef(null);
   const [visible,setVisible]=useState(false);
   const [videoReady,setVideoReady]=useState(false);
@@ -164,12 +164,8 @@ export default function PostMusicMedia({post,detail=false,videoRef=null,fillFram
     };
   },[visible,post.id,hasMusic,start,originalVolume,musicVolume]);
   useEffect(()=>()=>{const mix=audioMix.current;if(mix){mix.ctx.close().catch(()=>{});audioMix.current=null;}},[]);
-  // En Amigos, Safari iOS debe recibir dimensiones explícitas en el elemento
-  // de medios y en su contenedor; no depender de las proporciones de la galería.
-  const frameStyle=fillFrame?{position:"absolute",inset:0,width:"100%",height:"100%",minWidth:0,minHeight:0,maxWidth:"none",maxHeight:"none",overflow:"hidden",display:"block",margin:0,padding:0}:undefined;
-  const mediaStyle=fillFrame?{position:"absolute",inset:0,width:"100%",height:"100%",minWidth:"100%",minHeight:"100%",maxWidth:"none",maxHeight:"none",objectFit:"cover",objectPosition:"50% 50%",display:"block",margin:0,padding:0,transform:"none"}:undefined;
-  return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"} style={frameStyle}>
-    {post.media_type==="video"?<video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} style={mediaStyle} src={post.media_path} poster={post.thumbnail_url||post.poster_url||post.cover_url||undefined} playsInline loop preload="auto"  controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>:<img className={detail?"":"feed-media"} style={mediaStyle} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
+  return <div ref={root} className={detail?"rivyza-music-detail":"rivyza-music-feed"}>
+    {post.media_type==="video"?<video ref={node=>{video.current=node;if(videoRef)videoRef.current=node;}} className={detail?"":"feed-media"} src={post.media_path} poster={post.thumbnail_url||post.poster_url||post.cover_url||undefined} playsInline loop preload="auto"  controls={false} disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"/>:<img className={detail?"":"feed-media"} src={post.media_path} alt={post.caption||"Publicación en RIVYZA"}/>}
     {hasMusic&&<audio ref={music} src={post.music_path} preload="auto"/>}
   </div>;
 }
