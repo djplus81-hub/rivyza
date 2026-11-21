@@ -1470,8 +1470,10 @@ async function applyPostCrop(){
     }
   }
 
+  const feedRequestRef=useRef(0);
   async function loadHomeFeed(tab=feedTab){
     if(!supabase || !user?.id)return;
+    const requestId=++feedRequestRef.current;
     setFeedLoading(true);
     setFeedMessage("");
     try{
@@ -1499,7 +1501,7 @@ async function applyPostCrop(){
         const followsMeSet=new Set((followsMe||[]).map(row=>row.follower_id).filter(Boolean));
         allowedIds=(iFollow||[])
           .map(row=>row.following_id)
-          .filter(id=>id && followsMeSet.has(id));
+          .filter(id=>id && id!==user.id && followsMeSet.has(id));
 
         if(!allowedIds.length){
           setFeedPosts([]);
@@ -1519,7 +1521,8 @@ async function applyPostCrop(){
 
       const {data:posts,error:postsError}=await postQuery;
       if(postsError)throw postsError;
-      const rows=posts||[];
+      if(requestId!==feedRequestRef.current)return;
+      const rows=tab==="friends"?(posts||[]).filter(p=>p.user_id!==user.id):(posts||[]);
       if(!rows.length){
         setFeedPosts([]);
         setFeedMessage(tab==="following"
@@ -1540,6 +1543,7 @@ async function applyPostCrop(){
       ]);
       if(creatorError)throw creatorError;
       if(likesError)throw likesError;
+      if(requestId!==feedRequestRef.current)return;
 
       const creatorMap=new Map((creators||[]).map(person=>[person.id,person]));
       const likeCountMap=new Map();
@@ -1550,6 +1554,7 @@ async function applyPostCrop(){
       });
 
       const commentCounts=await getCommentCounts(postIds);
+      if(requestId!==feedRequestRef.current)return;
       feedNewestIdRef.current=rows[0]?.id||null;
       setNewFeedPostsAvailable(false);
       setFeedPosts(rows.map(post=>({
@@ -1560,15 +1565,18 @@ async function applyPostCrop(){
         comment_count:commentCounts===null?Number(post.comment_count||0):(commentCounts[post.id]||0)
       })));
     }catch(e){
+      if(requestId!==feedRequestRef.current)return;
       console.error("Home feed load error:",e);
       setFeedPosts([]);
       setFeedMessage("No se pudo cargar el feed. Intenta de nuevo.");
     }finally{
-      setFeedLoading(false);
+      if(requestId===feedRequestRef.current)setFeedLoading(false);
     }
   }
 
   function changeFeedTab(tab){
+    setFeedPosts([]); // Nunca mostrar publicaciones de la pestaña anterior mientras carga la nueva.
+    setFeedMessage("");
     setFeedTab(tab);
     loadHomeFeed(tab);
   }
@@ -4684,7 +4692,12 @@ async function applyPostCrop(){
       .friends-feed-shell > .video-feed{flex:1 1 auto!important;height:100%!important;min-height:0!important;position:relative!important;overflow-y:auto!important;scroll-snap-type:y mandatory!important;scroll-padding-top:0!important;overscroll-behavior-y:contain!important;}
       .friends-feed-shell .feed-post-card{height:100%!important;min-height:100%!important;max-height:100%!important;box-sizing:border-box!important;position:relative!important;scroll-snap-align:start!important;scroll-snap-stop:always!important;overflow:hidden!important;}
       .friends-feed-shell .feed-post-card .feed-media-wrap{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;}
-      .friends-feed-shell .feed-post-card .feed-media-wrap img,.friends-feed-shell .feed-post-card .feed-media-wrap video{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:cover!important;object-position:center center!important;}
+      /* Safari iPhone 11: el componente intermedio debe ocupar TODO el rectángulo. */
+      .friends-feed-shell{width:100%!important;min-width:0!important;height:100dvh!important;min-height:0!important;}
+      .friends-feed-shell > .video-feed{width:100%!important;min-width:0!important;}
+      .friends-feed-shell .feed-post-card{width:100%!important;min-width:0!important;}
+      .friends-feed-shell .feed-post-card .feed-media-wrap > .rivyza-music-feed{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;display:block!important;overflow:hidden!important;transform:none!important;}
+      .friends-feed-shell .feed-post-card .feed-media-wrap img,.friends-feed-shell .feed-post-card .feed-media-wrap video{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center center!important;transform:none!important;}
       .friends-feed-shell .feed-post-card .creator-copy,.friends-feed-shell .feed-post-card .side-actions{z-index:3!important;}
       .friends-feed-shell .feed-post-card .creator-copy{bottom:76px!important;padding-bottom:0!important;box-sizing:border-box!important;max-height:calc(100% - 130px)!important;overflow:visible!important;}
       .friends-feed-shell .feed-post-card .post-date-time{display:block!important;visibility:visible!important;opacity:1!important;margin-top:5px!important;line-height:1.3!important;white-space:normal!important;}
@@ -4710,7 +4723,7 @@ async function applyPostCrop(){
           </div>
         )}
 
-        {feedPosts.map(post=>(
+        {(feedTab==="friends"?feedPosts:[]).map(post=>(
           <article className="video-card feed-post-card" key={post.id}>
             <div className="feed-media-wrap">
               <PostMusicMedia post={post}/>
