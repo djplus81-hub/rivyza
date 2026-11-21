@@ -404,6 +404,74 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     room.on(RoomEvent.DataReceived,receive);
     return()=>room.off(RoomEvent.DataReceived,receive);
   },[room,liveRoomId,user?.id,appendChat]);
+  // V20: Supabase Realtime fallback for LIVE presence and private welcomes.
+  // Works even if LiveKit's WebRTC data-channel PC manager is closed.
+  const welcomeChannelRef = useRef(null);
+  useEffect(() => {
+    if (!supabase || !liveRoomId || !user?.id) return;
+    let active = true;
+    let subscribed = false;
+    const channel = supabase.channel(`rivyza-live-social-v20:${liveRoomId}`, {
+      config: {broadcast: {self: false}}
+    });
+    welcomeChannelRef.current = channel;
+    const announce = (event = 'join') => {
+      if (!subscribed || !active || isHost) return;
+      channel.send({type:'broadcast',event:'presence',payload:{
+        roomId:liveRoomId,userId:user.id,event,
+        name:profiles[user.id]?.display_name || room.localParticipant.name || 'Usuario'
+      }}).catch(e => console.warn('LIVE presence fallback:',e));
+    };
+    channel.on('broadcast',{event:'presence'},({payload}) => {
+      if (!active || !isHost || !payload || payload.roomId !== liveRoomId || !payload.userId || payload.userId === user.id) return;
+      const id = payload.userId;
+      // A preview-only LiveKit connection is not an attendee.
+      if (previewIdsRef.current.has(id)) return;
+      const name = profiles[id]?.display_name || payload.name || 'Usuario';
+      if (payload.event === 'join') {
+        const last = recentEntries.current.get(id) || 0;
+        if (!last) recentEntries.current.set(id,Date.now());
+        if (!last) publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} entró al LIVE`,system:true,at:Date.now()});
+        const text = (welcomeMessage || '').trim();
+        if (text) channel.send({type:'broadcast',event:'private-welcome',payload:{
+          roomId:liveRoomId,to:id,text:`${text}\n¡Bienvenido/a, ${name}! ❤️`
+        }}).catch(e=>console.warn('LIVE welcome fallback:',e));
+      } else if (payload.event === 'leave' && recentEntries.current.has(id)) {
+        recentEntries.current.delete(id);
+        publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} salió del LIVE`,system:true,at:Date.now()});
+      }
+    });
+    channel.on('broadcast',{event:'private-welcome'},({payload}) => {
+      if (!active || isHost || payload?.roomId !== liveRoomId || payload?.to !== user.id || !payload.text) return;
+      const key = `rivyza-welcome-seen:${liveRoomId}:${user.id}`;
+      try {
+        if (sessionStorage.getItem(key)) return;
+        appendChat({id:`private-welcome-${liveRoomId}-${user.id}`,name:'💗 Bienvenida',text:payload.text,privateWelcome:true,at:Date.now()});
+        sessionStorage.setItem(key,'1');
+      } catch (e) {console.warn('LIVE welcome display:',e);}
+    });
+    channel.subscribe(status => {
+      subscribed = status === 'SUBSCRIBED';
+      if (subscribed) announce();
+    });
+    const timer = setInterval(() => {
+      if (isHost || !subscribed) return;
+      const key = `rivyza-welcome-seen:${liveRoomId}:${user.id}`;
+      // Keep requesting only until the private welcome arrives; presence remains
+      // tracked via the original LiveKit participant events.
+      try {if (!sessionStorage.getItem(key)) announce();} catch {}
+    }, 3500);
+    const onUnload = () => announce('leave');
+    window.addEventListener('pagehide',onUnload);
+    return () => {
+      if (!isHost) announce('leave');
+      active = false;
+      clearInterval(timer);
+      window.removeEventListener('pagehide',onUnload);
+      if (welcomeChannelRef.current === channel) welcomeChannelRef.current = null;
+      supabase.removeChannel(channel);
+    };
+  },[supabase,liveRoomId,user?.id,isHost,welcomeMessage,room,appendChat]);
   const [comment, setComment] = useState('');
   const [flipping, setFlipping] = useState(false);
   // Mirror is a display preference synchronized with all LIVE participants.
@@ -627,6 +695,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if (!isHost || previewIdsRef.current.has(p.identity)) return;
       // A connection only qualifies as a departure after being admitted as an attendee.
       if(!recentEntries.current.has(p.identity))return;
+      recentEntries.current.delete(p.identity);
       publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${profiles[p.identity]?.display_name || p.name || 'Usuario'} salió del LIVE`,system:true,at:Date.now()});
     };
     // Also welcome viewers already connected when the host listener becomes ready.
@@ -663,11 +732,17 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     const entry = {id:crypto.randomUUID(), name:room.localParticipant.name || 'Tú',text,at:Date.now()};
     try {
       appendChat(entry); setComment('');
-      await Promise.all([
-        saveEntry(entry),
-        room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({id:entry.id,text,at:entry.at})), {reliable:true,topic:'rivyza-chat'})
-      ]);
-    } catch(err) { onError(err.message); }
+      // Supabase is authoritative. A closed LiveKit data channel must not block chat.
+      const saved = await saveEntry(entry);
+      if (!saved) return;
+      if (room.state === 'connected') {
+        try {
+          await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({id:entry.id,text,at:entry.at})), {reliable:true,topic:'rivyza-chat'});
+        } catch (err) {
+          console.warn('LIVE chat: LiveKit unavailable; message persisted in Supabase.', err);
+        }
+      }
+    } catch(err) { onError?.('No se pudo guardar el mensaje. Revisa la conexión con Supabase.'); }
   }
   async function flipCamera() {
     if (flipping || previewBusy || deepARBusy) return;
