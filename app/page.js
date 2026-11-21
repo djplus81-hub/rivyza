@@ -4668,7 +4668,13 @@ async function applyPostCrop(){
       .friends-feed-shell.stories-compact .rz-story-plus-action{top:22px!important;right:-3px!important;width:16px!important;height:16px!important;}
       .friends-feed-shell.stories-compact .rz-story-plus-action svg{width:11px;height:11px;}
       .friends-feed-shell{display:flex!important;flex-direction:column!important;overflow:hidden!important;}
-      .friends-feed-shell > .video-feed{flex:1 1 auto!important;min-height:0!important;position:relative!important;}`}</style>
+      .friends-feed-shell > .video-feed{flex:1 1 auto!important;min-height:0!important;position:relative!important;overflow-y:auto!important;scroll-snap-type:y mandatory!important;}
+      .friends-feed-shell .feed-post-card{height:100%!important;min-height:100%!important;max-height:100%!important;box-sizing:border-box!important;position:relative!important;scroll-snap-align:start!important;overflow:hidden!important;}
+      .friends-feed-shell .feed-post-card .feed-media-wrap{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;}
+      .friends-feed-shell .feed-post-card .feed-media-wrap img,.friends-feed-shell .feed-post-card .feed-media-wrap video{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;}
+      .friends-feed-shell .feed-post-card .creator-copy,.friends-feed-shell .feed-post-card .side-actions{z-index:3!important;}
+      .friends-feed-shell.stories-compact .friends-feed-topbar{flex-shrink:0!important;}
+      `}</style>
       <header className="friends-topbar friends-feed-topbar">
         <h1>{t("Amigos")}</h1>
         <p>Solo personas que tú sigues y que también te siguen.</p>
