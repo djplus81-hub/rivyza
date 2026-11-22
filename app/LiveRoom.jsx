@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { LIVE_DEEPAR_EFFECTS } from './liveDeepAREffects';
+import LiveStickers from './LiveStickers';
 import { createPortal } from 'react-dom';
 import { LiveKitRoom, RoomAudioRenderer, VideoTrack, useTracks, useLocalParticipant, useParticipants, useRoomContext } from '@livekit/components-react';
 import { Track, RoomEvent, DisconnectReason } from 'livekit-client';
@@ -1646,6 +1647,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
           return <span key={i} className="rivyza-v358-particle" style={{left:`${x}%`,top:`${y}%`,fontSize:`${size}px`,animationDuration:`${duration}s`,animationDelay:`-${fract(i*.731)*duration}s`,opacity:.5+fract(i*.293)*.48}}>{symbol}</span>;
         })}
       </div>,document.querySelector('.rivyza-live-stage'))}
+    <LiveStickers room={room} isHost={isHost} hostId={hostId} liveRoomId={liveRoomId} supabase={supabase} lang={lang} />
     <div ref={gridRef} className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''} ${speakers.includes(t?.identity) ? 'rivyza-v314-speaking' : ''}`}
