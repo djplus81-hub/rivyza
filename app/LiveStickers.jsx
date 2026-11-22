@@ -6,16 +6,41 @@ import {RoomEvent} from 'livekit-client';
 const TOPIC='rivyza-live-stickers-v1';
 const DEFAULT_FILES=['01_bolsas_compras.png','02_gafas_sol.png','03_tenis_azules.png','04_fuegos_artificiales.png','05_good_vibe.png','06_feliz_cumpleanos.png','07_gracias.png','08_feliz_dia.png','09_wow.png','10_ok.png','11_correcto.png','12_incorrecto.png','13_nuevo.png','14_planeta_tierra.png','15_corazon_rosado.png','16_celebracion.png','17_pizza.png','18_baloncesto.png','19_futbol.png','20_control_videojuego.png','21_grabando_rec.png','22_bateria.png','23_cargando.png','24_sigueme.png','25_pulgar_arriba.png','26_me_gusta.png','27_angel.png','29_libreta_corazon.png','30_labial.png','31_campana.png','32_flor_rosa.png','33_girasol.png','34_regalo.png','35_fuego.png','36_copo_nieve.png','37_nube.png','38_sol_gafas.png','39_luna_estrellas.png','40_hamburguesa.png','41_papas_fritas.png','42_audifonos.png','43_notas_musicales.png','44_cine.png','45_avion.png','46_palmera.png','47_camara.png','48_manzana_libro.png','49_ve.png','50_corona.png','51_diamante.png','52_enamorado.png','53_te_amo.png','54_sobre_corazones.png','55_gato_gafas.png','56_arcoiris.png','57_cafe_corazon.png','58_corazon_morado.png','59_corazon_rojo.png','60_love.png','61_rosa_roja.png','62_mariposa_azul.png'];
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
-const sanitize=items=>Array.isArray(items)?items.slice(0,60).filter(s=>s&&typeof s.id==='string'&&typeof s.file==='string'&&/^\d{2}_[\w-]+\.png$/i.test(s.file)).map(s=>({id:s.id.slice(0,80),file:s.file,x:clamp(Number(s.x)||0,0,100),y:clamp(Number(s.y)||0,0,100),size:clamp(Number(s.size)||16,5,80),rotation:clamp(Number(s.rotation)||0,-360,360)})):[];
+const sanitize=items=>Array.isArray(items)?items.slice(0,60).filter(s=>s&&typeof s.id==='string'&&typeof s.file==='string'&&/^[^/\\]+\.(?:png|webp)$/i.test(s.file)).map(s=>({id:s.id.slice(0,80),file:s.file,x:clamp(Number(s.x)||0,0,100),y:clamp(Number(s.y)||0,0,100),size:clamp(Number(s.size)||16,5,80),rotation:clamp(Number(s.rotation)||0,-360,360)})):[];
 
 export default function LiveStickers({room,isHost,hostId,liveRoomId,supabase,lang='es'}){
-  const [stage,setStage]=useState(null),[items,setItems]=useState([]),[catalog,setCatalog]=useState(DEFAULT_FILES),[open,setOpen]=useState(false),[dragging,setDragging]=useState(null),[overTrash,setOverTrash]=useState(false);
+  const [stage,setStage]=useState(null),[items,setItems]=useState([]),[catalog,setCatalog]=useState([]),[catalogError,setCatalogError]=useState(false),[open,setOpen]=useState(false),[dragging,setDragging]=useState(null),[overTrash,setOverTrash]=useState(false);
   const itemsRef=useRef([]),gesture=useRef(null),stageRef=useRef(null),version=useRef(0),lastSent=useRef(0);
-  const labels=lang==='en'?{button:'Stickers',title:'3D stickers',delete:'Release to delete',empty:'No stickers found'}:{button:'Stickers',title:'Stickers 3D',delete:'Suelta para eliminar',empty:'No se encontraron stickers'};
+  const labels=lang==='en'?{button:'Stickers',title:'3D stickers',delete:'Release to delete',empty:'Could not load stickers. Check Storage permissions.'}:{button:'Stickers',title:'Stickers 3D',delete:'Suelta para eliminar',empty:'No se pudieron cargar los stickers. Revisa los permisos de Storage.'};
   useEffect(()=>{const node=document.querySelector('.rivyza-live-stage');setStage(node);stageRef.current=node;},[]);
   useEffect(()=>{itemsRef.current=items;},[items]);
   useEffect(()=>{setItems([]);itemsRef.current=[];version.current=0;setOpen(false);},[liveRoomId]);
-  useEffect(()=>{let alive=true;supabase.storage.from('rivyza-stickers').list('',{limit:100,sortBy:{column:'name',order:'asc'}}).then(({data,error})=>{if(!alive||error)return;const names=(data||[]).map(x=>x.name).filter(x=>/^\d{2}_[\w-]+\.png$/i.test(x));if(names.length)setCatalog(names);}).catch(()=>{});return()=>{alive=false;};},[supabase]);
+  useEffect(()=>{
+    let alive=true;
+    const load=async()=>{
+      setCatalogError(false);
+      try{
+        const bucket=supabase.storage.from('rivyza-stickers');
+        const found=[];
+        const pageSize=100;
+        for(let offset=0;offset<10000;offset+=pageSize){
+          const {data,error}=await bucket.list('',{limit:pageSize,offset,sortBy:{column:'name',order:'asc'}});
+          if(error)throw error;
+          const page=data||[];
+          for(const entry of page){
+            if(entry?.name && /^[^/\\]+\.(?:png|webp)$/i.test(entry.name) && (entry.id || entry.metadata))found.push(entry.name);
+          }
+          if(page.length<pageSize)break;
+        }
+        if(alive){setCatalog([...new Set(found)].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})));setCatalogError(false);}
+      }catch(error){
+        console.warn('RIVYZA sticker catalog:',error);
+        if(alive){setCatalog([]);setCatalogError(true);}
+      }
+    };
+    load();
+    return()=>{alive=false;};
+  },[supabase]);
   const send=useCallback((next,receiver)=>{
     if(!isHost||room.state!=='connected')return;
     const packet={type:'state',roomId:liveRoomId,version:++version.current,items:sanitize(next)};
@@ -57,6 +82,6 @@ export default function LiveStickers({room,isHost,hostId,liveRoomId,supabase,lan
       {isHost&&dragging&&<div style={{position:'absolute',bottom:'6%',left:'50%',transform:'translateX(-50%)',borderRadius:50,background:overTrash?'#ef174b':'#25202c',border:'2px solid #fff',color:'#fff',padding:'14px 20px',textAlign:'center',fontSize:12,fontWeight:700,boxShadow:'0 4px 20px #0009',pointerEvents:'none',zIndex:5}}>🗑️ {labels.delete}</div>}
     </div>
     {isHost&&<button type="button" onClick={()=>setOpen(x=>!x)} aria-label={labels.button} style={{position:'absolute',right:12,bottom:"calc(90px + env(safe-area-inset-bottom))",zIndex:90,background:'#251b36e8',border:'1px solid #ffffff66',borderRadius:14,color:'white',padding:'5px 6px',fontSize:10,fontWeight:700,minWidth:51,minHeight:49,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,pointerEvents:'auto'}}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:'block'}}><path d="M20 13V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7"/><path d="M20 13h-5a2 2 0 0 0-2 2v5z"/><path d="M8 9h8"/><path d="M8 13h3"/></svg><span>{labels.button}</span></button>}
-    {isHost&&open&&<div role="dialog" aria-label={labels.title} style={{position:'absolute',bottom:90,left:10,right:10,maxHeight:'42%',zIndex:95,overflow:'hidden',display:'flex',flexDirection:'column',background:'#17121ef5',border:'1px solid #ffffff44',borderRadius:16,color:'white',padding:12,pointerEvents:'auto'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong>{labels.title}</strong><button type="button" onClick={()=>setOpen(false)} style={{color:'white',background:'transparent',border:0,fontSize:23}}>✕</button></div><div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(0,1fr))',gap:8,overflowY:'auto',touchAction:'pan-y'}}>{catalog.length?catalog.map(file=><button key={file} type="button" onClick={()=>add(file)} title={file.replace(/^\d+_/,'').replace('.png','').replaceAll('_',' ')} style={{background:'#ffffff16',border:'1px solid #ffffff20',borderRadius:10,padding:5,aspectRatio:'1',minWidth:0}}><img src={url(file)} alt={file.replace(/^\d+_/,'').replace('.png','').replaceAll('_',' ')} loading="lazy" style={{width:'100%',height:'100%',objectFit:'contain'}}/></button>):<p>{labels.empty}</p>}</div></div>}
+    {isHost&&open&&<div role="dialog" aria-label={labels.title} style={{position:'absolute',bottom:90,left:10,right:10,maxHeight:'42%',zIndex:95,overflow:'hidden',display:'flex',flexDirection:'column',background:'#17121ef5',border:'1px solid #ffffff44',borderRadius:16,color:'white',padding:12,pointerEvents:'auto'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong>{labels.title}</strong><button type="button" onClick={()=>setOpen(false)} style={{color:'white',background:'transparent',border:0,fontSize:23}}>✕</button></div><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:9,overflowY:'auto',minHeight:0,alignContent:'start',touchAction:'pan-y'}}>{catalog.length?catalog.map(file=><button key={file} type="button" onClick={()=>add(file)} title={file.replace(/^\d+_/,'').replace('.png','').replaceAll('_',' ')} style={{background:'#ffffff16',border:'1px solid #ffffff20',borderRadius:10,padding:6,aspectRatio:'1 / 1',width:'100%',minWidth:0,minHeight:0,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',boxSizing:'border-box',cursor:'pointer'}}><img src={url(file)} alt={file.replace(/^\d+_/,'').replace('.png','').replaceAll('_',' ')} loading="lazy" style={{display:'block',width:'100%',height:'100%',maxWidth:'100%',maxHeight:'100%',objectFit:'contain',flexShrink:1,pointerEvents:'none'}}/></button>):<p style={{gridColumn:'1 / -1',fontSize:13}}>{catalogError?labels.empty:(lang==='en'?'No images in the bucket.':'No hay imágenes en el bucket.')}</p>}</div></div>}
   </>,stage);
 }
