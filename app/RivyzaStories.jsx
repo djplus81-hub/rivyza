@@ -233,14 +233,16 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
  // Mientras se crea una historia, ningún medio del feed Amigos puede sonar detrás.
  // Capturamos también intentos de reproducción posteriores (autoplay y cambios de post).
  useEffect(()=>{
-  if(!upload)return;
+  // Tanto CREAR como VER historias deben silenciar el feed Amigos.
+  if(!upload&&!viewer)return;
+  const isStoryMedia=el=>Boolean(el.closest('.rz-story-upload, .rz-story-viewer'));
   const pauseBackground=()=>{
    document.querySelectorAll('audio,video').forEach(el=>{
-    if(!el.closest('.rz-story-upload') && !el.paused){try{el.pause()}catch{}}
+    if(!isStoryMedia(el) && !el.paused){try{el.pause()}catch{}}
    });
   };
   const preventBackgroundPlay=e=>{
-   if(e.target instanceof HTMLMediaElement && !e.target.closest('.rz-story-upload')){
+   if(e.target instanceof HTMLMediaElement && !isStoryMedia(e.target)){
     try{e.target.pause()}catch{}
    }
   };
@@ -249,7 +251,7 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
   document.addEventListener('play',preventBackgroundPlay,true);
   const interval=window.setInterval(pauseBackground,350);
   return()=>{document.removeEventListener('play',preventBackgroundPlay,true);window.clearInterval(interval)};
- },[upload]);
+ },[upload,viewer]);
  const closeUpload=()=>{if(busy)return;setUpload(false);setFile(null);resetEditor();setError('');};
   useEffect(()=>{if(!file){setFilePreview('');return;}const url=URL.createObjectURL(file);setFilePreview(url);return()=>URL.revokeObjectURL(url)},[file]);
   const avatar=(p)=>(p?.avatar_url?<img src={p.avatar_url} alt=""/>:<span className="rz-story-fallback">{(p?.display_name||p?.username||'R')[0].toUpperCase()}</span>);
