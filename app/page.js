@@ -528,6 +528,8 @@ export default function HomePage(){
   const [deleteConfirmOpen,setDeleteConfirmOpen]=useState(false);
   const postSwipeStartY=useRef(null);
   const postWheelLock=useRef(false);
+  const [postSwipeTransition,setPostSwipeTransition]=useState(null);
+  const postSwipeTimer=useRef(null);
   const postViewerVideoRef=useRef(null);
   const [postActionMessage,setPostActionMessage]=useState("");
   const [postLikeCount,setPostLikeCount]=useState(0);
@@ -1916,6 +1918,8 @@ async function applyPostCrop(){
     if(attempt?.catch)attempt.catch(()=>{});
   },[selectedPost?.id,selectedPost?.media_type]);
 
+  useEffect(()=>()=>{if(postSwipeTimer.current)clearTimeout(postSwipeTimer.current);},[]);
+
   function movePost(direction){
     const activePosts=view==="otherProfile" ? viewedProfilePosts : profilePosts;
     if(!selectedPost || activePosts.length<2)return;
@@ -1923,7 +1927,13 @@ async function applyPostCrop(){
     if(currentIndex<0)return;
     const nextIndex=currentIndex+direction;
     if(nextIndex<0 || nextIndex>=activePosts.length)return;
+    if(postSwipeTransition)return;
+    const outgoing=selectedPost;
+    setPostSwipeTransition({outgoing,direction});
+    // Keep the outgoing frame visible while the next post enters smoothly.
     openPost(activePosts[nextIndex]);
+    if(postSwipeTimer.current)clearTimeout(postSwipeTimer.current);
+    postSwipeTimer.current=setTimeout(()=>setPostSwipeTransition(null),310);
   }
 
   function handlePostTouchStart(e){
@@ -4284,7 +4294,27 @@ async function applyPostCrop(){
             <button type="button" onClick={()=>setPostMenuOpen(v=>!v)} aria-label="Opciones"><MoreHorizontal size={25}/></button>
           </header>
           <div className="post-detail-media post-swipe-viewer" onTouchStart={handlePostTouchStart} onTouchEnd={handlePostTouchEnd} onWheel={handlePostWheel}>
-            <PostMusicMedia key={selectedPost.id} post={selectedPost} detail videoRef={postViewerVideoRef}/>
+
+      <style>{` 
+        .post-swipe-viewer {position:relative;overflow:hidden;touch-action:pan-y;}
+        .rz-profile-swipe-current,.rz-profile-swipe-new,.rz-profile-swipe-old {position:absolute;inset:0;width:100%;height:100%;}
+        .rz-profile-swipe-current>div,.rz-profile-swipe-new>div {width:100%;height:100%;}
+        .rz-profile-swipe-old {z-index:2;pointer-events:none;animation:rzSwipeOut .28s ease-out both;}
+        .rz-profile-swipe-new {z-index:1;animation:rzSwipeIn .28s ease-out both;}
+        .rz-profile-swipe-old img,.rz-profile-swipe-old video {width:100%;height:100%;object-fit:contain;}
+        .rz-profile-swipe-old.rz-swipe-down {--rz-dir:1;}
+        .rz-profile-swipe-new.rz-swipe-down {--rz-dir:1;}
+        .rz-profile-swipe-old.rz-swipe-up,.rz-profile-swipe-new.rz-swipe-up {--rz-dir:-1;}
+        @keyframes rzSwipeOut {from {transform:translateY(0)} to {transform:translateY(calc(var(--rz-dir) * 100%))}}
+        @keyframes rzSwipeIn {from {transform:translateY(calc(var(--rz-dir) * -100%))} to {transform:translateY(0)}}
+        @media(prefers-reduced-motion:reduce){.rz-profile-swipe-old,.rz-profile-swipe-new{animation:none}}
+      `}</style>
+            {postSwipeTransition && <div className={`rz-profile-swipe-old ${postSwipeTransition.direction>0?'rz-swipe-up':'rz-swipe-down'}`} aria-hidden="true">
+              {postSwipeTransition.outgoing.media_type==="video"?<video src={postSwipeTransition.outgoing.media_path} poster={postSwipeTransition.outgoing.thumbnail_url||postSwipeTransition.outgoing.poster_url} muted playsInline preload="none"/>:<img src={postSwipeTransition.outgoing.media_path} alt=""/>}
+            </div>}
+            <div key={selectedPost.id} className={postSwipeTransition?`rz-profile-swipe-new ${postSwipeTransition.direction>0?'rz-swipe-up':'rz-swipe-down'}`:'rz-profile-swipe-current'}>
+              <PostMusicMedia post={selectedPost} detail videoRef={postViewerVideoRef}/>
+            </div>
             <RIVYZAWatermark post={selectedPost}/>
           </div>
           <div className="post-detail-info">
@@ -4443,7 +4473,27 @@ async function applyPostCrop(){
             onTouchEnd={handlePostTouchEnd}
             onWheel={handlePostWheel}
           >
-            <PostMusicMedia key={selectedPost.id} post={selectedPost} detail videoRef={postViewerVideoRef}/>
+
+      <style>{` 
+        .post-swipe-viewer {position:relative;overflow:hidden;touch-action:pan-y;}
+        .rz-profile-swipe-current,.rz-profile-swipe-new,.rz-profile-swipe-old {position:absolute;inset:0;width:100%;height:100%;}
+        .rz-profile-swipe-current>div,.rz-profile-swipe-new>div {width:100%;height:100%;}
+        .rz-profile-swipe-old {z-index:2;pointer-events:none;animation:rzSwipeOut .28s ease-out both;}
+        .rz-profile-swipe-new {z-index:1;animation:rzSwipeIn .28s ease-out both;}
+        .rz-profile-swipe-old img,.rz-profile-swipe-old video {width:100%;height:100%;object-fit:contain;}
+        .rz-profile-swipe-old.rz-swipe-down {--rz-dir:1;}
+        .rz-profile-swipe-new.rz-swipe-down {--rz-dir:1;}
+        .rz-profile-swipe-old.rz-swipe-up,.rz-profile-swipe-new.rz-swipe-up {--rz-dir:-1;}
+        @keyframes rzSwipeOut {from {transform:translateY(0)} to {transform:translateY(calc(var(--rz-dir) * 100%))}}
+        @keyframes rzSwipeIn {from {transform:translateY(calc(var(--rz-dir) * -100%))} to {transform:translateY(0)}}
+        @media(prefers-reduced-motion:reduce){.rz-profile-swipe-old,.rz-profile-swipe-new{animation:none}}
+      `}</style>
+            {postSwipeTransition && <div className={`rz-profile-swipe-old ${postSwipeTransition.direction>0?'rz-swipe-up':'rz-swipe-down'}`} aria-hidden="true">
+              {postSwipeTransition.outgoing.media_type==="video"?<video src={postSwipeTransition.outgoing.media_path} poster={postSwipeTransition.outgoing.thumbnail_url||postSwipeTransition.outgoing.poster_url} muted playsInline preload="none"/>:<img src={postSwipeTransition.outgoing.media_path} alt=""/>}
+            </div>}
+            <div key={selectedPost.id} className={postSwipeTransition?`rz-profile-swipe-new ${postSwipeTransition.direction>0?'rz-swipe-up':'rz-swipe-down'}`:'rz-profile-swipe-current'}>
+              <PostMusicMedia post={selectedPost} detail videoRef={postViewerVideoRef}/>
+            </div>
             <RIVYZAWatermark post={selectedPost}/>
           </div>
 
