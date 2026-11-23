@@ -55,7 +55,7 @@ const styles=`
  .rz-story-upload .rz-editor-row button{font-size:12px!important;padding:10px 7px!important}
  .rz-story-upload .rz-editor-emojis{flex-wrap:nowrap!important;overflow-x:auto!important;max-height:55px!important}
  .rz-editor-hint-panel{background:#111b;border-radius:10px;padding:8px;font-size:12px;text-align:center}
- .rz-story-upload .rz-sticker-controls{position:fixed!important;top:auto!important;bottom:calc(205px + env(safe-area-inset-bottom,0px))!important;left:10px!important;right:10px!important;width:calc(100% - 20px)!important;max-width:none!important;z-index:80!important;display:flex!important;visibility:visible!important;opacity:1!important;overflow:visible!important;box-sizing:border-box!important;background:#16131eea!important;box-shadow:0 4px 20px #0009!important;}
+ .rz-story-upload .rz-sticker-controls{position:relative!important;top:auto!important;bottom:auto!important;left:auto!important;right:auto!important;width:100%!important;max-width:100%!important;z-index:40!important;display:flex!important;visibility:visible!important;opacity:1!important;overflow:visible!important;box-sizing:border-box!important;background:#16131eea!important;box-shadow:0 4px 20px #0009!important;}
  .rz-story-upload .rz-text-size-row{position:relative;z-index:40;flex-wrap:nowrap!important;gap:5px!important}
  .rz-story-upload .rz-text-size-row input[type=range]{min-width:0!important;width:0!important;flex:1 1 0!important}
  .rz-story-upload .rz-sticker-controls input[type=range]{min-width:0!important;flex:1 1 0!important;width:0!important;}
@@ -107,7 +107,7 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
      g.start=[...g.points.values()].map(p=>({...p}));
      g.element=e.currentTarget;
      try{e.currentTarget.setPointerCapture(e.pointerId)}catch{}
-     setSelectedText(o.id);textTrashHoverRef.current=false;setDraggingText(true);
+     setSelectedText(o.id);setSelectedSticker(null);textTrashHoverRef.current=false;setDraggingText(true);
      // El evento global actúa como respaldo cuando Safari pierde pointer capture.
      if(!textReleaseRef.current){
        const release=event=>{if(gesture.current.points.has(event.pointerId))textPointerUp(event)};
