@@ -18,12 +18,15 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     observer.observe(node);return()=>observer.disconnect();
   },[]);
 
-  // Photos have no video element: play their selected music segment independently.
+  // Photo music: on a cold Safari load, wait for metadata AND seek completion
+  // before playing. Otherwise the first playback can start at second zero.
   useEffect(()=>{
     if(post.media_type==="video"||!hasMusic)return;
     const a=music.current,node=root.current;
     if(!a||!node)return;
     let disposed=false;
+    let seekPending=false;
+    let seekTarget=null;
     const clip=Math.max(1,Number(post.music_clip_seconds)||10);
     const stop=()=>a.pause();
     if(!visible){stop();return;}
@@ -31,32 +34,68 @@ export default function PostMusicMedia({post,detail=false,videoRef=null}){
     activeStop=stop;
     a.muted=false;
     a.volume=musicVolume;
-    const begin=()=>{
-      if(disposed||!visible)return;
-      if(a.currentTime<start||a.currentTime>=start+clip){
-        try{a.currentTime=start;}catch(_){}
+
+    const playReady=()=>{
+      if(disposed||!visible||a.readyState<1||a.seeking||seekPending)return;
+      // Safari may clamp seeks; never allow an audible start before the clip.
+      if(Math.abs(a.currentTime-start)>0.3 &&
+         (a.currentTime<start||a.currentTime>=start+clip)){
+        seekToStart();
+        return;
       }
-      a.play().catch(()=>{}); // Mobile browsers may require a user gesture.
+      a.play().catch(()=>{}); // iOS may require a user gesture.
+    };
+    const seekToStart=()=>{
+      if(disposed||!visible)return;
+      a.pause();
+      if(a.readyState<1)return; // wait for loadedmetadata
+      const duration=Number.isFinite(a.duration)?a.duration:Infinity;
+      const target=Math.min(start,Math.max(0,duration-0.05));
+      if(Math.abs(a.currentTime-target)<0.08 && !a.seeking){
+        seekPending=false;
+        playReady();
+        return;
+      }
+      seekPending=true;
+      seekTarget=target;
+      try{a.currentTime=target;}catch(_){seekPending=false;}
+      // Some Safari builds complete a seek without a seeked event when cached.
+      if(!a.seeking && Math.abs(a.currentTime-target)<0.08){
+        seekPending=false;
+        playReady();
+      }
+    };
+    const onMetadata=()=>seekToStart();
+    const onSeeked=()=>{
+      if(!seekPending)return;
+      if(seekTarget!=null && Math.abs(a.currentTime-seekTarget)>0.3){
+        seekToStart();return;
+      }
+      seekPending=false;
+      playReady();
     };
     const onTick=()=>{
-      if(a.currentTime>=start+clip){
-        try{a.currentTime=start;}catch(_){}
-        if(visible)a.play().catch(()=>{});
-      }
+      if(a.currentTime>=start+clip)seekToStart();
     };
-    const onEnded=()=>{
-      try{a.currentTime=start;}catch(_){}
-      if(visible)a.play().catch(()=>{});
+    const onEnded=()=>seekToStart();
+    const onTap=()=>{
+      if(a.readyState<1){try{a.load();}catch(_){}return;}
+      if(seekPending||a.seeking)return;
+      if(a.currentTime<start-0.1||a.currentTime>=start+clip)seekToStart();
+      else playReady();
     };
-    const onTap=()=>begin();
+    a.addEventListener("loadedmetadata",onMetadata);
+    a.addEventListener("seeked",onSeeked);
     a.addEventListener("timeupdate",onTick);
     a.addEventListener("ended",onEnded);
     node.addEventListener("pointerdown",onTap,{passive:true});
     node.addEventListener("touchstart",onTap,{passive:true});
-    try{a.currentTime=start;}catch(_){}
-    begin();
+    if(a.readyState>=1)seekToStart();
+    else {try{a.load();}catch(_){}}
     return()=>{
       disposed=true;
+      a.removeEventListener("loadedmetadata",onMetadata);
+      a.removeEventListener("seeked",onSeeked);
       a.removeEventListener("timeupdate",onTick);
       a.removeEventListener("ended",onEnded);
       node.removeEventListener("pointerdown",onTap);
