@@ -1,0 +1,24 @@
+"use client";
+import {useEffect,useState,useRef} from 'react';
+export const stickerUrl=(supabase,file)=>supabase.storage.from('rivyza-stickers').getPublicUrl(file).data.publicUrl;
+export async function bakeStickers(file,items,supabase){
+ if(!items.length)return file;
+ const src=URL.createObjectURL(file);
+ try{const img=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=src});
+ const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);
+ for(const s of items){const url=stickerUrl(supabase,s.file);const sticker=await new Promise((resolve,reject)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>resolve(i);i.onerror=()=>reject(new Error('No se pudo cargar el sticker '+s.file));i.src=url});const size=c.width*s.size/100;ctx.save();ctx.translate(c.width*s.x/100,c.height*s.y/100);ctx.rotate((s.rotation||0)*Math.PI/180);ctx.drawImage(sticker,-size/2,-size/2,size,size);ctx.restore();}
+ const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(Error('No se pudo guardar la foto con stickers')),'image/png'));
+ return new File([blob],'rivyza-stickers.png',{type:'image/png'});
+ }finally{URL.revokeObjectURL(src)}
+}
+export default function MediaStickers({supabase,items,onChange,lang='es'}){
+ const [catalog,setCatalog]=useState([]),[open,setOpen]=useState(false),[error,setError]=useState('');const stage=useRef(null),drag=useRef(null);
+ useEffect(()=>{let alive=true;(async()=>{try{const bucket=supabase.storage.from('rivyza-stickers');let all=[];for(let offset=0;offset<10000;offset+=100){const {data,error}=await bucket.list('',{limit:100,offset,sortBy:{column:'name',order:'asc'}});if(error)throw error;all.push(...(data||[]).filter(f=>/\.(png|webp)$/i.test(f.name)).map(f=>f.name));if((data||[]).length<100)break;}if(alive)setCatalog([...new Set(all)].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})));}catch(e){if(alive)setError(e.message||'Error');}})();return()=>{alive=false}},[supabase]);
+ const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+ const add=file=>{onChange([...items,{id:crypto.randomUUID(),file,x:50,y:43,size:36,rotation:0}]);setOpen(false)};
+ const point=e=>{const r=stage.current.getBoundingClientRect();return {x:clamp((e.clientX-r.left)/r.width*100,0,100),y:clamp((e.clientY-r.top)/r.height*100,0,100)}};
+ return <><div ref={stage} style={{position:'absolute',inset:0,zIndex:7,pointerEvents:'none'}}>{items.map(s=><div key={s.id} onPointerDown={e=>{e.stopPropagation();e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);const pt=point(e);drag.current={id:s.id,start:pt,x:s.x,y:s.y}}} onPointerMove={e=>{if(drag.current?.id!==s.id)return;e.preventDefault();const pt=point(e),d=drag.current;onChange(items.map(v=>v.id===s.id?{...v,x:clamp(d.x+pt.x-d.start.x,0,100),y:clamp(d.y+pt.y-d.start.y,0,100)}:v))}} onPointerUp={()=>drag.current=null} onPointerCancel={()=>drag.current=null} style={{position:'absolute',left:s.x+'%',top:s.y+'%',width:s.size+'%',aspectRatio:'1',transform:`translate(-50%,-50%) rotate(${s.rotation||0}deg)`,touchAction:'none',pointerEvents:'auto',cursor:'grab'}}><img draggable={false} src={stickerUrl(supabase,s.file)} alt="Sticker" style={{width:'100%',height:'100%',objectFit:'contain',pointerEvents:'none'}}/></div>)}</div>
+ <button type="button" onClick={()=>setOpen(v=>!v)} style={{position:'absolute',top:110,left:12,zIndex:12,background:'#251b36e8',color:'#fff',border:'1px solid #ffffff66',borderRadius:12,padding:'10px 8px',fontWeight:700}}>✨ Stickers 3D</button>
+ {open&&<div style={{position:'absolute',bottom:15,left:10,right:10,maxHeight:'45%',overflow:'auto',background:'#17121ef5',border:'1px solid #ffffff55',borderRadius:15,padding:12,zIndex:20,color:'white'}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}><strong>Stickers 3D</strong><button type="button" onClick={()=>setOpen(false)}>✕</button></div><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:8}}>{catalog.map(file=><button type="button" key={file} onClick={()=>add(file)} style={{height:92,background:'#ffffff15',border:'1px solid #ffffff22',borderRadius:10}}><img src={stickerUrl(supabase,file)} alt={file} style={{height:'100%',width:'100%',objectFit:'contain'}}/></button>)}</div>{error&&<small>{error}</small>}</div>}
+ {items.length>0&&<div style={{position:'absolute',left:12,bottom:12,zIndex:13,display:'flex',gap:6}}><button type="button" onClick={()=>onChange(items.slice(0,-1))} style={{background:'#25202c',color:'white',padding:8,borderRadius:9}}>↶ Deshacer</button><button type="button" onClick={()=>onChange([])} style={{background:'#25202c',color:'white',padding:8,borderRadius:9}}>🗑️ Quitar todos</button></div>}</>;
+}

@@ -1,11 +1,12 @@
 "use client";
 import {useEffect,useRef,useState,useCallback} from 'react';
 import {createPortal} from 'react-dom';
+import MediaStickers,{bakeStickers} from './MediaStickers';
 import {Heart,X,Plus,Eye,Send,Download,Trash2,ChevronUp} from 'lucide-react';
 
 const MAX_STORIES=10;
 const STORY_FILTERS={original:'none',warm:'sepia(.25) saturate(1.25)',cool:'saturate(.9) hue-rotate(18deg)',vivid:'saturate(1.55) contrast(1.08)',bw:'grayscale(1)'};
-const STORY_EMOJIS=['❤️','⭐','✨','😍','🎉','🔥','💙','😂','🌸','👑'];
+
 async function renderStoryPhoto(source,filter,overlays){
  const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('No se pudo abrir la foto'));img.src=URL.createObjectURL(source)});
  try{
@@ -30,7 +31,8 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
  const [viewer,setViewer]=useState(null),[index,setIndex]=useState(0),[upload,setUpload]=useState(false),[file,setFile]=useState(null),[filePreview,setFilePreview]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[draft,setDraft]=useState(''),[progress,setProgress]=useState(0),[paused,setPaused]=useState(false),[feedback,setFeedback]=useState('');
  const [editorText,setEditorText]=useState(''),[editorColor,setEditorColor]=useState('#ffffff'),[editorFilter,setEditorFilter]=useState('original'),[editorOverlays,setEditorOverlays]=useState([]),[editorTab,setEditorTab]=useState('text');
  const dragOverlay=useRef(null),previewBox=useRef(null);
- const resetEditor=()=>{setEditorText('');setEditorFilter('original');setEditorOverlays([]);setEditorTab('text')};
+ const [stickers,setStickers]=useState([]);
+ const resetEditor=()=>{setEditorText('');setEditorFilter('original');setEditorOverlays([]);setEditorTab('text');setStickers([])};
  const addOverlay=(kind,value)=>{if(!value.trim())return;setEditorOverlays(v=>[...v,{id:Date.now()+Math.random(),kind,text:value,color:editorColor,x:50,y:50}]);setEditorText('')};
  const moveOverlay=(e)=>{if(dragOverlay.current==null||!previewBox.current)return;const r=previewBox.current.getBoundingClientRect();const x=Math.min(95,Math.max(5,100*(e.clientX-r.left)/r.width)),y=Math.min(95,Math.max(5,100*(e.clientY-r.top)/r.height));setEditorOverlays(v=>v.map(o=>o.id===dragOverlay.current?{...o,x,y}:o))};
  const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null),fileInput=useRef(null);
@@ -67,7 +69,8 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
   const count=items.filter(s=>s.user_id===user.id&&new Date(s.expires_at)>new Date()).length;if(count>=MAX_STORIES)throw Error(tx('Máximo 10 historias activas.','Maximum 10 active stories.'));
   if(file.size>50*1024*1024)throw Error(tx('Máximo 50 MB por historia.','Maximum 50 MB per story.'));
   if(!['image/jpeg','image/png','image/webp','video/mp4','video/webm','video/quicktime'].includes(file.type))throw Error(tx('Formato no permitido.','Unsupported format.'));
-  const finalFile=file.type.startsWith('image/')&&(editorOverlays.length||editorFilter!=='original')?await renderStoryPhoto(file,editorFilter,editorOverlays):file;
+  const photoFile=file.type.startsWith('image/')&&(editorOverlays.length||editorFilter!=='original')?await renderStoryPhoto(file,editorFilter,editorOverlays):file;
+   const finalFile=file.type.startsWith('image/')&&stickers.length?await bakeStickers(photoFile,stickers,supabase):photoFile;
   const ext=finalFile.name.split('.').pop().toLowerCase();const path=`${user.id}/${crypto.randomUUID()}.${ext}`;
   const {error:upErr}=await supabase.storage.from('rivyza-stories').upload(path,finalFile,{contentType:finalFile.type,upsert:false});if(upErr)throw upErr;
   const {error:dbErr}=await supabase.from('rivyza_stories').insert({user_id:user.id,media_path:path,media_type:file.type.startsWith('video/')?'video':'image'});
@@ -120,12 +123,13 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
     <div className="rz-story-upload-head"><div><h3>{tx('Nueva historia','New story')}</h3><p>{tx('Comparte un momento con tus amigos','Share a moment with your friends')}</p></div><button className="rz-story-close" onClick={closeUpload} aria-label={tx('Cerrar','Close')}><X size={22}/></button></div>
     <div className="rz-story-preview" ref={previewBox} onClick={()=>!file&&!busy&&fileInput.current?.click()} onPointerMove={moveOverlay} onPointerUp={()=>{dragOverlay.current=null}} onPointerCancel={()=>{dragOverlay.current=null}} role="group">
       {filePreview?(file?.type.startsWith('video/')?<video key={filePreview} src={filePreview} controls playsInline onClick={e=>e.stopPropagation()}/>:<img src={filePreview} style={{filter:STORY_FILTERS[editorFilter]}} alt={tx('Vista previa de tu historia','Your story preview')}/>):<div className="rz-story-placeholder"><span className="rz-story-placeholder-icon"><Plus size={32}/></span><strong>{tx('Seleccionar foto o video','Choose photo or video')}</strong><small>{tx('Toca aquí para abrir tus archivos','Tap here to open your files')}</small></div>}
+      {file?.type.startsWith('image/')&&<MediaStickers supabase={supabase} items={stickers} onChange={setStickers} lang={language}/>}
       {file?.type.startsWith('image/')&&editorOverlays.map(o=><span key={o.id} className="rz-editor-overlay" style={{left:`${o.x}%`,top:`${o.y}%`,color:o.color,fontSize:o.kind==='emoji'?32:23}} onPointerDown={e=>{e.stopPropagation();dragOverlay.current=o.id;e.currentTarget.setPointerCapture(e.pointerId)}} onPointerUp={()=>{dragOverlay.current=null}}>{o.text}</span>)}
     </div>
     {file?.type.startsWith('image/')&&<div className="rz-editor-tools">
-      <div className="rz-editor-tabs"><button onClick={()=>setEditorTab('text')}>Aa {tx('Texto','Text')}</button><button onClick={()=>setEditorTab('stickers')}>☺ Stickers</button><button onClick={()=>setEditorTab('filters')}>◉ {tx('Filtros','Filters')}</button></div>
+      <div className="rz-editor-tabs"><button onClick={()=>setEditorTab('text')}>Aa {tx('Texto','Text')}</button><button onClick={()=>setEditorTab('filters')}>◉ {tx('Filtros','Filters')}</button></div>
       {editorTab==='text'&&<div className="rz-editor-row"><input value={editorText} maxLength={100} onChange={e=>setEditorText(e.target.value)} placeholder={tx('Escribe sobre tu foto','Write on your photo')}/><input type="color" aria-label={tx('Color del texto','Text color')} value={editorColor} onChange={e=>setEditorColor(e.target.value)}/><button disabled={!editorText.trim()} onClick={()=>addOverlay('text',editorText)}>{tx('Añadir','Add')}</button></div>}
-      {editorTab==='stickers'&&<div className="rz-editor-emojis">{STORY_EMOJIS.map(e=><button key={e} onClick={()=>addOverlay('emoji',e)}>{e}</button>)}</div>}
+      
       {editorTab==='filters'&&<div className="rz-editor-emojis">{Object.keys(STORY_FILTERS).map(f=><button key={f} className={editorFilter===f?'selected':''} onClick={()=>setEditorFilter(f)}>{({original:tx('Original','Original'),warm:tx('Cálido','Warm'),cool:tx('Frío','Cool'),vivid:tx('Vivo','Vivid'),bw:tx('B/N','B/W')})[f]}</button>)}</div>}
       {editorOverlays.length>0&&<button className="rz-editor-undo" onClick={()=>setEditorOverlays(v=>v.slice(0,-1))}>{tx('Deshacer último sticker o texto','Undo last sticker or text')}</button>}
       <small className="rz-editor-hint">{tx('Arrastra el texto o los stickers para moverlos','Drag text or stickers to move them')}</small>

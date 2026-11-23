@@ -7,6 +7,7 @@ import LiveRoom from "./LiveRoom";
 import RivyzaStories from "./RivyzaStories";
 import LivePreviewPlayer from "./LivePreviewPlayer";
 import PostMusicMedia from "./PostMusicMedia";
+import MediaStickers,{bakeStickers} from "./MediaStickers";
 import { exportPhotoWithMusic, exportVideoWithMark } from "./RIVYZA_exportarFotoConMusica";
 import RIVYZAWatermark, { markPhoto } from "./RIVYZAWatermark";
 import "./RIVYZAWatermark.css";
@@ -645,6 +646,7 @@ export default function HomePage(){
   const [uploadType,setUploadType]=useState("photo");
   const [uploadFile,setUploadFile]=useState(null);
   const [uploadPreview,setUploadPreview]=useState("");
+  const [postStickers,setPostStickers]=useState([]);
   // Editor independiente para publicaciones fotográficas (no afecta LIVE ni video).
   const [postCropOpen,setPostCropOpen]=useState(false);
   const [postCrop,setPostCrop]=useState({x:0,y:0});
@@ -2704,6 +2706,7 @@ async function applyPostCrop(){
      return;
    }
 
+   setPostStickers([]);
    setUploadFile(file);
    setUploadPreview(URL.createObjectURL(file));
    setUploadMessage("");
@@ -2826,7 +2829,8 @@ async function applyPostCrop(){
    setPublishStage("Subiendo foto o video…");
 
    try{
-     const publishFile=uploadType==="photo"?await getPhotoForPublishing():await getVideoForPublishing();
+     const baseFile=uploadType==="photo"?await getPhotoForPublishing():await getVideoForPublishing();
+     const publishFile=uploadType==="photo"&&postStickers.length?await bakeStickers(baseFile,postStickers,supabase):baseFile;
      const videoCover=uploadType==="video"?await createVideoCover(publishFile):null;
      const ext=(publishFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
      const path=`${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
@@ -3234,6 +3238,7 @@ async function applyPostCrop(){
 
            <div className="rivyza-music-stage">
              <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
+               {uploadType==="photo"&&<MediaStickers supabase={supabase} items={postStickers} onChange={setPostStickers}/>}
                {uploadType==="photo"
                  ? <img src={uploadPreview} alt="Vista previa" style={{filter:photoFilterCss,transition:"filter .15s"}}/>
                  : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="auto" style={{width:"100%"}}
