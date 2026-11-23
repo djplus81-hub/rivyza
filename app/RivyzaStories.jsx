@@ -76,21 +76,27 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
   const resetEditor=()=>{setEditorText('');setEditorFilter('original');setEditorOverlays([]);setEditorTab('');setStickerCloseSignal(v=>v+1);setStickers([]);setDraggingText(false);setSelectedText(null)};
  const addOverlay=(kind,value)=>{if(!value.trim())return;setEditorOverlays(v=>[...v,{id:Date.now()+Math.random(),kind,text:value,color:editorColor,x:50,y:50,scale:1,rotation:0}]);setEditorText('');setEditorTab('');setSelectedText(null)};
    // Detección estable en Safari: dedo, centro de la palabra o superposición visual.
+   // Detectar el zafacón por su posición REAL en pantalla (no por el centro del texto).
    const trashHit=(x,y,element)=>{
-     const r=trashElement.current?.getBoundingClientRect();if(!r)return false;
-     const margin=36;
-     const inside=(px,py)=>px>=r.left-margin&&px<=r.right+margin&&py>=r.top-margin&&py<=r.bottom+margin;
+     const r=trashElement.current?.getBoundingClientRect();
+     const stage=previewBox.current?.getBoundingClientRect();
+     if(!r||!stage)return false;
+     const pad=38;
+     const inside=(px,py)=>px>=r.left-pad&&px<=r.right+pad&&py>=r.top-pad&&py<=r.bottom+pad;
      if(inside(x,y))return true;
-     if(!element)return false;
-     const t=element.getBoundingClientRect();
-     if(inside((t.left+t.right)/2,(t.top+t.bottom)/2))return true;
-     return Math.min(t.right,r.right+margin)>Math.max(t.left,r.left-margin)&&Math.min(t.bottom,r.bottom+margin)>Math.max(t.top,r.top-margin);
+     // Al arrastrar una palabra larga, puede cubrir la papelera aunque el dedo quede fuera.
+     if(element){const t=element.getBoundingClientRect();if(t.right>=r.left-pad&&t.left<=r.right+pad&&t.bottom>=r.top-pad&&t.top<=r.bottom+pad)return true;}
+     return false;
    };
    const textTrashHoverRef=useRef(false);
+   const textReleaseRef=useRef(null);
   // Recalibrar al cambiar de uno a dos dedos evita saltos en Safari.
-  const textPointerDown=(e,o)=>{e.stopPropagation();e.preventDefault();try{e.currentTarget.setPointerCapture(e.pointerId)}catch{}const g=gesture.current;if(g.id!==o.id){g.points.clear();g.id=o.id;}g.points.set(e.pointerId,{x:e.clientX,y:e.clientY});const current=editorOverlays.find(v=>v.id===o.id)||o;g.base={...current};g.start=[...g.points.values()].map(p=>({...p}));setSelectedText(o.id);textTrashHoverRef.current=false;setDraggingText(true)};
+  const textPointerDown=(e,o)=>{e.stopPropagation();e.preventDefault();try{e.currentTarget.setPointerCapture(e.pointerId)}catch{}const g=gesture.current;if(g.id!==o.id){g.points.clear();g.id=o.id;}g.points.set(e.pointerId,{x:e.clientX,y:e.clientY});const current=editorOverlays.find(v=>v.id===o.id)||o;g.base={...current};g.start=[...g.points.values()].map(p=>({...p}));setSelectedText(o.id);textTrashHoverRef.current=false;setDraggingText(true);
+    // iOS Safari puede perder pointer capture al pasar sobre controles inferiores.
+    if(!textReleaseRef.current){const release=event=>{if(gesture.current.points.has(event.pointerId))textPointerUp(event)};window.addEventListener('pointerup',release,true);window.addEventListener('pointercancel',release,true);textReleaseRef.current=release;}
+  };
   const textPointerMove=(e)=>{const g=gesture.current;if(!g.points.has(e.pointerId)||!previewBox.current)return;e.stopPropagation();e.preventDefault();g.points.set(e.pointerId,{x:e.clientX,y:e.clientY});const r=previewBox.current.getBoundingClientRect(),pts=[...g.points.values()],start=g.start||pts,base=g.base||{};let patch={};if(pts.length>=2&&start.length>=2){const [a,b]=pts,[c,d]=start;const dist=Math.hypot(b.x-a.x,b.y-a.y),initial=Math.max(1,Math.hypot(d.x-c,d.y-c));const angle=Math.atan2(b.y-a.y,b.x-a.x)-Math.atan2(d.y-c,d.x-c);patch={scale:Math.max(.25,Math.min(8,(base.scale||1)*dist/initial)),rotation:(base.rotation||0)+angle*180/Math.PI,x:(base.x||50)+((a.x+b.x-c.x-d.x)/2)/r.width*100,y:(base.y||50)+((a.y+b.y-c.y-d.y)/2)/r.height*100}}else if(pts.length===1&&start.length===1){patch={x:(base.x||50)+(pts[0].x-start[0].x)/r.width*100,y:(base.y||50)+(pts[0].y-start[0].y)/r.height*100}}setEditorOverlays(v=>v.map(o=>o.id===g.id?{...o,...patch}:o));{const hit=pts.length===1&&trashHit(e.clientX,e.clientY,e.currentTarget);textTrashHoverRef.current=hit;setOverTrash(hit)}};
-  const textPointerUp=(e)=>{const g=gesture.current;if(!g.points.has(e.pointerId))return;e.stopPropagation();const remove=e.type!=="pointercancel"&&g.points.size===1&&(trashHit(e.clientX,e.clientY,e.currentTarget)||textTrashHoverRef.current);if(remove)setEditorOverlays(v=>v.filter(o=>o.id!==g.id));g.points.delete(e.pointerId);if(g.points.size===0){g.id=null;g.start=null;setDraggingText(false);setOverTrash(false);textTrashHoverRef.current=false;if(remove)setSelectedText(null)}else{const current=editorOverlays.find(v=>v.id===g.id);g.base={...current};g.start=[...g.points.values()].map(p=>({...p}))}};
+  const textPointerUp=(e)=>{const g=gesture.current;if(!g.points.has(e.pointerId))return;e.stopPropagation();const remove=g.points.size===1&&(trashHit(e.clientX,e.clientY,e.currentTarget)||textTrashHoverRef.current);if(remove)setEditorOverlays(v=>v.filter(o=>o.id!==g.id));g.points.delete(e.pointerId);if(g.points.size===0){if(textReleaseRef.current){window.removeEventListener('pointerup',textReleaseRef.current,true);window.removeEventListener('pointercancel',textReleaseRef.current,true);textReleaseRef.current=null;}g.id=null;g.start=null;setDraggingText(false);setOverTrash(false);textTrashHoverRef.current=false;if(remove)setSelectedText(null)}else{const current=editorOverlays.find(v=>v.id===g.id);g.base={...current};g.start=[...g.points.values()].map(p=>({...p}))}};
 
 const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null),fileInput=useRef(null);
  const now=Date.now();const active=items.filter(s=>new Date(s.expires_at).getTime()>now);const groups=[];
