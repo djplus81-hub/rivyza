@@ -31,7 +31,7 @@ const styles=`
 .rz-story-upload-head{position:absolute!important;top:0;left:0;right:0;z-index:12;padding:calc(12px + env(safe-area-inset-top,0px)) 15px 14px;background:linear-gradient(#000a,transparent);align-items:center}
 .rz-story-upload-head h3{font-size:17px!important}.rz-story-upload-head p{display:none!important}
 .rz-story-preview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:none!important;aspect-ratio:auto!important;border:0!important;border-radius:0!important;background:#000!important;overflow:hidden!important;cursor:default}
-.rz-story-preview img,.rz-story-preview video{width:100%!important;height:100%!important;object-fit:contain!important;border-radius:0!important}
+.rz-story-preview img,.rz-story-preview video{width:100%!important;height:100%!important;object-fit:cover!important;border-radius:0!important}
 .rz-story-upload .rz-editor-tools{position:absolute!important;top:calc(86px + env(safe-area-inset-top,0px));right:12px;z-index:13;width:min(245px,65vw);display:grid;justify-items:end;gap:9px;pointer-events:none}
 .rz-story-upload .rz-editor-tools>*{pointer-events:auto}
 .rz-story-upload .rz-editor-tabs{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
@@ -46,7 +46,7 @@ const styles=`
 .rz-story-upload-error{position:absolute;left:14px;right:14px;bottom:calc(205px + env(safe-area-inset-bottom,0px));z-index:15;background:#400b;padding:8px;border-radius:8px}
 .rz-story-upload-inner>small.rz-editor-hint{position:absolute;left:14px;right:14px;bottom:calc(205px + env(safe-area-inset-bottom,0px));z-index:12;background:#0009;padding:8px;border-radius:8px}
 /* Barra compacta horizontal e inputs seguros para Safari iOS */
- .rz-story-upload .rz-editor-tools{top:calc(65px + env(safe-area-inset-top,0px))!important;left:8px!important;right:8px!important;width:auto!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:5px!important}
+ .rz-story-upload .rz-editor-tools{top:calc(70px + env(safe-area-inset-top,0px))!important;left:8px!important;right:8px!important;width:auto!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:5px!important}
  .rz-story-upload .rz-editor-tabs{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;justify-content:center!important;gap:5px!important;width:100%!important}
  .rz-story-upload .rz-editor-tabs button{flex:1 1 0;min-width:0;padding:8px 3px!important;border-radius:12px!important;font-size:11px!important;white-space:nowrap}
  .rz-story-upload .rz-editor-row{display:flex!important;flex-wrap:nowrap!important;align-items:center!important;max-height:none!important;padding:5px!important}
@@ -55,7 +55,7 @@ const styles=`
  .rz-story-upload .rz-editor-row button{font-size:12px!important;padding:10px 7px!important}
  .rz-story-upload .rz-editor-emojis{flex-wrap:nowrap!important;overflow-x:auto!important;max-height:55px!important}
  .rz-editor-hint-panel{background:#111b;border-radius:10px;padding:8px;font-size:12px;text-align:center}
- .rz-text-trash{position:absolute;left:50%;bottom:calc(170px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#222d;color:white;border:2px solid #fff8;border-radius:50%;width:64px;height:64px;display:grid;place-items:center;z-index:20;pointer-events:none;transition:background .12s,transform .12s}
+ .rz-text-trash{position:absolute;left:50%;bottom:calc(100px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#222d;color:white;border:2px solid #fff8;border-radius:50%;width:64px;height:64px;display:grid;place-items:center;z-index:20;pointer-events:none;transition:background .12s,transform .12s}
  .rz-text-trash.active{background:#e22d4a;transform:translateX(-50%) scale(1.2)}
  @media(min-width:700px){.rz-story-upload-inner{left:50%!important;right:auto!important;transform:translateX(-50%);width:min(100vw,calc(100dvh * 9 / 16))!important}}
 `;
@@ -64,14 +64,14 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
  const [items,setItems]=useState([]),[seen,setSeen]=useState([]),[likes,setLikes]=useState([]),[people,setPeople]=useState([]),[showPeople,setShowPeople]=useState(false);
  const [viewer,setViewer]=useState(null),[index,setIndex]=useState(0),[upload,setUpload]=useState(false),[file,setFile]=useState(null),[filePreview,setFilePreview]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[draft,setDraft]=useState(''),[progress,setProgress]=useState(0),[paused,setPaused]=useState(false),[feedback,setFeedback]=useState('');
  const [editorText,setEditorText]=useState(''),[editorColor,setEditorColor]=useState('#ffffff'),[editorFilter,setEditorFilter]=useState('original'),[editorOverlays,setEditorOverlays]=useState([]),[editorTab,setEditorTab]=useState('text');
- const dragOverlay=useRef(null),previewBox=useRef(null);
- const [stickers,setStickers]=useState([]);
+ const dragOverlay=useRef(null),previewBox=useRef(null),textTrashRef=useRef(null);
+ const [stickers,setStickers]=useState([]);const [stickerOpenSignal,setStickerOpenSignal]=useState(0);
   const [draggingText,setDraggingText]=useState(false),[overTrash,setOverTrash]=useState(false);
   const gesture=useRef({points:new Map(),id:null,start:null});
   const [selectedText,setSelectedText]=useState(null);
  const resetEditor=()=>{setEditorText('');setEditorFilter('original');setEditorOverlays([]);setEditorTab('text');setStickers([]);setDraggingText(false);setSelectedText(null)};
  const addOverlay=(kind,value)=>{if(!value.trim())return;setEditorOverlays(v=>[...v,{id:Date.now()+Math.random(),kind,text:value,color:editorColor,x:50,y:50,scale:1,rotation:0}]);setEditorText('')};
-   const trashHit=(x,y)=>{const r=previewBox.current?.getBoundingClientRect();return !!r&&y>r.bottom-175&&Math.abs(x-(r.left+r.width/2))<95};
+   const trashHit=(x,y)=>{const r=textTrashRef.current?.getBoundingClientRect();return !!r&&x>=r.left-12&&x<=r.right+12&&y>=r.top-12&&y<=r.bottom+12};
   const textPointerDown=(e,o)=>{e.stopPropagation();e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);const g=gesture.current;if(g.id!==o.id){g.points.clear();g.id=o.id;g.start=null}g.points.set(e.pointerId,{x:e.clientX,y:e.clientY});g.base={...o};g.start=null;setSelectedText(o.id);setDraggingText(true)};
   const textPointerMove=(e)=>{const g=gesture.current;if(!g.points.has(e.pointerId)||!previewBox.current)return;e.stopPropagation();g.points.set(e.pointerId,{x:e.clientX,y:e.clientY});const r=previewBox.current.getBoundingClientRect();const pts=[...g.points.values()];if(!g.start){g.start={points:pts.map(p=>({...p})),base:{...g.base}}}const st=g.start;let patch={};if(pts.length>=2&&st.points.length>=2){const [a,b]=pts,[c,d]=st.points;const dist=Math.hypot(b.x-a.x,b.y-a.y),initial=Math.max(1,Math.hypot(d.x-c,d.y-c));const angle=Math.atan2(b.y-a.y,b.x-a.x)-Math.atan2(d.y-c,d.x-c);patch={scale:Math.max(.3,Math.min(5,st.base.scale*dist/initial)),rotation:st.base.rotation+angle*180/Math.PI,x:Math.max(5,Math.min(95,st.base.x+((a.x+b.x-c.x-d.x)/2)/r.width*100)),y:Math.max(5,Math.min(95,st.base.y+((a.y+b.y-c.y-d.y)/2)/r.height*100))}}else if(pts.length===1&&st.points.length===1){patch={x:Math.max(5,Math.min(95,st.base.x+(pts[0].x-st.points[0].x)/r.width*100)),y:Math.max(5,Math.min(95,st.base.y+(pts[0].y-st.points[0].y)/r.height*100))}}setEditorOverlays(v=>v.map(o=>o.id===g.id?{...o,...patch}:o));setOverTrash(trashHit(e.clientX,e.clientY))};
   const textPointerUp=(e)=>{const g=gesture.current;if(!g.points.has(e.pointerId))return;e.stopPropagation();const remove=trashHit(e.clientX,e.clientY)&&g.points.size===1;if(remove)setEditorOverlays(v=>v.filter(o=>o.id!==g.id));g.points.delete(e.pointerId);g.start=null;if(g.points.size===0){g.id=null;setDraggingText(false);setOverTrash(false);if(remove)setSelectedText(null)}};
@@ -151,6 +151,26 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
     setFeedback(tx('Si se abre una vista previa, usa Compartir → Guardar imagen o Guardar video.','If a preview opens, use Share → Save Image or Save Video.'));
   }catch(e){setFeedback(e?.message||tx('No se pudo guardar la historia','Could not save story'))}
  }
+ // Mientras se crea una historia, ningún medio del feed Amigos puede sonar detrás.
+ // Capturamos también intentos de reproducción posteriores (autoplay y cambios de post).
+ useEffect(()=>{
+  if(!upload)return;
+  const pauseBackground=()=>{
+   document.querySelectorAll('audio,video').forEach(el=>{
+    if(!el.closest('.rz-story-upload') && !el.paused){try{el.pause()}catch{}}
+   });
+  };
+  const preventBackgroundPlay=e=>{
+   if(e.target instanceof HTMLMediaElement && !e.target.closest('.rz-story-upload')){
+    try{e.target.pause()}catch{}
+   }
+  };
+  pauseBackground();
+  window.dispatchEvent(new CustomEvent('rivyza:pause-background-media'));
+  document.addEventListener('play',preventBackgroundPlay,true);
+  const interval=window.setInterval(pauseBackground,350);
+  return()=>{document.removeEventListener('play',preventBackgroundPlay,true);window.clearInterval(interval)};
+ },[upload]);
  const closeUpload=()=>{if(busy)return;setUpload(false);setFile(null);resetEditor();setError('');};
   useEffect(()=>{if(!file){setFilePreview('');return;}const url=URL.createObjectURL(file);setFilePreview(url);return()=>URL.revokeObjectURL(url)},[file]);
   const avatar=(p)=>(p?.avatar_url?<img src={p.avatar_url} alt=""/>:<span className="rz-story-fallback">{(p?.display_name||p?.username||'R')[0].toUpperCase()}</span>);
@@ -163,15 +183,13 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
     <div className="rz-story-upload-head"><div><h3>{tx('Nueva historia','New story')}</h3><p>{tx('Comparte un momento con tus amigos','Share a moment with your friends')}</p></div><button className="rz-story-close" onClick={closeUpload} aria-label={tx('Cerrar','Close')}><X size={22}/></button></div>
     <div className="rz-story-preview" ref={previewBox} onClick={()=>!file&&!busy&&fileInput.current?.click()}  role="group">
       {filePreview?(file?.type.startsWith('video/')?<video key={filePreview} src={filePreview} controls playsInline onClick={e=>e.stopPropagation()}/>:<img src={filePreview} style={{filter:STORY_FILTERS[editorFilter]}} alt={tx('Vista previa de tu historia','Your story preview')}/>):<div className="rz-story-placeholder"><span className="rz-story-placeholder-icon"><Plus size={32}/></span><strong>{tx('Seleccionar foto o video','Choose photo or video')}</strong><small>{tx('Toca aquí para abrir tus archivos','Tap here to open your files')}</small></div>}
-      {file?.type.startsWith('image/')&&<MediaStickers supabase={supabase} items={stickers} onChange={setStickers} lang={language}/>}
+      {file?.type.startsWith('image/')&&<MediaStickers supabase={supabase} items={stickers} onChange={setStickers} lang={language} hideLauncher openSignal={stickerOpenSignal}/>}
       {file?.type.startsWith('image/')&&editorOverlays.map(o=><span key={o.id} className="rz-editor-overlay" style={{left:`${o.x}%`,top:`${o.y}%`,color:o.color,fontSize:o.kind==='emoji'?32:23,transform:`translate(-50%,-50%) rotate(${o.rotation||0}deg) scale(${o.scale||1})`,outline:selectedText===o.id?"1px dashed #ffffff99":"none"}} onPointerDown={e=>textPointerDown(e,o)} onPointerMove={textPointerMove} onPointerUp={textPointerUp} onPointerCancel={textPointerUp}>{o.text}</span>)}
-      {draggingText&&<div className={`rz-text-trash ${overTrash?"active":""}`}><Trash2 size={25}/></div>}
+      {draggingText&&<div ref={textTrashRef} className={`rz-text-trash ${overTrash?"active":""}`}><Trash2 size={25}/></div>}
     </div>
     {file?.type.startsWith('image/')&&<div className="rz-editor-tools">
-      <div className="rz-editor-tabs"><button onClick={()=>setEditorTab('text')}>Aa {tx('Texto','Text')}</button><button onClick={()=>setEditorTab('filters')}>◉ {tx('Filtros','Filters')}</button><button onClick={()=>setEditorTab('stickers')}>✨ {tx('Stickers','Stickers')}</button><button onClick={()=>setEditorOverlays(v=>v.slice(0,-1))} disabled={!editorOverlays.length}>↶ {tx('Deshacer','Undo')}</button></div>
+      <div className="rz-editor-tabs"><button onClick={()=>setEditorTab('text')}>Aa {tx('Texto','Text')}</button><button onClick={()=>setEditorTab('filters')}>◉ {tx('Filtros','Filters')}</button><button onClick={()=>{setEditorTab('');setStickerOpenSignal(v=>v+1)}}>✨ {tx('Stickers','Stickers')}</button><button onClick={()=>setEditorOverlays(v=>v.slice(0,-1))} disabled={!editorOverlays.length}>↶ {tx('Deshacer','Undo')}</button></div>
       {editorTab==='text'&&<div className="rz-editor-row"><input value={editorText} maxLength={100} onChange={e=>setEditorText(e.target.value)} placeholder={tx('Escribe sobre tu foto','Write on your photo')}/><input type="color" aria-label={tx('Color del texto','Text color')} value={editorColor} onChange={e=>setEditorColor(e.target.value)}/><button disabled={!editorText.trim()} onClick={()=>addOverlay('text',editorText)}>{tx('Añadir','Add')}</button></div>}
-      
-      {editorTab==='stickers'&&<div className="rz-editor-hint-panel">{tx('Toca la foto para elegir y mover stickers 3D.','Tap the photo to choose and move 3D stickers.')}</div>}
       {editorTab==='filters'&&<div className="rz-editor-emojis">{Object.keys(STORY_FILTERS).map(f=><button key={f} className={editorFilter===f?'selected':''} onClick={()=>setEditorFilter(f)}>{({original:tx('Original','Original'),warm:tx('Cálido','Warm'),cool:tx('Frío','Cool'),vivid:tx('Vivo','Vivid'),bw:tx('B/N','B/W')})[f]}</button>)}</div>}
       
       <small className="rz-editor-hint">{tx('Arrastra el texto o los stickers para moverlos','Drag text or stickers to move them')}</small>
