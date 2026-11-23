@@ -39,8 +39,8 @@ const styles=`
 .rz-story-upload .rz-editor-row,.rz-story-upload .rz-editor-emojis{background:#111d;border:1px solid #ffffff30;border-radius:12px;padding:9px;max-width:100%;max-height:38dvh;overflow:auto}
 .rz-story-upload .rz-editor-row input[type=text]{width:130px;min-width:0}
 .rz-story-upload .rz-editor-hint{display:none}
-.rz-story-upload-details{position:absolute;left:14px;bottom:calc(235px + env(safe-area-inset-bottom,0px));z-index:12;right:14px;font-size:11px;text-shadow:0 1px 3px #000}
-.rz-story-upload .rz-story-change{position:absolute;left:14px;bottom:calc(184px + env(safe-area-inset-bottom,0px));z-index:12;width:auto;max-width:calc(100% - 28px);padding:10px 14px;background:#0009!important;border:1px solid #ffffff40!important}
+.rz-story-upload-details{position:absolute;left:14px;bottom:calc(145px + env(safe-area-inset-bottom,0px));z-index:12;right:14px;font-size:11px;text-shadow:0 1px 3px #000}
+.rz-story-upload .rz-story-change{position:absolute;left:14px;bottom:calc(94px + env(safe-area-inset-bottom,0px));z-index:12;width:auto;max-width:calc(100% - 28px);padding:10px 14px;background:#0009!important;border:1px solid #ffffff40!important}
 .rz-story-upload .rz-story-publish{position:absolute;left:14px;right:14px;bottom:calc(17px + env(safe-area-inset-bottom,0px));z-index:12;width:calc(100% - 28px);padding:14px!important}
 .rz-story-upload .rz-story-cancel{display:none!important}
 .rz-story-upload-error{position:absolute;left:14px;right:14px;bottom:calc(205px + env(safe-area-inset-bottom,0px));z-index:15;background:#400b;padding:8px;border-radius:8px}
