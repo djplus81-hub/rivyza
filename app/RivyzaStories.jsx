@@ -7,6 +7,28 @@ import {Heart,X,Plus,Eye,Send,Download,Trash2,ChevronUp} from 'lucide-react';
 const MAX_STORIES=10;
 const STORY_FILTERS={original:'none',warm:'sepia(.25) saturate(1.25)',cool:'saturate(.9) hue-rotate(18deg)',vivid:'saturate(1.55) contrast(1.08)',bw:'grayscale(1)'};
 
+// Igualar el lienzo de publicación a la vista previa real (object-fit: cover).
+// Sin esto, los stickers se dibujan sobre la foto original, no sobre el recorte visto.
+async function matchStoryPreviewCrop(source,stage){
+ const box=stage?.getBoundingClientRect();
+ const targetRatio=box?.width&&box?.height?box.width/box.height:9/16;
+ const url=URL.createObjectURL(source);
+ try{
+  const img=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=url});
+  const iw=img.naturalWidth,ih=img.naturalHeight;
+  if(!iw||!ih)throw Error('No se pudo abrir la imagen');
+  let sw=iw,sh=ih,sx=0,sy=0;
+  if(iw/ih>targetRatio){sw=ih*targetRatio;sx=(iw-sw)/2;}
+  else{sh=iw/targetRatio;sy=(ih-sh)/2;}
+  const factor=Math.min(1,1920/Math.max(sw,sh));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(sw*factor));canvas.height=Math.max(1,Math.round(sh*factor));
+  const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas no disponible');
+  ctx.drawImage(img,sx,sy,sw,sh,0,0,canvas.width,canvas.height);
+  const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('No se pudo preparar la foto')),'image/jpeg',.94));
+  return new File([blob],'historia-encuadrada.jpg',{type:'image/jpeg'});
+ }finally{URL.revokeObjectURL(url)}
+}
+
 async function renderStoryPhoto(source,filter,overlays){
  const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('No se pudo abrir la foto'));img.src=URL.createObjectURL(source)});
  try{
@@ -188,7 +210,8 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
   const count=items.filter(s=>s.user_id===user.id&&new Date(s.expires_at)>new Date()).length;if(count>=MAX_STORIES)throw Error(tx('Máximo 10 historias activas.','Maximum 10 active stories.'));
   if(file.size>50*1024*1024)throw Error(tx('Máximo 50 MB por historia.','Maximum 50 MB per story.'));
   if(!['image/jpeg','image/png','image/webp','video/mp4','video/webm','video/quicktime'].includes(file.type))throw Error(tx('Formato no permitido.','Unsupported format.'));
-  const photoFile=file.type.startsWith('image/')&&(editorOverlays.length||editorFilter!=='original')?await renderStoryPhoto(file,editorFilter,editorOverlays):file;
+  const framedFile=file.type.startsWith('image/')?await matchStoryPreviewCrop(file,previewBox.current):file;
+   const photoFile=file.type.startsWith('image/')&&(editorOverlays.length||editorFilter!=='original')?await renderStoryPhoto(framedFile,editorFilter,editorOverlays):framedFile;
    const finalFile=file.type.startsWith('image/')&&stickers.length?await bakeStickers(photoFile,stickers,supabase):photoFile;
   const ext=finalFile.name.split('.').pop().toLowerCase();const path=`${user.id}/${crypto.randomUUID()}.${ext}`;
   const {error:upErr}=await supabase.storage.from('rivyza-stories').upload(path,finalFile,{contentType:finalFile.type,upsert:false});if(upErr)throw upErr;
