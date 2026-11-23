@@ -31,7 +31,7 @@ const styles=`
 .rz-story-upload-head{position:absolute!important;top:0;left:0;right:0;z-index:12;padding:calc(12px + env(safe-area-inset-top,0px)) 15px 14px;background:linear-gradient(#000a,transparent);align-items:center}
 .rz-story-upload-head h3{font-size:17px!important}.rz-story-upload-head p{display:none!important}
 .rz-story-preview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-height:none!important;aspect-ratio:auto!important;border:0!important;border-radius:0!important;background:#000!important;overflow:hidden!important;cursor:default}
-.rz-story-preview img,.rz-story-preview video{width:100%!important;height:100%!important;object-fit:contain!important;border-radius:0!important}
+.rz-story-preview img,.rz-story-preview video{width:100%!important;height:100%!important;object-fit:cover!important;border-radius:0!important}
 .rz-story-upload .rz-editor-tools{position:absolute!important;top:calc(86px + env(safe-area-inset-top,0px));right:12px;z-index:13;width:min(245px,65vw);display:grid;justify-items:end;gap:9px;pointer-events:none}
 .rz-story-upload .rz-editor-tools>*{pointer-events:auto}
 .rz-story-upload .rz-editor-tabs{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
@@ -46,7 +46,7 @@ const styles=`
 .rz-story-upload-error{position:absolute;left:14px;right:14px;bottom:calc(205px + env(safe-area-inset-bottom,0px));z-index:15;background:#400b;padding:8px;border-radius:8px}
 .rz-story-upload-inner>small.rz-editor-hint{position:absolute;left:14px;right:14px;bottom:calc(205px + env(safe-area-inset-bottom,0px));z-index:12;background:#0009;padding:8px;border-radius:8px}
 /* Barra compacta horizontal e inputs seguros para Safari iOS */
- .rz-story-upload .rz-editor-tools{top:calc(65px + env(safe-area-inset-top,0px))!important;left:8px!important;right:8px!important;width:auto!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:5px!important}
+ .rz-story-upload .rz-editor-tools{top:calc(70px + env(safe-area-inset-top,0px))!important;left:8px!important;right:8px!important;width:auto!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:5px!important}
  .rz-story-upload .rz-editor-tabs{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;justify-content:center!important;gap:5px!important;width:100%!important}
  .rz-story-upload .rz-editor-tabs button{flex:1 1 0;min-width:0;padding:8px 3px!important;border-radius:12px!important;font-size:11px!important;white-space:nowrap}
  .rz-story-upload .rz-editor-row{display:flex!important;flex-wrap:nowrap!important;align-items:center!important;max-height:none!important;padding:5px!important}
@@ -65,7 +65,7 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
  const [viewer,setViewer]=useState(null),[index,setIndex]=useState(0),[upload,setUpload]=useState(false),[file,setFile]=useState(null),[filePreview,setFilePreview]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[draft,setDraft]=useState(''),[progress,setProgress]=useState(0),[paused,setPaused]=useState(false),[feedback,setFeedback]=useState('');
  const [editorText,setEditorText]=useState(''),[editorColor,setEditorColor]=useState('#ffffff'),[editorFilter,setEditorFilter]=useState('original'),[editorOverlays,setEditorOverlays]=useState([]),[editorTab,setEditorTab]=useState('text');
  const dragOverlay=useRef(null),previewBox=useRef(null);
- const [stickers,setStickers]=useState([]);
+ const [stickers,setStickers]=useState([]);const [stickerOpenSignal,setStickerOpenSignal]=useState(0);
   const [draggingText,setDraggingText]=useState(false),[overTrash,setOverTrash]=useState(false);
   const gesture=useRef({points:new Map(),id:null,start:null});
   const [selectedText,setSelectedText]=useState(null);
@@ -151,6 +151,7 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
     setFeedback(tx('Si se abre una vista previa, usa Compartir → Guardar imagen o Guardar video.','If a preview opens, use Share → Save Image or Save Video.'));
   }catch(e){setFeedback(e?.message||tx('No se pudo guardar la historia','Could not save story'))}
  }
+ useEffect(()=>{if(!upload)return;document.querySelectorAll('audio,video').forEach(el=>{if(!el.closest('.rz-story-upload')){try{el.pause()}catch{}}});window.dispatchEvent(new Event('rivyza:pause-background-media'));},[upload]);
  const closeUpload=()=>{if(busy)return;setUpload(false);setFile(null);resetEditor();setError('');};
   useEffect(()=>{if(!file){setFilePreview('');return;}const url=URL.createObjectURL(file);setFilePreview(url);return()=>URL.revokeObjectURL(url)},[file]);
   const avatar=(p)=>(p?.avatar_url?<img src={p.avatar_url} alt=""/>:<span className="rz-story-fallback">{(p?.display_name||p?.username||'R')[0].toUpperCase()}</span>);
@@ -163,15 +164,13 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
     <div className="rz-story-upload-head"><div><h3>{tx('Nueva historia','New story')}</h3><p>{tx('Comparte un momento con tus amigos','Share a moment with your friends')}</p></div><button className="rz-story-close" onClick={closeUpload} aria-label={tx('Cerrar','Close')}><X size={22}/></button></div>
     <div className="rz-story-preview" ref={previewBox} onClick={()=>!file&&!busy&&fileInput.current?.click()}  role="group">
       {filePreview?(file?.type.startsWith('video/')?<video key={filePreview} src={filePreview} controls playsInline onClick={e=>e.stopPropagation()}/>:<img src={filePreview} style={{filter:STORY_FILTERS[editorFilter]}} alt={tx('Vista previa de tu historia','Your story preview')}/>):<div className="rz-story-placeholder"><span className="rz-story-placeholder-icon"><Plus size={32}/></span><strong>{tx('Seleccionar foto o video','Choose photo or video')}</strong><small>{tx('Toca aquí para abrir tus archivos','Tap here to open your files')}</small></div>}
-      {file?.type.startsWith('image/')&&<MediaStickers supabase={supabase} items={stickers} onChange={setStickers} lang={language}/>}
+      {file?.type.startsWith('image/')&&<MediaStickers supabase={supabase} items={stickers} onChange={setStickers} lang={language} hideLauncher openSignal={stickerOpenSignal}/>}
       {file?.type.startsWith('image/')&&editorOverlays.map(o=><span key={o.id} className="rz-editor-overlay" style={{left:`${o.x}%`,top:`${o.y}%`,color:o.color,fontSize:o.kind==='emoji'?32:23,transform:`translate(-50%,-50%) rotate(${o.rotation||0}deg) scale(${o.scale||1})`,outline:selectedText===o.id?"1px dashed #ffffff99":"none"}} onPointerDown={e=>textPointerDown(e,o)} onPointerMove={textPointerMove} onPointerUp={textPointerUp} onPointerCancel={textPointerUp}>{o.text}</span>)}
       {draggingText&&<div className={`rz-text-trash ${overTrash?"active":""}`}><Trash2 size={25}/></div>}
     </div>
     {file?.type.startsWith('image/')&&<div className="rz-editor-tools">
-      <div className="rz-editor-tabs"><button onClick={()=>setEditorTab('text')}>Aa {tx('Texto','Text')}</button><button onClick={()=>setEditorTab('filters')}>◉ {tx('Filtros','Filters')}</button><button onClick={()=>setEditorTab('stickers')}>✨ {tx('Stickers','Stickers')}</button><button onClick={()=>setEditorOverlays(v=>v.slice(0,-1))} disabled={!editorOverlays.length}>↶ {tx('Deshacer','Undo')}</button></div>
+      <div className="rz-editor-tabs"><button onClick={()=>setEditorTab('text')}>Aa {tx('Texto','Text')}</button><button onClick={()=>setEditorTab('filters')}>◉ {tx('Filtros','Filters')}</button><button onClick={()=>{setEditorTab('');setStickerOpenSignal(v=>v+1)}}>✨ {tx('Stickers','Stickers')}</button><button onClick={()=>setEditorOverlays(v=>v.slice(0,-1))} disabled={!editorOverlays.length}>↶ {tx('Deshacer','Undo')}</button></div>
       {editorTab==='text'&&<div className="rz-editor-row"><input value={editorText} maxLength={100} onChange={e=>setEditorText(e.target.value)} placeholder={tx('Escribe sobre tu foto','Write on your photo')}/><input type="color" aria-label={tx('Color del texto','Text color')} value={editorColor} onChange={e=>setEditorColor(e.target.value)}/><button disabled={!editorText.trim()} onClick={()=>addOverlay('text',editorText)}>{tx('Añadir','Add')}</button></div>}
-      
-      {editorTab==='stickers'&&<div className="rz-editor-hint-panel">{tx('Toca la foto para elegir y mover stickers 3D.','Tap the photo to choose and move 3D stickers.')}</div>}
       {editorTab==='filters'&&<div className="rz-editor-emojis">{Object.keys(STORY_FILTERS).map(f=><button key={f} className={editorFilter===f?'selected':''} onClick={()=>setEditorFilter(f)}>{({original:tx('Original','Original'),warm:tx('Cálido','Warm'),cool:tx('Frío','Cool'),vivid:tx('Vivo','Vivid'),bw:tx('B/N','B/W')})[f]}</button>)}</div>}
       
       <small className="rz-editor-hint">{tx('Arrastra el texto o los stickers para moverlos','Drag text or stickers to move them')}</small>
