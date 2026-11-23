@@ -39,8 +39,8 @@ const styles=`
 .rz-story-upload .rz-editor-row,.rz-story-upload .rz-editor-emojis{background:#111d;border:1px solid #ffffff30;border-radius:12px;padding:9px;max-width:100%;max-height:38dvh;overflow:auto}
 .rz-story-upload .rz-editor-row input[type=text]{width:130px;min-width:0}
 .rz-story-upload .rz-editor-hint{display:none}
-.rz-story-upload-details{position:absolute;left:14px;bottom:calc(150px + env(safe-area-inset-bottom,0px));z-index:12;right:14px;font-size:11px;text-shadow:0 1px 3px #000}
-.rz-story-upload .rz-story-change{position:absolute;left:14px;bottom:calc(105px + env(safe-area-inset-bottom,0px));z-index:12;width:auto;max-width:calc(100% - 28px);padding:10px 14px;background:#0009!important;border:1px solid #ffffff40!important}
+.rz-story-upload-details{position:absolute;left:14px;bottom:calc(235px + env(safe-area-inset-bottom,0px));z-index:12;right:14px;font-size:11px;text-shadow:0 1px 3px #000}
+.rz-story-upload .rz-story-change{position:absolute;left:14px;bottom:calc(184px + env(safe-area-inset-bottom,0px));z-index:12;width:auto;max-width:calc(100% - 28px);padding:10px 14px;background:#0009!important;border:1px solid #ffffff40!important}
 .rz-story-upload .rz-story-publish{position:absolute;left:14px;right:14px;bottom:calc(17px + env(safe-area-inset-bottom,0px));z-index:12;width:calc(100% - 28px);padding:14px!important}
 .rz-story-upload .rz-story-cancel{display:none!important}
 .rz-story-upload-error{position:absolute;left:14px;right:14px;bottom:calc(205px + env(safe-area-inset-bottom,0px));z-index:15;background:#400b;padding:8px;border-radius:8px}
@@ -57,7 +57,8 @@ const styles=`
  .rz-editor-hint-panel{background:#111b;border-radius:10px;padding:8px;font-size:12px;text-align:center}
  .rz-story-upload .rz-sticker-controls{position:fixed!important;top:auto!important;bottom:calc(205px + env(safe-area-inset-bottom,0px))!important;left:10px!important;right:10px!important;width:calc(100% - 20px)!important;max-width:none!important;z-index:80!important;display:flex!important;visibility:visible!important;opacity:1!important;overflow:visible!important;box-sizing:border-box!important;background:#16131eea!important;box-shadow:0 4px 20px #0009!important;}
  .rz-story-upload .rz-sticker-controls input[type=range]{min-width:0!important;flex:1 1 0!important;width:0!important;}
- .rz-text-trash{position:absolute;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#222d;color:white;border:2px solid #fff8;border-radius:50%;width:64px;height:64px;display:grid;place-items:center;z-index:20;pointer-events:none;transition:background .12s,transform .12s}
+ .rz-text-trash{position:absolute;left:50%;bottom:calc(105px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#222d;color:white;border:2px solid #fff8;border-radius:50%;width:64px;height:64px;display:grid;place-items:center;z-index:2147483100;pointer-events:none;transition:background .12s,transform .12s}
+ .rz-story-upload .rz-text-trash{position:fixed!important;left:50%!important;bottom:calc(105px + env(safe-area-inset-bottom,0px))!important;z-index:2147483100!important;pointer-events:none!important}
  .rz-text-trash.active{background:#e22d4a;transform:translateX(-50%) scale(1.2)}
  @media(min-width:700px){.rz-story-upload-inner{left:50%!important;right:auto!important;transform:translateX(-50%);width:min(100vw,calc(100dvh * 9 / 16))!important}}
 `;
@@ -79,7 +80,7 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
    const trashHit=(x,y,element)=>{
      const bin=trashElement.current?.getBoundingClientRect();
      if(!bin)return false;
-     const pad=24;
+     const pad=35;
      const hitPoint=Number.isFinite(x)&&Number.isFinite(y)&&x>=bin.left-pad&&x<=bin.right+pad&&y>=bin.top-pad&&y<=bin.bottom+pad;
      const rect=element?.getBoundingClientRect?.();
      const hitText=!!rect&&rect.right>=bin.left-pad&&rect.left<=bin.right+pad&&rect.bottom>=bin.top-pad&&rect.top<=bin.bottom+pad;
@@ -103,6 +104,7 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
      // El evento global actúa como respaldo cuando Safari pierde pointer capture.
      if(!textReleaseRef.current){
        const release=event=>{if(gesture.current.points.has(event.pointerId))textPointerUp(event)};
+       window.addEventListener('pointermove',textPointerMove,true);
        window.addEventListener('pointerup',release,true);
        window.addEventListener('pointercancel',release,true);
        textReleaseRef.current=release;
@@ -112,6 +114,7 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
      const g=gesture.current;
      if(!g.points.has(e.pointerId)||!previewBox.current)return;
      e.stopPropagation();e.preventDefault();
+     const prior=g.points.get(e.pointerId);if(prior?.x===e.clientX&&prior?.y===e.clientY)return;
      g.points.set(e.pointerId,{x:e.clientX,y:e.clientY});
      const r=previewBox.current.getBoundingClientRect(),pts=[...g.points.values()],start=g.start||pts,base=g.base||{};
      let patch={};
@@ -134,11 +137,11 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
      e.stopPropagation();
      // En Safari el listener global recibe currentTarget=window: usar el span guardado.
      const cancel=e.type==='pointercancel';
-     const remove=!cancel&&g.points.size===1&&(trashHit(e.clientX,e.clientY,g.element)||textTrashHoverRef.current);
+     const remove=g.points.size===1&&(trashHit(e.clientX,e.clientY,g.element)||textTrashHoverRef.current);
      if(remove){setEditorOverlays(v=>v.filter(item=>item.id!==g.id));overlayRef.current=overlayRef.current.filter(item=>item.id!==g.id);}
      g.points.delete(e.pointerId);
      if(g.points.size===0){
-       if(textReleaseRef.current){window.removeEventListener('pointerup',textReleaseRef.current,true);window.removeEventListener('pointercancel',textReleaseRef.current,true);textReleaseRef.current=null;}
+       if(textReleaseRef.current){window.removeEventListener('pointermove',textPointerMove,true);window.removeEventListener('pointerup',textReleaseRef.current,true);window.removeEventListener('pointercancel',textReleaseRef.current,true);textReleaseRef.current=null;}
        g.id=null;g.start=null;g.element=null;setDraggingText(false);setOverTrash(false);textTrashHoverRef.current=false;
        if(remove)setSelectedText(null);
      }else{
@@ -256,8 +259,8 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
       {filePreview?(file?.type.startsWith('video/')?<video key={filePreview} src={filePreview} controls playsInline onClick={e=>e.stopPropagation()}/>:<img src={filePreview} style={{filter:STORY_FILTERS[editorFilter]}} alt={tx('Vista previa de tu historia','Your story preview')}/>):<div className="rz-story-placeholder"><span className="rz-story-placeholder-icon"><Plus size={32}/></span><strong>{tx('Seleccionar foto o video','Choose photo or video')}</strong><small>{tx('Toca aquí para abrir tus archivos','Tap here to open your files')}</small></div>}
       {file?.type.startsWith('image/')&&<MediaStickers supabase={supabase} items={stickers} onChange={setStickers} selectedId={selectedSticker} onSelect={id=>{setSelectedSticker(id);if(id)setSelectedText(null)}} onDragState={setDraggingSticker} onTrashHover={setStickerOverTrash} lang={language} hideLauncher openSignal={stickerOpenSignal} closeSignal={stickerCloseSignal}/>}
       {file?.type.startsWith('image/')&&editorOverlays.map(o=><span key={o.id} className="rz-editor-overlay" style={{left:`${o.x}%`,top:`${o.y}%`,color:o.color,fontSize:o.kind==='emoji'?32:23,transform:`translate(-50%,-50%) rotate(${o.rotation||0}deg) scale(${o.scale||1})`,outline:selectedText===o.id?"1px dashed #ffffff99":"none"}} onPointerDown={e=>textPointerDown(e,o)} onPointerMove={textPointerMove} onPointerUp={textPointerUp} onPointerCancel={textPointerUp}>{o.text}</span>)}
-      {(draggingText||draggingSticker)&&<div ref={trashElement} id="rz-shared-story-trash" className={`rz-text-trash ${(overTrash||stickerOverTrash)?"active":""}`}><Trash2 size={25}/></div>}
     </div>
+    {(draggingText||draggingSticker)&&<div ref={trashElement} id="rz-shared-story-trash" className={`rz-text-trash ${(overTrash||stickerOverTrash)?"active":""}`}><Trash2 size={25}/></div>}
     {file?.type.startsWith('image/')&&<div className="rz-editor-tools">
       <div className="rz-editor-tabs"><button onClick={()=>{setEditorTab(v=>v==='text'?'':'text');setSelectedText(null);setSelectedSticker(null);setStickerCloseSignal(v=>v+1)}}>Aa {tx('Texto','Text')}</button><button onClick={()=>{setEditorTab(v=>v==='filters'?'':'filters');setSelectedText(null);setSelectedSticker(null);setStickerCloseSignal(v=>v+1)}}>◉ {tx('Filtros','Filters')}</button><button onClick={()=>{setEditorTab('');setSelectedText(null);setSelectedSticker(null);setStickerOpenSignal(v=>v+1)}}>✨ {tx('Stickers','Stickers')}</button><button onClick={()=>setEditorOverlays(v=>v.slice(0,-1))} disabled={!editorOverlays.length}>↶ {tx('Deshacer','Undo')}</button></div>
       {editorTab==='text'&&<div className="rz-editor-row"><input value={editorText} maxLength={100} onChange={e=>setEditorText(e.target.value)} placeholder={tx('Escribe sobre tu foto','Write on your photo')}/><input type="color" aria-label={tx('Color del texto','Text color')} value={editorColor} onChange={e=>setEditorColor(e.target.value)}/><button disabled={!editorText.trim()} onClick={()=>addOverlay('text',editorText)}>{tx('Añadir','Add')}</button></div>}
