@@ -151,7 +151,26 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
     setFeedback(tx('Si se abre una vista previa, usa Compartir → Guardar imagen o Guardar video.','If a preview opens, use Share → Save Image or Save Video.'));
   }catch(e){setFeedback(e?.message||tx('No se pudo guardar la historia','Could not save story'))}
  }
- useEffect(()=>{if(!upload)return;document.querySelectorAll('audio,video').forEach(el=>{if(!el.closest('.rz-story-upload')){try{el.pause()}catch{}}});window.dispatchEvent(new Event('rivyza:pause-background-media'));},[upload]);
+ // Mientras se crea una historia, ningún medio del feed Amigos puede sonar detrás.
+ // Capturamos también intentos de reproducción posteriores (autoplay y cambios de post).
+ useEffect(()=>{
+  if(!upload)return;
+  const pauseBackground=()=>{
+   document.querySelectorAll('audio,video').forEach(el=>{
+    if(!el.closest('.rz-story-upload') && !el.paused){try{el.pause()}catch{}}
+   });
+  };
+  const preventBackgroundPlay=e=>{
+   if(e.target instanceof HTMLMediaElement && !e.target.closest('.rz-story-upload')){
+    try{e.target.pause()}catch{}
+   }
+  };
+  pauseBackground();
+  window.dispatchEvent(new CustomEvent('rivyza:pause-background-media'));
+  document.addEventListener('play',preventBackgroundPlay,true);
+  const interval=window.setInterval(pauseBackground,350);
+  return()=>{document.removeEventListener('play',preventBackgroundPlay,true);window.clearInterval(interval)};
+ },[upload]);
  const closeUpload=()=>{if(busy)return;setUpload(false);setFile(null);resetEditor();setError('');};
   useEffect(()=>{if(!file){setFilePreview('');return;}const url=URL.createObjectURL(file);setFilePreview(url);return()=>URL.revokeObjectURL(url)},[file]);
   const avatar=(p)=>(p?.avatar_url?<img src={p.avatar_url} alt=""/>:<span className="rz-story-fallback">{(p?.display_name||p?.username||'R')[0].toUpperCase()}</span>);

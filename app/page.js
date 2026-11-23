@@ -194,6 +194,16 @@ export default function HomePage(){
     const updated=readAccounts().filter(a=>a.id!==item.id);
     localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(updated));setSavedAccounts(updated);
   }
+  // La creación de historias debe silenciar inmediatamente las publicaciones de Amigos.
+  useEffect(()=>{
+    const pauseFriendsMedia=()=>{
+      document.querySelectorAll('.friends-feed-shell audio, .friends-feed-shell video, .friends-floating-layer audio, .friends-floating-layer video').forEach(el=>{
+        try{el.pause()}catch{}
+      });
+    };
+    window.addEventListener('rivyza:pause-background-media',pauseFriendsMedia);
+    return()=>window.removeEventListener('rivyza:pause-background-media',pauseFriendsMedia);
+  },[]);
   const [friendsStoriesCompact,setFriendsStoriesCompact]=useState(false);
   const friendsFeedTouchY=useRef(null); // reservado para gestos futuros; RIVYZA Flow usa scroll real.
   const [appLanguage,setAppLanguage]=useState("es");
