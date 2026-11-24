@@ -2059,6 +2059,40 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
     } catch (e) { setError(e.message); throw e; }
   }
 
+  // Keep the full LIVE canvas stable while Safari pans its visual viewport.
+  useEffect(() => {
+    const root = document.querySelector('.rivyza-live-studio');
+    const vv = window.visualViewport;
+    if (!root || !vv) return;
+    let height = root.getBoundingClientRect().height;
+    let editing = false;
+    let frame = 0;
+    const isText = el => root.contains(el) && el.matches?.('input:not([type]), input[type="text"], textarea');
+    const update = () => {
+      const focused = isText(document.activeElement);
+      const obscured = height - vv.height > 100;
+      if (!focused && !obscured) {
+        editing = false;
+        root.classList.remove('rz-live-keyboard');
+        height = root.getBoundingClientRect().height;
+      } else if (focused || editing) {
+        editing = true;
+        root.style.setProperty('--rz-live-height', `${height}px`);
+        root.style.setProperty('--rz-live-top', `${vv.offsetTop}px`);
+        root.style.setProperty('--rz-live-lift', `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
+        root.classList.add('rz-live-keyboard');
+      }
+    };
+    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); };
+    const beforeFocus = e => { if (isText(e.target) && !editing) height = root.getBoundingClientRect().height; };
+    root.addEventListener('pointerdown', beforeFocus, true);
+    root.addEventListener('focusin', schedule);
+    root.addEventListener('focusout', schedule);
+    vv.addEventListener('resize', schedule);
+    vv.addEventListener('scroll', schedule);
+    window.addEventListener('resize', schedule);
+    return () => { cancelAnimationFrame(frame); root.classList.remove('rz-live-keyboard'); root.removeEventListener('pointerdown', beforeFocus, true); root.removeEventListener('focusin', schedule); root.removeEventListener('focusout', schedule); vv.removeEventListener('resize', schedule); vv.removeEventListener('scroll', schedule); window.removeEventListener('resize', schedule); };
+  }, []);
   return <main className="rivyza-live-studio">
     <style>{`
 .rivyza-live-bottom-drawer.rivyza-v32-popover{padding:12px!important;gap:7px!important;max-height:48dvh;overflow-y:auto}
@@ -2121,6 +2155,10 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-v314-chat .rivyza-private-welcome{white-space:pre-line;background:rgba(96,44,105,.85);border-left:3px solid #ff58b8;color:#fff}
 /* v3.24: compact LIVE chat and iOS keyboard overlay (no camera layout changes). */
 .rivyza-live-stage{min-height:0}
+.rivyza-live-studio.rz-live-keyboard{position:fixed!important;top:var(--rz-live-top,0px)!important;bottom:auto!important;height:var(--rz-live-height)!important;min-height:var(--rz-live-height)!important;max-height:var(--rz-live-height)!important;overflow:hidden!important}
+.rz-live-keyboard .rivyza-v32-toolbar{bottom:calc(var(--rz-live-lift,0px) + 6px)!important}
+.rz-live-keyboard .rz-live-note-panel{bottom:calc(var(--rz-live-lift,0px) + 76px)!important}
+
 .rivyza-live-header-center{display:flex!important;flex-wrap:nowrap;align-items:center;justify-content:center;column-gap:5px;white-space:nowrap}
 .rivyza-live-header-center{pointer-events:auto!important;position:relative;z-index:101!important}
 .rivyza-v366-like-trigger{pointer-events:auto!important;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
