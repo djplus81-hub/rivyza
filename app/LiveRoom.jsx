@@ -19,7 +19,7 @@ function getLanguage() {
 }
 const liveSlotMemory = new Map();
 
-function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage }) {
+function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage, welcomeVisit }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
@@ -210,6 +210,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [presenceRevision,setPresenceRevision]=useState(0);
   // A welcome is acknowledged by the viewer, not merely by publishData resolving.
   const welcomeSent=useRef(new Set());
+   const welcomeReceived=welcomeVisit;
   const welcomeLastAttempt=useRef(new Map());
   const markPreview=useCallback(id=>{
     if(!id)return;
@@ -247,7 +248,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const readingOld = useRef(false);
   const restoringChat = useRef(true);
   const [chat, setChat] = useState(() => {
-    try { const rows = JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(rows) ? rows : []; }
+    try { const rows = JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(rows) ? rows.filter(m=>!m.privateWelcome) : []; }
     catch { return []; }
   });
   const [chatNotice, setChatNotice] = useState('');
@@ -263,7 +264,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     });
   }, []);
   useEffect(() => {
-    try { localStorage.setItem(historyKey, JSON.stringify(chat.slice(-500))); } catch {}
+    try { localStorage.setItem(historyKey, JSON.stringify(chat.filter(m=>!m.privateWelcome).slice(-500))); } catch {}
   }, [chat, historyKey]);
   useEffect(() => {
     const node = chatRef.current;
@@ -368,10 +369,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   // is ready, so this handshake is retried until the welcome is received.
   useEffect(()=>{
     if(isHost || !user?.id || !liveRoomId)return;
-    const key=`rivyza-welcome-seen:${liveRoomId}:${user.id}`;
+
     const request=()=>{
       try{
-        if(sessionStorage.getItem(key) || room.state!=='connected')return;
+        if(welcomeReceived.current || room.state!=='connected')return;
         const host=room.remoteParticipants.get(hostId);
         if(!host)return;
         room.localParticipant.publishData(
@@ -398,15 +399,15 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       try{
         const data=JSON.parse(new TextDecoder().decode(payload));
         if(data.type!=='welcome'||data.roomId!==liveRoomId||!data.text)return;
-        const key=`rivyza-welcome-seen:${liveRoomId}:${user?.id}`;
-        if(sessionStorage.getItem(key))return;
-        appendChat({id:`private-welcome-${liveRoomId}-${user?.id}`,name:'💗 Bienvenida',text:data.text,privateWelcome:true,at:Date.now()});
-        sessionStorage.setItem(key,'1');
+
+        if(welcomeReceived.current)return;
+        appendChat({id:crypto.randomUUID(),name:'💗 Bienvenida',text:data.text,privateWelcome:true,at:Date.now()});
+        welcomeReceived.current=true;
       }catch(e){console.warn('Welcome message',e)}
     };
     room.on(RoomEvent.DataReceived,receive);
     return()=>room.off(RoomEvent.DataReceived,receive);
-  },[room,liveRoomId,user?.id,appendChat]);
+  },[room,liveRoomId,user?.id,appendChat,isHost,hostId,welcomeReceived]);
   // V20: Supabase Realtime fallback for LIVE presence and private welcomes.
   // Works even if LiveKit's WebRTC data-channel PC manager is closed.
   const welcomeChannelRef = useRef(null);
@@ -435,23 +436,14 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         const last = recentEntries.current.get(id) || 0;
         if (!last) recentEntries.current.set(id,Date.now());
         if (!last) publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} entró al LIVE`,system:true,at:Date.now()});
-        const text = (welcomeMessage || '').trim();
-        if (text) channel.send({type:'broadcast',event:'private-welcome',payload:{
-          roomId:liveRoomId,to:id,text:`${text}\n¡Bienvenido/a, ${name}! ❤️`
-        }}).catch(e=>console.warn('LIVE welcome fallback:',e));
+        const text=(welcomeMessage||'').trim();
+        if(text && room.remoteParticipants.has(id)) {
+          room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({type:'welcome',roomId:liveRoomId,text:`${text}\n¡Bienvenido/a, ${name}! ❤️`})),{reliable:true,topic:'rivyza-private-welcome',destinationIdentities:[id]}).catch(()=>{});
+        }
       } else if (payload.event === 'leave' && recentEntries.current.has(id)) {
         recentEntries.current.delete(id);
         publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} salió del LIVE`,system:true,at:Date.now()});
       }
-    });
-    channel.on('broadcast',{event:'private-welcome'},({payload}) => {
-      if (!active || isHost || payload?.roomId !== liveRoomId || payload?.to !== user.id || !payload.text) return;
-      const key = `rivyza-welcome-seen:${liveRoomId}:${user.id}`;
-      try {
-        if (sessionStorage.getItem(key)) return;
-        appendChat({id:`private-welcome-${liveRoomId}-${user.id}`,name:'💗 Bienvenida',text:payload.text,privateWelcome:true,at:Date.now()});
-        sessionStorage.setItem(key,'1');
-      } catch (e) {console.warn('LIVE welcome display:',e);}
     });
     channel.subscribe(status => {
       subscribed = status === 'SUBSCRIBED';
@@ -459,10 +451,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     });
     const timer = setInterval(() => {
       if (isHost || !subscribed) return;
-      const key = `rivyza-welcome-seen:${liveRoomId}:${user.id}`;
+
       // Keep requesting only until the private welcome arrives; presence remains
       // tracked via the original LiveKit participant events.
-      try {if (!sessionStorage.getItem(key)) announce();} catch {}
+      try {if (!welcomeReceived.current) announce();} catch {}
     }, 3500);
     const onUnload = () => announce('leave');
     window.addEventListener('pagehide',onUnload);
@@ -678,7 +670,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         const now=Date.now();
         if(now-(welcomeLastAttempt.current.get(p.identity)||0)<2000)return;
         welcomeLastAttempt.current.set(p.identity,now);
-        const name=profiles[p.identity]?.display_name || p.name || 'Usuario';
+        let name=profiles[p.identity]?.display_name || p.name || 'Usuario';
+         try { const {data}=await supabase.from('profiles').select('display_name').eq('id',p.identity).maybeSingle(); if(data?.display_name)name=data.display_name; } catch {}
         const data={type:'welcome',roomId:liveRoomId,text:`${text}\n¡Bienvenido/a, ${name}! ❤️`};
         try{await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(data)),{reliable:true,topic:'rivyza-private-welcome',destinationIdentities:[p.identity]});}
         catch(e){welcomeLastAttempt.current.delete(p.identity);console.warn('Welcome delivery deferred:',e);}
@@ -1897,6 +1890,8 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
   const [requestStatus, setRequestStatus] = useState(null);
   const [connectionKey, setConnectionKey] = useState(0);
   const [roomId, setRoomId] = useState(initialRoomId);
+  const welcomeVisit = useRef(false);
+  useEffect(()=>{welcomeVisit.current=false;},[roomId,user?.id]);
   const [session, setSession] = useState(null);
   const [requests, setRequests] = useState([]);
   const [requestNames, setRequestNames] = useState({});
@@ -2238,7 +2233,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
             await refreshSession(roomId); setConnectionKey(x=>x+1);
           } catch(e) { setError(e.message); setSession(null); }
         }} connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={onViewProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
+        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={onViewProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeVisit={welcomeVisit} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
 
     </section>}
