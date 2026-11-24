@@ -61,7 +61,9 @@ export async function GET(req) {
     if (params.get('mode') === 'likes_top') {
       const room = await getRoom(db, params.get('room'));
       if (!room || room.status !== 'live') return json({error:'El LIVE ya terminó'},404);
-      if (room.host_id !== auth.user.id) return json({error:'Solo el anfitrión puede ver el Top 8'},403);
+      const {data:blocked,error:blockError} = await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',auth.user.id).maybeSingle();
+      if (blockError) throw blockError;
+      if (blocked) return json({error:'No tienes acceso a este LIVE'},403);
       const {data:leaders,error} = await db.from('rivyza_live_like_users')
         .select('user_id,likes_count').eq('room_id',room.id)
         .order('likes_count',{ascending:false}).order('user_id',{ascending:true}).limit(8);
