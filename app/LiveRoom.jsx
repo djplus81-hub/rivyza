@@ -17,6 +17,8 @@ function getLanguage() {
   const stored = window.localStorage.getItem('rivyza_language') || window.localStorage.getItem('language') || '';
   return /^(en|english)/i.test(stored) || (!stored && navigator.language?.startsWith('en')) ? 'en' : 'es';
 }
+const liveSlotMemory = new Map();
+
 function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
@@ -821,11 +823,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   }
   useEffect(() => {
     const speaking = list => setSpeakers(list.map(p=>p.identity));
-    const reconnected = async () => { if (!isHost) await onLeaveCamera(); };
     room.on(RoomEvent.ActiveSpeakersChanged, speaking);
-    room.on(RoomEvent.Reconnected, reconnected);
-    return () => {room.off(RoomEvent.ActiveSpeakersChanged,speaking);room.off(RoomEvent.Reconnected,reconnected)};
-  }, [room,isHost,onLeaveCamera]);
+    return () => room.off(RoomEvent.ActiveSpeakersChanged,speaking);
+  }, [room]);
   const [slots, setSlots] = useState(10);
   useEffect(() => {
     if (slots !== 14) { setChatBoundary(null); return; }
@@ -1467,19 +1467,24 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   // Keep a participant's camera slot reserved during temporary disconnects.
   // In particular, slot 1 belongs to the host even while LiveKit cannot see them.
   // Never compact the remaining guests into an absent participant's position.
-  const stableSlotsRef = useRef({roomId:liveRoomId, slots:{}});
+  const stableSlotsRef = useRef({roomId:liveRoomId, slots:liveSlotMemory.get(liveRoomId) || {}});
   if (stableSlotsRef.current.roomId !== liveRoomId) {
-    stableSlotsRef.current = {roomId:liveRoomId, slots:{}};
+    stableSlotsRef.current = {roomId:liveRoomId, slots:liveSlotMemory.get(liveRoomId) || {}};
   }
   const shown = [...participants].filter(p => p.identity === hostId || p.permissions?.canPublish)
-    .sort((a,b) => (a.identity === hostId ? -1 : b.identity === hostId ? 1 : a.identity.localeCompare(b.identity))).slice(0, slots);
+    .sort((a,b) => (a.identity === hostId ? -1 : b.identity === hostId ? 1 : a.identity.localeCompare(b.identity)));
   const ordered = Array(slots).fill(null);
   const trackById = new Map(tracks.map(t => [t.participant.identity, t]));
   const remembered = stableSlotsRef.current.slots;
+  liveSlotMemory.set(liveRoomId, remembered);
+  if (liveSlotMemory.size > 30) liveSlotMemory.delete(liveSlotMemory.keys().next().value);
   // Metadata positions take priority, including host/guest movements made by moderators.
   // Keep disconnected identities in the reservation map, not just active LiveKit participants.
   for (const [id, index] of Object.entries(positions)) {
-    if (Number.isInteger(index) && index >= 0 && index < slots) remembered[id] = index;
+    if (Number.isInteger(index) && index >= 0 && index < slots) {
+      for (const other of Object.keys(remembered)) if (other !== id && remembered[other] === index && positions[other] !== index) delete remembered[other];
+      remembered[id] = index;
+    }
   }
   if (hostId && remembered[hostId] === undefined) remembered[hostId] = 0;
   const placed = new Set();

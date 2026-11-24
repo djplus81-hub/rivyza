@@ -3,6 +3,7 @@ import {useCallback,useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {RoomEvent} from 'livekit-client';
 
+const hostStickerMemory=new Map();
 const TOPIC='rivyza-live-stickers-v1';
 const DEFAULT_FILES=['01_bolsas_compras.png','02_gafas_sol.png','03_tenis_azules.png','04_fuegos_artificiales.png','05_good_vibe.png','06_feliz_cumpleanos.png','07_gracias.png','08_feliz_dia.png','09_wow.png','10_ok.png','11_correcto.png','12_incorrecto.png','13_nuevo.png','14_planeta_tierra.png','15_corazon_rosado.png','16_celebracion.png','17_pizza.png','18_baloncesto.png','19_futbol.png','20_control_videojuego.png','21_grabando_rec.png','22_bateria.png','23_cargando.png','24_sigueme.png','25_pulgar_arriba.png','26_me_gusta.png','27_angel.png','29_libreta_corazon.png','30_labial.png','31_campana.png','32_flor_rosa.png','33_girasol.png','34_regalo.png','35_fuego.png','36_copo_nieve.png','37_nube.png','38_sol_gafas.png','39_luna_estrellas.png','40_hamburguesa.png','41_papas_fritas.png','42_audifonos.png','43_notas_musicales.png','44_cine.png','45_avion.png','46_palmera.png','47_camara.png','48_manzana_libro.png','49_ve.png','50_corona.png','51_diamante.png','52_enamorado.png','53_te_amo.png','54_sobre_corazones.png','55_gato_gafas.png','56_arcoiris.png','57_cafe_corazon.png','58_corazon_morado.png','59_corazon_rojo.png','60_love.png','61_rosa_roja.png','62_mariposa_azul.png'];
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
@@ -10,11 +11,10 @@ const sanitize=items=>Array.isArray(items)?items.slice(0,60).filter(s=>s&&typeof
 
 export default function LiveStickers({room,isHost,hostId,liveRoomId,supabase,lang='es'}){
   const [stage,setStage]=useState(null),[items,setItems]=useState([]),[catalog,setCatalog]=useState([]),[catalogError,setCatalogError]=useState(false),[open,setOpen]=useState(false),[dragging,setDragging]=useState(null),[overTrash,setOverTrash]=useState(false);
-  const itemsRef=useRef([]),gesture=useRef(null),stageRef=useRef(null),version=useRef(0),lastSent=useRef(0);
+  const itemsRef=useRef([]),gesture=useRef(null),stageRef=useRef(null),version=useRef(0),hostSession=useRef(null),lastSent=useRef(0);
   const labels=lang==='en'?{button:'Stickers',title:'3D stickers',delete:'Release to delete',empty:'Could not load stickers. Check Storage permissions.'}:{button:'Stickers',title:'Stickers 3D',delete:'Suelta para eliminar',empty:'No se pudieron cargar los stickers. Revisa los permisos de Storage.'};
   useEffect(()=>{const node=document.querySelector('.rivyza-live-stage');setStage(node);stageRef.current=node;},[]);
-  useEffect(()=>{itemsRef.current=items;},[items]);
-  useEffect(()=>{setItems([]);itemsRef.current=[];version.current=0;setOpen(false);},[liveRoomId]);
+  useEffect(()=>{const saved=isHost?(hostStickerMemory.get(liveRoomId)||[]):[];setItems(saved);itemsRef.current=saved;version.current=0;hostSession.current=null;setOpen(false);},[liveRoomId,isHost]);
   useEffect(()=>{
     let alive=true;
     const load=async()=>{
@@ -42,8 +42,11 @@ export default function LiveStickers({room,isHost,hostId,liveRoomId,supabase,lan
     return()=>{alive=false;};
   },[supabase]);
   const send=useCallback((next,receiver)=>{
-    if(!isHost||room.state!=='connected')return;
-    const packet={type:'state',roomId:liveRoomId,version:++version.current,items:sanitize(next)};
+    if(!isHost)return;
+    hostStickerMemory.set(liveRoomId,sanitize(next));
+    if(hostStickerMemory.size>30)hostStickerMemory.delete(hostStickerMemory.keys().next().value);
+    if(room.state!=='connected')return;
+    const packet={type:'state',roomId:liveRoomId,version:(version.current=Math.max(version.current+1,Date.now())),session:room.localParticipant.sid,items:sanitize(next)};
     room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(packet)),{reliable:true,topic:TOPIC,...(receiver?{destinationIdentities:[receiver]}:{})}).catch(e=>console.warn('LIVE stickers sync:',e));
   },[isHost,room,liveRoomId]);
   const commit=useCallback(next=>{const clean=sanitize(next);itemsRef.current=clean;setItems(clean);send(clean);},[send]);
@@ -58,16 +61,21 @@ export default function LiveStickers({room,isHost,hostId,liveRoomId,supabase,lan
           return;
         }
         if(packet.type!=='state'||sender.identity!==hostId||isHost)return;
+        const currentHost=room.remoteParticipants.get(hostId);
+        if(!currentHost || sender.sid!==currentHost.sid) return;
+        if(packet.session && packet.session!==sender.sid) return;
+        if(hostSession.current!==sender.sid){hostSession.current=sender.sid;version.current=0;}
         if(Number(packet.version)<version.current)return;
         version.current=Number(packet.version)||0;
         const clean=sanitize(packet.items);itemsRef.current=clean;setItems(clean);
       }catch(e){console.warn('Invalid sticker packet:',e);}
     };
     const request=()=>{if(isHost||room.state!=='connected')return;room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({type:'request',roomId:liveRoomId})),{reliable:true,topic:TOPIC,destinationIdentities:[hostId]}).catch(()=>{});};
-    const joined=p=>{if(isHost&&p?.identity)send(itemsRef.current,p.identity);};
-    room.on(RoomEvent.DataReceived,receive);room.on(RoomEvent.Reconnected,request);room.on(RoomEvent.ParticipantConnected,joined);
+    const joined=p=>{if(isHost&&p?.identity)send(itemsRef.current,p.identity);else if(p?.identity===hostId){hostSession.current=null;version.current=0;request();}};
+    const reconnect=()=>{if(isHost)send(itemsRef.current);else {hostSession.current=null;version.current=0;request();}};
+    room.on(RoomEvent.DataReceived,receive);room.on(RoomEvent.Reconnected,reconnect);room.on(RoomEvent.ParticipantConnected,joined);
     request();const timer=setInterval(()=>{if(isHost){send(itemsRef.current);}else request();},4500);
-    return()=>{clearInterval(timer);room.off(RoomEvent.DataReceived,receive);room.off(RoomEvent.Reconnected,request);room.off(RoomEvent.ParticipantConnected,joined);};
+    return()=>{clearInterval(timer);room.off(RoomEvent.DataReceived,receive);room.off(RoomEvent.Reconnected,reconnect);room.off(RoomEvent.ParticipantConnected,joined);};
   },[room,liveRoomId,hostId,isHost,send]);
   const point=e=>{const r=stageRef.current?.getBoundingClientRect();return r?{x:clamp((e.clientX-r.left)/r.width*100,0,100),y:clamp((e.clientY-r.top)/r.height*100,0,100)}:{x:50,y:50};};
   const startDrag=(e,s)=>{if(!isHost)return;e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture(e.pointerId);const p=point(e);const current=itemsRef.current.find(x=>x.id===s.id);if(!current)return;const g=gesture.current;if(g?.id===s.id){g.pointers.set(e.pointerId,p);if(g.pointers.size===2){const [a,b]=[...g.pointers.values()];g.baseDistance=Math.hypot(b.x-a.x,b.y-a.y)||1;g.baseAngle=Math.atan2(b.y-a.y,b.x-a.x);g.baseSize=current.size;g.baseRotation=current.rotation;}return;}gesture.current={id:s.id,pointers:new Map([[e.pointerId,p]]),baseX:current.x,baseY:current.y,startX:p.x,startY:p.y,baseSize:current.size,baseRotation:current.rotation};setDragging(s.id);};
