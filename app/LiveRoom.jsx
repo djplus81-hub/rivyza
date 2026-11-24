@@ -146,12 +146,12 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       }, 250);
     }
   }, [flushLikes, showFloatingLikes]);
-  // v3.65: private host-only Top 8; all other users only see the public total.
+  // v3.65: public Top 8 for all LIVE participants.
   const [likesTopOpen, setLikesTopOpen] = useState(false);
   const [likesTop, setLikesTop] = useState([]);
   const [likesTopLoading, setLikesTopLoading] = useState(false);
   const refreshLikesTop = useCallback(async () => {
-    if (!isHost || !liveRoomId) return;
+    if (!liveRoomId) return;
     try {
       const {data:{session}} = await supabase.auth.getSession();
       if (!session?.access_token) return;
@@ -163,14 +163,14 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       setLikesTop(Array.isArray(result.top) ? result.top.slice(0,8) : []);
     } catch (error) { console.warn('LIVE likes Top 8:',error); onError?.('No se pudo cargar el Top 8: ' + (error?.message || 'Comprueba el SQL de likes.')); }
     finally { setLikesTopLoading(false); }
-  }, [isHost,liveRoomId,supabase,onError]);
+  }, [liveRoomId,supabase,onError]);
   useEffect(() => {
-    if (!likesTopOpen || !isHost) return;
+    if (!likesTopOpen) return;
     setLikesTopLoading(true);
     refreshLikesTop();
     const timer = setInterval(refreshLikesTop, 1800);
     return () => clearInterval(timer);
-  }, [likesTopOpen,isHost,refreshLikesTop]);
+  }, [likesTopOpen,refreshLikesTop]);
   useEffect(() => { setLikesTopOpen(false); setLikesTop([]); }, [liveRoomId]);
   const [viewersOpen, setViewersOpen] = useState(false);
   const [viewerSelected, setViewerSelected] = useState(null);
@@ -1657,11 +1657,11 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     </div>
     {!typing && !target && !viewersOpen && <div className="rivyza-v344-like-zone" role="button" tabIndex={0} aria-label="Dar Likes al LIVE" onPointerDown={e => {e.preventDefault(); giveLike();}} onKeyDown={e => {if(e.key === 'Enter' || e.key === ' ') {e.preventDefault();giveLike();}}}><span className="rivyza-v344-like-hint"><span className="rivyza-v344-like-heart" aria-hidden="true">💗</span><span>Likes</span></span></div>}
     <div className="rivyza-v344-floating" aria-hidden="true">{floatingLikes.map(item => <svg key={item.id} className="rivyza-v344-float-heart" style={{left:`${item.left}%`}} viewBox="0 0 24 24"><defs><linearGradient id={`rivyza-like-${item.id}`} x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#ff4da9"/><stop offset="100%" stopColor="#963cff"/></linearGradient></defs><path d="M12 21s-9-5.7-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.3-9 12-9 12Z" fill={`url(#rivyza-like-${item.id})`}/></svg>)}</div>
-    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<div className="rivyza-v368-counters" aria-label="Likes y espectadores del LIVE"><button type="button" className="rivyza-v368-like-trigger" disabled={!isHost} aria-label={isHost ? "Ver Top 8 de likes" : "Likes del LIVE"} aria-expanded={isHost ? likesTopOpen : undefined} onClick={e => {e.preventDefault();e.stopPropagation();if(isHost)setLikesTopOpen(open => !open);}} style={{cursor:isHost?"pointer":"default",touchAction:"manipulation",pointerEvents:"auto",position:"relative",zIndex:1000,background:"transparent",border:0,padding:"4px 6px",minHeight:32,margin:0,opacity:1,WebkitAppearance:"none"}}><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><defs><linearGradient id="rivyza-like-counter-gradient" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#ff4da9"/><stop offset="100%" stopColor="#963cff"/></linearGradient></defs><path d="M12 21s-9-5.7-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.3-9 12-9 12Z" fill="url(#rivyza-like-counter-gradient)"/></svg><span>{likesFormat(liveLikes)}</span></button><button type="button" onClick={() => setViewersOpen(true)} className="rivyza-v368-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"0px",verticalAlign:"middle",padding:"3px 5px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Ver personas conectadas al LIVE" aria-expanded={viewersOpen}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{realParticipants.length}</span></button></div>, document.querySelector('.rivyza-live-top'))}
-    {isHost && likesTopOpen && typeof document !== 'undefined' && createPortal(
+    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<div className="rivyza-v368-counters" aria-label="Likes y espectadores del LIVE"><button type="button" className="rivyza-v368-like-trigger" aria-label="Ver Top 8 de likes" aria-expanded={likesTopOpen} onClick={e => {e.preventDefault();e.stopPropagation();setLikesTopOpen(open => !open);}} style={{cursor:"pointer",touchAction:"manipulation",pointerEvents:"auto",position:"relative",zIndex:1000,background:"transparent",border:0,padding:"4px 6px",minHeight:32,margin:0,opacity:1,WebkitAppearance:"none"}}><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><defs><linearGradient id="rivyza-like-counter-gradient" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#ff4da9"/><stop offset="100%" stopColor="#963cff"/></linearGradient></defs><path d="M12 21s-9-5.7-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.3-9 12-9 12Z" fill="url(#rivyza-like-counter-gradient)"/></svg><span>{likesFormat(liveLikes)}</span></button><button type="button" onClick={() => setViewersOpen(true)} className="rivyza-v368-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"0px",verticalAlign:"middle",padding:"3px 5px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Ver personas conectadas al LIVE" aria-expanded={viewersOpen}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{realParticipants.length}</span></button></div>, document.querySelector('.rivyza-live-top'))}
+    {likesTopOpen && typeof document !== 'undefined' && createPortal(
       <div onClick={() => setLikesTopOpen(false)} role="presentation" style={{position:'fixed',inset:0,zIndex:2147483005,background:'rgba(0,0,0,.38)',display:'flex',justifyContent:'center',alignItems:'flex-start',padding:'calc(90px + env(safe-area-inset-top)) 12px 12px',boxSizing:'border-box'}}>
         <section role="dialog" aria-modal="true" aria-label="Top 8 de likes" onClick={e => e.stopPropagation()} style={{width:'100%',maxWidth:350,background:'#201629',color:'#fff',border:'1px solid #70457f',borderRadius:17,padding:'13px 14px',boxShadow:'0 12px 36px #0009',maxHeight:'min(75dvh,510px)',overflowY:'auto',boxSizing:'border-box'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}><strong style={{fontSize:15}}>💗 Top 8 de Likes</strong><span style={{fontSize:10,color:'#c8b7d3'}}>🔒 Solo anfitrión</span></div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:5}}><strong style={{fontSize:15}}>💗 Top 8 de Likes</strong><span style={{fontSize:10,color:'#c8b7d3'}}>Visible para todos</span></div>
           <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#c8b7d3',marginBottom:10}}><span>Los que más apoyan el LIVE</span><span>{likesFormat(liveLikes)} ❤️</span></div>
           {likesTopLoading && !likesTop.length ? <p style={{fontSize:12,textAlign:'center',color:'#d6c5df'}}>Cargando likes…</p> : likesTop.length === 0 ? <p style={{fontSize:12,textAlign:'center',color:'#d6c5df'}}>Todavía no hay likes en este LIVE.</p> : likesTop.map((person,index) => (
             <div key={person.user_id} style={{display:'flex',alignItems:'center',gap:9,padding:'7px 0',borderTop:'1px solid #ffffff17'}}>
