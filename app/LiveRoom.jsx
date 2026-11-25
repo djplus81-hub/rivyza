@@ -178,33 +178,44 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [inviteStatus, setInviteStatus] = useState('');
   const [requestTab,setRequestTab]=useState('requests');
   const [inviteBusy,setInviteBusy]=useState(false);
-  // Invitations travel to the connected viewer through LiveKit. Accepting
-  // uses a server-authorized invitation, not a second moderation request.
+  // The authenticated server is authoritative; delivery does not depend on WebRTC data.
   useEffect(() => {
-    const receiveInvite = (payload, participant, _kind, topic) => {
-      if (topic !== 'rivyza-live-invite' || !participant || participant.identity === room.localParticipant.identity) return;
+    if (publish || !user?.id || !liveRoomId) { setIncomingInvite(null); return; }
+    let active = true, busy = false;
+    const refresh = async () => {
+      if (busy) return;
+      busy = true;
       try {
-        const data = JSON.parse(new TextDecoder().decode(payload));
-        if (data?.type !== 'camera-invite' || data.roomId !== liveRoomId ||
-            data.to !== room.localParticipant.identity || publish || !data.inviteId || (participant.identity !== hostId && !moderatorIds?.includes(participant.identity))) return;
-        setIncomingInvite({from: participant.name || 'Anfitrión', fromId: participant.identity, inviteId:data.inviteId});
-      } catch (e) { console.warn('Invalid LIVE invite',e); }
+        const {data:{session}} = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const response = await fetch(`/api/live?mode=incoming_invite&room=${encodeURIComponent(liveRoomId)}`, {
+          headers:{Authorization:`Bearer ${session.access_token}`},cache:'no-store'
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Invitation lookup failed');
+        if (active) setIncomingInvite(previous => previous?.inviteId === result.invite?.inviteId ? previous : result.invite || null);
+      } catch (e) { console.warn('LIVE invitation lookup:',e); }
+      finally { busy = false; }
     };
-    room.on(RoomEvent.DataReceived,receiveInvite);
-    return () => room.off(RoomEvent.DataReceived,receiveInvite);
-  }, [room,liveRoomId,publish,hostId,moderatorIds]);
+    const receive = (_payload,_sender,_kind,topic) => { if (topic === 'rivyza-live-invite') refresh(); };
+    room.on(RoomEvent.DataReceived,receive);
+    refresh();
+    const timer = setInterval(refresh,2000);
+    return () => { active=false; clearInterval(timer); room.off(RoomEvent.DataReceived,receive); };
+  }, [room,liveRoomId,publish,user?.id,supabase]);
   async function inviteViewer(id) {
     if (!(isHost || isModerator) || !id || id === room.localParticipant.identity) return;
     setInviteStatus('');
     try {
       const result = await onModerate('invite_create',{guestId:id});
-      const data = new TextEncoder().encode(JSON.stringify({type:'camera-invite',to:id,roomId:liveRoomId,inviteId:result.inviteId}));
-      await room.localParticipant.publishData(data, {
-        reliable:true, destinationIdentities:[id], topic:'rivyza-live-invite'
-      });
       setViewerSelected(null);
       setInviteStatus(lang==='es'?'Invitación enviada':'Invitation sent');
-    } catch (e) { setInviteStatus(lang==='es'?'No se pudo enviar la invitación.':'Could not send invitation.');onError?.(e.message); }
+      // Optional fast notification only. The saved invitation remains deliverable.
+      try {
+        const data = new TextEncoder().encode(JSON.stringify({type:'camera-invite',to:id,roomId:liveRoomId,inviteId:result.inviteId}));
+        room.localParticipant.publishData(data,{reliable:true,destinationIdentities:[id],topic:'rivyza-live-invite'}).catch(e=>console.warn('LIVE invite fast notification:',e));
+      } catch (e) { console.warn('LIVE invite fast notification:',e); }
+    } catch (e) { const message=(lang==='es'?'No se pudo enviar la invitación: ':'Could not send invitation: ')+(e.message || 'Error'); setInviteStatus(message);onError?.(message); }
   }
 
   // Preview connections are media-only: never counted as LIVE attendees.
@@ -1789,8 +1800,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         {requests.filter(r => r.status === 'pending').length === 0 && <p>{tr.noRequests}</p>}
         {requests.filter(r => r.status === 'pending').map(r => <div className="rivyza-v32-request-row" key={r.user_id}>
           <span>👤 {requestNames[r.user_id] || (lang === 'es' ? 'Invitado' : 'Guest')}</span>
-          <button type="button" onClick={() => onRequestDecision('approve', r.user_id)}>✓ {tr.accept}</button>
-          <button type="button" onClick={() => onRequestDecision('reject', r.user_id)}>✕ {tr.reject}</button>
+          <button type="button" onClick={() => onRequestDecision('approve', r.user_id).catch(e=>onError?.(e.message))}>✓ {tr.accept}</button>
+          <button type="button" onClick={() => onRequestDecision('reject', r.user_id).catch(e=>onError?.(e.message))}>✕ {tr.reject}</button>
         </div>)}
         </>}
       </div>
