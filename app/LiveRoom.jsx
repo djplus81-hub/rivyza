@@ -176,26 +176,29 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [viewerSelected, setViewerSelected] = useState(null);
   const [incomingInvite, setIncomingInvite] = useState(null);
   const [inviteStatus, setInviteStatus] = useState('');
+  const [requestTab,setRequestTab]=useState('requests');
+  const [inviteBusy,setInviteBusy]=useState(false);
   // Invitations travel to the connected viewer through LiveKit. Accepting
-  // submits the EXISTING camera request; it does not bypass moderation.
+  // uses a server-authorized invitation, not a second moderation request.
   useEffect(() => {
     const receiveInvite = (payload, participant, _kind, topic) => {
       if (topic !== 'rivyza-live-invite' || !participant || participant.identity === room.localParticipant.identity) return;
       try {
         const data = JSON.parse(new TextDecoder().decode(payload));
         if (data?.type !== 'camera-invite' || data.roomId !== liveRoomId ||
-            data.to !== room.localParticipant.identity || publish) return;
-        setIncomingInvite({from: participant.name || 'Anfitrión', fromId: participant.identity});
+            data.to !== room.localParticipant.identity || publish || !data.inviteId || (participant.identity !== hostId && !moderatorIds?.includes(participant.identity))) return;
+        setIncomingInvite({from: participant.name || 'Anfitrión', fromId: participant.identity, inviteId:data.inviteId});
       } catch (e) { console.warn('Invalid LIVE invite',e); }
     };
     room.on(RoomEvent.DataReceived,receiveInvite);
     return () => room.off(RoomEvent.DataReceived,receiveInvite);
-  }, [room,liveRoomId,publish]);
+  }, [room,liveRoomId,publish,hostId,moderatorIds]);
   async function inviteViewer(id) {
     if (!(isHost || isModerator) || !id || id === room.localParticipant.identity) return;
     setInviteStatus('');
     try {
-      const data = new TextEncoder().encode(JSON.stringify({type:'camera-invite',to:id,roomId:liveRoomId}));
+      const result = await onModerate('invite_create',{guestId:id});
+      const data = new TextEncoder().encode(JSON.stringify({type:'camera-invite',to:id,roomId:liveRoomId,inviteId:result.inviteId}));
       await room.localParticipant.publishData(data, {
         reliable:true, destinationIdentities:[id], topic:'rivyza-live-invite'
       });
@@ -1708,9 +1711,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
                 <div style={{display:'flex',gap:8}}>
                   <button type="button" onClick={()=>{setViewerSelected(null);setViewersOpen(false);onViewProfile?.(person.identity);}}
                     style={{flex:1,padding:12,borderRadius:10,border:'1px solid #6c527e',background:'#49315b',color:'#fff'}}>👤 {lang==='es'?'Ver perfil':'View profile'}</button>
-                  {(isHost || isModerator) && person.identity!==room.localParticipant.identity && person.identity!==hostId &&
-                    <button type="button" onClick={()=>inviteViewer(person.identity)}
-                      style={{flex:1,padding:12,borderRadius:10,border:'1px solid #6c527e',background:'#7131aa',color:'#fff'}}>✋ {lang==='es'?'Invitar al LIVE':'Invite to LIVE'}</button>}
+
                 </div>
               </div>;
             })()}
@@ -1722,10 +1723,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     {incomingInvite && !publish && <div role="dialog" aria-label="Invitación al LIVE" style={{position:'fixed',inset:0,zIndex:2147483000,display:'grid',placeItems:'center',background:'#000a',padding:16}}>
       <div style={{width:'100%',maxWidth:360,background:'#261a33',color:'white',borderRadius:16,padding:20}}>
         <strong>{incomingInvite.from} {lang==='es'?'te invita a subir al LIVE':'invites you to join LIVE'}</strong>
-        <p style={{fontSize:13}}>{lang==='es'?'Si aceptas, enviarás una solicitud para subir. El anfitrión o moderador deberá aprobarla.':'Accepting sends a camera request for host or moderator approval.'}</p>
+        <p style={{fontSize:13}}>{lang==='es'?'Si aceptas, subirás directamente al LIVE si hay espacio.':'Accept to join directly if a slot is available.'}</p>
         <div style={{display:'flex',gap:10,marginTop:16}}>
-          <button type="button" style={{flex:1,padding:12,borderRadius:10}} onClick={()=>setIncomingInvite(null)}>{lang==='es'?'Rechazar':'Decline'}</button>
-          <button type="button" style={{flex:1,padding:12,borderRadius:10,background:'#8e38d0',color:'white'}} onClick={()=>{setIncomingInvite(null);onRequest?.();}}>{lang==='es'?'Aceptar':'Accept'}</button>
+          <button type="button" style={{flex:1,padding:12,borderRadius:10}} disabled={inviteBusy} onClick={async()=>{setInviteBusy(true);try{await onModerate('invite_decline',{inviteId:incomingInvite.inviteId});setIncomingInvite(null);}catch(e){onError?.(e.message);}finally{setInviteBusy(false);}}}>{lang==='es'?'Rechazar':'Decline'}</button>
+          <button type="button" style={{flex:1,padding:12,borderRadius:10,background:'#8e38d0',color:'white'}} disabled={inviteBusy} onClick={async()=>{setInviteBusy(true);try{await onModerate('invite_accept',{inviteId:incomingInvite.inviteId});setIncomingInvite(null);}catch(e){onError?.(e.message);}finally{setInviteBusy(false);}}}>{lang==='es'?'Aceptar':'Accept'}</button>
         </div>
       </div>
     </div>}
@@ -1775,13 +1776,22 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     </div>
     {(isHost || isModerator) && requestsOpen && <div className="rivyza-v32-popover rivyza-v32-request-panel" role="dialog" aria-label="Solicitudes para subir">
       <div className="rivyza-v32-panel-heading"><strong>✋ {tr.requests} ({requests.filter(r => r.status === 'pending').length})</strong><button type="button" onClick={() => setRequestsOpen(false)} aria-label="Cerrar">✕</button></div>
+      <div style={{display:'flex',gap:8,marginBottom:8}}>
+        <button type="button" onClick={()=>setRequestTab('requests')} aria-pressed={requestTab==='requests'}>{lang==='es'?'Solicitudes':'Requests'} ({requests.filter(r=>r.status==='pending').length})</button>
+        <button type="button" onClick={()=>setRequestTab('invite')} aria-pressed={requestTab==='invite'}>{lang==='es'?'Invitar':'Invite'} ({visibleViewers.filter(p=>p.identity!==hostId && p.identity!==room.localParticipant.identity && !p.permissions?.canPublish).length})</button>
+      </div>
       <div className="rivyza-v32-request-scroll">
+        {requestTab==='invite' ? <>{visibleViewers.filter(p=>p.identity!==hostId && p.identity!==room.localParticipant.identity && !p.permissions?.canPublish).map(p=><div className="rivyza-v32-request-row" key={p.identity}>
+          {avatarFor(p) && <img src={avatarFor(p)} alt="" style={{width:30,height:30,borderRadius:'50%',objectFit:'cover'}}/>}
+          <span>{profiles[p.identity]?.display_name || p.name || 'Usuario'}</span><button type="button" onClick={()=>inviteViewer(p.identity)}>{lang==='es'?'Invitar':'Invite'}</button>
+        </div>)}</> : <>
         {requests.filter(r => r.status === 'pending').length === 0 && <p>{tr.noRequests}</p>}
         {requests.filter(r => r.status === 'pending').map(r => <div className="rivyza-v32-request-row" key={r.user_id}>
           <span>👤 {requestNames[r.user_id] || (lang === 'es' ? 'Invitado' : 'Guest')}</span>
           <button type="button" onClick={() => onRequestDecision('approve', r.user_id)}>✓ {tr.accept}</button>
           <button type="button" onClick={() => onRequestDecision('reject', r.user_id)}>✕ {tr.reject}</button>
         </div>)}
+        </>}
       </div>
     </div>}
     {drawer && <div className="rivyza-v329-drawer-backdrop" onClick={() => setDrawer(false)} aria-hidden="true" />}
@@ -2044,13 +2054,15 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 
   async function action(kind, payload) {
     try {
-      await api(kind, { roomId, ...payload });
+      const result = await api(kind, { roomId, ...payload });
+      if (kind === 'invite_accept') await refreshSession(roomId);
       if (kind === 'request') setRequestStatus('pending');
       if (kind === 'cancel_request') setRequestStatus(null);
       if (kind === 'approve' || kind === 'reject') setRequests(r => r.filter(x => x.user_id !== payload.guestId));
       if (kind === 'moderator_add' || kind === 'moderator_remove') await refreshSession(roomId);
       if (kind === 'block_guest') await refreshBlocked();
       // Request confirmation is reflected in the hand control; no banner over the cameras.
+      return result;
     } catch (e) { setError(e.message); throw e; }
   }
 
