@@ -187,9 +187,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   }, []);
   const showInviteConfirmation = useCallback((message) => {
     clearTimeout(inviteConfirmationTimer.current);
-    inviteConfirmationDeadline.current = Date.now() + 10000;
+    inviteConfirmationDeadline.current = Date.now() + 5000;
     setInviteStatus(message);
-    inviteConfirmationTimer.current = setTimeout(clearInviteConfirmation, 10000);
+    inviteConfirmationTimer.current = setTimeout(clearInviteConfirmation, 5000);
   }, [clearInviteConfirmation]);
   useEffect(() => {
     const check = () => {
