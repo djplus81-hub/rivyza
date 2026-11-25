@@ -19,7 +19,7 @@ function getLanguage() {
 }
 const liveSlotMemory = new Map();
 
-function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage, welcomeVisit, privateVisitId }) {
+function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage, welcomeVisit, privateVisitId, confirmStop, setConfirmStop }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
@@ -1563,7 +1563,6 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       viewport.removeEventListener('scroll', adjust);
     };
   }, [typing]);
-  const [confirmStop, setConfirmStop] = useState(false);
   const [moveMode, setMoveMode] = useState(false);
   const [selected, setSelected] = useState(null);
   const [positions, setPositions] = useState({});
@@ -1648,7 +1647,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     if (selected === index) { setSelected(null); return; }
     const from = ordered[selected], to = ordered[index];
     const next = { ...positions };
-    if (!isHost && (from?.identity === hostId || to?.identity === hostId)) { setSelected(null); return; }
+    if (!isHost && (from?.identity === hostId || to?.identity === hostId || selected === (remembered[hostId] ?? 0) || index === (remembered[hostId] ?? 0))) { setSelected(null); return; }
     if (from) next[from.identity] = index;
     if (to) next[to.identity] = selected;
     broadcastLayout(next);
@@ -1657,7 +1656,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   function chooseTile(t, i) {
     if (moveTarget) {
       if (!isHost && t?.identity === hostId) return;
-      if (!isHost && ordered[i]?.identity === hostId) return;
+      if (!isHost && (ordered[i]?.identity === hostId || i === (remembered[hostId] ?? 0))) return;
       const fromIndex = ordered.findIndex(p => p?.identity === moveTarget);
       if (fromIndex < 0) { setMoveTarget(null); return; }
       const from = ordered[fromIndex], to = ordered[i];
@@ -2004,7 +2003,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
               <button type="button" onClick={toggleMirrorCamera} disabled={mirrorBusy} aria-pressed={mirrorEnabled}>↔️ Mirror Camera {mirrorEnabled ? 'ON' : 'OFF'}</button>
               <button onClick={toggleCam}>{cam ? 'Apagar cámara' : 'Encender cámara'}</button>
               <button onClick={toggleMic}>{mic ? 'Silenciar micrófono' : 'Activar micrófono'}</button>
-              {isHost && <button onClick={()=>{setMoveTarget(target.identity);setTarget(null)}}>⇄ Mover mi cámara</button>}
+              {(isHost || isModerator) && <button type="button" onClick={()=>{setMoveMode(false);setSelected(null);setMoveTarget(target.identity);setTarget(null)}}>⇄ {lang === 'es' ? 'Mover mi cámara' : 'Move my camera'}</button>}
               {!isHost && <button onClick={()=>{setTarget(null);onLeaveCamera()}}>↓ Bajar a escuchar</button>}
             </>}
             {(isHost || isModerator) && target.identity !== localParticipant.identity && target.identity !== hostId && <>
@@ -2044,6 +2043,8 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
   if (!privateVisitId.current) privateVisitId.current = crypto.randomUUID();
   useEffect(()=>{welcomeVisit.current=false; privateVisitId.current=crypto.randomUUID();},[roomId,user?.id]);
   const [session, setSession] = useState(null);
+  const [confirmStop, setConfirmStop] = useState(false);
+  useEffect(() => { setConfirmStop(false); }, [roomId]);
   const [requests, setRequests] = useState([]);
   const [requestNames, setRequestNames] = useState({});
   const [requestsOpen, setRequestsOpen] = useState(false);
@@ -2361,7 +2362,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-stage .rivyza-v355-toast span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rivyza-live-stage .rivyza-v355-toast button { padding: 0 2px !important; font-size: 14px !important; }
 `}</style>
-    <header className="rivyza-live-top rivyza-v32-header"><button type="button" onClick={roomId ? leave : onExit}>← Volver</button><strong className="rivyza-live-header-center">RIVYZA <span>LIVE</span></strong></header>
+    <header className="rivyza-live-top rivyza-v32-header"><button type="button" onClick={roomId && session?.host ? () => setConfirmStop(true) : roomId ? leave : onExit} style={roomId && session?.host ? {color:'#ff7474',fontSize:11,fontWeight:700,padding:'4px 3px',whiteSpace:'nowrap'} : undefined}>{roomId && session?.host ? `⏻ ${translations[lang].end}` : roomId ? translations[lang].leaveLive : (lang === 'es' ? '← Volver' : '← Back')}</button><strong className="rivyza-live-header-center">RIVYZA <span>LIVE</span></strong></header>
     {error && <div className="rivyza-v32-toast rivyza-v355-toast" role="status" title={error}><span>{/^load failed$/i.test(error.trim()) ? "No se pudo cargar" : error}</span><button type="button" onClick={() => setError('')} aria-label="Cerrar aviso">✕</button></div>}
     {!roomId ? <section className="rivyza-live-lobby">
       <div style={{padding:'14px',margin:'8px 0 14px',background:'#21172b',borderRadius:14,color:'#fff'}}>
@@ -2386,7 +2387,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
             await refreshSession(roomId); setConnectionKey(x=>x+1);
           } catch(e) { setError(e.message); setSession(null); }
         }} connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={onViewProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeVisit={welcomeVisit} privateVisitId={privateVisitId} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
+        <CameraGrid confirmStop={confirmStop} setConfirmStop={setConfirmStop} publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={onViewProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeVisit={welcomeVisit} privateVisitId={privateVisitId} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
 
     </section>}
