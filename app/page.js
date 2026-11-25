@@ -1,5 +1,6 @@
 "use client";
 // RIVYZA FOLLOW V2 + POST AVATAR FIX V3
+import useScreenWakeLock from "./useScreenWakeLock";
 import { createPortal } from "react-dom";
 import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
@@ -544,6 +545,7 @@ export default function HomePage(){
   },[settingsSheet,user?.id]);
   useEffect(()=>{if(user?.id)loadSafetySettings();},[user?.id]);
   const [profile,setProfile]=useState(null);
+  useScreenWakeLock(Boolean(user?.id && profile && ["home","friends","livePreview"].includes(view)));
   const [profilePosts,setProfilePosts]=useState([]);
   const [selectedPost,setSelectedPost]=useState(null);
   const [postOpenedFromAlert,setPostOpenedFromAlert]=useState(false);

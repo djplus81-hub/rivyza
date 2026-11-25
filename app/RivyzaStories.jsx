@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useRef,useState,useCallback} from 'react';
+import useScreenWakeLock from './useScreenWakeLock';
 import {createPortal} from 'react-dom';
 import MediaStickers,{bakeStickers} from './MediaStickers';
 import {Heart,X,Plus,Eye,Send,Download,Trash2,ChevronUp} from 'lucide-react';
@@ -88,6 +89,7 @@ export default function RivyzaStories({supabase,user,profile,language='es',onOpe
  const en=language==='en';const tx=(es,english)=>en?english:es;
  const [items,setItems]=useState([]),[seen,setSeen]=useState([]),[likes,setLikes]=useState([]),[people,setPeople]=useState([]),[showPeople,setShowPeople]=useState(false);
  const [viewer,setViewer]=useState(null),[index,setIndex]=useState(0),[upload,setUpload]=useState(false),[file,setFile]=useState(null),[filePreview,setFilePreview]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[draft,setDraft]=useState(''),[progress,setProgress]=useState(0),[paused,setPaused]=useState(false),[feedback,setFeedback]=useState('');
+ useScreenWakeLock(Boolean(viewer));
  const [editorText,setEditorText]=useState(''),[editorColor,setEditorColor]=useState('#ffffff'),[editorFilter,setEditorFilter]=useState('original'),[editorOverlays,setEditorOverlays]=useState([]),[editorTab,setEditorTab]=useState('');
  const dragOverlay=useRef(null),previewBox=useRef(null);
  const [stickers,setStickers]=useState([]);const [stickerOpenSignal,setStickerOpenSignal]=useState(0);const [stickerCloseSignal,setStickerCloseSignal]=useState(0);

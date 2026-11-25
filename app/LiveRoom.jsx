@@ -1,5 +1,6 @@
 "use client";
 
+import useScreenWakeLock from './useScreenWakeLock';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { LIVE_DEEPAR_EFFECTS } from './liveDeepAREffects';
 import LiveStickers from './LiveStickers';
@@ -2034,6 +2035,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
 }
 
 export default function LiveRoom({ supabase, user, onExit, onViewProfile, initialRoomId = null }) {
+  useScreenWakeLock(true);
   const enteredRoom = useRef(null);
   const [requestStatus, setRequestStatus] = useState(null);
   const [connectionKey, setConnectionKey] = useState(0);
