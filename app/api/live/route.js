@@ -104,6 +104,20 @@ export async function GET(req) {
       const byId=new Map(profiles.map(p=>[p.id,p]));
       return json({blocked:(blocked||[]).map(b=>({...b,...byId.get(b.user_id)}))});
     }
+    if (params.get('mode') === 'media_requests') {
+      const room=await getRoom(db,params.get('room'));const uid=auth.user.id;
+      if(!room || room.status!=='live')return json({requests:[]});
+      const {data:rows,error}=await db.from('rivyza_live_media_requests').select('id,kind,sender_id,participant_sid').eq('room_id',room.id).eq('guest_id',uid).eq('used',false).gt('expires_at',new Date().toISOString()).order('created_at');
+      if(error)throw error;if(!rows?.length)return json({requests:[]});
+      const guest=await liveParticipant(room.id,uid);if(!guest?.permission?.canPublish)return json({requests:[]});
+      const requests=[];
+      for(const row of rows){
+        if(row.participant_sid!==guest.sid || (row.sender_id!==room.host_id && !(await isModerator(db,room.host_id,row.sender_id))))continue;
+        const {data:profile,error:pe}=await db.from('profiles').select('display_name,username').eq('id',row.sender_id).maybeSingle();if(pe)throw pe;
+        requests.push({id:row.id,kind:row.kind,from:profile?.display_name||profile?.username||'RIVYZA'});
+      }
+      return json({requests});
+    }
     if (params.get('mode') === 'incoming_invite') {
       const room = await getRoom(db, params.get('room'));
       if (!room || room.status !== 'live') return json({error:'El LIVE ya terminó'},404);
@@ -191,6 +205,21 @@ export async function POST(req) {
     const isHost = room.host_id === uid;
     const moderator = !isHost && await isModerator(db, room.host_id, uid);
     const canModerate = isHost || moderator;
+    if (input.action === 'media_request_create') {
+      if(!canModerate)return json({error:'No autorizado'},403);
+      if(!input.guestId || input.guestId===uid || input.guestId===room.host_id || !['mic','camera'].includes(input.kind))return json({error:'Solicitud inválida'},400);
+      const members=await roomService().listParticipants(`rivyza-${room.id}`);
+      const guest=members.find(p=>p.identity===input.guestId);
+      if(!members.some(p=>p.identity===uid) || !guest?.permission?.canPublish)return json({error:'Participante no disponible'},409);
+      const {data:blocked,error:be}=await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).in('user_id',[uid,input.guestId]);if(be)throw be;if(blocked?.length)return json({error:'No autorizado'},403);
+      const {error}=await db.from('rivyza_live_media_requests').upsert({id:crypto.randomUUID(),room_id:room.id,guest_id:input.guestId,sender_id:uid,kind:input.kind,participant_sid:guest.sid,created_at:new Date().toISOString(),expires_at:new Date(Date.now()+60000).toISOString(),used:false},{onConflict:'room_id,guest_id,kind'});
+      if(error)throw error;return json({ok:true});
+    }
+    if(input.action==='media_request_resolve'){
+      const {data:row,error}=await db.from('rivyza_live_media_requests').select('*').eq('id',input.requestId).eq('room_id',room.id).eq('guest_id',uid).eq('used',false).gt('expires_at',new Date().toISOString()).maybeSingle();if(error)throw error;if(!row)return json({error:'Solicitud vencida'},409);
+      if(input.accept){const guest=await liveParticipant(room.id,uid);if(!guest?.permission?.canPublish || guest.sid!==row.participant_sid || (row.sender_id!==room.host_id && !(await isModerator(db,room.host_id,row.sender_id))))return json({error:'Solicitud no disponible'},409);}
+      const {data:claimed,error:ce}=await db.from('rivyza_live_media_requests').update({used:true}).eq('id',row.id).eq('used',false).select('id').maybeSingle();if(ce)throw ce;if(!claimed)return json({error:'Solicitud utilizada'},409);return json({ok:true});
+    }
     if (input.action === 'like') {
       const {data:blocked,error:blockError} = await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',uid).maybeSingle();
       if (blockError) throw blockError;
@@ -396,6 +425,19 @@ export async function POST(req) {
       const {data:pending,error:pendingError} = await db.from('rivyza_live_camera_requests').select('status').eq('room_id',room.id).eq('user_id',input.guestId).maybeSingle();
       if(pendingError) throw pendingError;
       if(pending?.status !== 'pending') return json({error:'La solicitud ya no está pendiente'},409);
+      // Count camera permissions and connected approvals awaiting token refresh.
+      // A full room must not consume or reject a pending request.
+      const svc = roomService();
+      const [info] = await svc.listRooms([`rivyza-${room.id}`]);
+      let metadata = {}; try { metadata = JSON.parse(info?.metadata || '{}'); } catch {}
+      const members = await svc.listParticipants(`rivyza-${room.id}`);
+      const memberIds = new Set(members.map(p => p.identity));
+      const occupied = new Set(members.filter(p => p.permission?.canPublish).map(p => p.identity));
+      occupied.add(room.host_id);
+      const {data:approved,error:approvedError} = await db.from('rivyza_live_camera_requests').select('user_id').eq('room_id',room.id).eq('status','approved');
+      if (approvedError) throw approvedError;
+      for (const row of approved || []) if (memberIds.has(row.user_id)) occupied.add(row.user_id);
+      if (occupied.size >= (metadata.rivyzaLayout?.slots || 10)) return json({error:'Todas las cámaras están ocupadas. La solicitud sigue pendiente.'},409);
       // Authorization is verified above. The service-role-only RPC serializes approvals.
       const { error } = await db.rpc('rivyza_live_approve_camera_server', { p_room: room.id, p_guest: input.guestId });
       if (error) throw error;
