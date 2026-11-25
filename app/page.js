@@ -574,6 +574,55 @@ export default function HomePage(){
   const [peopleSearchMessage,setPeopleSearchMessage]=useState("");
   const [isFollowingViewed,setIsFollowingViewed]=useState(false);
   const [followBusy,setFollowBusy]=useState(false);
+  const [quickFollowIds,setQuickFollowIds]=useState(null);
+  const [quickFollowFlash,setQuickFollowFlash]=useState({});
+  const quickFollowBusy=useRef(new Set());
+  useEffect(()=>{
+    if(!supabase||!user?.id||!["home","friends"].includes(view))return;
+    let active=true;
+    setQuickFollowIds(null);
+    (async()=>{
+      const ids=[];
+      for(let offset=0;;offset+=500){
+        const {data,error}=await supabase.from("follows").select("following_id").eq("follower_id",user.id).order("following_id").range(offset,offset+499);
+        if(error||!active)return;
+        ids.push(...(data||[]).map(row=>row.following_id));
+        if((data||[]).length<500)break;
+      }
+      if(active)setQuickFollowIds(new Set(ids));
+    })();
+    return()=>{active=false;};
+  },[supabase,user?.id,view]);
+  async function quickFollowCreator(event,id){
+    event.stopPropagation();
+    if(!supabase||!user?.id||!id||id===user.id||blockedUsers.includes(id)||quickFollowIds?.has(id)||quickFollowBusy.current.has(id))return;
+    quickFollowBusy.current.add(id);
+    try{
+      const {error}=await supabase.from("follows").insert({follower_id:user.id,following_id:id});
+      if(error){
+        const {data,error:checkError}=await supabase.from("follows").select("following_id").eq("follower_id",user.id).eq("following_id",id).maybeSingle();
+        if(checkError||!data)throw error;
+      }
+      setQuickFollowFlash(prev=>({...prev,[id]:true}));
+      setQuickFollowIds(prev=>new Set([...(prev||[]),id]));
+      setConnectionsRows(rows=>rows.map(p=>p.id===id?{...p,i_follow:true}:p));
+      setCommunityRows(rows=>rows.map(p=>p.id===id?{...p,i_follow:true}:p));
+      if(viewedProfile?.id===id)setIsFollowingViewed(true);
+      void loadFollowCounts(user.id,{own:true});
+      setTimeout(()=>setQuickFollowFlash(prev=>{const next={...prev};delete next[id];return next;}),850);
+    }catch(e){console.error("Quick follow error",e);alert(appLanguage==="en"?"Could not follow. Try again.":"No se pudo seguir. Inténtalo nuevamente.");}
+    finally{quickFollowBusy.current.delete(id);}
+  }
+  function renderQuickFollow(post){
+    const id=post.creator?.id||post.user_id;
+    const done=!!quickFollowFlash[id];
+    if(!user?.id||!id||id===user.id||blockedUsers.includes(id)||!quickFollowIds||(!done&&quickFollowIds.has(id)))return null;
+    return <button type="button" aria-label={t(done?"Siguiendo":"Seguir")} title={t(done?"Siguiendo":"Seguir")} disabled={done} onClick={event=>quickFollowCreator(event,id)} style={{position:"absolute",bottom:-8,left:"50%",transform:"translateX(-50%)",zIndex:5,width:26,height:26,minWidth:26,minHeight:26,padding:0,margin:0,border:"2px solid #171020",borderRadius:"50%",background:"linear-gradient(135deg,#168cff,#913aff 50%,#ff329b)",color:"white",display:"grid",placeItems:"center",boxShadow:"0 2px 7px #0006",cursor:done?"default":"pointer",opacity:1}}>
+      {done?<Check size={16} strokeWidth={3} style={{animation:"rivyzaQuickFollowPop .3s ease-out"}}/>:<Plus size={16} strokeWidth={3}/>}
+      <style>{`@keyframes rivyzaQuickFollowPop{from{transform:scale(.45)}to{transform:scale(1)}} @media(prefers-reduced-motion:reduce){.rivyza-quick-follow-wrap svg{animation:none!important}}`}</style>
+    </button>;
+  }
+
   const [viewedFollowersCount,setViewedFollowersCount]=useState(0);
   const [viewedFollowingCount,setViewedFollowingCount]=useState(0);
   const [ownFollowersCount,setOwnFollowersCount]=useState(0);
@@ -4782,12 +4831,12 @@ async function applyPostCrop(){
             </div>
 
             <div className="side-actions">
-              <button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
+              <div className="rivyza-quick-follow-wrap" style={{position:"relative",display:"grid",placeItems:"center",overflow:"visible",flexShrink:0}}><button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
                 {post.creator?.avatar_url
                   ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
                   : <div className="mini-avatar" style={{position:"absolute",inset:0,width:"100%",height:"100%",margin:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transform:"none",textAlign:"center",boxSizing:"border-box"}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
                             {onlineDot(post.creator?.id||post.user_id)}
-              </button>
+              </button>{renderQuickFollow(post)}</div>
               <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
                 <Heart fill={post.liked_by_me?"currentColor":"none"}/>
                 <span>{post.like_count||0}</span>
@@ -5024,12 +5073,12 @@ async function applyPostCrop(){
           </div>
 
           <div className="side-actions">
-            <button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
+            <div className="rivyza-quick-follow-wrap" style={{position:"relative",display:"grid",placeItems:"center",overflow:"visible",flexShrink:0}}><button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
               {post.creator?.avatar_url
                 ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
                 : <div className="mini-avatar" style={{position:"absolute",inset:0,width:"100%",height:"100%",margin:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transform:"none",textAlign:"center",boxSizing:"border-box"}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
               {onlineDot(post.creator?.id||post.user_id)}
-            </button>
+            </button>{renderQuickFollow(post)}</div>
 
             <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
               <Heart fill={post.liked_by_me?"currentColor":"none"}/>
