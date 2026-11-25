@@ -177,6 +177,32 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [viewerSelected, setViewerSelected] = useState(null);
   const [incomingInvite, setIncomingInvite] = useState(null);
   const [inviteStatus, setInviteStatus] = useState('');
+  const inviteConfirmationTimer = useRef(null);
+  const inviteConfirmationDeadline = useRef(0);
+  const clearInviteConfirmation = useCallback(() => {
+    clearTimeout(inviteConfirmationTimer.current);
+    inviteConfirmationTimer.current = null;
+    inviteConfirmationDeadline.current = 0;
+    setInviteStatus('');
+  }, []);
+  const showInviteConfirmation = useCallback((message) => {
+    clearTimeout(inviteConfirmationTimer.current);
+    inviteConfirmationDeadline.current = Date.now() + 10000;
+    setInviteStatus(message);
+    inviteConfirmationTimer.current = setTimeout(clearInviteConfirmation, 10000);
+  }, [clearInviteConfirmation]);
+  useEffect(() => {
+    const check = () => {
+      if (inviteConfirmationDeadline.current && Date.now() >= inviteConfirmationDeadline.current) clearInviteConfirmation();
+    };
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => {
+      clearTimeout(inviteConfirmationTimer.current);
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+    };
+  }, [clearInviteConfirmation]);
   const [requestTab,setRequestTab]=useState('requests');
   const [inviteBusy,setInviteBusy]=useState(false);
   // The authenticated server is authoritative; delivery does not depend on WebRTC data.
@@ -206,17 +232,17 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   }, [room,liveRoomId,publish,user?.id,supabase]);
   async function inviteViewer(id) {
     if (!(isHost || isModerator) || !id || id === room.localParticipant.identity) return;
-    setInviteStatus('');
+    clearInviteConfirmation();
     try {
       const result = await onModerate('invite_create',{guestId:id});
       setViewerSelected(null);
-      setInviteStatus(lang==='es'?'Invitación enviada':'Invitation sent');
+      showInviteConfirmation(lang==='es'?'Invitación enviada':'Invitation sent');
       // Optional fast notification only. The saved invitation remains deliverable.
       try {
         const data = new TextEncoder().encode(JSON.stringify({type:'camera-invite',to:id,roomId:liveRoomId,inviteId:result.inviteId}));
         room.localParticipant.publishData(data,{reliable:true,destinationIdentities:[id],topic:'rivyza-live-invite'}).catch(e=>console.warn('LIVE invite fast notification:',e));
       } catch (e) { console.warn('LIVE invite fast notification:',e); }
-    } catch (e) { const message=(lang==='es'?'No se pudo enviar la invitación: ':'Could not send invitation: ')+(e.message || 'Error'); setInviteStatus(message);onError?.(message); }
+    } catch (e) { const message=(lang==='es'?'No se pudo enviar la invitación: ':'Could not send invitation: ')+(e.message || 'Error'); clearInviteConfirmation();setInviteStatus(message);onError?.(message); }
   }
 
   // Preview connections are media-only: never counted as LIVE attendees.
@@ -1539,7 +1565,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     const link = url.toString();
     try {
       if (navigator.share) await navigator.share({title:'RIVYZA LIVE',text:'¡Únete a este LIVE en RIVYZA!',url:link});
-      else if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(link); setInviteStatus('Enlace del LIVE copiado'); }
+      else if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(link); clearInviteConfirmation();setInviteStatus('Enlace del LIVE copiado'); }
       else window.prompt('Copia el enlace del LIVE', link);
       setDrawer(false);
     } catch (e) { if (e?.name !== 'AbortError') onError('No se pudo compartir el LIVE: ' + (e?.message || 'Error')); }
@@ -1855,7 +1881,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
           </div>
         </section>
       </div>, document.body)}
-    {inviteStatus && <div role="status" style={{position:'fixed',left:16,right:16,bottom:'calc(90px + env(safe-area-inset-bottom))',zIndex:95,padding:'8px 12px',background:'#35213f',color:'white',borderRadius:12}} onClick={()=>setInviteStatus('')}>{inviteStatus}</div>}
+    {inviteStatus && <div role="status" style={{position:'fixed',left:16,right:16,bottom:'calc(90px + env(safe-area-inset-bottom))',zIndex:95,padding:'8px 12px',background:'#35213f',color:'white',borderRadius:12}} onClick={clearInviteConfirmation}>{inviteStatus}</div>}
     {incomingInvite && !publish && <div role="dialog" aria-label="Invitación al LIVE" style={{position:'fixed',inset:0,zIndex:2147483000,display:'grid',placeItems:'center',background:'#000a',padding:16}}>
       <div style={{width:'100%',maxWidth:360,background:'#261a33',color:'white',borderRadius:16,padding:20}}>
         <strong>{incomingInvite.from} {lang==='es'?'te invita a subir al LIVE':'invites you to join LIVE'}</strong>
