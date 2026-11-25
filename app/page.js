@@ -1,4 +1,5 @@
 "use client";
+// RIVYZA FOLLOW FIX 2026-11-25 v2
 import { createPortal } from "react-dom";
 import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
@@ -580,17 +581,18 @@ export default function HomePage(){
   useEffect(()=>{
     if(!supabase||!user?.id||!["home","friends"].includes(view))return;
     let active=true;
-    setQuickFollowIds(null);
-    (async()=>{
+    const load=async()=>{
       const ids=[];
       for(let offset=0;;offset+=500){
-        const {data,error}=await supabase.from("follows").select("following_id").eq("follower_id",user.id).order("following_id").range(offset,offset+499);
-        if(error||!active)return;
+        const {data,error}=await supabase.from("follows").select("following_id").eq("follower_id",user.id).range(offset,offset+499);
+        if(!active)return;
+        if(error){console.warn("RIVYZA follow lookup",error);return;}
         ids.push(...(data||[]).map(row=>row.following_id));
         if((data||[]).length<500)break;
       }
       if(active)setQuickFollowIds(new Set(ids));
-    })();
+    };
+    load();
     return()=>{active=false;};
   },[supabase,user?.id,view]);
   async function quickFollowCreator(event,id){
@@ -617,7 +619,7 @@ export default function HomePage(){
     const id=post.creator?.id||post.user_id;
     const done=!!quickFollowFlash[id];
     if(!user?.id||!id||id===user.id||blockedUsers.includes(id)||!quickFollowIds||(!done&&quickFollowIds.has(id)))return null;
-    return <button type="button" aria-label={t(done?"Siguiendo":"Seguir")} title={t(done?"Siguiendo":"Seguir")} disabled={done} onClick={event=>quickFollowCreator(event,id)} style={{position:"absolute",bottom:-8,left:"50%",transform:"translateX(-50%)",zIndex:5,width:26,height:26,minWidth:26,minHeight:26,padding:0,margin:0,border:"2px solid #171020",borderRadius:"50%",background:"linear-gradient(135deg,#168cff,#913aff 50%,#ff329b)",color:"white",display:"grid",placeItems:"center",boxShadow:"0 2px 7px #0006",cursor:done?"default":"pointer",opacity:1}}>
+    return <button type="button" aria-label={t(done?"Siguiendo":"Seguir")} title={t(done?"Siguiendo":"Seguir")} disabled={done} onClick={event=>quickFollowCreator(event,id)} style={{position:"absolute",bottom:-5,left:"50%",transform:"translateX(-50%)",zIndex:30,width:28,height:28,minWidth:28,minHeight:28,padding:0,margin:0,border:"2px solid #171020",borderRadius:"50%",background:"linear-gradient(135deg,#168cff,#913aff 50%,#ff329b)",color:"white",display:"grid",placeItems:"center",boxShadow:"0 2px 7px #0006",cursor:done?"default":"pointer",opacity:1}}>
       {done?<Check size={16} strokeWidth={3} style={{animation:"rivyzaQuickFollowPop .3s ease-out"}}/>:<Plus size={16} strokeWidth={3}/>}
       <style>{`@keyframes rivyzaQuickFollowPop{from{transform:scale(.45)}to{transform:scale(1)}} @media(prefers-reduced-motion:reduce){.rivyza-quick-follow-wrap svg{animation:none!important}}`}</style>
     </button>;
@@ -639,6 +641,21 @@ export default function HomePage(){
   const [socialListLoading,setSocialListLoading]=useState(false);
   const [feedTab,setFeedTab]=useState("forYou");
   const [feedPosts,setFeedPosts]=useState([]);
+  useEffect(()=>{
+    if(!supabase||!user?.id||!["home","friends"].includes(view))return;
+    const ids=[...new Set(feedPosts.map(p=>p.user_id).filter(id=>id&&id!==user.id))];
+    if(!ids.length)return;
+    let active=true;
+    const load=async()=>{
+      const {data,error}=await supabase.from("follows").select("following_id").eq("follower_id",user.id).in("following_id",ids);
+      if(!active)return;
+      if(error){console.warn("RIVYZA post follow lookup",error);return;}
+      setQuickFollowIds(prev=>new Set([...(prev||[])].filter(id=>!ids.includes(id)).concat((data||[]).map(r=>r.following_id))));
+    };
+    load();
+    return()=>{active=false;};
+  },[supabase,user?.id,view,feedPosts.map(p=>p.user_id).join(",")]);
+
   // Preparar los primeros fotogramas antes de que el usuario deslice el feed.
   // El navegador puede reutilizar el recurso ya descargado al montar el reproductor.
   useEffect(()=>{
@@ -1284,11 +1301,13 @@ async function applyPostCrop(){
           .eq("follower_id",user.id).eq("following_id",viewedProfile.id);
         if(error)throw error;
         setIsFollowingViewed(false);
+        setQuickFollowIds(prev=>new Set([...(prev||[])].filter(id=>id!==viewedProfile.id)));
       }else{
         const {error}=await supabase.from("follows")
           .insert({follower_id:user.id,following_id:viewedProfile.id});
         if(error)throw error;
         setIsFollowingViewed(true);
+        setQuickFollowIds(prev=>new Set([...(prev||[]),viewedProfile.id]));
       }
       await Promise.all([loadFollowCounts(viewedProfile.id),loadFollowCounts(user.id,{own:true})]);
     }catch(e){
@@ -4831,7 +4850,7 @@ async function applyPostCrop(){
             </div>
 
             <div className="side-actions">
-              <div className="rivyza-quick-follow-wrap" style={{position:"relative",display:"grid",placeItems:"center",overflow:"visible",flexShrink:0}}><button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
+              <div className="rivyza-quick-follow-wrap" style={{position:"relative",display:"grid",placeItems:"center",overflow:"visible",flexShrink:0,zIndex:2,marginBottom:6}}><button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
                 {post.creator?.avatar_url
                   ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
                   : <div className="mini-avatar" style={{position:"absolute",inset:0,width:"100%",height:"100%",margin:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transform:"none",textAlign:"center",boxSizing:"border-box"}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
@@ -5073,7 +5092,7 @@ async function applyPostCrop(){
           </div>
 
           <div className="side-actions">
-            <div className="rivyza-quick-follow-wrap" style={{position:"relative",display:"grid",placeItems:"center",overflow:"visible",flexShrink:0}}><button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
+            <div className="rivyza-quick-follow-wrap" style={{position:"relative",display:"grid",placeItems:"center",overflow:"visible",flexShrink:0,zIndex:2,marginBottom:6}}><button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
               {post.creator?.avatar_url
                 ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
                 : <div className="mini-avatar" style={{position:"absolute",inset:0,width:"100%",height:"100%",margin:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transform:"none",textAlign:"center",boxSizing:"border-box"}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
