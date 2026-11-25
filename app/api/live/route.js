@@ -104,6 +104,22 @@ export async function GET(req) {
       const byId=new Map(profiles.map(p=>[p.id,p]));
       return json({blocked:(blocked||[]).map(b=>({...b,...byId.get(b.user_id)}))});
     }
+    if (params.get('mode') === 'incoming_invite') {
+      const room = await getRoom(db, params.get('room'));
+      if (!room || room.status !== 'live') return json({error:'El LIVE ya terminó'},404);
+      const uid = auth.user.id;
+      const {data:blocked,error:blockError} = await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',uid).maybeSingle();
+      if (blockError) throw blockError;
+      if (blocked) return json({error:'No tienes acceso a este LIVE'},403);
+      const {data:inv,error} = await db.from('rivyza_live_invites').select('id,inviter_id,participant_sid').eq('room_id',room.id).eq('guest_id',uid).eq('used',false).gt('expires_at',new Date().toISOString()).maybeSingle();
+      if (error) throw error;
+      if (!inv || (inv.inviter_id !== room.host_id && !(await isModerator(db,room.host_id,inv.inviter_id)))) return json({invite:null});
+      const guest = await liveParticipant(room.id,uid);
+      if (!guest || guest.sid !== inv.participant_sid || guest.permission?.canPublish) return json({invite:null});
+      const {data:profile,error:profileError} = await db.from('profiles').select('display_name,username').eq('id',inv.inviter_id).maybeSingle();
+      if (profileError) throw profileError;
+      return json({invite:{inviteId:inv.id,fromId:inv.inviter_id,from:profile?.display_name || profile?.username || 'RIVYZA'}});
+    }
     if (params.get('mode') === 'requests') {
       const room = await getRoom(db, params.get('room'));
       if (!room || room.status !== 'live' || (room.host_id !== auth.user.id && !(await isModerator(db, room.host_id, auth.user.id)))) return json({ error: 'No autorizado' }, 403);
