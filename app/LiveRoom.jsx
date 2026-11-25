@@ -251,6 +251,63 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   );
 
   const recentEntries = useRef(new Map());
+  const activityNames = useRef(new Map());
+  const activityPending = useRef(new Map());
+  const latestProfiles = useRef(profiles);
+  latestProfiles.current = profiles;
+  const validActivityName = value => {
+    const name = typeof value === 'string' ? value.trim() : '';
+    return name && !/^(usuario|user|guest|invitado|unknown)$/i.test(name) ? name : '';
+  };
+  async function resolveActivityName(id, hint) {
+    const cached = activityNames.current.get(id);
+    if (cached) return cached;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const profile = latestProfiles.current[id];
+      let name = validActivityName(profile?.display_name) || validActivityName(profile?.username);
+      if (!name) {
+        try {
+          const {data} = await supabase.from('profiles').select('display_name,username').eq('id',id).maybeSingle();
+          name = validActivityName(data?.display_name) || validActivityName(data?.username);
+        } catch {}
+      }
+      name = name || validActivityName(room.remoteParticipants.get(id)?.name) || validActivityName(hint);
+      if (name) { activityNames.current.set(id,name); return name; }
+      if (attempt < 3) await new Promise(resolve => setTimeout(resolve,500 * (attempt+1)));
+    }
+    return '';
+  }
+  function registerActivityJoin(id, hint) {
+    if (!id || previewIdsRef.current.has(id)) return Promise.resolve('');
+    if (recentEntries.current.has(id)) return Promise.resolve(recentEntries.current.get(id));
+    if (activityPending.current.has(id)) return activityPending.current.get(id).promise;
+    const visit = {at:Date.now(),leftAt:0,promise:null};
+    activityPending.current.set(id,visit);
+    visit.promise = (async () => {
+      const name = await resolveActivityName(id,hint);
+      if (activityPending.current.get(id) !== visit) return '';
+      activityPending.current.delete(id);
+      if (!name || previewIdsRef.current.has(id)) return '';
+      publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} entró al LIVE`,system:true,at:visit.at});
+      if (visit.leftAt) publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} salió del LIVE`,system:true,at:visit.leftAt});
+      else recentEntries.current.set(id,name);
+      return name;
+    })();
+    return visit.promise;
+  }
+  function registerActivityLeave(id) {
+    const pending = activityPending.current.get(id);
+    if (pending) { pending.leftAt = pending.leftAt || Date.now(); return; }
+    const name = recentEntries.current.get(id);
+    if (!name) return;
+    recentEntries.current.delete(id);
+    publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} salió del LIVE`,system:true,at:Date.now()});
+  }
+  useEffect(() => () => {
+    activityPending.current.clear();
+    activityNames.current.clear();
+    recentEntries.current.clear();
+  }, [liveRoomId]);
   const [speakers, setSpeakers] = useState([]);
   // v3.23: Persistent chat by LIVE room, with local reading-position memory.
   const historyKey = `rivyza-live-chat-v323:${liveRoomId}:${user?.id || 'viewer'}`;
@@ -437,26 +494,22 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if (!subscribed || !active || isHost) return;
       channel.send({type:'broadcast',event:'presence',payload:{
         roomId:liveRoomId,userId:user.id,event,
-        name:profiles[user.id]?.display_name || room.localParticipant.name || 'Usuario'
+        name:latestProfiles.current[user.id]?.display_name || latestProfiles.current[user.id]?.username || room.localParticipant.name || ''
       }}).catch(e => console.warn('LIVE presence fallback:',e));
     };
-    channel.on('broadcast',{event:'presence'},({payload}) => {
+    channel.on('broadcast',{event:'presence'},async ({payload}) => {
       if (!active || !payload || payload.roomId !== liveRoomId || !payload.userId || payload.userId === user.id) return;
       const id = payload.userId;
       if (payload.event === 'join' && room.remoteParticipants.has(id) && previewIdsRef.current.delete(id)) setPreviewIds([...previewIdsRef.current]);
       if (!isHost || previewIdsRef.current.has(id)) return;
-      const name = profiles[id]?.display_name || payload.name || 'Usuario';
       if (payload.event === 'join') {
-        const last = recentEntries.current.get(id) || 0;
-        if (!last) recentEntries.current.set(id,Date.now());
-        if (!last) publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} entró al LIVE`,system:true,at:Date.now()});
+        const name = await registerActivityJoin(id,payload.name);
         const text=(welcomeMessage||'').trim();
-        if(text && room.remoteParticipants.has(id)) {
+        if(active && name && text && room.remoteParticipants.has(id)) {
           room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({type:'welcome',roomId:liveRoomId,text:`${text}\n¡Bienvenido/a, ${name}! ❤️`})),{reliable:true,topic:'rivyza-private-welcome',destinationIdentities:[id]}).catch(()=>{});
         }
-      } else if (payload.event === 'leave' && recentEntries.current.has(id)) {
-        recentEntries.current.delete(id);
-        publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} salió del LIVE`,system:true,at:Date.now()});
+      } else if (payload.event === 'leave') {
+        registerActivityLeave(id);
       }
     });
     channel.subscribe(status => {
@@ -674,18 +727,13 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       // Allow the preview-only player to identify itself before counting/logging.
       const timer = setTimeout(async()=>{
         if(previewIdsRef.current.has(p.identity) || !room.remoteParticipants.has(p.identity))return;
-        const last=recentEntries.current.get(p.identity)||0;
-        recentEntries.current.set(p.identity,Date.now());
-        if(Date.now()-last>=15000){
-          publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${profiles[p.identity]?.display_name || p.name || 'Usuario'} entró al LIVE`,system:true,at:Date.now()});
-        }
+        const name = await registerActivityJoin(p.identity,p.name);
+        if (!name || !room.remoteParticipants.has(p.identity)) return;
         const text=(welcomeMessage||'').trim();
         if(!text || welcomeSent.current.has(p.identity))return;
         const now=Date.now();
         if(now-(welcomeLastAttempt.current.get(p.identity)||0)<2000)return;
         welcomeLastAttempt.current.set(p.identity,now);
-        let name=profiles[p.identity]?.display_name || p.name || 'Usuario';
-         try { const {data}=await supabase.from('profiles').select('display_name').eq('id',p.identity).maybeSingle(); if(data?.display_name)name=data.display_name; } catch {}
         const data={type:'welcome',roomId:liveRoomId,text:`${text}\n¡Bienvenido/a, ${name}! ❤️`};
         try{await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(data)),{reliable:true,topic:'rivyza-private-welcome',destinationIdentities:[p.identity]});}
         catch(e){welcomeLastAttempt.current.delete(p.identity);console.warn('Welcome delivery deferred:',e);}
@@ -703,10 +751,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     const departed = p => {
       welcomeLastAttempt.current.delete(p.identity);
       if (!isHost || previewIdsRef.current.has(p.identity)) return;
-      // A connection only qualifies as a departure after being admitted as an attendee.
-      if(!recentEntries.current.has(p.identity))return;
-      recentEntries.current.delete(p.identity);
-      publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${profiles[p.identity]?.display_name || p.name || 'Usuario'} salió del LIVE`,system:true,at:Date.now()});
+       registerActivityLeave(p.identity);
     };
     // Also welcome viewers already connected when the host listener becomes ready.
     // This covers the initial join and the async loading of saved welcome settings.
@@ -733,7 +778,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       room.off(RoomEvent.ParticipantDisconnected, departed);
       room.off(RoomEvent.DataReceived, receive);
     };
-  }, [room, appendChat, isHost, liveRoomId, user?.id, profiles, welcomeMessage]);
+  }, [room, appendChat, isHost, liveRoomId, user?.id, welcomeMessage]);
   async function sendComment(e) {
     e.preventDefault(); const text = comment.trim().slice(0,300); if (!text) return;
     // Closing the iOS keyboard must not disconnect or resize the LIVE.
