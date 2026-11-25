@@ -560,29 +560,40 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     refresh();const timer=setInterval(refresh,2000);
     return()=>{active=false;clearInterval(timer);};
   },[supabase,liveRoomId,user?.id,hostId,isHost,room,appendChat,lang]);
+  // Authenticated database delivery; LiveKit is not required for signaling.
   useEffect(()=>{
-    const receive=(bytes,sender,_kind,topic)=>{
-      if(topic!=='rivyza-media-request' || !publish || isHost || !sender?.identity || !(sender.identity===hostId || moderatorIds?.includes(sender.identity)))return;
+    if(!publish || isHost || !user?.id || !liveRoomId){setMediaRequest(null);return;}
+    let active=true,busy=false;
+    const refresh=async()=>{
+      if(busy)return;busy=true;
       try{
-        const m=JSON.parse(new TextDecoder().decode(bytes));
-        if(m.roomId!==liveRoomId || m.to!==user?.id || !['mic','camera'].includes(m.kind) || !m.id || mediaSeen.current.has(m.id))return;
-        if(m.kind==='mic'?room.localParticipant.isMicrophoneEnabled:room.localParticipant.isCameraEnabled)return;
-        mediaSeen.current.add(m.id);
-        setMediaRequest({...m,from:latestProfiles.current[sender.identity]?.display_name || sender.name || (lang==='es'?'Moderador':'Moderator')});
-      }catch(e){console.warn('Media request:',e);}
+        const {data:{session}}=await supabase.auth.getSession();
+        if(!session?.access_token)return;
+        const response=await fetch(`/api/live?mode=media_requests&room=${encodeURIComponent(liveRoomId)}`,{headers:{Authorization:`Bearer ${session.access_token}`},cache:'no-store'});
+        const result=await response.json();if(!response.ok)throw new Error(result.error);
+        if(!active)return;
+        const pending=(result.requests||[]).filter(m=>!mediaSeen.current.has(m.id) && !(m.kind==='mic'?room.localParticipant.isMicrophoneEnabled:room.localParticipant.isCameraEnabled));
+        setMediaRequest(previous=>pending.find(m=>m.id===previous?.id)||pending[0]||null);
+      }catch(e){console.warn('Media request lookup:',e);}finally{busy=false;}
     };
-    room.on(RoomEvent.DataReceived,receive);
-    return()=>room.off(RoomEvent.DataReceived,receive);
-  },[room,publish,isHost,hostId,moderatorIds,liveRoomId,user?.id,lang]);
+    refresh();const timer=setInterval(refresh,2000);
+    return()=>{active=false;clearInterval(timer);};
+  },[room,publish,isHost,liveRoomId,user?.id,supabase]);
   async function askMedia(id,kind){
-    if(!(isHost||isModerator) || id===hostId || !room.remoteParticipants.has(id))return;
+    if(!(isHost||isModerator) || id===hostId || !id)return;
     const key=id+':'+kind,now=Date.now();
     if(now-(mediaCooldown.current.get(key)||0)<15000){onError?.(lang==='es'?'Espera 15 segundos antes de repetir la solicitud.':'Wait 15 seconds before requesting again.');return;}
     mediaCooldown.current.set(key,now);
+    try{await onModerate('media_request_create',{guestId:id,kind});setTarget(null);}
+    catch(e){mediaCooldown.current.delete(key);onError?.((lang==='es'?'No se pudo enviar la solicitud: ':'Could not send request: ')+e.message);}
+  }
+  async function respondMedia(accept){
+    const request=mediaRequest;if(!request || mediaSeen.current.has(request.id))return;
+    mediaSeen.current.add(request.id);setMediaRequest(null);
     try{
-      await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({id:crypto.randomUUID(),roomId:liveRoomId,to:id,kind})),{reliable:true,topic:'rivyza-media-request',destinationIdentities:[id]});
-      setTarget(null);
-    }catch(e){mediaCooldown.current.delete(key);onError?.(lang==='es'?'No se pudo enviar la solicitud. Intenta de nuevo.':'Could not send request. Try again.');}
+      await onModerate('media_request_resolve',{requestId:request.id,accept});
+      if(accept && publish){if(request.kind==='mic')await room.localParticipant.setMicrophoneEnabled(true);else if(!room.localParticipant.isCameraEnabled)await openCameraPreview();}
+    }catch(e){onError?.(e.message);}
   }
   const [comment, setComment] = useState('');
   const [flipping, setFlipping] = useState(false);
@@ -929,6 +940,25 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     return () => room.off(RoomEvent.ActiveSpeakersChanged,speaking);
   }, [room]);
   const [slots, setSlots] = useState(10);
+  const [, refreshCapacity] = useState(0);
+  useEffect(() => {
+    const refresh = () => refreshCapacity(n => n + 1);
+    room.on(RoomEvent.ParticipantPermissionsChanged, refresh);
+    room.on(RoomEvent.ParticipantConnected, refresh);
+    room.on(RoomEvent.ParticipantDisconnected, refresh);
+    const timer = setInterval(refresh, 2000);
+    return () => {
+      clearInterval(timer);
+      room.off(RoomEvent.ParticipantPermissionsChanged, refresh);
+      room.off(RoomEvent.ParticipantConnected, refresh);
+      room.off(RoomEvent.ParticipantDisconnected, refresh);
+    };
+  }, [room]);
+  const occupiedCameraIds = new Set(participants.filter(p => p.permissions?.canPublish).map(p => p.identity));
+  occupiedCameraIds.add(hostId);
+  if (publish) occupiedCameraIds.add(room.localParticipant.identity);
+  const camerasFull = occupiedCameraIds.size >= slots;
+  const fullMessage = lang === 'es' ? 'Todas las cámaras están ocupadas. Tu solicitud seguirá pendiente hasta que se libere un espacio.' : 'All camera slots are full. Your request will remain pending until a slot opens.';
   useEffect(() => {
     if (slots !== 14) { setChatBoundary(null); return; }
     const grid = gridRef.current;
@@ -1863,7 +1893,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       {deepARError&&<p role="alert" style={{color:'#ff9db8'}}>{deepARError}</p>}
       <small style={{display:'block',marginTop:8,color:'#ccc'}}>El filtro se aplica al video enviado. Para voltear la cámara, selecciona «Sin efecto».</small>
     </div>}
-    {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? 'Solicitud enviada' : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
+    {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? (camerasFull ? fullMessage : (lang==='es'?'Solicitud enviada. Espera la aprobación.':'Request sent. Waiting for approval.')) : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
       <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
       {!typing && <>
@@ -1882,20 +1912,21 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     </div>
     {(isHost || isModerator) && requestsOpen && <div className="rivyza-v32-popover rivyza-v32-request-panel" role="dialog" aria-label="Solicitudes para subir">
       <div className="rivyza-v32-panel-heading"><strong>✋ {tr.requests} ({requests.filter(r => r.status === 'pending').length})</strong><button type="button" onClick={() => setRequestsOpen(false)} aria-label="Cerrar">✕</button></div>
-      {isModerator && !publish && <button type="button" disabled={inviteBusy} style={{background:'#8e38d0',color:'#fff',padding:10,borderRadius:10,marginBottom:8}} onClick={async()=>{setInviteBusy(true);try{await onModerate('moderator_join');setRequestsOpen(false);}catch(e){onError?.(e.message);}finally{setInviteBusy(false);}}}>{lang==='es'?'Subir a cámara':'Join camera'}</button>}
+      {isModerator && !publish && <button type="button" disabled={inviteBusy || camerasFull} style={{background:'#8e38d0',color:'#fff',padding:10,borderRadius:10,marginBottom:8}} onClick={async()=>{setInviteBusy(true);try{await onModerate('moderator_join');setRequestsOpen(false);}catch(e){onError?.(e.message);}finally{setInviteBusy(false);}}}>{lang==='es'?'Subir a cámara':'Join camera'}</button>}
       <div style={{display:'flex',gap:8,marginBottom:8}}>
         <button type="button" onClick={()=>setRequestTab('requests')} style={{background:requestTab==='requests'?'#8e38d0':'#49315b',color:'#fff',padding:8,borderRadius:8}} aria-pressed={requestTab==='requests'}>{lang==='es'?'Solicitudes':'Requests'} ({requests.filter(r=>r.status==='pending').length})</button>
         <button type="button" onClick={()=>setRequestTab('invite')} style={{background:requestTab==='invite'?'#8e38d0':'#49315b',color:'#fff',padding:8,borderRadius:8}} aria-pressed={requestTab==='invite'}>{lang==='es'?'Invitar':'Invite'} ({visibleViewers.filter(p=>p.identity!==hostId && p.identity!==room.localParticipant.identity && !p.permissions?.canPublish).length})</button>
       </div>
+      {camerasFull && <p role="status" style={{color:'#fff',fontSize:13,margin:'6px 0'}}>{lang==='es'?'Cámaras llenas. Las solicitudes siguen pendientes.':'Camera slots full. Requests remain pending.'}</p>}
       <div className="rivyza-v32-request-scroll">
         {requestTab==='invite' ? <>{!visibleViewers.some(p=>p.identity!==hostId && p.identity!==room.localParticipant.identity && !p.permissions?.canPublish) && <p>{lang==='es'?'No hay espectadores disponibles':'No available viewers'}</p>}{visibleViewers.filter(p=>p.identity!==hostId && p.identity!==room.localParticipant.identity && !p.permissions?.canPublish).map(p=><div className="rivyza-v32-request-row" key={p.identity}>
           {avatarFor(p) && <img src={avatarFor(p)} alt="" style={{width:30,height:30,borderRadius:'50%',objectFit:'cover'}}/>}
-          <span>{profiles[p.identity]?.display_name || p.name || 'Usuario'}</span><button type="button" onClick={()=>inviteViewer(p.identity)}>{lang==='es'?'Invitar':'Invite'}</button>
+          <span>{profiles[p.identity]?.display_name || p.name || 'Usuario'}</span><button type="button" disabled={camerasFull} onClick={()=>inviteViewer(p.identity)}>{lang==='es'?'Invitar':'Invite'}</button>
         </div>)}</> : <>
         {requests.filter(r => r.status === 'pending').length === 0 && <p>{tr.noRequests}</p>}
         {requests.filter(r => r.status === 'pending').map(r => <div className="rivyza-v32-request-row" key={r.user_id}>
           <span>👤 {requestNames[r.user_id] || (lang === 'es' ? 'Invitado' : 'Guest')}</span>
-          <button type="button" onClick={() => onRequestDecision('approve', r.user_id).catch(e=>onError?.(e.message))}>✓ {tr.accept}</button>
+          <button type="button" disabled={camerasFull} style={camerasFull?{opacity:0.45,cursor:'not-allowed'}:undefined} onClick={() => onRequestDecision('approve', r.user_id).catch(e=>onError?.(e.message))}>✓ {tr.accept}</button>
           <button type="button" onClick={() => onRequestDecision('reject', r.user_id).catch(e=>onError?.(e.message))}>✕ {tr.reject}</button>
         </div>)}
         </>}
@@ -1997,7 +2028,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         </div>}
       </div>
     </div>}
-    {mediaRequest && publish && <div role="dialog" aria-modal="true" style={{position:'fixed',inset:0,zIndex:9999,background:'#0009',display:'grid',placeItems:'center',padding:20}}><div style={{background:'#251a32',color:'white',padding:20,borderRadius:16,maxWidth:340,width:'100%',textAlign:'center'}}><strong>{mediaRequest.kind==='mic'?(lang==='es'?'Activa tu micrófono':'Enable your microphone'):(lang==='es'?'Activa tu cámara':'Enable your camera')}</strong><p>{mediaRequest.from} {lang==='es'?'te solicita que lo actives.':'asks you to enable it.'}</p><div style={{display:'flex',gap:12,justifyContent:'center'}}><button type="button" onClick={()=>setMediaRequest(null)}>{lang==='es'?'Ahora no':'Not now'}</button><button type="button" onClick={async()=>{const kind=mediaRequest.kind;setMediaRequest(null);try{if(kind==='mic'){await room.localParticipant.setMicrophoneEnabled(true);}else if(!room.localParticipant.isCameraEnabled){await openCameraPreview();}}catch(e){onError?.(e.message);}}}>{lang==='es'?'Activar':'Enable'}</button></div></div></div>}
+    {mediaRequest && publish && <div role="dialog" aria-modal="true" style={{position:'fixed',inset:0,zIndex:9999,background:'#0009',display:'grid',placeItems:'center',padding:20}}><div style={{background:'#251a32',color:'white',padding:20,borderRadius:16,maxWidth:340,width:'100%',textAlign:'center'}}><strong>{mediaRequest.kind==='mic'?(lang==='es'?'Activa tu micrófono':'Enable your microphone'):(lang==='es'?'Activa tu cámara':'Enable your camera')}</strong><p>{mediaRequest.from} {lang==='es'?'te solicita que lo actives.':'asks you to enable it.'}</p><div style={{display:'flex',gap:12,justifyContent:'center'}}><button type="button" onClick={()=>respondMedia(false)}>{lang==='es'?'Ahora no':'Not now'}</button><button type="button" onClick={()=>respondMedia(true)}>{lang==='es'?'Activar':'Enable'}</button></div></div></div>}
     <RoomAudioRenderer />
     {!soundReady && <button type="button" className="rivyza-live-enable-audio" onClick={activateAudio}>🔊 {tr.activateAudio}</button>}
   </>;
