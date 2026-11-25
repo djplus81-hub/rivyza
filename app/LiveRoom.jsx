@@ -430,10 +430,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       }}).catch(e => console.warn('LIVE presence fallback:',e));
     };
     channel.on('broadcast',{event:'presence'},({payload}) => {
-      if (!active || !isHost || !payload || payload.roomId !== liveRoomId || !payload.userId || payload.userId === user.id) return;
+      if (!active || !payload || payload.roomId !== liveRoomId || !payload.userId || payload.userId === user.id) return;
       const id = payload.userId;
-      // A preview-only LiveKit connection is not an attendee.
-      if (previewIdsRef.current.has(id)) return;
+      if (payload.event === 'join' && room.remoteParticipants.has(id) && previewIdsRef.current.delete(id)) setPreviewIds([...previewIdsRef.current]);
+      if (!isHost || previewIdsRef.current.has(id)) return;
       const name = profiles[id]?.display_name || payload.name || 'Usuario';
       if (payload.event === 'join') {
         const last = recentEntries.current.get(id) || 0;
@@ -457,7 +457,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
 
       // Keep requesting only until the private welcome arrives; presence remains
       // tracked via the original LiveKit participant events.
-      try {if (!welcomeReceived.current) announce();} catch {}
+      try {announce();} catch {}
     }, 3500);
     const onUnload = () => announce('leave');
     window.addEventListener('pagehide',onUnload);
@@ -1768,7 +1768,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
           <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" />
           {!mic && <><circle cx="12" cy="12" r="10" stroke="#FF3B45" strokeWidth="1.6" /><path d="M5 5l14 14" stroke="#FF3B45" strokeWidth="2.3" /></>}
         </svg></button>}
-        {!publish && <button type="button" className="rivyza-v32-icon rivyza-v32-join-request" disabled={requestStatus === 'pending'} onClick={() => onRequest?.()} aria-label={tr.request} title={tr.request}>✋</button>}
+        {!publish && !isModerator && <button type="button" className="rivyza-v32-icon rivyza-v32-join-request" disabled={requestStatus === 'pending'} onClick={() => onRequest?.()} aria-label={tr.request} title={tr.request}>✋</button>}
         {(isHost || isModerator) && <button type="button" className={`rivyza-v32-icon rivyza-v32-requests ${requests.some(r => r.status === 'pending') ? 'has-pending' : ''}`} onClick={() => { setDrawer(false); setRequestsOpen(x => !x); }} aria-label={`Solicitudes para subir: ${requests.filter(r => r.status === 'pending').length}`} aria-expanded={requestsOpen}>✋{requests.filter(r => r.status === 'pending').length > 0 && <span className="rivyza-v32-count">{requests.filter(r => r.status === 'pending').length}</span>}</button>}
         <button type="button" className="rivyza-v32-icon" disabled title="Regalos: próximamente" aria-label="Regalos próximamente">🎁</button>
         <button type="button" className="rivyza-v32-icon" onClick={() => { setRequestsOpen(false); setDrawer(x => !x); }} aria-label={tr.options} aria-expanded={drawer}>•••</button>
@@ -1776,12 +1776,13 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     </div>
     {(isHost || isModerator) && requestsOpen && <div className="rivyza-v32-popover rivyza-v32-request-panel" role="dialog" aria-label="Solicitudes para subir">
       <div className="rivyza-v32-panel-heading"><strong>✋ {tr.requests} ({requests.filter(r => r.status === 'pending').length})</strong><button type="button" onClick={() => setRequestsOpen(false)} aria-label="Cerrar">✕</button></div>
+      {isModerator && !publish && <button type="button" disabled={inviteBusy} style={{background:'#8e38d0',color:'#fff',padding:10,borderRadius:10,marginBottom:8}} onClick={async()=>{setInviteBusy(true);try{await onModerate('moderator_join');setRequestsOpen(false);}catch(e){onError?.(e.message);}finally{setInviteBusy(false);}}}>{lang==='es'?'Subir a cámara':'Join camera'}</button>}
       <div style={{display:'flex',gap:8,marginBottom:8}}>
-        <button type="button" onClick={()=>setRequestTab('requests')} aria-pressed={requestTab==='requests'}>{lang==='es'?'Solicitudes':'Requests'} ({requests.filter(r=>r.status==='pending').length})</button>
-        <button type="button" onClick={()=>setRequestTab('invite')} aria-pressed={requestTab==='invite'}>{lang==='es'?'Invitar':'Invite'} ({visibleViewers.filter(p=>p.identity!==hostId && p.identity!==room.localParticipant.identity && !p.permissions?.canPublish).length})</button>
+        <button type="button" onClick={()=>setRequestTab('requests')} style={{background:requestTab==='requests'?'#8e38d0':'#49315b',color:'#fff',padding:8,borderRadius:8}} aria-pressed={requestTab==='requests'}>{lang==='es'?'Solicitudes':'Requests'} ({requests.filter(r=>r.status==='pending').length})</button>
+        <button type="button" onClick={()=>setRequestTab('invite')} style={{background:requestTab==='invite'?'#8e38d0':'#49315b',color:'#fff',padding:8,borderRadius:8}} aria-pressed={requestTab==='invite'}>{lang==='es'?'Invitar':'Invite'} ({visibleViewers.filter(p=>p.identity!==hostId && p.identity!==room.localParticipant.identity && !p.permissions?.canPublish).length})</button>
       </div>
       <div className="rivyza-v32-request-scroll">
-        {requestTab==='invite' ? <>{visibleViewers.filter(p=>p.identity!==hostId && p.identity!==room.localParticipant.identity && !p.permissions?.canPublish).map(p=><div className="rivyza-v32-request-row" key={p.identity}>
+        {requestTab==='invite' ? <>{!visibleViewers.some(p=>p.identity!==hostId && p.identity!==room.localParticipant.identity && !p.permissions?.canPublish) && <p>{lang==='es'?'No hay espectadores disponibles':'No available viewers'}</p>}{visibleViewers.filter(p=>p.identity!==hostId && p.identity!==room.localParticipant.identity && !p.permissions?.canPublish).map(p=><div className="rivyza-v32-request-row" key={p.identity}>
           {avatarFor(p) && <img src={avatarFor(p)} alt="" style={{width:30,height:30,borderRadius:'50%',objectFit:'cover'}}/>}
           <span>{profiles[p.identity]?.display_name || p.name || 'Usuario'}</span><button type="button" onClick={()=>inviteViewer(p.identity)}>{lang==='es'?'Invitar':'Invite'}</button>
         </div>)}</> : <>
@@ -2055,7 +2056,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
   async function action(kind, payload) {
     try {
       const result = await api(kind, { roomId, ...payload });
-      if (kind === 'invite_accept') await refreshSession(roomId);
+      if (kind === 'invite_accept' || kind === 'moderator_join') await refreshSession(roomId);
       if (kind === 'request') setRequestStatus('pending');
       if (kind === 'cancel_request') setRequestStatus(null);
       if (kind === 'approve' || kind === 'reject') setRequests(r => r.filter(x => x.user_id !== payload.guestId));
