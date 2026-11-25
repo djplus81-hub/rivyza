@@ -19,7 +19,7 @@ function getLanguage() {
 }
 const liveSlotMemory = new Map();
 
-function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage, welcomeVisit }) {
+function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage, welcomeVisit, privateVisitId }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
@@ -224,8 +224,6 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [presenceRevision,setPresenceRevision]=useState(0);
   // A welcome is acknowledged by the viewer, not merely by publishData resolving.
   const welcomeSent=useRef(new Set());
-  const welcomeNonce=useRef(null);
-  if (!welcomeNonce.current) welcomeNonce.current=crypto.randomUUID();
    const welcomeReceived=welcomeVisit;
   const welcomeLastAttempt=useRef(new Map());
   const markPreview=useCallback(id=>{
@@ -264,7 +262,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   async function resolveActivityName(id, hint) {
     const cached = activityNames.current.get(id);
     if (cached) return cached;
-    for (let attempt = 0; attempt < 7; attempt++) {
+    for (let attempt = 0; attempt < 6; attempt++) {
       const profile = latestProfiles.current[id];
       let name = validActivityName(profile?.display_name) || validActivityName(profile?.username);
       if (!name) {
@@ -275,7 +273,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       }
       name = name || validActivityName(room.remoteParticipants.get(id)?.name) || validActivityName(hint);
       if (name) { activityNames.current.set(id,name); return name; }
-      if (attempt < 6) await new Promise(resolve => setTimeout(resolve,Math.min(1500,500 * (attempt+1))));
+      if (attempt < 5) await new Promise(resolve => setTimeout(resolve,500 * (attempt+1)));
     }
     return '';
   }
@@ -291,7 +289,6 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       activityPending.current.delete(id);
       if (!name || previewIdsRef.current.has(id)) return '';
       publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} entró al LIVE`,system:true,at:visit.at});
-      if (visit.leftAt && room.remoteParticipants.has(id)) visit.leftAt=0;
       if (visit.leftAt) publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} salió del LIVE`,system:true,at:visit.leftAt});
       else recentEntries.current.set(id,name);
       return name;
@@ -469,7 +466,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   },[room,isHost,hostId,liveRoomId,user?.id]);
   useEffect(()=>{
     const receive=(payload,_sender,_kind,topic)=>{
-      if(isHost || topic!=='rivyza-private-welcome' || _sender?.identity!==hostId)return;
+      if(topic!=='rivyza-private-welcome' || _sender?.identity!==hostId || isHost)return;
       try{
         const data=JSON.parse(new TextDecoder().decode(payload));
         if(data.type!=='welcome'||data.roomId!==liveRoomId||!data.text)return;
@@ -496,31 +493,24 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     const announce = (event = 'join') => {
       if (!subscribed || !active || isHost) return;
       channel.send({type:'broadcast',event:'presence',payload:{
-        roomId:liveRoomId,userId:user.id,event,
-        nonce:welcomeNonce.current, needsWelcome:!welcomeReceived.current,
-         name:latestProfiles.current[user.id]?.display_name || latestProfiles.current[user.id]?.username || room.localParticipant.name || ''
+        roomId:liveRoomId,userId:user.id,event,visitId:privateVisitId.current,
+        name:latestProfiles.current[user.id]?.display_name || latestProfiles.current[user.id]?.username || room.localParticipant.name || ''
       }}).catch(e => console.warn('LIVE presence fallback:',e));
     };
     channel.on('broadcast',{event:'presence'},async ({payload}) => {
       if (!active || !payload || payload.roomId !== liveRoomId || !payload.userId || payload.userId === user.id) return;
       const id = payload.userId;
       if (payload.event === 'join' && room.remoteParticipants.has(id) && previewIdsRef.current.delete(id)) setPreviewIds([...previewIdsRef.current]);
-      if (!isHost || previewIdsRef.current.has(id)) return;
+      if (!isHost || previewIdsRef.current.has(id) || (payload.event==='join' && !room.remoteParticipants.has(id))) return;
       if (payload.event === 'join') {
-        if (!room.remoteParticipants.has(id)) return;
         const name = await registerActivityJoin(id,payload.name);
         const text=(welcomeMessage||'').trim();
-        if(active && name && text && payload.needsWelcome && /^[0-9a-f-]{36}$/i.test(payload.nonce || '') && room.remoteParticipants.has(id)) {
-          const message=`${text}\n¡Bienvenido/a, ${name}! ❤️`;
-          // Independent delivery: only the authenticated recipient can read this row.
-          try {
-            const {error}=await supabase.from('rivyza_live_private_welcome').insert({room_id:String(liveRoomId),sender_id:user.id,recipient_id:id,visit_id:payload.nonce,body:message});
-            if(error && error.code!=='23505') console.warn('Private welcome fallback:',error);
-          } catch(e) { console.warn('Private welcome fallback:',e); }
-          room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({type:'welcome',roomId:liveRoomId,text:message})),{reliable:true,topic:'rivyza-private-welcome',destinationIdentities:[id]}).catch(()=>{});
+        if(active && name && text && payload.visitId && room.remoteParticipants.has(id)) {
+          const {error}=await supabase.from('rivyza_live_private_welcome').insert({room_id:liveRoomId,sender_id:user.id,recipient_id:id,visit_id:payload.visitId,body:`${text}\n¡Bienvenido/a, ${name}! ❤️`});
+          if(error && error.code!=='23505') console.warn('Private welcome storage:',error);
         }
       } else if (payload.event === 'leave') {
-        registerActivityLeave(id);
+        if (!room.remoteParticipants.has(id)) registerActivityLeave(id);
       }
     });
     channel.subscribe(status => {
@@ -537,6 +527,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     const onUnload = () => announce('leave');
     window.addEventListener('pagehide',onUnload);
     return () => {
+      if (!isHost) announce('leave');
       active = false;
       clearInterval(timer);
       window.removeEventListener('pagehide',onUnload);
@@ -544,24 +535,55 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       supabase.removeChannel(channel);
     };
   },[supabase,liveRoomId,user?.id,isHost,welcomeMessage,room,appendChat]);
+  // Recipient-only database delivery; never place private welcomes in public chat storage.
+  const [mediaRequest,setMediaRequest]=useState(null);
+  const mediaSeen=useRef(new Set());
+  const mediaCooldown=useRef(new Map());
   useEffect(()=>{
-    if(isHost || !user?.id || !hostId || !liveRoomId)return;
+    if(!user?.id || !liveRoomId)return;
     let active=true,busy=false;
-    const poll=async()=>{
-      if(!active || busy || welcomeReceived.current)return;
+    const refresh=async()=>{
+      if(busy || room.state!=='connected')return;
       busy=true;
-      try {
-        const {data,error}=await supabase.from('rivyza_live_private_welcome').select('body').eq('room_id',String(liveRoomId)).eq('sender_id',hostId).eq('recipient_id',user.id).eq('visit_id',welcomeNonce.current).maybeSingle();
-        if(!error && active && data?.body && !welcomeReceived.current){
-          welcomeReceived.current=true;
-          appendChat({id:crypto.randomUUID(),name:lang==='es'?'💗 Bienvenida':'💗 Welcome',text:data.body,privateWelcome:true,at:Date.now()});
+      try{
+        if(!isHost && !welcomeReceived.current){
+          const {data,error}=await supabase.from('rivyza_live_private_welcome').select('body').eq('room_id',liveRoomId).eq('sender_id',hostId).eq('recipient_id',user.id).eq('visit_id',privateVisitId.current).maybeSingle();
+          if(error)throw error;
+          if(active && data?.body && !welcomeReceived.current){
+            welcomeReceived.current=true;
+            appendChat({id:crypto.randomUUID(),name:lang==='es'?'💗 Bienvenida':'💗 Welcome',text:data.body,privateWelcome:true,at:Date.now()});
+          }
         }
-      } catch(e){console.warn('Private welcome polling:',e);}
+      }catch(e){console.warn('Private welcome poll:',e);}
       finally{busy=false;}
     };
-    poll();const timer=setInterval(poll,2000);
+    refresh();const timer=setInterval(refresh,2000);
     return()=>{active=false;clearInterval(timer);};
-  },[supabase,isHost,user?.id,hostId,liveRoomId,appendChat,lang,welcomeReceived]);
+  },[supabase,liveRoomId,user?.id,hostId,isHost,room,appendChat,lang]);
+  useEffect(()=>{
+    const receive=(bytes,sender,_kind,topic)=>{
+      if(topic!=='rivyza-media-request' || !publish || isHost || !sender?.identity || !(sender.identity===hostId || moderatorIds?.includes(sender.identity)))return;
+      try{
+        const m=JSON.parse(new TextDecoder().decode(bytes));
+        if(m.roomId!==liveRoomId || m.to!==user?.id || !['mic','camera'].includes(m.kind) || !m.id || mediaSeen.current.has(m.id))return;
+        if(m.kind==='mic'?room.localParticipant.isMicrophoneEnabled:room.localParticipant.isCameraEnabled)return;
+        mediaSeen.current.add(m.id);
+        setMediaRequest({...m,from:latestProfiles.current[sender.identity]?.display_name || sender.name || (lang==='es'?'Moderador':'Moderator')});
+      }catch(e){console.warn('Media request:',e);}
+    };
+    room.on(RoomEvent.DataReceived,receive);
+    return()=>room.off(RoomEvent.DataReceived,receive);
+  },[room,publish,isHost,hostId,moderatorIds,liveRoomId,user?.id,lang]);
+  async function askMedia(id,kind){
+    if(!(isHost||isModerator) || id===hostId || !room.remoteParticipants.has(id))return;
+    const key=id+':'+kind,now=Date.now();
+    if(now-(mediaCooldown.current.get(key)||0)<15000){onError?.(lang==='es'?'Espera 15 segundos antes de repetir la solicitud.':'Wait 15 seconds before requesting again.');return;}
+    mediaCooldown.current.set(key,now);
+    try{
+      await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({id:crypto.randomUUID(),roomId:liveRoomId,to:id,kind})),{reliable:true,topic:'rivyza-media-request',destinationIdentities:[id]});
+      setTarget(null);
+    }catch(e){mediaCooldown.current.delete(key);onError?.(lang==='es'?'No se pudo enviar la solicitud. Intenta de nuevo.':'Could not send request. Try again.');}
+  }
   const [comment, setComment] = useState('');
   const [flipping, setFlipping] = useState(false);
   // Mirror is a display preference synchronized with all LIVE participants.
@@ -1814,7 +1836,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         </div>
       </div>
     </div>}
-    <div className="rivyza-v314-chat" style={slots===14 && chatBoundary!==null ? {clipPath:`inset(${Math.ceil(chatBoundary)}px 0 0 0)`} : undefined} ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);if(activity && !validActivityName(activity.person))return null;return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatReadingOld && <button type="button" onClick={goToLatest} aria-label="Ir al mensaje más reciente" style={{position:'fixed',bottom:'calc(242px + env(safe-area-inset-bottom))',left:14,zIndex:49,border:'1px solid #ffffff66',borderRadius:20,padding:'7px 12px',background:'rgba(32,19,44,.94)',color:'white',fontSize:12}}>↓ Ir al más reciente</button>}{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
+    <div className="rivyza-v314-chat" style={slots===14 && chatBoundary!==null ? {clipPath:`inset(${Math.ceil(chatBoundary)}px 0 0 0)`} : undefined} ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong>{m.name}: </strong>}{m.text}</>}</div>})}</div>{chatReadingOld && <button type="button" onClick={goToLatest} aria-label="Ir al mensaje más reciente" style={{position:'fixed',bottom:'calc(242px + env(safe-area-inset-bottom))',left:14,zIndex:49,border:'1px solid #ffffff66',borderRadius:20,padding:'7px 12px',background:'rgba(32,19,44,.94)',color:'white',fontSize:12}}>↓ Ir al más reciente</button>}{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
     {publish && (cameraPreviewOpen || previewStream) && <div role="dialog" aria-modal={cameraPreviewOpen} aria-label="Preparar cámara" style={{position:'fixed',inset:0,zIndex:cameraPreviewOpen?2147483001:-1,opacity:cameraPreviewOpen?1:0,pointerEvents:cameraPreviewOpen?'auto':'none',background:'rgba(0,0,0,.94)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:14,color:'#fff'}}>
       <div style={{width:'100%',maxWidth:400,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}><strong>Prepara tu cámara</strong><button type="button" onClick={closePreview} style={{background:'transparent',border:0,color:'#fff',fontSize:25}}>✕</button></div>
       <div style={{width:'100%',maxWidth:400,height:'min(49vh,460px)',background:'#15151d',borderRadius:14,overflow:'hidden',position:'relative'}}>
@@ -1955,8 +1977,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
               {!isHost && <button onClick={()=>{setTarget(null);onLeaveCamera()}}>↓ Bajar a escuchar</button>}
             </>}
             {(isHost || isModerator) && target.identity !== localParticipant.identity && target.identity !== hostId && <>
-              <button type="button" onClick={() => applyModeration('mute_guest')}><span className="rivyza-v313-glyph">♩̸</span><span>{lang === 'es' ? 'Silenciar' : 'Mute'}</span></button>
-              <button type="button" onClick={() => applyModeration('camera_off_guest')}><span className="rivyza-v313-glyph">▣̸</span><span>{lang === 'es' ? 'Apagar cámara' : 'Turn off camera'}</span></button>
+              {room.remoteParticipants.get(target.identity)?.isMicrophoneEnabled ? <button type="button" onClick={() => applyModeration('mute_guest')}><span className="rivyza-v313-glyph">♩̸</span><span>{lang === 'es' ? 'Silenciar' : 'Mute'}</span></button> : <button type="button" onClick={()=>askMedia(target.identity,'mic')}>🎙 {lang==='es'?'Solicitar activar micrófono':'Request microphone'}</button>}
+              {room.remoteParticipants.get(target.identity)?.isCameraEnabled ? <button type="button" onClick={() => applyModeration('camera_off_guest')}><span className="rivyza-v313-glyph">▣̸</span><span>{lang === 'es' ? 'Apagar cámara' : 'Turn off camera'}</span></button> : <button type="button" onClick={()=>askMedia(target.identity,'camera')}>📷 {lang==='es'?'Solicitar activar cámara':'Request camera'}</button>}
               <button type="button" onClick={() => {setMoveTarget(target.identity);setTarget(null)}}><span className="rivyza-v313-glyph">⇄</span><span>{lang === 'es' ? 'Mover' : 'Move'}</span></button>
               {isHost && <button type="button" onClick={() => applyModeration(moderatorIds?.includes(target.identity) ? 'moderator_remove' : 'moderator_add')}><span className="rivyza-v313-glyph">♢</span><span>{moderatorIds?.includes(target.identity) ? (lang === 'es' ? 'Quitar moderador' : 'Remove moderator') : (lang === 'es' ? 'Hacer moderador' : 'Make moderator')}</span></button>}
               <button type="button" onClick={() => applyModeration('lower_guest')}><span className="rivyza-v313-glyph">↓</span><span>{lang === 'es' ? 'Bajar' : 'Leave camera'}</span></button>
@@ -1975,6 +1997,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         </div>}
       </div>
     </div>}
+    {mediaRequest && publish && <div role="dialog" aria-modal="true" style={{position:'fixed',inset:0,zIndex:9999,background:'#0009',display:'grid',placeItems:'center',padding:20}}><div style={{background:'#251a32',color:'white',padding:20,borderRadius:16,maxWidth:340,width:'100%',textAlign:'center'}}><strong>{mediaRequest.kind==='mic'?(lang==='es'?'Activa tu micrófono':'Enable your microphone'):(lang==='es'?'Activa tu cámara':'Enable your camera')}</strong><p>{mediaRequest.from} {lang==='es'?'te solicita que lo actives.':'asks you to enable it.'}</p><div style={{display:'flex',gap:12,justifyContent:'center'}}><button type="button" onClick={()=>setMediaRequest(null)}>{lang==='es'?'Ahora no':'Not now'}</button><button type="button" onClick={async()=>{const kind=mediaRequest.kind;setMediaRequest(null);try{if(kind==='mic'){await room.localParticipant.setMicrophoneEnabled(true);}else if(!room.localParticipant.isCameraEnabled){await openCameraPreview();}}catch(e){onError?.(e.message);}}}>{lang==='es'?'Activar':'Enable'}</button></div></div></div>}
     <RoomAudioRenderer />
     {!soundReady && <button type="button" className="rivyza-live-enable-audio" onClick={activateAudio}>🔊 {tr.activateAudio}</button>}
   </>;
@@ -1986,7 +2009,9 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
   const [connectionKey, setConnectionKey] = useState(0);
   const [roomId, setRoomId] = useState(initialRoomId);
   const welcomeVisit = useRef(false);
-  useEffect(()=>{welcomeVisit.current=false;},[roomId,user?.id]);
+  const privateVisitId = useRef(null);
+  if (!privateVisitId.current) privateVisitId.current = crypto.randomUUID();
+  useEffect(()=>{welcomeVisit.current=false; privateVisitId.current=crypto.randomUUID();},[roomId,user?.id]);
   const [session, setSession] = useState(null);
   const [requests, setRequests] = useState([]);
   const [requestNames, setRequestNames] = useState({});
@@ -2093,7 +2118,6 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
   const exitToHome = useCallback(() => {
     enteredRoom.current = null;
     setRequestStatus(null);
-    welcomeVisit.current=false;
     setRoomId(null);
     setSession(null);
     setRequests([]);
@@ -2331,7 +2355,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
             await refreshSession(roomId); setConnectionKey(x=>x+1);
           } catch(e) { setError(e.message); setSession(null); }
         }} connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={onViewProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeVisit={welcomeVisit} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
+        <CameraGrid publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={onViewProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeVisit={welcomeVisit} privateVisitId={privateVisitId} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
 
     </section>}
