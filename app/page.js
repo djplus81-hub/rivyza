@@ -1,5 +1,5 @@
 "use client";
-// RIVYZA FOLLOW FIX 2026-11-25 v2
+// RIVYZA FOLLOW V2 + POST AVATAR FIX V3
 import { createPortal } from "react-dom";
 import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
@@ -4850,10 +4850,9 @@ async function applyPostCrop(){
             </div>
 
             <div className="side-actions">
-              <div className="rivyza-quick-follow-wrap" style={{position:"relative",display:"grid",placeItems:"center",overflow:"visible",flexShrink:0,zIndex:2,marginBottom:6}}><button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
-                {post.creator?.avatar_url
-                  ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
-                  : <div className="mini-avatar" style={{position:"absolute",inset:0,width:"100%",height:"100%",margin:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transform:"none",textAlign:"center",boxSizing:"border-box"}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+              <div className="rivyza-quick-follow-wrap" style={{position:"relative",display:"grid",placeItems:"center",overflow:"visible",flexShrink:0,zIndex:2,marginBottom:6}}><button className="avatar-action" style={{position:"relative",width:48,height:48,minWidth:48,minHeight:48,boxSizing:"border-box",padding:0,borderRadius:"50%",border:"2px solid white",background:"linear-gradient(135deg,#168cff,#913aff 50%,#ff329b)",display:"grid",placeItems:"center",overflow:"visible"}} onClick={()=>openFeedCreator(post)}>
+                <span aria-hidden="true" style={{position:"absolute",inset:0,borderRadius:"50%",display:"grid",placeItems:"center",color:"white",fontSize:23,fontWeight:700,lineHeight:1}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</span>
+                {post.creator?.avatar_url && <img key={post.creator.avatar_url} src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"} onError={event=>{event.currentTarget.style.visibility="hidden";}} style={{position:"absolute",inset:0,width:"100%",height:"100%",borderRadius:"50%",objectFit:"cover",border:0,margin:0}}/>}
                             {onlineDot(post.creator?.id||post.user_id)}
               </button>{renderQuickFollow(post)}</div>
               <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
@@ -5092,10 +5091,9 @@ async function applyPostCrop(){
           </div>
 
           <div className="side-actions">
-            <div className="rivyza-quick-follow-wrap" style={{position:"relative",display:"grid",placeItems:"center",overflow:"visible",flexShrink:0,zIndex:2,marginBottom:6}}><button className="avatar-action" style={{position:"relative"}} onClick={()=>openFeedCreator(post)}>
-              {post.creator?.avatar_url
-                ? <img src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"}/>
-                : <div className="mini-avatar" style={{position:"absolute",inset:0,width:"100%",height:"100%",margin:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,transform:"none",textAlign:"center",boxSizing:"border-box"}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</div>}
+            <div className="rivyza-quick-follow-wrap" style={{position:"relative",display:"grid",placeItems:"center",overflow:"visible",flexShrink:0,zIndex:2,marginBottom:6}}><button className="avatar-action" style={{position:"relative",width:48,height:48,minWidth:48,minHeight:48,boxSizing:"border-box",padding:0,borderRadius:"50%",border:"2px solid white",background:"linear-gradient(135deg,#168cff,#913aff 50%,#ff329b)",display:"grid",placeItems:"center",overflow:"visible"}} onClick={()=>openFeedCreator(post)}>
+              <span aria-hidden="true" style={{position:"absolute",inset:0,borderRadius:"50%",display:"grid",placeItems:"center",color:"white",fontSize:23,fontWeight:700,lineHeight:1}}>{(post.creator?.display_name?.[0]||post.creator?.username?.[0]||"R").toUpperCase()}</span>
+                {post.creator?.avatar_url && <img key={post.creator.avatar_url} src={post.creator.avatar_url} alt={post.creator.display_name||post.creator.username||"Usuario"} onError={event=>{event.currentTarget.style.visibility="hidden";}} style={{position:"absolute",inset:0,width:"100%",height:"100%",borderRadius:"50%",objectFit:"cover",border:0,margin:0}}/>}
               {onlineDot(post.creator?.id||post.user_id)}
             </button>{renderQuickFollow(post)}</div>
 
