@@ -84,7 +84,7 @@ const styles=`
  .rz-story-upload
  @media(min-width:700px){.rz-story-upload-inner{left:50%!important;right:auto!important;transform:translateX(-50%);width:min(100vw,calc(100dvh * 9 / 16))!important}}
 `;
-export default function RivyzaStories({supabase,user,profile,language='es',onOpenProfile}){
+export default function RivyzaStories({supabase,user,profile,language='es',onOpenProfile,createSignal=0}){
  const en=language==='en';const tx=(es,english)=>en?english:es;
  const [items,setItems]=useState([]),[seen,setSeen]=useState([]),[likes,setLikes]=useState([]),[people,setPeople]=useState([]),[showPeople,setShowPeople]=useState(false);
  const [viewer,setViewer]=useState(null),[index,setIndex]=useState(0),[upload,setUpload]=useState(false),[file,setFile]=useState(null),[filePreview,setFilePreview]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[draft,setDraft]=useState(''),[progress,setProgress]=useState(0),[paused,setPaused]=useState(false),[feedback,setFeedback]=useState('');
@@ -275,6 +275,12 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
   const interval=window.setInterval(pauseBackground,350);
   return()=>{document.removeEventListener('play',preventBackgroundPlay,true);window.clearInterval(interval)};
  },[upload,viewer]);
+ const lastCreateSignal=useRef(createSignal);
+ useEffect(()=>{
+   if(lastCreateSignal.current===createSignal)return;
+   lastCreateSignal.current=createSignal;
+   if(!busy){setViewer(null);setError('');setFile(null);resetEditor();setUpload(true);}
+ },[createSignal]);
  const closeUpload=()=>{if(busy)return;setUpload(false);setFile(null);resetEditor();setError('');};
   useEffect(()=>{if(!file){setFilePreview('');return;}const url=URL.createObjectURL(file);setFilePreview(url);return()=>URL.revokeObjectURL(url)},[file]);
   const avatar=(p)=>(p?.avatar_url?<img src={p.avatar_url} alt=""/>:<span className="rz-story-fallback">{(p?.display_name||p?.username||'R')[0].toUpperCase()}</span>);

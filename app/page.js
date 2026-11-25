@@ -458,6 +458,28 @@ export default function HomePage(){
   const [moderationLoadError,setModerationLoadError]=useState("");
   const [appealDrafts,setAppealDrafts]=useState({});
   const [adminNotice,setAdminNotice]=useState([]);
+  const [storyCreateSignal,setStoryCreateSignal]=useState(0);
+  const [welcomeNotice,setWelcomeNotice]=useState(null);
+  useEffect(()=>{
+    setWelcomeNotice(null);
+    if(!supabase||!user?.id)return;
+    let active=true;
+    const load=async()=>{
+      const {data,error}=await supabase.from("rivyza_welcome_notices").select("created_at,read_at,hidden_at").eq("recipient_id",user.id).maybeSingle();
+      if(active&&!error)setWelcomeNotice(data);
+    };
+    load();const timer=setInterval(load,15000);
+    return()=>{active=false;clearInterval(timer);};
+  },[supabase,user?.id]);
+  async function updateWelcomeNotice(hide=false){
+    const patch={read_at:new Date().toISOString(),...(hide?{hidden_at:new Date().toISOString()}:{})};
+    const {error}=await supabase.from("rivyza_welcome_notices").update(patch).eq("recipient_id",user.id);
+    if(!error)setWelcomeNotice(prev=>prev?{...prev,...patch}:prev);
+    else alert(t("No se pudo actualizar el aviso."));
+  }
+  const welcomeUnread=welcomeNotice&&!welcomeNotice.read_at&&!welcomeNotice.hidden_at?1:0;
+  const totalAlertUnread=unreadSocial+welcomeUnread+adminNotice.filter(n=>!n.read_at).length;
+
   async function adminRpc(fn,args={}){const {data,error}=await supabase.rpc(fn,args);if(error)throw error;return data;}
   async function adminRefresh(target=adminTarget){
     if(!supabase||!target?.id)return;
@@ -3280,7 +3302,7 @@ async function applyPostCrop(){
                <div className="camera-create-tabs">
                  <button className="active" type="button">POST</button>
                  <button type="button" onClick={()=>setUploadMessage("Crear estará disponible próximamente.")}>CREAR</button>
-                 <button type="button" onClick={()=>{stopCamera();setUploadOpen(false);setView("liveStudio");}}>LIVE</button>
+
                </div>
              </div>
            </div>
@@ -3950,7 +3972,7 @@ async function applyPostCrop(){
     <button onClick={()=>setView("home")}><Home/><span>{t("Inicio")}</span></button>
     <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
     <button onClick={()=>openSocialInbox(view)}><MessageCircle/><span>{t("Mensajes")}</span></button>
-    <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+    <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{totalAlertUnread>0&&<b className="social-badge">{totalAlertUnread>99?"99+":totalAlertUnread}</b>}</button>
     <button onClick={()=>setView("publicProfile")}><User/><span>{t("Perfil")}</span></button>
   </nav>;}
   if(loading)return <div className="center">Cargando RIVYZA…</div>;
@@ -3987,7 +4009,7 @@ async function applyPostCrop(){
     const privateUnreadCount=[...unreadBySender.entries()].reduce((total,[peerId,count])=>total+(privatePeers.includes(peerId)?count:0),0);
     const activityAlerts=socialNotices.filter(n=>n.kind!=="message").sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
     const activityUnread=activityAlerts.filter(n=>!n.read_at).length+mentionNotices.filter(n=>!n.read_at).length;
-    const officialUnread=adminNotice.filter(n=>!n.read_at).length;
+    const officialUnread=adminNotice.filter(n=>!n.read_at).length+welcomeUnread;
     async function openActivityNotice(n){
       if(n.kind==="like"||n.kind==="comment"){await openNotificationPost(n);return;}
       await markSocialRead([n.id]);
@@ -3995,24 +4017,9 @@ async function applyPostCrop(){
     }
     const thread=socialMessages.filter(m=>!hiddenMessageIds.includes(m.id) && socialPeer && (!conversationCutoffs[socialPeer.id] || new Date(m.created_at)>new Date(conversationCutoffs[socialPeer.id])) && (m.sender_id===socialPeer.id&&m.recipient_id===user.id || m.recipient_id===socialPeer.id&&m.sender_id===user.id)).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     return <main className="social-screen">
-      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"||view==="officialNotices"?"alerts":view==="inbox"?socialInboxReturnView:view==="privateInbox"||view==="privateGate"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="officialNotices"?"Notificaciones de RIVYZA":view==="inbox"?"Mensajes":view==="privateInbox"||view==="privateGate"?"Mensajes privados":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2><button onClick={()=>openSocialInbox(view)} aria-label="Mensajes"><MessageCircle size={22}/></button></header>
+      <header className="social-top"><button onClick={()=>setView(view==="messages"?socialChatReturnView:view==="activity"||view==="officialNotices"?"alerts":view==="inbox"?socialInboxReturnView:view==="privateInbox"||view==="privateGate"?"alerts":"publicProfile")}>←</button><h2>{view==="alerts"?"Alertas":view==="activity"?"Actividad y seguidores":view==="officialNotices"?"Notificaciones de RIVYZA":view==="inbox"?"Mensajes":view==="privateInbox"||view==="privateGate"?"Mensajes privados":view==="messages"?(socialPeer?.display_name||socialPeer?.username||"Chat"):t("Configuración y privacidad")}</h2>{view==="alerts"||view==="inbox"?<button type="button" onClick={()=>setStoryCreateSignal(v=>v+1)} aria-label={appLanguage==="en"?"Create story":"Crear historia"}><Plus size={24}/></button>:<button onClick={()=>openSocialInbox(view)} aria-label="Mensajes"><MessageCircle size={22}/></button>}</header>
       {socialError&&<p className="social-error">{socialError}</p>}
-      {view==="alerts"&&<section aria-label="Amigos transmitiendo LIVE" style={{padding:'12px 12px 9px',borderBottom:'1px solid rgba(255,255,255,.10)'}}>
-        <div style={{display:'flex',gap:15,overflowX:'auto',overflowY:'hidden',WebkitOverflowScrolling:'touch',scrollbarWidth:'none',paddingBottom:5}}>
-          <button type="button" onClick={()=>{setSelectedLiveRoom(null);setView('liveStudio');}} aria-label="Crear mi LIVE" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,flex:'0 0 76px',width:76,background:'none',border:0,color:'inherit',padding:0,cursor:'pointer'}}>
-            <span style={{position:'relative',display:'block',width:66,height:66,borderRadius:'50%',border:'2px solid #777',padding:3,boxSizing:'border-box'}}>
-              {avatarUrl?<img src={avatarUrl} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}}/>:<span style={{width:'100%',height:'100%',borderRadius:'50%',display:'grid',placeItems:'center',background:'#49315b'}}><User size={25}/></span>}
-              <span aria-hidden="true" style={{position:'absolute',right:-3,bottom:-3,width:25,height:25,borderRadius:'50%',background:'#15c7e8',color:'#fff',display:'grid',placeItems:'center',fontSize:22,fontWeight:700,border:'2px solid #111'}}>+</span>
-            </span><span style={{fontSize:12,fontWeight:600,maxWidth:'100%',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>Crear</span>
-          </button>
-          {discoverLiveRooms.filter(room=>liveFriendIds.includes(room.host_id)&&room.host_id!==user?.id).map(room=><button type="button" key={room.id} onClick={()=>{setSelectedLiveRoom(room.id);setView('liveStudio');}} aria-label={`Entrar al LIVE de ${room.host_name||'Usuario'}`} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,flex:'0 0 76px',width:76,background:'none',border:0,color:'inherit',padding:0,cursor:'pointer'}}>
-            <span style={{position:'relative',display:'block',width:66,height:66,borderRadius:'50%',border:'3px solid #ff2693',padding:3,boxSizing:'border-box'}}>
-              {room.host_avatar?<img src={room.host_avatar} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}}/>:<span style={{width:'100%',height:'100%',borderRadius:'50%',display:'grid',placeItems:'center',background:'#49315b',fontWeight:700}}>{(room.host_name||'U').slice(0,1).toUpperCase()}</span>}
-              <span aria-hidden="true" style={{position:'absolute',right:-3,bottom:-2,borderRadius:12,background:'#ff2693',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 4px',border:'1px solid #111'}}>LIVE</span>
-            </span><span style={{fontSize:12,fontWeight:600,maxWidth:'100%',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{room.host_name||'Usuario'}</span>
-          </button>)}
-        </div>
-      </section>}
+      {(view==="alerts"||view==="inbox")&&<RivyzaStories key={view} supabase={supabase} user={user} profile={profile} language={appLanguage} onOpenProfile={openUserProfile} createSignal={storyCreateSignal}/>}
       {view==="alerts"&&<div className="social-list rivyza-alerts-organized">
         
 
@@ -4057,7 +4064,15 @@ async function applyPostCrop(){
         {!privateConversations.length&&<p className="social-empty">Todavía no tienes conversaciones privadas.</p>}
       </div>}
       {view==="officialNotices"&&<div className="social-list rivyza-activity-list">
-        {adminNotice.length===0&&<p className="social-empty">No tienes notificaciones oficiales de RIVYZA.</p>}
+        {adminNotice.length===0&&(!welcomeNotice||welcomeNotice.hidden_at)&&<p className="social-empty">No tienes notificaciones oficiales de RIVYZA.</p>}
+        {welcomeNotice&&!welcomeNotice.hidden_at&&<div className="rivyza-official-row">
+          <div className={"rivyza-activity-notice"+(!welcomeNotice.read_at?" is-unread":"")}>
+            <span className="rivyza-welcome-logo">R</span>
+            <span className="rivyza-notice-copy"><strong>RIVYZA <ShieldCheck size={16} color="#168cff"/> · {appLanguage==="en"?"Official account":"Cuenta oficial"}</strong>
+              <strong>{appLanguage==="en"?"Welcome to the RIVYZA family! 🎉":"¡Bienvenido a la familia RIVYZA! 🎉"}</strong>
+              <span className="rivyza-welcome-body">{appLanguage==="en"?`Hello, ${profile?.display_name||profile?.username||"friend"}.\n\nThank you for joining our community. Connect with friends, share your best moments, discover new talent and enjoy live streams.\n\nBe yourself, create and share unforgettable experiences. Your story begins today!\n\nRIVYZA — A new era of connection.\nThe RIVYZA team. 💙💜🩷`:`Hola, ${profile?.display_name||profile?.username||"amigo"}.\n\nGracias por formar parte de esta nueva comunidad. Aquí podrás conectar con amigos, compartir tus mejores momentos, descubrir nuevos talentos y disfrutar de transmisiones en vivo.\n\nQueremos que seas tú mismo, que disfrutes, crees y compartas experiencias inolvidables.\n\nTu historia comienza hoy. ¡Nos alegra tenerte aquí!\n\nRIVYZA — Una nueva era de conexión.\nCon cariño, el equipo de RIVYZA. 💙💜🩷`}</span><small>{formatPostDateTime(welcomeNotice.created_at)}</small></span>
+          </div><div className="rivyza-official-actions">{!welcomeNotice.read_at&&<button onClick={()=>updateWelcomeNotice()}>{appLanguage==="en"?"Mark as read":"Marcar como leído"}</button>}<button onClick={()=>{if(window.confirm(appLanguage==="en"?"Delete this notice?":"¿Eliminar este aviso?"))updateWelcomeNotice(true);}}>{t("Eliminar")}</button></div>
+        </div>}
         {[...adminNotice].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(n=><div key={"official-"+n.id} className="rivyza-official-row">
           <div className={"rivyza-activity-notice"+(!n.read_at?" is-unread":"")}>
             <span className="rivyza-notice-avatar">🛡️</span>
@@ -4415,7 +4430,7 @@ async function applyPostCrop(){
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
         <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{totalAlertUnread>0&&<b className="social-badge">{totalAlertUnread>99?"99+":totalAlertUnread}</b>}</button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
@@ -4669,7 +4684,7 @@ async function applyPostCrop(){
         <button onClick={()=>{setUploadOpen(false);setView("home");}}><Home/><span>{t("Inicio")}</span></button>
         <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{totalAlertUnread>0&&<b className="social-badge">{totalAlertUnread>99?"99+":totalAlertUnread}</b>}</button>
         <button className="active"><User/><span>{t("Perfil")}</span></button>
       </nav>
 
@@ -4726,7 +4741,7 @@ async function applyPostCrop(){
       <header className="live-preview-header">
         <button className="live-preview-back" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">‹</button>
         <strong>LIVE</strong>
-        <span className="live-preview-spacer"></span>
+        <button type="button" className="rivyza-start-live" onClick={()=>{setSelectedLiveRoom(null);setView("liveStudio");}}><Radio size={16}/>{appLanguage==="en"?"Go LIVE":"Iniciar LIVE"}</button>
       </header>
 
       <div className="live-following-strip" aria-label="Amigos en vivo">
@@ -4756,7 +4771,7 @@ async function applyPostCrop(){
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
         <button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{totalAlertUnread>0&&<b className="social-badge">{totalAlertUnread>99?"99+":totalAlertUnread}</b>}</button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
@@ -4782,7 +4797,7 @@ async function applyPostCrop(){
           {person.i_follow&&person.follows_me?<span className="connections-friends">{t("Amigos")}</span>:person.i_follow?<span className="connections-following">{t("Siguiendo")}</span>:<div className="connections-follow-back">{person.follows_me&&<small>{t("Te sigue")}</small>}<button type="button" onClick={()=>followFromConnections(person)}>{t("Seguir")}</button></div>}
         </div>)}
       </section>
-      <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>{t("Inicio")}</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button></nav>
+      <nav className="bottom-nav"><button onClick={()=>{setView("home");changeFeedTab("forYou");}}><Home/><span>{t("Inicio")}</span></button><button onClick={()=>{setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button><button className="plus-btn" onClick={()=>{setView("home");setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button><button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{totalAlertUnread>0&&<b className="social-badge">{totalAlertUnread>99?"99+":totalAlertUnread}</b>}</button><button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button></nav>
     </main>;
   }
 
@@ -4872,7 +4887,7 @@ async function applyPostCrop(){
         <button onClick={()=>{setView("home");changeFeedTab("forYou");window.scrollTo({top:0,behavior:"smooth"});}}><Home/><span>{t("Inicio")}</span></button>
         <button className="active"><AmigosIcon/><span>{t("Amigos")}</span></button>
         <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+        <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{totalAlertUnread>0&&<b className="social-badge">{totalAlertUnread>99?"99+":totalAlertUnread}</b>}</button>
         <button onClick={()=>{setViewedProfile(null);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
       </nav>
       {renderUploadModal()}
@@ -5154,7 +5169,7 @@ async function applyPostCrop(){
       <button className="active"><Home/><span>{t("Inicio")}</span></button>
       <button onClick={()=>{setUploadOpen(false);setView("friends");changeFeedTab("friends");}}><AmigosIcon/><span>{t("Amigos")}</span></button>
       <button className="plus-btn" onClick={()=>{setUploadOpen(true);setUploadType("photo");setCameraMode("photo");resetUpload();}}><Plus/></button>
-      <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{unreadSocial>0&&<b className="social-badge">{unreadSocial>99?"99+":unreadSocial}</b>}</button>
+      <button onClick={openSocialAlerts}><Bell/><span>{t("Alertas")}</span>{totalAlertUnread>0&&<b className="social-badge">{totalAlertUnread>99?"99+":totalAlertUnread}</b>}</button>
       <button onClick={()=>{setUploadOpen(false);setView("publicProfile");}}><User/><span>{t("Perfil")}</span></button>
     </nav>
 

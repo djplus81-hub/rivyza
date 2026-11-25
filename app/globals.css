@@ -3905,3 +3905,9 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
   z-index: 36;
   cursor: pointer;
 }
+
+/* RIVYZA: independent LIVE entry and official welcome */
+.live-preview-header{grid-template-columns:44px minmax(0,1fr) auto}
+.rivyza-start-live{display:flex;align-items:center;gap:5px;border:0;border-radius:22px;background:#d92349;color:#fff;padding:9px 12px;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer}
+.rivyza-welcome-logo{width:44px;height:44px;flex:0 0 44px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#168cff,#913aff,#ff329b);color:white;font-size:27px;font-weight:900}
+.rivyza-welcome-body{white-space:pre-wrap;overflow-wrap:anywhere}
