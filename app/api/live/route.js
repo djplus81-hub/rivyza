@@ -279,6 +279,26 @@ export async function POST(req) {
       catch (e) { console.error('Could not delete ended LiveKit room', room.id, e); }
       return json({ ok: true });
     }
+    if (input.action === 'moderator_join') {
+      if (!moderator || isHost) return json({error:'No autorizado'},403);
+      const {data:blocked,error:blockError}=await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',uid).maybeSingle();
+      if(blockError) throw blockError;
+      if(blocked) return json({error:'No tienes acceso a este LIVE'},403);
+      const svc=roomService();
+      const members=await svc.listParticipants(`rivyza-${room.id}`);
+      const guest=members.find(p=>p.identity===uid);
+      if(!guest) return json({error:'Participante desconectado'},409);
+      if(guest.permission?.canPublish) return json({ok:true});
+      const [info]=await svc.listRooms([`rivyza-${room.id}`]);
+      let metadata={};try{metadata=JSON.parse(info?.metadata||'{}');}catch{}
+      const occupied=new Set(members.filter(p=>p.permission?.canPublish).map(p=>p.identity));occupied.add(room.host_id);
+      if(occupied.size >= (metadata.rivyzaLayout?.slots||10)) return json({error:'No hay cámaras disponibles'},409);
+      const {error:requestError}=await db.from('rivyza_live_camera_requests').upsert({room_id:room.id,user_id:uid,status:'pending'},{onConflict:'room_id,user_id'});
+      if(requestError) throw requestError;
+      const {error}=await db.rpc('rivyza_live_approve_camera_server',{p_room:room.id,p_guest:uid});
+      if(error) {await db.from('rivyza_live_camera_requests').update({status:'rejected'}).eq('room_id',room.id).eq('user_id',uid).eq('status','pending');throw error;}
+      return json({ok:true});
+    }
     if (['invite_create','invite_accept','invite_decline'].includes(input.action)) {
       const target = input.action === 'invite_create' ? input.guestId : uid;
       if (!target || target === room.host_id) return json({error:'Usuario inválido'},400);
