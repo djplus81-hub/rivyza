@@ -1029,6 +1029,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     return () => room.off(RoomEvent.ActiveSpeakersChanged,speaking);
   }, [room]);
   const [slots, setSlots] = useState(10);
+  const [layoutReady,setLayoutReady]=useState(false);
   const [, refreshCapacity] = useState(0);
   useEffect(() => {
     const refresh = () => refreshCapacity(n => n + 1);
@@ -1660,26 +1661,16 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [positions, setPositions] = useState({});
   useLiveLayout(room,supabase,liveRoomId,layout=>{
     setSlots(layout.slots);
+    setLayoutReady(true);
     setPositions(previous=>JSON.stringify(previous)===JSON.stringify(layout.positions||{})?previous:layout.positions||{});
   });
   async function broadcastLayout(nextPositions, nextSlots = slots) {
-    const normalized = {...stableSlotsRef.current.slots, ...positions, ...nextPositions};
-    for (const id of Object.keys(normalized)) if (!Number.isInteger(normalized[id]) || normalized[id] < 0 || normalized[id] >= nextSlots) delete normalized[id];
-    const used = new Set(Object.values(normalized).filter(i => Number.isInteger(i) && i >= 0 && i < nextSlots));
-    // Complete the effective order so a swap cannot displace a third participant.
-    const occupants = ordered.filter(Boolean).sort((a,b)=>a.identity===hostId?-1:b.identity===hostId?1:0);
-    // Preserve the host reservation even when the host is temporarily offline.
-    if (hostId && normalized[hostId] === undefined) normalized[hostId] = 0;
-    for (const p of occupants) {
-      const desired = normalized[p.identity] ?? ordered.findIndex(x=>x?.identity===p.identity);
-      if (desired >= 0 && desired < nextSlots) {normalized[p.identity]=desired;used.add(desired);}
-    }
-    for (const p of occupants) {
-      if (normalized[p.identity] !== undefined) continue;
-      const free = Array.from({length:nextSlots},(_,i)=>i).find(i=>!used.has(i));
-      if (free !== undefined) {normalized[p.identity]=free;used.add(free);}
-    }
-    try { await onModerate('layout', {positions:normalized, slots:nextSlots}); }
+    const normalized = {}, used = new Set();
+    const candidates = {...stableSlotsRef.current.slots,...positions,...nextPositions};
+    const ids = [...new Set([...Object.keys(nextPositions),hostId,...ordered.filter(Boolean).map(p=>p.identity),...Object.keys(candidates)])].filter(Boolean);
+    for(const id of ids){const n=candidates[id];if(Number.isInteger(n)&&n>=0&&n<nextSlots&&!used.has(n)){normalized[id]=n;used.add(n);}}
+    for(const id of ids){if(normalized[id]!==undefined)continue;const n=Array.from({length:nextSlots},(_,i)=>i).find(i=>!used.has(i));if(n!==undefined){normalized[id]=n;used.add(n);}}
+    try { const result=await onModerate('layout', {positions:normalized, slots:nextSlots}); if(result?.layout){setSlots(result.layout.slots);setPositions(result.layout.positions);setLayoutReady(true);} }
     catch(e) { onError(e.message); }
   }
   // Keep a participant's camera slot reserved during temporary disconnects.
@@ -1693,7 +1684,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     .sort((a,b) => (a.identity === hostId ? -1 : b.identity === hostId ? 1 : a.identity.localeCompare(b.identity)));
   const ordered = Array(slots).fill(null);
   const trackById = new Map(tracks.map(t => [t.participant.identity, t]));
-  const remembered = stableSlotsRef.current.slots;
+  const remembered = layoutReady ? {...positions} : stableSlotsRef.current.slots;
+  stableSlotsRef.current.slots=remembered;
   liveSlotMemory.set(liveRoomId, remembered);
   if (liveSlotMemory.size > 30) liveSlotMemory.delete(liveSlotMemory.keys().next().value);
   // Metadata positions take priority, including host/guest movements made by moderators.
@@ -1934,7 +1926,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         })}
       </div>,document.querySelector('.rivyza-live-stage'))}
     <LiveStickers room={room} isHost={isHost} hostId={hostId} liveRoomId={liveRoomId} supabase={supabase} lang={lang} />
-    <div ref={gridRef} className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>
+    <div ref={gridRef} style={!layoutReady?{visibility:"hidden"}:undefined} className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''} ${speakers.includes(t?.identity) ? 'rivyza-v314-speaking' : ''}`}
         onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (isHost||isModerator) ? openSlotInvite(i) : (!publish && onRequest?.())} role='button'
