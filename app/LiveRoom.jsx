@@ -18,6 +18,23 @@ function getLanguage() {
   const stored = window.localStorage.getItem('rivyza_language') || window.localStorage.getItem('language') || '';
   return /^(en|english)/i.test(stored) || (!stored && navigator.language?.startsWith('en')) ? 'en' : 'es';
 }
+// RIVYZA: automatic high-fidelity audio for every LIVE publisher.
+const LIVE_AUDIO_CAPTURE = {
+  sampleRate: 48000,
+  channelCount: 2,
+  echoCancellation: true,
+  noiseSuppression: false,
+  autoGainControl: false,
+};
+const LIVE_AUDIO_ROOM_OPTIONS = {
+  audioCaptureDefaults: LIVE_AUDIO_CAPTURE,
+  publishDefaults: {
+    audioPreset: { maxBitrate: 128000 },
+    dtx: false,
+    red: true,
+  },
+};
+
 const liveSlotMemory = new Map();
 
 function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage, welcomeVisit, privateVisitId, confirmStop, setConfirmStop }) {
@@ -25,6 +42,30 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
   const room = useRoomContext();
+  // Report actual capture settings without recording audio or exposing device IDs.
+  useEffect(() => {
+    const report = publication => {
+      if (publication?.source !== Track.Source.Microphone) return;
+      const settings = publication.track?.mediaStreamTrack?.getSettings?.() || {};
+      console.info('[RIVYZA audio] capture', {
+        sampleRate: settings.sampleRate,
+        channelCount: settings.channelCount,
+        echoCancellation: settings.echoCancellation,
+        noiseSuppression: settings.noiseSuppression,
+        autoGainControl: settings.autoGainControl,
+        requestedMaxBitrate: 128000,
+      });
+    };
+    const refresh = () => report(room.localParticipant.getTrackPublication(Track.Source.Microphone));
+    room.on(RoomEvent.LocalTrackPublished, report);
+    room.on(RoomEvent.Reconnected, refresh);
+    refresh();
+    return () => {
+      room.off(RoomEvent.LocalTrackPublished, report);
+      room.off(RoomEvent.Reconnected, refresh);
+    };
+  }, [room]);
+
   const [profiles, setProfiles] = useState({});
   // v3.64: Supabase is the authoritative counter for every LIVE participant.
   // LiveKit is only a fast notification channel, never the source of truth.
@@ -2438,7 +2479,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
             if (status.live === false) { exitToHome(); return; }
             await refreshSession(roomId); setConnectionKey(x=>x+1);
           } catch(e) { setError(e.message); setSession(null); }
-        }} connect={true} audio={session.publish} video={session.publish && session.host} onError={e => setError(e.message)}>
+        }} connect={true} options={LIVE_AUDIO_ROOM_OPTIONS} audio={session.publish ? LIVE_AUDIO_CAPTURE : false} video={session.publish && session.host} onError={e => setError(e.message)}>
         <CameraGrid confirmStop={confirmStop} setConfirmStop={setConfirmStop} publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={onViewProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeVisit={welcomeVisit} privateVisitId={privateVisitId} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
 
