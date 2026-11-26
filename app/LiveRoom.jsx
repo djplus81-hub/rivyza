@@ -22,7 +22,7 @@ function getLanguage() {
 const LIVE_AUDIO_CAPTURE = {
   sampleRate: 48000,
   channelCount: 2,
-  echoCancellation: true,
+  echoCancellation: false,
   noiseSuppression: false,
   autoGainControl: false,
 };
@@ -30,6 +30,7 @@ const LIVE_AUDIO_ROOM_OPTIONS = {
   audioCaptureDefaults: LIVE_AUDIO_CAPTURE,
   publishDefaults: {
     audioPreset: { maxBitrate: 128000 },
+    forceStereo: true,
     dtx: false,
     red: true,
   },
