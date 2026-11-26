@@ -3358,6 +3358,22 @@ async function applyPostCrop(){
              .rivyza-transparent-review .rv-sticker-adjust button{flex:0 0 34px;height:38px;border:1px solid #ffffff30;border-radius:9px;background:#242337;color:white;display:grid;place-items:center;padding:0}
              .rivyza-transparent-review .rv-sticker-adjust button:nth-last-child(2){background:#a92349}
              .rivyza-transparent-review .upload-field textarea{height:58px!important;min-height:58px!important;font-size:16px!important}
+
+             /* V4: fixed canvas; tools never participate in media sizing. */
+             .camera-composer .rivyza-transparent-review{overflow:hidden!important;overscroll-behavior:none;display:block!important;padding:0!important;--rv-top:env(safe-area-inset-top,0px);--rv-bottom:env(safe-area-inset-bottom,0px)}
+             .camera-composer .rivyza-transparent-review .rivyza-music-stage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;container-type:size!important;overflow:hidden!important;z-index:auto}
+             .camera-composer .rivyza-transparent-review .upload-preview.editor-preview[style*="--rv-photo-ratio"]{width:min(100cqw,calc(100cqh * 9 / 16))!important;height:auto!important;aspect-ratio:9/16!important;max-height:100%!important;overflow:hidden!important}
+             .camera-composer .rivyza-transparent-review .upload-header{position:absolute!important;top:var(--rv-top)!important;left:0!important;right:0!important;height:48px;box-sizing:border-box;background:linear-gradient(#000b,#0002)!important;z-index:25}
+             .rivyza-transparent-review .rv-post-tools{position:absolute;top:calc(var(--rv-top) + 54px);left:10px;right:10px;margin:0;z-index:25;background:#141422aa;backdrop-filter:blur(12px);overflow:hidden}
+             .rivyza-transparent-review .rv-post-tools button{background:#10111b99;min-height:44px}
+             .rivyza-transparent-review .rv-post-bottom{position:absolute;bottom:var(--rv-bottom);left:0;right:0;z-index:25;display:flex;flex-direction:column;gap:7px;padding:0 0 8px;pointer-events:none;background:linear-gradient(transparent,#0008)}
+             .rivyza-transparent-review .rv-post-bottom>*{pointer-events:auto}
+             .camera-composer .rivyza-transparent-review .rv-post-fields .upload-field{background:#141927bb!important;backdrop-filter:blur(12px);padding:7px!important}
+             .rivyza-transparent-review .upload-field textarea{height:42px!important;min-height:42px!important}
+             .rivyza-transparent-review .rv-sticker-adjust{background:#141422bb;backdrop-filter:blur(12px)}
+             .rivyza-transparent-review .rivyza-publish-footer{padding-bottom:0!important}
+             .rivyza-transparent-review .rivyza-music-sheet{z-index:40!important}
+             .rivyza-transparent-review .rv-post-bottom:has(.rv-sticker-adjust) .rv-post-fields{opacity:.95}
            `}</style>
            <div className="upload-header">
              <button onClick={()=>{resetUpload();setTimeout(()=>startCamera(cameraFacing),0);}}>←</button>
@@ -3390,6 +3406,7 @@ async function applyPostCrop(){
                  onTimeUpdate={e=>{const a=e.currentTarget;const clip=uploadType==="video"&&editorVideoDuration>0?editorVideoDuration:musicLength;if(a.currentTime>=musicStart+clip){if(musicPreviewRef.current || uploadType==="photo"){a.currentTime=musicStart;if(musicPreviewRef.current && a.paused)a.play().catch(()=>{});}else a.pause();}}}/>}
              </div>
            </div>
+           <div className="rv-post-bottom">
            {uploadType==="photo"&&postStickers.some(s=>s.id===postStickerId)&&<div className="rv-sticker-adjust">
              <label>Tamaño<input aria-label="Tamaño del sticker" type="range" min="8" max="100" value={postStickers.find(s=>s.id===postStickerId).size} onChange={e=>setPostStickers(v=>v.map(s=>s.id===postStickerId?{...s,size:Number(e.target.value)}:s))}/></label>
              <label>Girar<input aria-label="Rotación del sticker" type="range" min="-180" max="180" value={((postStickers.find(s=>s.id===postStickerId).rotation||0)%360+540)%360-180} onChange={e=>setPostStickers(v=>v.map(s=>s.id===postStickerId?{...s,rotation:Number(e.target.value)}:s))}/></label>
@@ -3403,13 +3420,6 @@ async function applyPostCrop(){
              {photoFilter!=="original"&&<label style={{display:"flex",alignItems:"center",gap:9,fontSize:12,marginTop:8}}>Intensidad <input aria-label="Intensidad del filtro" type="range" min="0" max="100" value={photoFilterStrength} onChange={e=>setPhotoFilterStrength(Number(e.target.value))} style={{flex:1}}/>{photoFilterStrength}%</label>}
              {photoFilterError&&<small style={{color:"#ff9999"}}>{photoFilterError}</small>}
            </div>}
-           {postCropOpen && uploadType==="photo" && <div style={{position:"fixed",inset:0,zIndex:100000,background:"#080808",display:"flex",flexDirection:"column",color:"white"}}>
-             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"calc(12px + env(safe-area-inset-top)) 16px 12px"}}><button onClick={()=>setPostCropOpen(false)} style={{color:"white",background:"none",border:0,fontSize:18}}>Cancelar</button><strong>Ajustar fotografía</strong><button onClick={applyPostCrop} disabled={postCropBusy||!postCropPixels} style={{background:"#ec29a9",color:"white",border:0,borderRadius:16,padding:"9px 13px",fontWeight:700}}>{postCropBusy?"Guardando…":"Aplicar"}</button></div>
-             <div style={{position:"relative",flex:1,minHeight:150,background:"#151515"}}><Cropper image={uploadPreview} crop={postCrop} zoom={postZoom} aspect={postCropAspect} onCropChange={setPostCrop} onZoomChange={setPostZoom} onCropComplete={(_,pixels)=>setPostCropPixels(pixels)} showGrid={true}/></div>
-             <div style={{padding:"15px 20px calc(24px + env(safe-area-inset-bottom))",display:"flex",flexDirection:"column",gap:14}}><div style={{display:"flex",gap:8,justifyContent:"center"}}>{[[9/16,"Pantalla 9:16"],[3/4,"Foto 3:4"],[1,"Cuadrada"]].map(([aspect,label])=><button key={label} onClick={()=>{setPostCropAspect(aspect);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);}} style={{padding:"9px",borderRadius:12,border:postCropAspect===aspect?"2px solid #ec29a9":"1px solid #777",background:"#252525",color:"white"}}>{label}</button>)}</div><label style={{display:"flex",alignItems:"center",gap:12}}>Zoom <input type="range" min="1" max="3" step="0.01" value={postZoom} onChange={e=>setPostZoom(Number(e.target.value))} style={{flex:1}}/></label><small style={{textAlign:"center",color:"#bbb"}}>Arrastra para mover la imagen. Usa dos dedos para acercar o alejar.</small>{postCropError&&<p style={{color:"#ff8888"}}>{postCropError}</p>}</div>
-           </div>}
-           {musicPanel&&renderMusicSheet(false)}
-
            <div className="rv-post-fields">
            <label className="upload-field">
              <span>Descripción</span>
@@ -3444,6 +3454,14 @@ async function applyPostCrop(){
                {uploadingPost ? (publishStage||"Publicando…") : "Publicar"}
              </button>
            </div>
+           </div>
+           {postCropOpen && uploadType==="photo" && <div style={{position:"fixed",inset:0,zIndex:100000,background:"#080808",display:"flex",flexDirection:"column",color:"white"}}>
+             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"calc(12px + env(safe-area-inset-top)) 16px 12px"}}><button onClick={()=>setPostCropOpen(false)} style={{color:"white",background:"none",border:0,fontSize:18}}>Cancelar</button><strong>Ajustar fotografía</strong><button onClick={applyPostCrop} disabled={postCropBusy||!postCropPixels} style={{background:"#ec29a9",color:"white",border:0,borderRadius:16,padding:"9px 13px",fontWeight:700}}>{postCropBusy?"Guardando…":"Aplicar"}</button></div>
+             <div style={{position:"relative",flex:1,minHeight:150,background:"#151515"}}><Cropper image={uploadPreview} crop={postCrop} zoom={postZoom} aspect={postCropAspect} onCropChange={setPostCrop} onZoomChange={setPostZoom} onCropComplete={(_,pixels)=>setPostCropPixels(pixels)} showGrid={true}/></div>
+             <div style={{padding:"15px 20px calc(24px + env(safe-area-inset-bottom))",display:"flex",flexDirection:"column",gap:14}}><div style={{display:"flex",gap:8,justifyContent:"center"}}>{[[9/16,"Pantalla 9:16"],[3/4,"Foto 3:4"],[1,"Cuadrada"]].map(([aspect,label])=><button key={label} onClick={()=>{setPostCropAspect(aspect);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);}} style={{padding:"9px",borderRadius:12,border:postCropAspect===aspect?"2px solid #ec29a9":"1px solid #777",background:"#252525",color:"white"}}>{label}</button>)}</div><label style={{display:"flex",alignItems:"center",gap:12}}>Zoom <input type="range" min="1" max="3" step="0.01" value={postZoom} onChange={e=>setPostZoom(Number(e.target.value))} style={{flex:1}}/></label><small style={{textAlign:"center",color:"#bbb"}}>Arrastra para mover la imagen. Usa dos dedos para acercar o alejar.</small>{postCropError&&<p style={{color:"#ff8888"}}>{postCropError}</p>}</div>
+           </div>}
+           {musicPanel&&renderMusicSheet(false)}
+
          </div>
        )}
      </div>
