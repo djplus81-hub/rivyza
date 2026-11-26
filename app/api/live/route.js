@@ -47,7 +47,8 @@ async function liveParticipant(roomId, guestId) {
 function effectivePositions(metadata, members, hostId, slots) {
   const ids = [...new Set([hostId,...members.filter(p=>p.permission?.canPublish).map(p=>p.identity)])].sort((a,b)=>a===hostId?-1:b===hostId?1:a.localeCompare(b));
   const result={}, used=new Set();
-  for(const id of ids){const n=metadata.rivyzaLayout?.positions?.[id] ?? (id===hostId?0:undefined);if(Number.isInteger(n)&&n>=0&&n<slots&&!used.has(n)){result[id]=n;used.add(n);}}
+  for(const [id,n] of Object.entries(metadata.rivyzaLayout?.positions||{})){if(Number.isInteger(n)&&n>=0&&n<slots&&!used.has(n)){result[id]=n;used.add(n);}}
+  for(const id of ids){if(result[id]!==undefined)continue;const n=metadata.rivyzaLayout?.positions?.[id] ?? (id===hostId?0:undefined);if(Number.isInteger(n)&&n>=0&&n<slots&&!used.has(n)){result[id]=n;used.add(n);}}
   for(const id of ids){if(result[id]!==undefined)continue;const n=Array.from({length:slots},(_,i)=>i).find(i=>!used.has(i));if(n!==undefined){result[id]=n;used.add(n);}}
   return result;
 }
@@ -75,7 +76,9 @@ export async function GET(req) {
       const [info] = await roomService().listRooms([`rivyza-${room.id}`]);
       if(!info) return json({error:'Sala no disponible'},409);
       const metadata = JSON.parse(info.metadata || '{}');
-      return json({layout:metadata.rivyzaLayout || {slots:10,positions:{}}});
+      const saved = metadata.rivyzaLayout || {slots:10,positions:{}};
+      const members = await roomService().listParticipants(`rivyza-${room.id}`);
+      return json({layout:{...saved,positions:effectivePositions(metadata,members,room.host_id,saved.slots)}});
     }
     if (params.get('mode') === 'likes_top') {
       const room = await getRoom(db, params.get('room'));
@@ -265,11 +268,12 @@ export async function POST(req) {
       const ids = new Set(members.filter(p=>p.identity===room.host_id || p.permission?.canPublish).map(p=>p.identity));
       // Include host even during a brief connection gap.
       ids.add(room.host_id);
-      const clean = Object.fromEntries(Object.entries(positions).filter(([id])=>ids.has(id)));
+      const clean = Object.fromEntries(Object.entries(positions).filter(([id])=>ids.has(id)||Object.hasOwn(previous.positions||{},id)));
       if (Object.values(clean).some(n=>!Number.isInteger(n)||n<0||n>=slots) || new Set(Object.values(clean)).size !== Object.values(clean).length) return json({error:'Posiciones inválidas'},400);
       if (!isHost && (slots !== previous.slots || (clean[room.host_id] ?? 0) !== (previous.positions[room.host_id] ?? 0))) return json({error:'Solo el dueño puede mover su cámara o cambiar la cantidad'},403);
-      await svc.updateRoomMetadata(`rivyza-${room.id}`, JSON.stringify({...metadata,rivyzaLayout:{slots,positions:clean}}));
-      return json({ok:true});
+      const layout={slots,positions:clean};
+      await svc.updateRoomMetadata(`rivyza-${room.id}`, JSON.stringify({...metadata,rivyzaLayout:layout}));
+      return json({ok:true,layout});
     }
     if (input.action === 'enter') {
       if (!isHost) {
