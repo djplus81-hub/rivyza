@@ -3914,3 +3914,19 @@ html[data-rivyza-appearance="auto"] .rivyza-feature-settings .rivyza-strikes spa
 
 /* LIVE chat quick profile */
 .rv-chat-person{display:flex;align-items:flex-start;gap:8px;text-align:left}.rv-chat-copy{min-width:0;flex:1;overflow-wrap:anywhere;line-height:1.25}.rv-chat-name{font-size:13px;color:#bcb7c8;font-weight:700;margin-bottom:2px}.rv-chat-avatar{flex:none;width:34px;height:34px;border:0;border-radius:50%;overflow:hidden;background:#47355e;color:white;padding:0;display:grid;place-items:center;cursor:pointer}.rv-chat-avatar img{width:100%;height:100%;object-fit:cover}.rv-quick-backdrop{position:fixed;inset:0;z-index:2147483000;background:#0007;display:flex;align-items:flex-end;justify-content:center}.rv-quick-sheet{position:relative;width:min(100%,560px);max-height:75dvh;overflow:auto;background:#191622;color:white;border-radius:24px 24px 0 0;padding:16px 20px calc(22px + env(safe-area-inset-bottom));display:grid;gap:18px;animation:rvQuickIn .22s ease-out}.rv-quick-handle{width:36px;height:4px;border-radius:5px;background:#777;margin:auto}.rv-quick-close{position:absolute;right:12px;top:8px;background:none;border:0;color:white;font-size:24px}.rv-quick-head{display:flex;align-items:center;gap:12px;padding-top:8px}.rv-quick-avatar{width:76px;height:76px}.rv-quick-name{flex:1;min-width:0;overflow-wrap:anywhere}.rv-quick-name strong{display:block;font-size:20px}.rv-quick-name small{color:#aaa}.rv-quick-more,.rv-quick-footer button,.rv-quick-actions button,.rv-quick-actions select{border:0;border-radius:16px;background:#352b44;color:white;padding:12px}.rv-quick-stats{display:flex;gap:16px;flex-wrap:wrap}.rv-quick-footer{display:flex;gap:10px}.rv-quick-footer .rv-quick-follow{flex:1;background:linear-gradient(90deg,#ff2ea6,#8b2cff,#16b9ff);font-weight:800}.rv-quick-actions{display:grid;gap:8px}@keyframes rvQuickIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* RIVYZA: center public profile notification and block icons */
+.rivyza-visitor-actions > button.rivyza-mini-action {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  width: 38px; height: 38px; flex: 0 0 38px;
+  box-sizing: border-box;
+}
+.rivyza-visitor-actions > button.rivyza-mini-action > svg {
+  display: block !important;
+  flex: 0 0 19px; width: 19px; height: 19px;
+  margin: 0 !important; padding: 0 !important;
+  position: static !important; transform: none !important;
+}
