@@ -28,9 +28,20 @@ const LIVE_AUDIO_CAPTURE = {
   noiseSuppression: false,
   autoGainControl: false,
 };
+const LIVE_VIDEO_CAPTURE = {resolution:{width:1280,height:720,frameRate:30}};
+const LIVE_CAMERA_CONSTRAINTS = {width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}};
+function liveCanvasSize(width,height){
+  const scale=Math.min(1,1280/Math.max(width,height),720/Math.min(width,height));
+  return [Math.max(2,Math.round(width*scale/2)*2),Math.max(2,Math.round(height*scale/2)*2)];
+}
 const LIVE_AUDIO_ROOM_OPTIONS = {
+  adaptiveStream:true,
+  dynacast:true,
+  videoCaptureDefaults:LIVE_VIDEO_CAPTURE,
   audioCaptureDefaults: LIVE_AUDIO_CAPTURE,
   publishDefaults: {
+    simulcast:true,
+    videoEncoding:{maxBitrate:1800000,maxFramerate:30},
     audioPreset: { maxBitrate: 128000 },
     forceStereo: true,
     dtx: false,
@@ -966,7 +977,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         // Acquire the replacement camera first, then feed it to the SAME video
         // element. This preserves the published LiveKit track and its effects.
         nextStream = await navigator.mediaDevices.getUserMedia({
-          video: {facingMode: {ideal: next}}, audio: false
+          video: {...LIVE_CAMERA_CONSTRAINTS,facingMode: {ideal: next}}, audio: false
         });
         const nextTrack = nextStream.getVideoTracks()[0];
         const actual = nextTrack?.getSettings?.().facingMode;
@@ -1004,11 +1015,11 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         // Avoid restarting the published canvas (which cannot switch lenses).
         throw new Error('Apaga y vuelve a encender la cámara para cambiar de lente en este modo de filtro.');
       } else if (track) {
-        await track.restartTrack({facingMode:{ideal:next}});
+        await track.restartTrack({...LIVE_VIDEO_CAPTURE,facingMode:{ideal:next}});
         const actual = track.mediaStreamTrack?.getSettings?.().facingMode;
         if (actual && actual !== next) throw new Error('Este dispositivo no cambió a la cámara solicitada.');
       } else {
-        await room.localParticipant.setCameraEnabled(true,{facingMode:{ideal:next}});
+        await room.localParticipant.setCameraEnabled(true,{...LIVE_VIDEO_CAPTURE,facingMode:{ideal:next}});
       }
       setFacing(next);
     } catch(e) {
@@ -1121,7 +1132,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
      const sourceWidth=video.videoWidth||video.srcObject?.getVideoTracks?.()[0]?.getSettings?.().width||480;
      const sourceHeight=video.videoHeight||video.srcObject?.getVideoTracks?.()[0]?.getSettings?.().height||640;
      if(holder===deepARHolderRef.current){
-       const width=240;
+       const width=Math.min(720,sourceWidth);
        holder.style.width=`${width}px`;
        holder.style.height=`${Math.max(1,Math.round(width*sourceHeight/sourceWidth))}px`;
      }
@@ -1184,7 +1195,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     setPreviewError('');setPreviewFilter(liveEffect);setPreviewIntensity(filterIntensity);
     setCameraPreviewOpen(true);
     try {
-      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+      const stream=await navigator.mediaDevices.getUserMedia({video:{...LIVE_CAMERA_CONSTRAINTS,facingMode:'user'},audio:false});
       previewStreamRef.current=stream;
       setPreviewStream(stream);
     } catch(e){setPreviewError('No se pudo abrir la vista previa. Revisa el permiso de cámara.');}
@@ -1200,11 +1211,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if(!inputVideo || inputVideo.readyState<2)throw new Error('La vista previa todavía no tiene imagen.');
       if(typeof HTMLCanvasElement.prototype.captureStream!=='function')throw new Error('Safari no permite transmitir este video procesado.');
       const canvas=document.createElement('canvas');
-      canvas.width=Math.min(480,inputVideo.videoWidth||480);
-      canvas.height=Math.max(1,Math.round(canvas.width*(inputVideo.videoHeight||640)/(inputVideo.videoWidth||480)));
+      [canvas.width,canvas.height]=liveCanvasSize(inputVideo.videoWidth||480,inputVideo.videoHeight||640);
       const ctx=canvas.getContext('2d',{alpha:false,willReadFrequently:true});
       if(!ctx)throw new Error('No se pudo crear el procesador de cámara.');
-      outputStream=canvas.captureStream(20);
+      outputStream=canvas.captureStream(30);
       const outputTrack=outputStream.getVideoTracks()[0];
       if(!outputTrack)throw new Error('No se pudo crear el video para LIVE.');
       const state={
@@ -1214,6 +1224,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       };
       const draw=()=>{
         if(effectSession.current!==state)return;
+        const now=performance.now();
+        if(state.lastDraw!=null && now-state.lastDraw<30){state.frame=requestAnimationFrame(draw);return;}
+        state.lastDraw=now;
         try {
           if(inputVideo.readyState>=2){
             ctx.drawImage(inputVideo,0,0,canvas.width,canvas.height);
@@ -1359,17 +1372,19 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       try { await video.play(); } catch(error) { inputTrack.stop(); throw error; }
       const settings = original.getSettings?.() || {};
       const canvas = document.createElement('canvas');
-      canvas.width = Math.min(480, video.videoWidth || settings.width || 480);
-      canvas.height = Math.max(1, Math.round(canvas.width * ((video.videoHeight || settings.height || 480) / (video.videoWidth || settings.width || 640))));
+      [canvas.width,canvas.height]=liveCanvasSize(video.videoWidth||settings.width||480,video.videoHeight||settings.height||640);
       const ctx = canvas.getContext('2d', {alpha:false});
       if (!ctx) throw new Error('No se pudo iniciar el procesador de video.');
-      const stream = canvas.captureStream(20);
+      const stream = canvas.captureStream(30);
       const processed = stream.getVideoTracks()[0];
       if (!processed) {stream.getTracks().forEach(t=>t.stop());throw new Error('No se pudo crear la cámara procesada.');}
       const state = {publication, original, inputTrack, video, stream, frame:0, filter:id, intensity:intensityRef.current};
       effectSession.current = state;
       const draw = () => {
         if (effectSession.current !== state) return;
+        const now=performance.now();
+        if(state.lastDraw!=null && now-state.lastDraw<30){state.frame=requestAnimationFrame(draw);return;}
+        state.lastDraw=now;
         if (video.readyState >= 2) {
           // Safari iOS does not reliably support CanvasRenderingContext2D.filter.
           // Process pixels explicitly so the effect is baked into the transmitted track.
