@@ -1669,6 +1669,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   }, [room]);
   async function broadcastLayout(nextPositions, nextSlots = slots) {
     const normalized = {...stableSlotsRef.current.slots, ...positions, ...nextPositions};
+    for (const id of Object.keys(normalized)) if (!Number.isInteger(normalized[id]) || normalized[id] < 0 || normalized[id] >= nextSlots) delete normalized[id];
     const used = new Set(Object.values(normalized).filter(i => Number.isInteger(i) && i >= 0 && i < nextSlots));
     // Complete the effective order so a swap cannot displace a third participant.
     const occupants = ordered.filter(Boolean).sort((a,b)=>a.identity===hostId?-1:b.identity===hostId?1:0);
@@ -1803,6 +1804,30 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   height: 100% !important;
   object-fit: cover !important;
 }
+
+/* RIVYZA 13: full-screen main camera, six overlays on each side. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 {display:grid!important;position:relative!important;isolation:isolate; width:100%!important;max-width:none!important;height:calc(100dvh - 68px - env(safe-area-inset-top))!important;max-height:none!important;min-height:0!important; margin:0!important;padding:0!important;gap:0!important;grid-template-columns: minmax(0,22%) minmax(0,56%) minmax(0,22%)!important;grid-template-rows:repeat(6,minmax(0,1fr))!important;align-content:stretch!important;overflow:hidden!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(n) {position:relative!important;inset:auto!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important;margin:0!important;align-self:stretch!important;justify-self:stretch!important;overflow:hidden!important;box-sizing:border-box!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:first-child {grid-column:1 / -1!important;grid-row:1 / -1!important;z-index:0!important;border-radius:0!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:not(:first-child) {z-index:2!important;width:calc(100% - 6px)!important;height:calc(100% - 6px)!important;align-self:center!important;justify-self:center!important;border:1px solid #ffffff80!important;border-radius:7px!important;background:#241a30!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square video {object-fit:cover!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:not(:first-child) .rivyza-live-camera-name {font-size:10px!important;max-width:100%!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;}
+.rivyza-live-stage:has(.rivyza-live-layout-13) .rivyza-v314-chat {left:24%!important;width:52%!important;font-size:13px!important;}
+.rivyza-live-stage:has(.rivyza-live-layout-13) .rivyza-v344-like-zone {right:24%!important;}
+.rivyza-live-stage:has(.rivyza-live-layout-13) .rivyza-live-grid {flex-shrink:0!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(2) {grid-column:1!important;grid-row:1!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(3) {grid-column:1!important;grid-row:2!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(4) {grid-column:1!important;grid-row:3!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(5) {grid-column:1!important;grid-row:4!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(6) {grid-column:1!important;grid-row:5!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(7) {grid-column:1!important;grid-row:6!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(8) {grid-column:3!important;grid-row:1!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(9) {grid-column:3!important;grid-row:2!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(10) {grid-column:3!important;grid-row:3!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(11) {grid-column:3!important;grid-row:4!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(12) {grid-column:3!important;grid-row:5!important;}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(13) {grid-column:3!important;grid-row:6!important;}
+
 /* v3.50: Override legacy square-camera layout ONLY for nine slots. */
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9:not(.rivyza-live-solo) {
   display: grid !important;
@@ -2069,7 +2094,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       <button type="button" onClick={openInternalShare}>👥 Compartir en RIVYZA</button>
        <button type="button" onClick={shareLive}>🔗 Compartir externamente</button>
       {isHost && <button type="button" onClick={()=>{setDrawer(false);setBackgroundPickerOpen(true);}}>🎨 Personalizar fondo</button>}
-      {isHost && <label className="rivyza-live-slot-picker">{tr.slots}: <select value={slots === 14 ? 9 : slots} onChange={e => { const selectedCount = Number(e.target.value); const count = selectedCount === 9 ? 14 : selectedCount; broadcastLayout(positions, count); }}>{Array.from({length:10},(_,i) => <option key={i} value={i+1}>{i+1}</option>)}</select></label>}
+      {isHost && <label className="rivyza-live-slot-picker">{tr.slots}: <select value={slots === 14 ? 9 : slots} onChange={e => { const selectedCount = Number(e.target.value); const count = selectedCount === 9 ? 14 : selectedCount; broadcastLayout(positions, count); }}>{slots===8 && <option value={8} disabled>8 → 13</option>}{[1,2,3,4,5,6,7,13,9,10].map(n => <option key={n} value={n}>{n}</option>)}</select></label>}
       {(isHost || isModerator) && <button type="button" onClick={() => { setMoveMode(x => !x); setMoveTarget(null); setSelected(null); setDrawer(false); }}>
         ↔️ {moveMode ? tr.finishMove : tr.rearrange}
       </button>}
