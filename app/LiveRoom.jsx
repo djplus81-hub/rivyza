@@ -1621,6 +1621,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   }
   const [drawer, setDrawer] = useState(false);
   const [voiceEffectsOpen,setVoiceEffectsOpen]=useState(false);
+  const canUseVoiceEffects = Boolean(publish || isHost || localParticipant.permissions?.canPublish);
+  useEffect(() => { if (!canUseVoiceEffects) setVoiceEffectsOpen(false); }, [canUseVoiceEffects]);
   async function shareLive() {
     const url = new URL(window.location.href);
     url.searchParams.set('live', liveRoomId);
@@ -2026,7 +2028,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     {drawer && <div className="rivyza-live-bottom-drawer rivyza-v32-popover">
       <div className="rivyza-live-drawer-handle" />
       <strong>{tr.options} LIVE</strong>
-      {(publish || isHost) && <button type="button" onClick={()=>{setDrawer(false);setVoiceEffectsOpen(true);}}>🎙️ {lang==='en'?'Audio effects':'Efectos de audio'}</button>}
+      {canUseVoiceEffects && <button type="button" onClick={()=>{setDrawer(false);setVoiceEffectsOpen(true);}}>🎙️ {lang==='en'?'Audio effects':'Efectos de audio'}</button>}
       <button type="button" onClick={openInternalShare}>👥 Compartir en RIVYZA</button>
        <button type="button" onClick={shareLive}>🔗 Compartir externamente</button>
       {isHost && <button type="button" onClick={()=>{setDrawer(false);setBackgroundPickerOpen(true);}}>🎨 Personalizar fondo</button>}
@@ -2042,7 +2044,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       {!isHost && <button type="button" onClick={() => { setDrawer(false); onLeaveLive(); }}>🚪 {tr.leaveLive}</button>}
       <button type="button" onClick={() => setDrawer(false)}>{tr.close}</button>
     </div>}
-    <LiveVoiceEffects room={room} enabled={publish || isHost} open={voiceEffectsOpen} onClose={()=>setVoiceEffectsOpen(false)} lang={lang} />
+    <LiveVoiceEffects room={room} enabled={canUseVoiceEffects} open={voiceEffectsOpen && canUseVoiceEffects} onClose={()=>setVoiceEffectsOpen(false)} lang={lang} />
     {backgroundPickerOpen && isHost && typeof document!=='undefined' && createPortal(
       <div className="rivyza-v356-picker-overlay" onClick={()=>setBackgroundPickerOpen(false)}>
         <section className="rivyza-v356-picker" role="dialog" aria-modal="true" aria-label="Personalizar fondo" onClick={e=>e.stopPropagation()}>
@@ -2091,6 +2093,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         {!expelling ? <>
           <div className="rivyza-v313-actions">
             <button type="button" onClick={() => {onViewProfile?.(target.identity);setTarget(null);}}><span className="rivyza-v313-glyph">♙</span><span>{lang === 'es' ? 'Ver perfil' : 'View profile'}</span></button>
+            {target.identity === localParticipant.identity && canUseVoiceEffects && <button type="button" onClick={()=>{setTarget(null);setDrawer(false);setVoiceEffectsOpen(true);}}>🎙️ {lang==='en'?'Audio effects':'Efectos de audio'}</button>}
             {target.identity === localParticipant.identity && publish && <>
               <button onClick={flipCamera} disabled={flipping}>{flipping ? "Cambiando cámara…" : "🔄 Voltear cámara"}</button>
               <button type="button" onClick={toggleMirrorCamera} disabled={mirrorBusy} aria-pressed={mirrorEnabled}>↔️ Mirror Camera {mirrorEnabled ? 'ON' : 'OFF'}</button>
