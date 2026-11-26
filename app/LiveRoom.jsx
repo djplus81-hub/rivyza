@@ -1801,6 +1801,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:not(:first-child) .rivyza-live-camera-name {font-size:10px!important;max-width:100%!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;}
 .rivyza-live-stage:has(.rivyza-live-layout-13) .rivyza-v314-chat {left:24%!important;width:52%!important;font-size:13px!important;}
 .rivyza-live-stage:has(.rivyza-live-layout-13) .rivyza-v344-like-zone {right:24%!important;}
+.rivyza-live-stage:has(.rivyza-live-layout-13) div:has(> button[aria-label="Texto y stickers"], > button[aria-label="Text and stickers"]) {right:24%!important;bottom:calc(96px + env(safe-area-inset-bottom,0px))!important;}
 .rivyza-live-stage:has(.rivyza-live-layout-13) .rivyza-live-grid {flex-shrink:0!important;}
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(2) {grid-column:1!important;grid-row:1!important;}
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-13 > .rivyza-live-tile.rivyza-live-square:nth-child(3) {grid-column:1!important;grid-row:2!important;}
