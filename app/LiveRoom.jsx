@@ -4,6 +4,7 @@ import useScreenWakeLock from './useScreenWakeLock';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { LIVE_DEEPAR_EFFECTS } from './liveDeepAREffects';
 import LiveStickers from './LiveStickers';
+import LiveVoiceEffects from './LiveVoiceEffects';
 import { createPortal } from 'react-dom';
 import { LiveKitRoom, RoomAudioRenderer, VideoTrack, useTracks, useLocalParticipant, useParticipants, useRoomContext } from '@livekit/components-react';
 import { Track, RoomEvent, DisconnectReason } from 'livekit-client';
@@ -1619,6 +1620,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     try {await sendBackground('state',value);} catch(e) {onError('No se pudo sincronizar el fondo: '+(e?.message||'Error'));}
   }
   const [drawer, setDrawer] = useState(false);
+  const [voiceEffectsOpen,setVoiceEffectsOpen]=useState(false);
   async function shareLive() {
     const url = new URL(window.location.href);
     url.searchParams.set('live', liveRoomId);
@@ -2024,6 +2026,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     {drawer && <div className="rivyza-live-bottom-drawer rivyza-v32-popover">
       <div className="rivyza-live-drawer-handle" />
       <strong>{tr.options} LIVE</strong>
+      {(publish || isHost) && <button type="button" onClick={()=>{setDrawer(false);setVoiceEffectsOpen(true);}}>🎙️ {lang==='en'?'Audio effects':'Efectos de audio'}</button>}
       <button type="button" onClick={openInternalShare}>👥 Compartir en RIVYZA</button>
        <button type="button" onClick={shareLive}>🔗 Compartir externamente</button>
       {isHost && <button type="button" onClick={()=>{setDrawer(false);setBackgroundPickerOpen(true);}}>🎨 Personalizar fondo</button>}
@@ -2039,6 +2042,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       {!isHost && <button type="button" onClick={() => { setDrawer(false); onLeaveLive(); }}>🚪 {tr.leaveLive}</button>}
       <button type="button" onClick={() => setDrawer(false)}>{tr.close}</button>
     </div>}
+    <LiveVoiceEffects room={room} enabled={publish || isHost} open={voiceEffectsOpen} onClose={()=>setVoiceEffectsOpen(false)} lang={lang} />
     {backgroundPickerOpen && isHost && typeof document!=='undefined' && createPortal(
       <div className="rivyza-v356-picker-overlay" onClick={()=>setBackgroundPickerOpen(false)}>
         <section className="rivyza-v356-picker" role="dialog" aria-modal="true" aria-label="Personalizar fondo" onClick={e=>e.stopPropagation()}>
