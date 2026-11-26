@@ -1,5 +1,6 @@
 "use client";
 
+import useLiveLayout from './useLiveLayout';
 import useScreenWakeLock from './useScreenWakeLock';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { LIVE_DEEPAR_EFFECTS } from './liveDeepAREffects';
@@ -1657,16 +1658,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [moveMode, setMoveMode] = useState(false);
   const [selected, setSelected] = useState(null);
   const [positions, setPositions] = useState({});
-  // The server validates movements and stores the layout in room metadata.
-  useEffect(() => {
-    const receive = () => {
-      try { const layout = JSON.parse(room.metadata || '{}').rivyzaLayout;
-        if (layout) { setPositions(layout.positions || {}); setSlots(layout.slots || 10); }
-      } catch {}
-    };
-    receive(); room.on(RoomEvent.RoomMetadataChanged, receive);
-    return () => room.off(RoomEvent.RoomMetadataChanged, receive);
-  }, [room]);
+  useLiveLayout(room,supabase,liveRoomId,layout=>{
+    setSlots(layout.slots);
+    setPositions(previous=>JSON.stringify(previous)===JSON.stringify(layout.positions||{})?previous:layout.positions||{});
+  });
   async function broadcastLayout(nextPositions, nextSlots = slots) {
     const normalized = {...stableSlotsRef.current.slots, ...positions, ...nextPositions};
     for (const id of Object.keys(normalized)) if (!Number.isInteger(normalized[id]) || normalized[id] < 0 || normalized[id] >= nextSlots) delete normalized[id];
