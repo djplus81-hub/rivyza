@@ -293,6 +293,44 @@ export default function HomePage(){
   const [selectedLiveRoom,setSelectedLiveRoom]=useState(null);
   const [profileFromLive,setProfileFromLive]=useState(false);
   const [user,setUser]=useState(null);
+  // RIVYZA: comprobar la sesión vigente en el servidor, sin renovar tokens a la fuerza.
+  const [sessionNotice,setSessionNotice]=useState("");
+  useEffect(()=>{
+    try{setSessionNotice(sessionStorage.getItem("rivyza-session-notice")||"");sessionStorage.removeItem("rivyza-session-notice");}catch{}
+  },[]);
+  useEffect(()=>{
+    if(!supabase||!user?.id)return;
+    let active=true,busy=false;
+    const check=async()=>{
+      if(!active||busy)return;
+      busy=true;
+      try{
+        const {data:before}=await supabase.auth.getSession();
+        const session=before?.session;
+        if(!session||session.user.id!==user.id)return;
+        const {data,error}=await supabase.rpc("rivyza_session_is_current");
+        if(!active||error||data!==false)return;
+        const {data:after}=await supabase.auth.getSession();
+        if(!active||after?.session?.access_token!==session.access_token)return;
+        const notice="Tu sesión se ha cerrado porque ya no está activa. Es posible que hayas iniciado sesión en otro dispositivo.";
+        try{
+          sessionStorage.setItem("rivyza-session-notice",notice);
+          const remaining=readAccounts().filter(a=>a.id!==user.id);
+          localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(remaining));
+          localStorage.removeItem(ACTIVE_KEY);
+        }catch{}
+        setSessionNotice(notice);setSelectedLiveRoom(null);setUser(null);setProfile(null);setView("home");
+        try{await supabase.auth.signOut({scope:"local"});}catch{}
+        try{localStorage.removeItem(AUTH_KEY);}catch{}
+        window.location.reload();
+      }catch{}finally{busy=false;}
+    };
+    const visible=()=>{if(document.visibilityState==="visible")check();};
+    check();const timer=setInterval(check,10000);
+    window.addEventListener("focus",check);document.addEventListener("visibilitychange",visible);
+    return()=>{active=false;clearInterval(timer);window.removeEventListener("focus",check);document.removeEventListener("visibilitychange",visible);};
+  },[supabase,user?.id]);
+
   const [liveFriendIds,setLiveFriendIds]=useState([]);
   const [activeLivePreview,setActiveLivePreview]=useState(0);
   const [livePreviewInvite,setLivePreviewInvite]=useState(false);
@@ -4100,6 +4138,7 @@ async function applyPostCrop(){
         <div className="logo-mark">R</div>
         <h1>RIVYZA</h1>
         <p className="tagline">Vive. Conecta. Transmite.</p>
+        {sessionNotice&&<p role="alert" style={{color:"#ffb4b4",padding:10}}>{sessionNotice} <button type="button" onClick={()=>setSessionNotice("")}>OK</button></p>}
         <button className="google-btn" onClick={signInWithGoogle}>{t("Continuar con Google")}</button>
         {renderEmailAuth()}
         <div className="rivyza-phone-auth"><h3>Continuar con teléfono</h3><select value={phoneCountry} onChange={e=>setPhoneCountry(e.target.value)}>{countryOptions.map(c=><option key={c.code} value={c.code}>{c.flag} {c.name} {dialingCodes[c.code]?"(+"+dialingCodes[c.code]+")":""}</option>)}</select>{phoneStage==="number"?<><input type="tel" inputMode="tel" placeholder="Número de teléfono" value={phoneNumber} onChange={e=>setPhoneNumber(e.target.value)}/><button disabled={phoneBusy} onClick={requestPhoneOtp}>Enviar código SMS</button></>:<><input inputMode="numeric" placeholder="Código de verificación" value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value)}/><button disabled={phoneBusy} onClick={verifyPhoneOtp}>Verificar y continuar</button><button onClick={()=>setPhoneStage("number")}>Cambiar número</button></>}{phoneError&&<p role="alert">{phoneError}</p>}<small>Disponible en países habilitados para SMS en Supabase/Twilio.</small></div>
