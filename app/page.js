@@ -2922,6 +2922,21 @@ async function applyPostCrop(){
    }catch(e){console.warn("RIVYZA: portada no disponible",e);return null;}
    finally{v.removeAttribute("src");try{v.load();}catch(e){}URL.revokeObjectURL(url);}
  }
+ async function framePostPhoto(file){
+   const url=URL.createObjectURL(file);
+   try{
+     const img=await createImage(url);
+     const canvas=document.createElement("canvas");canvas.width=1080;canvas.height=1920;
+     const ctx=canvas.getContext("2d");if(!ctx)throw Error("No se pudo preparar el encuadre.");
+     ctx.fillStyle="#000";ctx.fillRect(0,0,1080,1920);
+     const scale=Math.min(1080/img.naturalWidth,1920/img.naturalHeight);
+     const w=img.naturalWidth*scale,h=img.naturalHeight*scale;
+     ctx.drawImage(img,(1080-w)/2,(1920-h)/2,w,h);
+     const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png"));
+     if(!blob)throw Error("No se pudo guardar el encuadre.");
+     return new File([blob],"rivyza-frame.png",{type:"image/png"});
+   }finally{URL.revokeObjectURL(url);}
+ }
  async function publishPost(){
    if(!user || !supabase || !uploadFile){
      setUploadMessage("No se puede publicar: revisa tu sesión y selecciona una foto o video.");
@@ -2933,11 +2948,11 @@ async function applyPostCrop(){
    setPublishStage("Subiendo foto o video…");
 
    try{
-     const baseFile=uploadType==="photo"?await getPhotoForPublishing():await getVideoForPublishing();
+     const baseFile=uploadType==="photo"?await framePostPhoto(await getPhotoForPublishing()):await getVideoForPublishing();
      const publishFile=uploadType==="photo"&&postStickers.length?await bakeStickers(baseFile,postStickers,supabase):baseFile;
      const videoCover=uploadType==="video"?await createVideoCover(publishFile):null;
      const ext=(publishFile.name.split(".").pop()|| (uploadType==="photo"?"jpg":"mp4")).toLowerCase();
-     const path=`${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+     const path=`${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}${uploadType==="photo"?"-frame916":""}.${ext}`;
 
      if(uploadType==="video"){
        await uploadVideoResumable(publishFile,path);
@@ -3333,7 +3348,8 @@ async function applyPostCrop(){
              .rivyza-transparent-review .rivyza-music-sheet{z-index:30!important}
 
              .camera-composer .rivyza-transparent-review .rivyza-music-stage{container-type:size;flex:1 0 220px!important;overflow:hidden!important}
-             .camera-composer .rivyza-transparent-review .upload-preview.editor-preview[style*="--rv-photo-ratio"]{width:min(100%,calc(100cqh * var(--rv-photo-ratio)))!important;height:min(100%,calc(100cqw / var(--rv-photo-ratio)))!important;overflow:hidden!important}
+             .camera-composer .rivyza-transparent-review .upload-preview.editor-preview[style*="--rv-photo-ratio"]{width:100%!important;height:auto!important;aspect-ratio:9/16!important;flex:none!important;overflow:hidden!important}
+             .camera-composer .rivyza-transparent-review .rivyza-music-stage:has([style*="--rv-photo-ratio"]){container-type:normal;flex:0 0 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important}
              .rivyza-transparent-review .rv-post-tools button{flex:1 1 0;min-width:0;padding:5px 1px;font-size:10px}
              .rivyza-transparent-review .rv-post-tools{gap:4px;padding:5px}
              .rivyza-transparent-review .rv-sticker-adjust{display:flex;align-items:center;gap:6px;margin:0 10px;padding:8px;border:1px solid #514078;border-radius:14px;background:#141422;flex:0 0 auto}
@@ -3357,7 +3373,7 @@ async function applyPostCrop(){
              {uploadType==="photo"&&<button type="button" onClick={()=>{setPhotoFilterOpen(false);setPostStickerId(null);setPostStickerOpen(v=>v+1);}}><span style={{fontSize:21,color:"#c19aff"}}>✧</span>Stickers</button>}
            </div>
            <div className="rivyza-music-stage">
-             <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`} style={uploadType==="photo"&&postPhotoRatio?{"--rv-photo-ratio":postPhotoRatio}:undefined}>
+             <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`} style={uploadType==="photo"?{"--rv-photo-ratio":9/16}:undefined}>
                {uploadType==="photo"&&<MediaStickers supabase={supabase} items={postStickers} onChange={setPostStickers} hideLauncher openSignal={postStickerOpen} closeSignal={postStickerClose} selectedId={postStickerId} onSelect={id=>{setPostStickerId(id);if(id)setPhotoFilterOpen(false);}}/>}
                {uploadType==="photo"
                  ? <img src={uploadPreview} alt="Vista previa" onLoad={e=>setPostPhotoRatio(e.currentTarget.naturalWidth/e.currentTarget.naturalHeight)} style={{filter:photoFilterCss,transition:"filter .15s"}}/>
@@ -4878,7 +4894,8 @@ async function applyPostCrop(){
 
         {(feedTab==="friends"?feedPosts:[]).map(post=>(
           <article className="video-card feed-post-card" key={post.id}>
-            <div className="feed-media-wrap">
+            <div className="feed-media-wrap" data-rv-frame={post.media_type==="photo"&&String(post.media_path).includes("-frame916.")?"916":undefined}>
+              <style>{`[data-rv-frame="916"] img{object-fit:contain!important;object-position:center!important;} [data-rv-frame="916"]{background:#000!important;}`}</style>
               <PostMusicMedia post={post}/>
             </div>
 
@@ -5119,7 +5136,8 @@ async function applyPostCrop(){
 
       {feedPosts.map(post=>(
         <article className="video-card feed-post-card" key={post.id}>
-          <div className="feed-media-wrap">
+          <div className="feed-media-wrap" data-rv-frame={post.media_type==="photo"&&String(post.media_path).includes("-frame916.")?"916":undefined}>
+              <style>{`[data-rv-frame="916"] img{object-fit:contain!important;object-position:center!important;} [data-rv-frame="916"]{background:#000!important;}`}</style>
             <PostMusicMedia post={post}/>
           </div>
 
