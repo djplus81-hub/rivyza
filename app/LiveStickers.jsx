@@ -8,11 +8,41 @@ const hostStickerMemory=new Map();
 const TOPIC='rivyza-live-stickers-v1';
 const DEFAULT_FILES=['01_bolsas_compras.png','02_gafas_sol.png','03_tenis_azules.png','04_fuegos_artificiales.png','05_good_vibe.png','06_feliz_cumpleanos.png','07_gracias.png','08_feliz_dia.png','09_wow.png','10_ok.png','11_correcto.png','12_incorrecto.png','13_nuevo.png','14_planeta_tierra.png','15_corazon_rosado.png','16_celebracion.png','17_pizza.png','18_baloncesto.png','19_futbol.png','20_control_videojuego.png','21_grabando_rec.png','22_bateria.png','23_cargando.png','24_sigueme.png','25_pulgar_arriba.png','26_me_gusta.png','27_angel.png','29_libreta_corazon.png','30_labial.png','31_campana.png','32_flor_rosa.png','33_girasol.png','34_regalo.png','35_fuego.png','36_copo_nieve.png','37_nube.png','38_sol_gafas.png','39_luna_estrellas.png','40_hamburguesa.png','41_papas_fritas.png','42_audifonos.png','43_notas_musicales.png','44_cine.png','45_avion.png','46_palmera.png','47_camara.png','48_manzana_libro.png','49_ve.png','50_corona.png','51_diamante.png','52_enamorado.png','53_te_amo.png','54_sobre_corazones.png','55_gato_gafas.png','56_arcoiris.png','57_cafe_corazon.png','58_corazon_morado.png','59_corazon_rojo.png','60_love.png','61_rosa_roja.png','62_mariposa_azul.png'];
 const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
-const sanitize=items=>Array.isArray(items)?items.slice(0,60).filter(s=>s&&typeof s.id==='string'&&(s.kind==='text'?typeof s.text==='string':typeof s.file==='string'&&/^[^/\\]+\.(?:png|webp)$/i.test(s.file))).map(s=>({id:s.id.slice(0,80),...(s.kind==='text'?{kind:'text',text:s.text.slice(0,100),color:/^#[0-9a-f]{6}$/i.test(s.color)?s.color:'#ffffff',scale:clamp(Number(s.scale)||1,.25,8)}:{file:s.file,size:clamp(Number(s.size)||24,8,100)}),x:clamp(Number(s.x)||0,-50,150),y:clamp(Number(s.y)||0,-50,150),rotation:clamp(Number(s.rotation)||0,-360,360)})):[];
+const sanitize=items=>Array.isArray(items)?items.slice(0,60).filter(s=>s&&typeof s.id==='string'&&(s.kind==='text'?typeof s.text==='string':typeof s.file==='string'&&/^[^/\\]+\.(?:png|webp)$/i.test(s.file))).map(s=>({id:s.id.slice(0,80),...(s.kind==='text'?{kind:'text',text:s.text.slice(0,100),color:/^#[0-9a-f]{6}$/i.test(s.color)?s.color:'#ffffff',scale:clamp(Number(s.scale)||1,.25,8)}:{file:s.file,size:clamp(Number(s.size)||24,8,100)}),x:clamp(Number(s.x)||0,-50,150),y:clamp(Number(s.y)||0,-50,150),rotation:clamp(Number(s.rotation)||0,-360,360),...(Number.isInteger(s.anchor)&&s.anchor>=-1&&s.anchor<14?{anchor:s.anchor,ax:clamp(Number(s.ax)||0,-500,500),ay:clamp(Number(s.ay)||0,-500,500),unit:clamp(Number(s.unit)||1,.01,20)}:{})})):[];
 
 export default function LiveStickers({room,isHost,hostId,liveRoomId,supabase,lang='es'}){
   const [stage,setStage]=useState(null),[items,setItems]=useState([]),[catalog,setCatalog]=useState([]),[catalogError,setCatalogError]=useState(false),[panel,setPanel]=useState(''),[selected,setSelected]=useState(null),[draft,setDraft]=useState(''),[color,setColor]=useState('#ffffff');
   const [menuOpen,setMenuOpen]=useState(false);
+  const [geometry,setGeometry]=useState(null);
+  const geometryRef=useRef(null);
+  useEffect(()=>{
+    if(!stage)return;
+    let frame=0;
+    const measure=()=>{
+      const grid=stage.querySelector('.rivyza-live-grid');
+      if(!grid)return;
+      const r=stage.getBoundingClientRect();
+      const box=node=>{const b=node.getBoundingClientRect();return {x:b.left-r.left,y:b.top-r.top,w:b.width,h:b.height};};
+      const next={w:r.width,h:r.height,grid:box(grid),tiles:[...grid.children].filter(n=>n.classList.contains('rivyza-live-tile')).map(box)};
+      if(!next.w||!next.h||!next.grid.w)return;
+      if(JSON.stringify(next)!==JSON.stringify(geometryRef.current)){geometryRef.current=next;setGeometry(next);}
+    };
+    const tick=()=>{measure();frame=requestAnimationFrame(tick);};
+    tick();return()=>cancelAnimationFrame(frame);
+  },[stage]);
+  const locate=(s,g)=>{
+    if(!g)return null;
+    const b=s.anchor===-1?g.grid:g.tiles[s.anchor];
+    if(!b||!b.w||!b.h)return {x:s.x*g.w/100,y:s.y*g.h/100,w:g.w,textUnit:1};
+    return {x:b.x+s.ax*b.w/100,y:b.y+s.ay*(s.anchor===-1?b.w:b.h)/100,w:b.w*s.unit,textUnit:b.w*s.unit/390};
+  };
+  const anchorAt=(x,y,g)=>{
+    if(!g)return {};
+    const index=g.tiles.findIndex(b=>b.w&&b.h&&x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h);
+    const b=index<0?g.grid:g.tiles[index];
+    if(!b.w||!b.h)return {};
+    return {anchor:index,ax:(x-b.x)/b.w*100,ay:(y-b.y)/(index<0?b.w:b.h)*100,unit:g.w/b.w,x:x/g.w*100,y:y/g.h*100};
+  };
   const itemsRef=useRef([]),gesture=useRef(null),stageRef=useRef(null),version=useRef(0),hostSession=useRef(null),lastSent=useRef(0);
   const labels=lang==='en'?{button:'Stickers',title:'3D stickers',delete:'Release to delete',empty:'Could not load stickers. Check Storage permissions.'}:{button:'Stickers',title:'Stickers 3D',delete:'Suelta para eliminar',empty:'No se pudieron cargar los stickers. Revisa los permisos de Storage.'};
   useEffect(()=>{const node=document.querySelector('.rivyza-live-stage');setStage(node);stageRef.current=node;},[]);
@@ -84,12 +114,12 @@ export default function LiveStickers({room,isHost,hostId,liveRoomId,supabase,lan
   const toggle=which=>{setMenuOpen(false);setSelected(null);setPanel(p=>p===which?'':which);};
   const patch=(id,values)=>commit(itemsRef.current.map(s=>s.id===id?{...s,...values}:s));
   const point=e=>({x:e.clientX,y:e.clientY});
-  const resetGesture=g=>{g.base={...itemsRef.current.find(s=>s.id===g.id)};g.start=[...g.pointers.values()];};
+  const resetGesture=g=>{g.base={...itemsRef.current.find(s=>s.id===g.id)};const pos=locate(g.base,geometryRef.current);if(pos){g.base.x=pos.x/geometryRef.current.w*100;g.base.y=pos.y/geometryRef.current.h*100;g.base.size=g.base.kind==='text'?undefined:g.base.size*pos.w/geometryRef.current.w;g.base.scale=g.base.kind==='text'?g.base.scale*pos.textUnit*390/geometryRef.current.w:undefined;}g.start=[...g.pointers.values()];};
   const startDrag=(e,s)=>{if(!isHost)return;e.preventDefault();e.stopPropagation();try{e.currentTarget.setPointerCapture(e.pointerId)}catch{};select(s);let g=gesture.current;if(!g||g.id!==s.id)g=gesture.current={id:s.id,pointers:new Map()};g.pointers.set(e.pointerId,point(e));resetGesture(g);};
-  const moveDrag=e=>{const g=gesture.current,r=stageRef.current?.getBoundingClientRect();if(!g||!g.pointers.has(e.pointerId)||!r?.width||!r.height)return;e.preventDefault();e.stopPropagation();g.pointers.set(e.pointerId,point(e));const pts=[...g.pointers.values()],start=g.start,base=g.base;let next={};if(pts.length===2&&start.length===2){const [a,b]=pts,[c,d]=start;const ratio=Math.hypot(b.x-a.x,b.y-a.y)/Math.max(1,Math.hypot(d.x-c.x,d.y-c.y));next={...(base.kind==='text'?{scale:base.scale*ratio}:{size:base.size*ratio}),rotation:base.rotation+(Math.atan2(b.y-a.y,b.x-a.x)-Math.atan2(d.y-c.y,d.x-c.x))*180/Math.PI,x:base.x+(a.x+b.x-c.x-d.x)/2/r.width*100,y:base.y+(a.y+b.y-c.y-d.y)/2/r.height*100};}else if(pts.length===1&&start.length===1){next={x:base.x+(pts[0].x-start[0].x)/r.width*100,y:base.y+(pts[0].y-start[0].y)/r.height*100};}const updated=sanitize(itemsRef.current.map(s=>s.id===g.id?{...s,...next}:s));itemsRef.current=updated;setItems(updated);if(Date.now()-lastSent.current>110){lastSent.current=Date.now();send(updated);}};
+  const moveDrag=e=>{const g=gesture.current,r=stageRef.current?.getBoundingClientRect();if(!g||!g.pointers.has(e.pointerId)||!r?.width||!r.height)return;e.preventDefault();e.stopPropagation();g.pointers.set(e.pointerId,point(e));const pts=[...g.pointers.values()],start=g.start,base=g.base;let next={};if(pts.length===2&&start.length===2){const [a,b]=pts,[c,d]=start;const ratio=Math.hypot(b.x-a.x,b.y-a.y)/Math.max(1,Math.hypot(d.x-c.x,d.y-c.y));next={...(base.kind==='text'?{scale:base.scale*ratio}:{size:base.size*ratio}),rotation:base.rotation+(Math.atan2(b.y-a.y,b.x-a.x)-Math.atan2(d.y-c.y,d.x-c.x))*180/Math.PI,x:base.x+(a.x+b.x-c.x-d.x)/2/r.width*100,y:base.y+(a.y+b.y-c.y-d.y)/2/r.height*100};}else if(pts.length===1&&start.length===1){next={x:base.x+(pts[0].x-start[0].x)/r.width*100,y:base.y+(pts[0].y-start[0].y)/r.height*100};}const geo=geometryRef.current;const anchored=geo?anchorAt((next.x??base.x)*geo.w/100,(next.y??base.y)*geo.h/100,geo):{};const updated=sanitize(itemsRef.current.map(s=>s.id===g.id?{...s,...(base.kind==='text'?{scale:base.scale}:{size:base.size}),...next,...anchored}:s));itemsRef.current=updated;setItems(updated);if(Date.now()-lastSent.current>110){lastSent.current=Date.now();send(updated);}};
   const endDrag=e=>{const g=gesture.current;if(!g||!g.pointers.has(e.pointerId))return;e.stopPropagation();g.pointers.delete(e.pointerId);if(g.pointers.size)resetGesture(g);else{gesture.current=null;commit(itemsRef.current);}};
-  const add=file=>{if(!isHost||itemsRef.current.length>=60)return;const s={id:crypto.randomUUID(),file,x:50,y:48,size:24,rotation:0};commit([...itemsRef.current,s]);select(s);};
-  const addText=()=>{if(!isHost||!draft.trim()||itemsRef.current.length>=60)return;const s={id:crypto.randomUUID(),kind:'text',text:draft.trim(),color,x:50,y:50,scale:1,rotation:0};commit([...itemsRef.current,s]);setDraft('');setPanel('');setSelected(null);};
+  const add=file=>{if(!isHost||itemsRef.current.length>=60)return;const s={id:crypto.randomUUID(),file,x:50,y:48,...(geometryRef.current?anchorAt(geometryRef.current.w*.5,geometryRef.current.h*.48,geometryRef.current):{}),size:24,rotation:0};commit([...itemsRef.current,s]);select(s);};
+  const addText=()=>{if(!isHost||!draft.trim()||itemsRef.current.length>=60)return;const s={id:crypto.randomUUID(),kind:'text',text:draft.trim(),color,x:50,y:50,...(geometryRef.current?anchorAt(geometryRef.current.w*.5,geometryRef.current.h*.5,geometryRef.current):{}),scale:1,rotation:0};commit([...itemsRef.current,s]);setDraft('');setPanel('');setSelected(null);};
   const active=items.find(s=>s.id===selected);
   const close=()=>{setPanel('');setSelected(null);};
   const buttonStyle={background:'#0009',border:'1px solid #ffffff50',color:'white',borderRadius:12,padding:'8px 10px',fontSize:12};
@@ -99,7 +129,7 @@ export default function LiveStickers({room,isHost,hostId,liveRoomId,supabase,lan
   if(!stage)return null;
   return createPortal(<>
     <div className="rivyza-sticker-layer" style={{position:'absolute',inset:0,zIndex:55,pointerEvents:'none',overflow:'hidden'}}>
-      {items.map(s=><div key={s.id} onPointerDown={e=>startDrag(e,s)} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} style={{position:'absolute',left:`${s.x}%`,top:`${s.y}%`,...(s.kind==='text'?{color:s.color,fontSize:23,fontWeight:800,textShadow:'0 2px 4px #000,0 0 8px #000',whiteSpace:'pre-wrap',maxWidth:'90%',textAlign:'center',transform:`translate(-50%,-50%) rotate(${s.rotation}deg) scale(${s.scale})`}:{width:`${s.size}%`,transform:`translate(-50%,-50%) rotate(${s.rotation}deg)`}),touchAction:'none',pointerEvents:isHost?'auto':'none',cursor:isHost?'grab':'default',userSelect:'none',outline:isHost&&selected===s.id?'1px dashed #ffffff99':'none'}}>{s.kind==='text'?s.text:<img src={url(s.file)} draggable={false} alt="Sticker" style={{display:'block',width:'100%',height:'auto',pointerEvents:'none'}}/>}</div>)}
+      {items.map(s=>{const pos=locate(s,geometry);return <div key={s.id} onPointerDown={e=>startDrag(e,s)} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} style={{position:'absolute',left:pos?pos.x:`${s.x}%`,top:pos?pos.y:`${s.y}%`,...(s.kind==='text'?{color:s.color,fontSize:23*(pos?.textUnit||1),fontWeight:800,textShadow:'0 2px 4px #000,0 0 8px #000',whiteSpace:'pre-wrap',maxWidth:'90%',textAlign:'center',transform:`translate(-50%,-50%) rotate(${s.rotation}deg) scale(${s.scale})`}:{width:pos?pos.w*s.size/100:`${s.size}%`,transform:`translate(-50%,-50%) rotate(${s.rotation}deg)`}),touchAction:'none',pointerEvents:isHost?'auto':'none',cursor:isHost?'grab':'default',userSelect:'none',outline:isHost&&selected===s.id?'1px dashed #ffffff99':'none'}}>{s.kind==='text'?s.text:<img src={url(s.file)} draggable={false} alt="Sticker" style={{display:'block',width:'100%',height:'auto',pointerEvents:'none'}}/>}</div>})}
     </div>
     {isHost&&<div style={{position:'fixed',right:19,bottom:'calc(96px + env(safe-area-inset-bottom,0px))',zIndex:90,display:(panel==='text'||panel==='edit')?'none':'flex',alignItems:'center',gap:6,pointerEvents:'auto'}}>
       <div aria-hidden={!menuOpen} style={{display:'flex',gap:6,overflow:'hidden',maxWidth:menuOpen?180:0,opacity:menuOpen?1:0,transition:'max-width .22s ease, opacity .18s ease',pointerEvents:menuOpen?'auto':'none'}}>
