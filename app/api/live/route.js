@@ -66,6 +66,17 @@ export async function GET(req) {
     if (!auth) return json({ error: 'Inicia sesión' }, 401);
     const db = adminClient();
     const params = new URL(req.url).searchParams;
+    if (params.get('mode') === 'layout') {
+      const room = await getRoom(db, params.get('room'));
+      if (!room || room.status !== 'live') return json({error:'El LIVE ya terminó'},404);
+      const {data:blocked,error} = await db.from('rivyza_live_blocks').select('user_id').eq('host_id',room.host_id).eq('user_id',auth.user.id).maybeSingle();
+      if(error) throw error;
+      if(blocked) return json({error:'No autorizado'},403);
+      const [info] = await roomService().listRooms([`rivyza-${room.id}`]);
+      if(!info) return json({error:'Sala no disponible'},409);
+      const metadata = JSON.parse(info.metadata || '{}');
+      return json({layout:metadata.rivyzaLayout || {slots:10,positions:{}}});
+    }
     if (params.get('mode') === 'likes_top') {
       const room = await getRoom(db, params.get('room'));
       if (!room || room.status !== 'live') return json({error:'El LIVE ya terminó'},404);
