@@ -4134,7 +4134,7 @@ async function applyPostCrop(){
       {view==="socialSettings"&&<section className="social-settings rivyza-settings-page">
         <div className="rivyza-settings-section-title">{t("Cuenta")}</div>
         <div className="rivyza-settings-group">
-          {[["Seguridad y contraseña",ShieldCheck],["Información de cuenta",User],["Eliminar cuenta",Trash2]].map(([label,Icon])=><button type="button" key={label} onClick={()=>{setDeleteAccountStep(0);setDeleteAccountError("");setSettingsSheet(label);}}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
+          {[["Seguridad y contraseña",ShieldCheck],["Información de cuenta",User]].map(([label,Icon])=><button type="button" key={label} onClick={()=>{setDeleteAccountStep(0);setDeleteAccountError("");setSettingsSheet(label);}}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
         </div>
         <div className="rivyza-settings-section-title">{t("Privacidad")}</div>
         <div className="rivyza-settings-group">
@@ -4154,6 +4154,7 @@ async function applyPostCrop(){
         <div className="rivyza-settings-group">
           <button type="button" onClick={()=>setSettingsSheet("Cambiar de cuenta")}><RefreshCw size={21}/><span>{t("Cambiar de cuenta")}</span><b>›</b></button>
           <button type="button" onClick={()=>{if(window.confirm(t("¿Quieres cerrar sesión?")))signOut();}}><LogOut size={21}/><span>{t("Cerrar sesión")}</span></button>
+          <button type="button" onClick={()=>{setDeleteAccountStep(0);setDeleteAccountError("");setSettingsSheet("Eliminar cuenta");}} style={{color:"#ff4568"}}><Trash2 size={21} style={{color:"#ff4568"}}/><span style={{color:"#ff4568"}}>{appLanguage==="en"?"Delete my account":"Eliminar mi cuenta"}</span><b style={{color:"#ff4568"}}>›</b></button>
         </div>
         <p className="rivyza-settings-version">RIVYZA v13.19.37 (base)</p>
 
