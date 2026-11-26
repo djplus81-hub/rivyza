@@ -204,6 +204,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     };
   }, [clearInviteConfirmation]);
   const [requestTab,setRequestTab]=useState('requests');
+  const [inviteSlot,setInviteSlot]=useState(null);
+  useEffect(()=>{if(!requestsOpen)setInviteSlot(null)},[requestsOpen]);
   const [inviteBusy,setInviteBusy]=useState(false);
   // The authenticated server is authoritative; delivery does not depend on WebRTC data.
   useEffect(() => {
@@ -234,8 +236,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     if (!(isHost || isModerator) || !id || id === room.localParticipant.identity) return;
     clearInviteConfirmation();
     try {
-      const result = await onModerate('invite_create',{guestId:id});
+      const result = await onModerate('invite_create',{guestId:id,slot:inviteSlot});
       setViewerSelected(null);
+      setRequestsOpen(false);setInviteSlot(null);
       showInviteConfirmation(lang==='es'?'Invitación enviada':'Invitation sent');
       // Optional fast notification only. The saved invitation remains deliverable.
       try {
@@ -271,7 +274,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     room.on(RoomEvent.ParticipantDisconnected,disconnect);
     return()=>{room.off(RoomEvent.DataReceived,receive);room.off(RoomEvent.ParticipantDisconnected,disconnect)};
   },[room,markPreview]);
-  const realParticipants=participants.filter(p=>!previewIds.includes(p.identity));
+  const realParticipants=participants.filter(p=>!p.identity.startsWith('preview-')&&!previewIds.includes(p.identity));
   const visibleViewers = [...realParticipants].sort((a,b) =>
     Number(b.identity === hostId) - Number(a.identity === hostId) ||
     (profiles[a.identity]?.display_name || a.name || '').localeCompare(profiles[b.identity]?.display_name || b.name || '')
@@ -305,7 +308,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     return '';
   }
   function registerActivityJoin(id, hint) {
-    if (!id || previewIdsRef.current.has(id)) return Promise.resolve('');
+    if (!id || id.startsWith('preview-') || previewIdsRef.current.has(id)) return Promise.resolve('');
     if (recentEntries.current.has(id)) return Promise.resolve(recentEntries.current.get(id));
     if (activityPending.current.has(id)) return activityPending.current.get(id).promise;
     const visit = {at:Date.now(),leftAt:0,promise:null};
@@ -1680,6 +1683,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     broadcastLayout(next);
     setSelected(null);
   }
+  function openSlotInvite(i){if(!(isHost||isModerator)||reserved.has(i))return;setInviteSlot(i);setRequestTab('invite');setRequestsOpen(true);}
   function chooseTile(t, i) {
     if (moveTarget) {
       if (!isHost && t?.identity === hostId) return;
@@ -1814,10 +1818,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     <div ref={gridRef} className={`rivyza-live-grid rivyza-live-grid-square rivyza-live-layout-${slots} ${slots === 1 ? "rivyza-live-solo" : ""} rivyza-v356-bg-${liveBackground}`}>
       {ordered.map((t, i) => <div key={i}
         className={`rivyza-live-tile rivyza-live-square ${!t ? 'rivyza-live-vacant' : ''} ${selected === i ? 'rivyza-live-picked' : ''} ${speakers.includes(t?.identity) ? 'rivyza-v314-speaking' : ''}`}
-        onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (!publish && onRequest?.())} role='button'
+        onClick={() => moveMode ? swap(i) : (t || moveTarget) ? chooseTile(t,i) : (isHost||isModerator) ? openSlotInvite(i) : (!publish && onRequest?.())} role='button'
         tabIndex={0}
-        onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') ) { e.preventDefault(); if(moveMode) swap(i); else chooseTile(t,i); } }}>
-        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className={`rivyza-v318-video ${mirrorStates[t.identity] === true ? "rivyza-camera-mirrored" : ""}`} style={{transform: mirrorStates[t.identity] === true ? "scaleX(-1)" : "scaleX(1)", WebkitTransform: mirrorStates[t.identity] === true ? "scaleX(-1)" : "scaleX(1)"}} /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'min(80px, 76%)',height:'auto',aspectRatio:'1 / 1',maxHeight:'76%',flexShrink:0,borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span>}
+        onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') ) { e.preventDefault(); if(moveMode) swap(i); else if(t||moveTarget) chooseTile(t,i);else if(isHost||isModerator)openSlotInvite(i);else if(!publish)onRequest?.(); } }}>
+        {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className={`rivyza-v318-video ${mirrorStates[t.identity] === true ? "rivyza-camera-mirrored" : ""}`} style={{transform: mirrorStates[t.identity] === true ? "scaleX(-1)" : "scaleX(1)", WebkitTransform: mirrorStates[t.identity] === true ? "scaleX(-1)" : "scaleX(1)"}} /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'min(80px, 76%)',height:'auto',aspectRatio:'1 / 1',maxHeight:'76%',flexShrink:0,borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <>{(isHost||isModerator)&&!reserved.has(i)&&<span aria-hidden="true" style={{position:"absolute",inset:0,display:"grid",placeItems:"center",fontSize:32,color:"white",pointerEvents:"none"}}>+</span>}<span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span></>}
       </div>)}
     </div>
     {!typing && !target && !viewersOpen && <div className="rivyza-v344-like-zone" role="button" tabIndex={0} aria-label="Dar Likes al LIVE" onPointerDown={e => {e.preventDefault(); giveLike();}} onKeyDown={e => {if(e.key === 'Enter' || e.key === ' ') {e.preventDefault();giveLike();}}}><span className="rivyza-v344-like-hint"><span className="rivyza-v344-like-heart" aria-hidden="true">💗</span><span>Likes</span></span></div>}
@@ -1937,7 +1941,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </>}
     </div>
     {(isHost || isModerator) && requestsOpen && <div className="rivyza-v32-popover rivyza-v32-request-panel" role="dialog" aria-label="Solicitudes para subir">
-      <div className="rivyza-v32-panel-heading"><strong>✋ {tr.requests} ({requests.filter(r => r.status === 'pending').length})</strong><button type="button" onClick={() => setRequestsOpen(false)} aria-label="Cerrar">✕</button></div>
+      <div className="rivyza-v32-panel-heading"><strong>{inviteSlot!==null?`${tr.camera} ${inviteSlot+1} · ${lang==='es'?'Invitar':'Invite'}`: `✋ ${tr.requests}`} ({requests.filter(r => r.status === 'pending').length})</strong><button type="button" onClick={() => setRequestsOpen(false)} aria-label="Cerrar">✕</button></div>
       {isModerator && !publish && <button type="button" disabled={inviteBusy || camerasFull} style={{background:'#8e38d0',color:'#fff',padding:10,borderRadius:10,marginBottom:8}} onClick={async()=>{setInviteBusy(true);try{await onModerate('moderator_join');setRequestsOpen(false);}catch(e){onError?.(e.message);}finally{setInviteBusy(false);}}}>{lang==='es'?'Subir a cámara':'Join camera'}</button>}
       <div style={{display:'flex',gap:8,marginBottom:8}}>
         <button type="button" onClick={()=>setRequestTab('requests')} style={{background:requestTab==='requests'?'#8e38d0':'#49315b',color:'#fff',padding:8,borderRadius:8}} aria-pressed={requestTab==='requests'}>{lang==='es'?'Solicitudes':'Requests'} ({requests.filter(r=>r.status==='pending').length})</button>
