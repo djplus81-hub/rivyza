@@ -17,8 +17,8 @@ class RivyzaVoice extends AudioWorkletProcessor {
         const t = this.pos + i, x = src?.[i] || 0;
         b[t % N] = x;
         let y = x;
-        if (mode === 'chip' || mode === 'deep' || mode === 'baby' || mode === 'female') {
-          const ratio = mode === 'chip' ? 1.55 : mode === 'deep' ? .68 : mode === 'female' ? 1.26 : 1.32;
+        if (mode === 'chip' || mode === 'deep' || mode === 'baby') {
+          const ratio = mode === 'chip' ? 1.55 : mode === 'deep' ? .68 : 1.32;
           const p = ((t * (1-ratio) % W) + W) % W, q = (p + W/2) % W;
           const read = d => {
             const r = t-2-d, k = Math.floor(r), f = r-k;
@@ -30,11 +30,6 @@ class RivyzaVoice extends AudioWorkletProcessor {
             // Reduce low resonance and emphasize articulation without alien modulation.
             state.low += (1-Math.exp(-2*Math.PI*450/sampleRate))*(y-state.low);
             y = 1.12*y-.48*state.low;
-          }
-          if (mode === 'female') {
-            // Moderate pitch lift and gentle low-resonance reduction.
-            state.low += (1-Math.exp(-2*Math.PI*280/sampleRate))*(y-state.low);
-            y = 1.08*y-.32*state.low;
           }
         }
         if (mode !== 'none') {
