@@ -1210,6 +1210,29 @@ async function applyPostCrop(){
     }
     return counts;
   }
+  async function getLikeStats(postIds){
+    const ids=[...new Set(postIds.filter(Boolean))];
+    const counts={}, mine=new Set();
+    for(let i=0;i<ids.length;i+=12){
+      const batch=ids.slice(i,i+12);
+      const [results,own]=await Promise.all([
+        Promise.all(batch.map(id=>supabase.rpc("get_post_like_count",{target_post_id:id}))),
+        supabase.from("post_likes").select("post_id").eq("user_id",user.id).in("post_id",batch)
+      ]);
+      if(own.error||results.some(r=>r.error||r.data==null))return null;
+      batch.forEach((id,j)=>{counts[id]=Number(results[j].data)||0;});
+      (own.data||[]).forEach(r=>mine.add(r.post_id));
+    }
+    return {counts,mine};
+  }
+  function syncLike(postId,count,mine){
+    const apply=rows=>rows.map(p=>p.id===postId?{...p,like_count:count,liked_by_me:mine}:p);
+    setFeedPosts(apply);setProfilePosts(apply);setViewedProfilePosts(apply);
+    if(liveDataRef.current.selectedPost?.id===postId){setPostLikeCount(count);setPostLiked(mine);}
+  }
+  function profileLikeBadge(post){
+    return <span style={{position:"absolute",right:4,bottom:4,zIndex:2,display:"inline-flex",alignItems:"center",gap:3,padding:"2px 5px",borderRadius:4,background:"rgba(0,0,0,.55)",color:"white",fontSize:11,lineHeight:"14px",pointerEvents:"none"}}><Heart size={12} fill="#ff4389" color="#ff4389"/><span>{Number(post.like_count||0).toLocaleString("en-US")}</span></span>;
+  }
   function syncCommentCount(postId,count){
     setFeedPosts(rows=>rows.map(row=>row.id===postId?{...row,comment_count:count}:row));
     setProfilePosts(rows=>rows.map(row=>row.id===postId?{...row,comment_count:count}:row));
@@ -1244,8 +1267,8 @@ async function applyPostCrop(){
       return new Date(b.created_at)-new Date(a.created_at);
     });
 
-    const counts=await getCommentCounts(sorted.map(p=>p.id));
-    setProfilePosts(sorted.map(p=>({...p,creator:{username:profile?.username,display_name:profile?.display_name},comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
+    const [counts,likes]=await Promise.all([getCommentCounts(sorted.map(p=>p.id)),getLikeStats(sorted.map(p=>p.id))]);
+    setProfilePosts(sorted.map(p=>({...p,like_count:likes?.counts[p.id]??p.like_count,liked_by_me:likes?.mine.has(p.id)??p.liked_by_me,creator:{username:profile?.username,display_name:profile?.display_name},comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
   async function loadMyLikedPosts(){
@@ -1535,8 +1558,8 @@ async function applyPostCrop(){
       if(ap!==bp)return ap-bp;
       return new Date(b.created_at)-new Date(a.created_at);
     });
-    const counts=await getCommentCounts(sorted.map(p=>p.id));
-    setViewedProfilePosts(sorted.map(p=>({...p,creator:{username:targetProfile.username,display_name:targetProfile.display_name},comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
+    const [counts,likes]=await Promise.all([getCommentCounts(sorted.map(p=>p.id)),getLikeStats(sorted.map(p=>p.id))]);
+    setViewedProfilePosts(sorted.map(p=>({...p,like_count:likes?.counts[p.id]??p.like_count,liked_by_me:likes?.mine.has(p.id)??p.liked_by_me,creator:{username:targetProfile.username,display_name:targetProfile.display_name},comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
   }
 
   async function searchPeople(term=peopleSearch){
@@ -1633,24 +1656,17 @@ async function applyPostCrop(){
 
       const creatorIds=[...new Set(rows.map(post=>post.user_id).filter(Boolean))];
       const postIds=rows.map(post=>post.id);
-      const [{data:creators,error:creatorError},{data:likes,error:likesError}]=await Promise.all([
+      const [{data:creators,error:creatorError},likes]=await Promise.all([
         supabase.from("profiles")
           .select("id,username,display_name,bio,avatar_url,website_url,youtube_url,instagram_url,facebook_url,country_code,country_name,show_country")
           .in("id",creatorIds),
-        supabase.from("post_likes").select("post_id,user_id").in("post_id",postIds)
+        getLikeStats(postIds)
       ]);
       if(creatorError)throw creatorError;
-      if(likesError)throw likesError;
+      if(!likes)console.warn("RIVYZA: no se pudo consultar Likes");
       if(requestId!==feedRequestRef.current)return;
 
       const creatorMap=new Map((creators||[]).map(person=>[person.id,person]));
-      const likeCountMap=new Map();
-      const likedByMe=new Set();
-      (likes||[]).forEach(like=>{
-        likeCountMap.set(like.post_id,(likeCountMap.get(like.post_id)||0)+1);
-        if(like.user_id===user.id)likedByMe.add(like.post_id);
-      });
-
       const commentCounts=await getCommentCounts(postIds);
       if(requestId!==feedRequestRef.current)return;
       feedNewestIdRef.current=rows[0]?.id||null;
@@ -1658,8 +1674,8 @@ async function applyPostCrop(){
       setFeedPosts(rows.map(post=>({
         ...post,
         creator:creatorMap.get(post.user_id)||null,
-        like_count:likeCountMap.get(post.id)||0,
-        liked_by_me:likedByMe.has(post.id),
+        like_count:likes?.counts[post.id]??post.like_count??0,
+        liked_by_me:likes?.mine.has(post.id)??false,
         comment_count:commentCounts===null?Number(post.comment_count||0):(commentCounts[post.id]||0)
       })));
     }catch(e){
@@ -1685,7 +1701,7 @@ async function applyPostCrop(){
   }
 
   async function toggleFeedLike(post){
-    if(!supabase || !user?.id || !post?.id || feedLikeBusy===post.id)return;
+    if(!supabase || !user?.id || !post?.id || feedLikeBusyRef.current || postLikeBusyRef.current)return;
     feedLikeBusyRef.current=post.id;
     setFeedLikeBusy(post.id);
     const wasLiked=!!post.liked_by_me;
@@ -1701,6 +1717,8 @@ async function applyPostCrop(){
         const {error}=await supabase.from("post_likes").insert({post_id:post.id,user_id:user.id});
         if(error)throw error;
       }
+      const stats=await getLikeStats([post.id]);
+      syncLike(post.id,stats?.counts[post.id]??Math.max(0,Number(post.like_count||0)+(wasLiked?-1:1)),stats?.mine.has(post.id)??!wasLiked);
     }catch(e){
       console.error("Feed like error:",e);
       setFeedPosts(rows=>rows.map(row=>row.id===post.id
@@ -1808,23 +1826,13 @@ async function applyPostCrop(){
         }
         // Sincronizar likes en las mismas publicaciones, sin recargar ni mover el feed.
         if(ids.length){
-          const likeCounts={};
-          const likedByMe=new Set();
-          let likesOk=true;
-          // Evitar consultas demasiado largas si hay muchas publicaciones visibles.
-          for(let i=0;i<ids.length;i+=80){
-            const batch=ids.slice(i,i+80);
-            const {data,error}=await supabase.from("post_likes")
-              .select("post_id,user_id").in("post_id",batch);
-            if(error){likesOk=false;console.warn("RIVYZA live like sync:",error);break;}
-            for(const like of data||[]){
-              likeCounts[like.post_id]=(likeCounts[like.post_id]||0)+1;
-              if(like.user_id===user.id)likedByMe.add(like.post_id);
-            }
-          }
+          const stats=await getLikeStats(ids);
+          const likeCounts=stats?.counts||{};
+          const likedByMe=stats?.mine||new Set();
+          const likesOk=!!stats;
           if(active && likesOk){
             const applyLikes=rows=>rows.map(p=>{
-              if(feedLikeBusyRef.current===p.id || (postLikeBusyRef.current && current.selectedPost?.id===p.id))return p;
+              if(!ids.includes(p.id)||feedLikeBusyRef.current===p.id || (postLikeBusyRef.current && current.selectedPost?.id===p.id))return p;
               const n=likeCounts[p.id]||0;
               const mine=likedByMe.has(p.id);
               return p.like_count===n && p.liked_by_me===mine?p:{...p,like_count:n,liked_by_me:mine};
@@ -1832,7 +1840,7 @@ async function applyPostCrop(){
             setFeedPosts(applyLikes);
             setProfilePosts(applyLikes);
             setViewedProfilePosts(applyLikes);
-            if(current.selectedPost?.id && !postLikeBusyRef.current){
+            if(current.selectedPost?.id && liveDataRef.current.selectedPost?.id===current.selectedPost.id && !postLikeBusyRef.current && feedLikeBusyRef.current!==current.selectedPost.id){
               const id=current.selectedPost.id;
               setPostLikeCount(likeCounts[id]||0);
               setPostLiked(likedByMe.has(id));
@@ -1848,7 +1856,8 @@ async function applyPostCrop(){
       }catch(err){console.warn("RIVYZA live comment sync:",err);}
       finally{running=false;}
     };
-    const timer=setInterval(update,10000);
+    update();
+    const timer=setInterval(update,5000);
     const onReturn=()=>{if(!document.hidden)update();};
     document.addEventListener("visibilitychange",onReturn);
     window.addEventListener("focus",onReturn);
@@ -2064,6 +2073,8 @@ async function applyPostCrop(){
         if(error)throw error;
         setPostLiked(true);setPostLikeCount(v=>v+1);
       }
+      const stats=await getLikeStats([selectedPost.id]);
+      syncLike(selectedPost.id,stats?.counts[selectedPost.id]??Math.max(0,postLikeCount+(postLiked?-1:1)),stats?.mine.has(selectedPost.id)??!postLiked);
       if(view==="publicProfile"&&profileTab==="likes")loadMyLikedPosts();
       if(selectedPost.user_id===user.id)loadProfileLikeCount(user.id,{own:true});
       else if(viewedProfile?.id===selectedPost.user_id)loadProfileLikeCount(viewedProfile.id);
@@ -4387,11 +4398,12 @@ async function applyPostCrop(){
         </div>
         {viewedProfileTab==="likes"&&viewedLikesAllowed?<div className="posts-grid">{viewedLikesLoading?<p>Cargando Me gusta…</p>:viewedLikedPosts.length?viewedLikedPosts.map(post=><button type="button" className="profile-post-card" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||"Publicación"}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>):<p>No hay publicaciones que mostrar.</p>}</div>:<div className="posts-grid">
           {viewedProfilePosts.length > 0 ? viewedProfilePosts.map(post=>(
-            <div className="profile-post-card" key={post.id} onClick={()=>openPost(post)}>
+            <div className="profile-post-card" style={{position:"relative"}} key={post.id} onClick={()=>openPost(post)}>
               {post.media_type==="photo"
                 ? <img src={post.media_path} alt={post.caption||"Publicación"}/>
                 : <video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>
               }
+              {profileLikeBadge(post)}
               {post.pinned_position && <span className="post-pin">📌</span>}
             </div>
           )) : <div className="empty-grid-card first">Este usuario todavía no tiene publicaciones públicas.</div>}
@@ -4463,7 +4475,7 @@ async function applyPostCrop(){
             {selectedPost.caption && <p className="post-detail-caption">{renderMentionText(selectedPost.caption)}</p>}
             <div className="post-public-stamp">Publicado · {formatPostDate(selectedPost.created_at)}</div>
             <div className="post-detail-actions">
-              <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
+              <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{Number(postLikeCount||0).toLocaleString("en-US")}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={23}/><span>{t("Compartir")}</span></button>
@@ -4572,6 +4584,7 @@ async function applyPostCrop(){
               profilePosts.map((post)=>(
                 <div
                   className="profile-post-card"
+                  style={{position:"relative"}}
                   key={post.id}
                   onClick={()=>openPost(post)}
                 >
@@ -4581,6 +4594,7 @@ async function applyPostCrop(){
                     <video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>
                   )}
 
+                  {profileLikeBadge(post)}
                   {post.pinned_position && (
                     <span className="post-pin">📌</span>
                   )}
@@ -4645,7 +4659,7 @@ async function applyPostCrop(){
               Publicado · {formatPostDate(selectedPost.created_at)}
             </div>
             <div className="post-detail-actions">
-              <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{postLikeCount}</span></button>
+              <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{Number(postLikeCount||0).toLocaleString("en-US")}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
               <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={23}/><span>{t("Compartir")}</span></button>
@@ -4932,7 +4946,7 @@ async function applyPostCrop(){
               </button>{renderQuickFollow(post)}</div>
               <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
                 <Heart fill={post.liked_by_me?"currentColor":"none"}/>
-                <span>{post.like_count||0}</span>
+                <span>{Number(post.like_count||0).toLocaleString("en-US")}</span>
               </button>
               <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
               <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
@@ -5175,7 +5189,7 @@ async function applyPostCrop(){
 
             <button className={post.liked_by_me?"feed-liked":""} disabled={feedLikeBusy===post.id} onClick={()=>toggleFeedLike(post)}>
               <Heart fill={post.liked_by_me?"currentColor":"none"}/>
-              <span>{post.like_count||0}</span>
+              <span>{Number(post.like_count||0).toLocaleString("en-US")}</span>
             </button>
             <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
             <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
