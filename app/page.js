@@ -3369,7 +3369,8 @@ async function applyPostCrop(){
              .rivyza-transparent-review .rv-post-bottom{position:absolute;bottom:var(--rv-bottom);left:0;right:0;z-index:25;display:flex;flex-direction:column;gap:7px;padding:0 0 8px;pointer-events:none;background:linear-gradient(transparent,#0008)}
              .rivyza-transparent-review .rv-post-bottom>*{pointer-events:auto}
              .camera-composer .rivyza-transparent-review .rv-post-fields .upload-field{background:#141927bb!important;backdrop-filter:blur(12px);padding:7px!important}
-             .rivyza-transparent-review .upload-field textarea{height:42px!important;min-height:42px!important}
+             .rivyza-transparent-review .upload-field textarea{height:58px!important;min-height:58px!important;font-size:14px!important;line-height:18px!important;padding:6px!important;overflow-y:auto!important;font-weight:400!important}
+             .rivyza-transparent-review .upload-field textarea::placeholder{font-size:14px!important;line-height:18px!important;font-weight:400!important}
              .rivyza-transparent-review .rv-sticker-adjust{background:#141422bb;backdrop-filter:blur(12px)}
              .rivyza-transparent-review .rivyza-publish-footer{padding-bottom:0!important}
              .rivyza-transparent-review .rivyza-music-sheet{z-index:40!important}
@@ -3390,7 +3391,7 @@ async function applyPostCrop(){
            </div>
            <div className="rivyza-music-stage">
              <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`} style={uploadType==="photo"?{"--rv-photo-ratio":9/16}:undefined}>
-               {uploadType==="photo"&&<MediaStickers supabase={supabase} items={postStickers} onChange={setPostStickers} hideLauncher openSignal={postStickerOpen} closeSignal={postStickerClose} selectedId={postStickerId} onSelect={id=>{setPostStickerId(id);if(id)setPhotoFilterOpen(false);}}/>}
+               {uploadType==="photo"&&<MediaStickers supabase={supabase} items={postStickers} onChange={setPostStickers} positionOnly hideLauncher openSignal={postStickerOpen} closeSignal={postStickerClose} selectedId={postStickerId} onSelect={id=>{setPostStickerId(id);if(id)setPhotoFilterOpen(false);}}/>}
                {uploadType==="photo"
                  ? <img src={uploadPreview} alt="Vista previa" onLoad={e=>setPostPhotoRatio(e.currentTarget.naturalWidth/e.currentTarget.naturalHeight)} style={{filter:photoFilterCss,transition:"filter .15s"}}/>
                  : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="auto" style={{width:"100%"}}
