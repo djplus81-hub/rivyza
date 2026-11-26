@@ -411,7 +411,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     const d = new Date(at || Date.now());
     return Number.isFinite(d.getTime()) ? d.toLocaleTimeString(lang === 'es' ? 'es-US' : 'en-US', {hour:'numeric',minute:'2-digit',hour12:true}) : '';
   };
-  const mapSaved = row => ({id:row.client_id, name:row.author_name,
+  const mapSaved = row => ({id:row.client_id, name:row.author_name, authorId:row.author_id,
     text:row.body, system:row.kind === 'event', at:new Date(row.created_at).getTime()});
   const mergeSaved = rows => setChat(items => {
     const byId = new Map(items.map(m => [m.id, m]));
@@ -437,7 +437,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       chatBusy.current = true;
       try {
         const {data,error} = await supabase.from('rivyza_live_chat')
-          .select('client_id,author_name,body,kind,created_at')
+          .select('client_id,author_id,author_name,body,kind,created_at')
           .eq('room_id',liveRoomId).order('created_at',{ascending:false}).limit(500);
         if (error) throw error;
         if (alive) { mergeSaved([...(data || [])].reverse()); setHasOlder((data || []).length === 500); }
@@ -454,7 +454,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     try {
       const oldest = new Date(Math.min(...chat.map(m => m.at || Date.now()))).toISOString();
       const {data,error} = await supabase.from('rivyza_live_chat')
-        .select('client_id,author_name,body,kind,created_at')
+        .select('client_id,author_id,author_name,body,kind,created_at')
         .eq('room_id',liveRoomId).lt('created_at',oldest)
         .order('created_at',{ascending:false}).limit(250);
       if (error) throw error;
@@ -626,6 +626,21 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     }catch(e){onError?.(e.message);}
   }
   const [comment, setComment] = useState('');
+  const [chatPeople,setChatPeople]=useState({});
+  const chatIds=[...new Set(chat.filter(m=>!m.system&&!m.privateWelcome&&m.authorId).map(m=>m.authorId))].sort().join(',');
+  useEffect(()=>{let active=true; const ids=chatIds.split(',').filter(Boolean); (async()=>{for(let i=0;i<ids.length;i+=100){const {data}=await supabase.from('profiles').select('id,display_name,username,avatar_url').in('id',ids.slice(i,i+100));if(active&&data)setChatPeople(old=>({...old,...Object.fromEntries(data.map(p=>[p.id,p]))}));}})();return()=>{active=false};},[chatIds,supabase]);
+  const [quickId,setQuickId]=useState(null);
+  const [quickData,setQuickData]=useState(null);
+  const [quickMenu,setQuickMenu]=useState(false);
+  const [quickReport,setQuickReport]=useState(false);
+  const [quickReason,setQuickReason]=useState('harassment');
+  const [quickBusy,setQuickBusy]=useState(false);
+  const [quickError,setQuickError]=useState('');
+  const es=lang==='es';
+  useEffect(()=>{let active=true;setQuickData(null);setQuickMenu(false);setQuickReport(false);setQuickError('');if(!quickId)return; (async()=>{try{const [p,a,b,f,block]=await Promise.all([supabase.from('profiles').select('id,display_name,username,avatar_url,bio').eq('id',quickId).single(),supabase.from('follows').select('*',{count:'exact',head:true}).eq('following_id',quickId),supabase.from('follows').select('*',{count:'exact',head:true}).eq('follower_id',quickId),supabase.from('follows').select('following_id').eq('follower_id',user.id).eq('following_id',quickId).maybeSingle(),supabase.from('rivyza_user_blocks').select('blocked_id').eq('blocker_id',user.id).eq('blocked_id',quickId).maybeSingle()]);if([p,a,b,f,block].some(x=>x.error))throw Error('Profile lookup failed');if(active)setQuickData({...p.data,followers:a.count,following:b.count,followed:!!f.data,blocked:!!block.data});}catch(e){if(active)setQuickError(es?'No se pudo cargar el perfil.':'Could not load profile.');}})();return()=>{active=false};},[quickId,supabase,user.id,es]);
+  async function quickAction(action){if(!quickData||quickBusy||quickId===user.id)return;setQuickBusy(true);setQuickError('');try{let result;if(action==='follow'){if(quickData.blocked)return;result=quickData.followed?await supabase.from('follows').delete().eq('follower_id',user.id).eq('following_id',quickId):await supabase.from('follows').insert({follower_id:user.id,following_id:quickId});if(result.error)throw result.error;setQuickData(d=>({...d,followed:!d.followed,followers:Math.max(0,d.followers+(d.followed?-1:1))}));}else if(action==='block'){if(!window.confirm(es?'¿Cambiar bloqueo de esta cuenta?':'Change block status for this account?'))return;result=quickData.blocked?await supabase.from('rivyza_user_blocks').delete().eq('blocker_id',user.id).eq('blocked_id',quickId):await supabase.from('rivyza_user_blocks').insert({blocker_id:user.id,blocked_id:quickId});if(result.error)throw result.error;setQuickData(d=>({...d,blocked:!d.blocked}));setQuickMenu(false);}else{result=await supabase.from('rivyza_reports').insert({reporter_id:user.id,target_type:'user',target_id:quickId,reason:quickReason,details:''});if(result.error)throw result.error;setQuickReport(false);setQuickMenu(false);setQuickError(es?'Reporte recibido.':'Report received.');}}catch(e){setQuickError(e.message||'Error');}finally{setQuickBusy(false);}}
+  function chatAvatar(p,name){return p?.avatar_url?<img src={p.avatar_url} alt="" onError={e=>{e.currentTarget.style.display='none';}}/>:<span>{(name||'?').slice(0,1).toUpperCase()}</span>;}
+
   const [flipping, setFlipping] = useState(false);
   // Mirror is a display preference synchronized with all LIVE participants.
   const [mirrorStates, setMirrorStates] = useState({});
@@ -836,7 +851,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       try {
         const m = JSON.parse(new TextDecoder().decode(bytes));
         if (typeof m.text === 'string' && m.text.trim())
-          appendChat({id:m.id || crypto.randomUUID(), name:m.system ? 'LIVE' : (sender.name || 'Usuario'), text:m.text.slice(0,300), system:m.system === true, at:m.at || Date.now()});
+          appendChat({id:m.id || crypto.randomUUID(), authorId:sender.identity, name:m.system ? 'LIVE' : (sender.name || 'Usuario'), text:m.text.slice(0,300), system:m.system === true, at:m.at || Date.now()});
       } catch {}
     };
     const departed = p => {
@@ -875,7 +890,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     // Closing the iOS keyboard must not disconnect or resize the LIVE.
     commentInputRef.current?.blur();
     setTyping(false);
-    const entry = {id:crypto.randomUUID(), name:room.localParticipant.name || 'Tú',text,at:Date.now()};
+    const entry = {id:crypto.randomUUID(), authorId:user.id, name:room.localParticipant.name || 'Tú',text,at:Date.now()};
     try {
       appendChat(entry); setComment('');
       // Supabase is authoritative. A closed LiveKit data channel must not block chat.
@@ -1703,6 +1718,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     catch(e) { onError(e.message); }
   }
   return <>
+    {quickId && createPortal(<div className="rv-quick-backdrop" onClick={()=>{if(!quickBusy)setQuickId(null)}}><section className="rv-quick-sheet" role="dialog" aria-modal="true" aria-label={es?'Perfil rápido':'Quick profile'} onClick={e=>e.stopPropagation()}><div className="rv-quick-handle"/><button className="rv-quick-close" onClick={()=>setQuickId(null)} disabled={quickBusy} aria-label={es?'Cerrar':'Close'}>×</button>{quickData?<><div className="rv-quick-head"><button className="rv-chat-avatar rv-quick-avatar" disabled={quickBusy} aria-label={es?'Abrir perfil':'Open profile'} onClick={()=>{setQuickId(null);onViewProfile?.(quickId)}}>{chatAvatar(quickData,quickData.display_name)}</button><div className="rv-quick-name notranslate" translate="no"><strong>{quickData.display_name||quickData.username}</strong><small>@{quickData.username}</small></div>{quickId!==user.id&&<button className="rv-quick-more" onClick={()=>setQuickMenu(v=>!v)}>•••</button>}</div><div className="rv-quick-stats"><strong>{quickData.followers} {es?'Seguidores':'Followers'}</strong><strong>{quickData.following} {es?'Seguidos':'Following'}</strong></div><div className="notranslate" translate="no">{quickData.bio}</div>{quickMenu&&<div className="rv-quick-actions"><button disabled={quickBusy} onClick={()=>setQuickReport(v=>!v)}>{es?'Reportar usuario':'Report user'}</button><button disabled={quickBusy} onClick={()=>quickAction('block')}>{quickData.blocked?(es?'Desbloquear':'Unblock'):(es?'Bloquear':'Block')}</button></div>}{quickReport&&<div className="rv-quick-actions"><select value={quickReason} onChange={e=>setQuickReason(e.target.value)}>{[['harassment','Acoso','Harassment'],['threats','Amenazas','Threats'],['spam','Spam','Spam'],['hate','Odio','Hate'],['other','Otro','Other']].map(([v,s,n])=><option key={v} value={v}>{es?s:n}</option>)}</select><button disabled={quickBusy} onClick={()=>quickAction('report')}>{es?'Enviar reporte':'Send report'}</button></div>}{quickId!==user.id&&<div className="rv-quick-footer"><button onClick={()=>{setComment(v=>(v+' @'+quickData.username+' ').trimStart());setQuickId(null)}}>@</button><button className="rv-quick-follow" disabled={quickBusy||quickData.blocked} onClick={()=>quickAction('follow')}>{quickData.followed?(es?'Siguiendo':'Following'):(es?'+ Seguir':'+ Follow')}</button></div>}</>:!quickError?<p>{es?'Cargando…':'Loading…'}</p>:null}{quickError&&<p role="status">{quickError}</p>}</section></div>,document.body)}
     <style>{`.rivyza-live-stage .rivyza-live-tile video.rivyza-camera-mirrored { transform: scaleX(-1) !important; -webkit-transform: scaleX(-1) !important; }
 /* v3.50: Override legacy square-camera layout ONLY for nine slots. */
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9:not(.rivyza-live-solo) {
@@ -1896,7 +1912,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         </div>
       </div>
     </div>}
-    <div className="rivyza-v314-chat" style={slots===14 && chatBoundary!==null ? {clipPath:`inset(${Math.ceil(chatBoundary)}px 0 0 0)`} : undefined} ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : <>{m.name && <strong translate="no" className="notranslate">{m.name}: </strong>}{m.system || m.privateWelcome ? m.text : <span translate="no" className="notranslate">{m.text}</span>}</>}</div>})}</div>{chatReadingOld && <button type="button" onClick={goToLatest} aria-label="Ir al mensaje más reciente" style={{position:'fixed',bottom:'calc(242px + env(safe-area-inset-bottom))',left:14,zIndex:49,border:'1px solid #ffffff66',borderRadius:20,padding:'7px 12px',background:'rgba(32,19,44,.94)',color:'white',fontSize:12}}>↓ Ir al más reciente</button>}{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
+    <div className="rivyza-v314-chat" style={slots===14 && chatBoundary!==null ? {clipPath:`inset(${Math.ceil(chatBoundary)}px 0 0 0)`} : undefined} ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : m.system || m.privateWelcome ? <>{m.name && <strong>{m.name}: </strong>}{m.text}</> : <div className="rv-chat-person"><button type="button" className="rv-chat-avatar" disabled={!m.authorId} aria-label={es?'Abrir perfil rápido':'Open quick profile'} onClick={()=>setQuickId(m.authorId)}>{chatAvatar(chatPeople[m.authorId]||profiles[m.authorId],m.name)}</button><div className="rv-chat-copy"><div className="rv-chat-name notranslate" translate="no">{chatPeople[m.authorId]?.display_name||m.name}{m.authorId===hostId?' 👑':moderatorIds?.includes(m.authorId)?' 🛡️':''}</div><div translate="no" className="notranslate">{m.text}</div></div></div>}</div>})}</div>{chatReadingOld && <button type="button" onClick={goToLatest} aria-label="Ir al mensaje más reciente" style={{position:'fixed',bottom:'calc(242px + env(safe-area-inset-bottom))',left:14,zIndex:49,border:'1px solid #ffffff66',borderRadius:20,padding:'7px 12px',background:'rgba(32,19,44,.94)',color:'white',fontSize:12}}>↓ Ir al más reciente</button>}{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
     {publish && (cameraPreviewOpen || previewStream) && <div role="dialog" aria-modal={cameraPreviewOpen} aria-label="Preparar cámara" style={{position:'fixed',inset:0,zIndex:cameraPreviewOpen?2147483001:-1,opacity:cameraPreviewOpen?1:0,pointerEvents:cameraPreviewOpen?'auto':'none',background:'rgba(0,0,0,.94)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:14,color:'#fff'}}>
       <div style={{width:'100%',maxWidth:400,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}><strong>Prepara tu cámara</strong><button type="button" onClick={closePreview} style={{background:'transparent',border:0,color:'#fff',fontSize:25}}>✕</button></div>
       <div style={{width:'100%',maxWidth:400,height:'min(49vh,460px)',background:'#15151d',borderRadius:14,overflow:'hidden',position:'relative'}}>
