@@ -739,6 +739,8 @@ export default function HomePage(){
   const [uploadFile,setUploadFile]=useState(null);
   const [uploadPreview,setUploadPreview]=useState("");
   const [postStickers,setPostStickers]=useState([]);
+  const [postStickerId,setPostStickerId]=useState(null),[postStickerOpen,setPostStickerOpen]=useState(0),[postStickerClose,setPostStickerClose]=useState(0);
+  const [postPhotoRatio,setPostPhotoRatio]=useState(0);
   // Editor independiente para publicaciones fotográficas (no afecta LIVE ni video).
   const [postCropOpen,setPostCropOpen]=useState(false);
   const [postCrop,setPostCrop]=useState({x:0,y:0});
@@ -2808,7 +2810,7 @@ async function applyPostCrop(){
      return;
    }
 
-   setPostStickers([]);
+   setPostStickers([]);setPostStickerId(null);setPostStickerClose(v=>v+1);setPostPhotoRatio(0);
    setUploadFile(file);
    setUploadPreview(URL.createObjectURL(file));
    setUploadMessage("");
@@ -3329,6 +3331,17 @@ async function applyPostCrop(){
              .rivyza-transparent-review .publish-post-btn{width:100%;min-height:48px;border:0;border-radius:24px;background:linear-gradient(100deg,#ff159e,#792cff,#00a8ff)!important;color:white;font-weight:800;font-size:17px}
              .rivyza-transparent-review .upload-message{position:relative!important;inset:auto!important;margin:0 10px;color:white!important}
              .rivyza-transparent-review .rivyza-music-sheet{z-index:30!important}
+
+             .camera-composer .rivyza-transparent-review .rivyza-music-stage{container-type:size;flex:1 0 220px!important;overflow:hidden!important}
+             .camera-composer .rivyza-transparent-review .upload-preview.editor-preview[style*="--rv-photo-ratio"]{width:min(100%,calc(100cqh * var(--rv-photo-ratio)))!important;height:min(100%,calc(100cqw / var(--rv-photo-ratio)))!important;overflow:hidden!important}
+             .rivyza-transparent-review .rv-post-tools button{flex:1 1 0;min-width:0;padding:5px 1px;font-size:10px}
+             .rivyza-transparent-review .rv-post-tools{gap:4px;padding:5px}
+             .rivyza-transparent-review .rv-sticker-adjust{display:flex;align-items:center;gap:6px;margin:0 10px;padding:8px;border:1px solid #514078;border-radius:14px;background:#141422;flex:0 0 auto}
+             .rivyza-transparent-review .rv-sticker-adjust label{display:flex;flex:1;min-width:0;flex-direction:column;font-size:11px;gap:4px}
+             .rivyza-transparent-review .rv-sticker-adjust input{width:100%;min-width:0;accent-color:#ec29a9}
+             .rivyza-transparent-review .rv-sticker-adjust button{flex:0 0 34px;height:38px;border:1px solid #ffffff30;border-radius:9px;background:#242337;color:white;display:grid;place-items:center;padding:0}
+             .rivyza-transparent-review .rv-sticker-adjust button:nth-last-child(2){background:#a92349}
+             .rivyza-transparent-review .upload-field textarea{height:58px!important;min-height:58px!important;font-size:16px!important}
            `}</style>
            <div className="upload-header">
              <button onClick={()=>{resetUpload();setTimeout(()=>startCamera(cameraFacing),0);}}>←</button>
@@ -3336,11 +3349,18 @@ async function applyPostCrop(){
              <button onClick={async()=>{resetUpload();await stopCamera();setUploadOpen(false);}}><X/></button>
            </div>
 
+           <div className="rv-post-tools">
+             {uploadType==="photo"&&<button type="button" onClick={()=>{setPostStickerId(null);setPostStickerClose(v=>v+1);setPhotoFilterOpen(false);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);setPostCropAspect(9/16);setPostCropError("");setPostCropOpen(true);}}><Crop size={21}/>Ajustar</button>}
+             {uploadType==="photo"&&<button type="button" onClick={()=>{setPostStickerId(null);setPostStickerClose(v=>v+1);setPhotoFilterOpen(v=>!v);}}><SlidersHorizontal size={21}/>Filtros</button>}
+             <button type="button" onClick={()=>{setPostStickerId(null);setPostStickerClose(v=>v+1);setPhotoFilterOpen(false);setMusicPanel("library");}}><Music2 size={21}/>Música</button>
+             <button type="button" onClick={()=>{setPostStickerId(null);setPostStickerClose(v=>v+1);setPhotoFilterOpen(false);setMusicPanel("audio");}}><Mic size={21}/>Audio</button>
+             {uploadType==="photo"&&<button type="button" onClick={()=>{setPhotoFilterOpen(false);setPostStickerId(null);setPostStickerOpen(v=>v+1);}}><span style={{fontSize:21,color:"#c19aff"}}>✧</span>Stickers</button>}
+           </div>
            <div className="rivyza-music-stage">
-             <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`}>
-               {uploadType==="photo"&&<MediaStickers supabase={supabase} items={postStickers} onChange={setPostStickers}/>}
+             <div className={`upload-preview editor-preview ${uploadType === "video" ? "editor-preview-video" : ""}`} style={uploadType==="photo"&&postPhotoRatio?{"--rv-photo-ratio":postPhotoRatio}:undefined}>
+               {uploadType==="photo"&&<MediaStickers supabase={supabase} items={postStickers} onChange={setPostStickers} hideLauncher openSignal={postStickerOpen} closeSignal={postStickerClose} selectedId={postStickerId} onSelect={id=>{setPostStickerId(id);if(id)setPhotoFilterOpen(false);}}/>}
                {uploadType==="photo"
-                 ? <img src={uploadPreview} alt="Vista previa" style={{filter:photoFilterCss,transition:"filter .15s"}}/>
+                 ? <img src={uploadPreview} alt="Vista previa" onLoad={e=>setPostPhotoRatio(e.currentTarget.naturalWidth/e.currentTarget.naturalHeight)} style={{filter:photoFilterCss,transition:"filter .15s"}}/>
                  : <video ref={editorVideoRef} src={uploadPreview} controls playsInline preload="auto" style={{width:"100%"}}
                      onLoadedMetadata={e=>{const v=e.currentTarget,d=v.duration;if(Number.isFinite(d)&&d>0){setEditorVideoDuration(d);/* iOS: seek to a decoded frame so the editor does not open black. */try{v.currentTime=Math.min(0.18,Math.max(0,d-0.05));}catch(_){}}}}
                      onPlaying={()=>{const v=editorVideoRef.current,a=editorMusicRef.current;if(!v)return;const mixed=musicSelected&&prepareEditorMix();if(!mixed)v.volume=musicSelected?originalVolume/100:1;if(musicSelected&&a){a.currentTime=Math.min(musicStart+v.currentTime,Math.max(0,musicDuration-0.2));if(!mixed)a.volume=musicVolume/100;a.play().catch(()=>{});}}}
@@ -3354,13 +3374,14 @@ async function applyPostCrop(){
                  onTimeUpdate={e=>{const a=e.currentTarget;const clip=uploadType==="video"&&editorVideoDuration>0?editorVideoDuration:musicLength;if(a.currentTime>=musicStart+clip){if(musicPreviewRef.current || uploadType==="photo"){a.currentTime=musicStart;if(musicPreviewRef.current && a.paused)a.play().catch(()=>{});}else a.pause();}}}/>}
              </div>
            </div>
-           <div className="rv-post-tools">
-             {uploadType==="photo"&&<button type="button" onClick={()=>{setPhotoFilterOpen(false);setPostCrop({x:0,y:0});setPostZoom(1);setPostCropPixels(null);setPostCropAspect(9/16);setPostCropError("");setPostCropOpen(true);}}><Crop size={21}/>Ajustar</button>}
-             {uploadType==="photo"&&<button type="button" onClick={()=>setPhotoFilterOpen(v=>!v)}><SlidersHorizontal size={21}/>Filtros</button>}
-             <button type="button" onClick={()=>{setPhotoFilterOpen(false);setMusicPanel("library");}}><Music2 size={21}/>Música</button>
-             <button type="button" onClick={()=>{setPhotoFilterOpen(false);setMusicPanel("audio");}}><Mic size={21}/>Audio</button>
-           </div>
-           {uploadType==="photo"&&photoFilterOpen&&<div style={{position:"absolute",top:"calc(90px + env(safe-area-inset-top))",left:12,right:116,zIndex:10,background:"rgba(15,15,20,.94)",backdropFilter:"blur(14px)",borderRadius:16,padding:12,color:"white"}}>
+           {uploadType==="photo"&&postStickers.some(s=>s.id===postStickerId)&&<div className="rv-sticker-adjust">
+             <label>Tamaño<input aria-label="Tamaño del sticker" type="range" min="8" max="100" value={postStickers.find(s=>s.id===postStickerId).size} onChange={e=>setPostStickers(v=>v.map(s=>s.id===postStickerId?{...s,size:Number(e.target.value)}:s))}/></label>
+             <label>Girar<input aria-label="Rotación del sticker" type="range" min="-180" max="180" value={((postStickers.find(s=>s.id===postStickerId).rotation||0)%360+540)%360-180} onChange={e=>setPostStickers(v=>v.map(s=>s.id===postStickerId?{...s,rotation:Number(e.target.value)}:s))}/></label>
+             <button type="button" aria-label="Voltear sticker" onClick={()=>setPostStickers(v=>v.map(s=>s.id===postStickerId?{...s,flipX:!s.flipX}:s))}>⇆</button>
+             <button type="button" aria-label="Eliminar sticker" onClick={()=>{setPostStickers(v=>v.filter(s=>s.id!==postStickerId));setPostStickerId(null);}}><Trash2 size={19}/></button>
+             <button type="button" aria-label="Cerrar ajustes" onClick={()=>setPostStickerId(null)}><Check size={19}/></button>
+           </div>}
+           {uploadType==="photo"&&photoFilterOpen&&<div style={{position:"relative",flex:"0 0 auto",margin:"0 10px",background:"rgba(15,15,20,.94)",backdropFilter:"blur(14px)",borderRadius:16,padding:12,color:"white"}}>
              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,fontWeight:700,fontSize:13}}><span>EF · Filtros de fotografía</span><button type="button" onClick={()=>setPhotoFilterOpen(false)} style={{color:"white",background:"transparent",border:0,fontSize:20}}>×</button></div>
              <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:8}}>{photoFilterPresets.map(p=><button key={p.id} type="button" onClick={()=>{setPhotoFilter(p.id);setPhotoFilterError("");}} style={{flex:"0 0 auto",fontSize:12,color:"white",border:photoFilter===p.id?"2px solid #ff37ad":"1px solid #777",borderRadius:12,background:photoFilter===p.id?"#642453":"#292930",padding:"9px 12px"}}>{p.name}</button>)}</div>
              {photoFilter!=="original"&&<label style={{display:"flex",alignItems:"center",gap:9,fontSize:12,marginTop:8}}>Intensidad <input aria-label="Intensidad del filtro" type="range" min="0" max="100" value={photoFilterStrength} onChange={e=>setPhotoFilterStrength(Number(e.target.value))} style={{flex:1}}/>{photoFilterStrength}%</label>}
