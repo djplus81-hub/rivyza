@@ -1,0 +1,5 @@
+class RivyzaVoice extends AudioWorkletProcessor {
+  constructor(){super();this.mode='robot';this.pos=0;this.phase=0;this.buffers=[];this.port.onmessage=e=>{this.mode=e.data;};}
+  process(inputs,outputs){const input=inputs[0],output=outputs[0];if(!output.length)return true;const n=output[0].length,N=8192,W=Math.round(sampleRate*.045);for(let c=0;c<output.length;c++){if(!this.buffers[c])this.buffers[c]=new Float32Array(N);const b=this.buffers[c],src=input[c]||input[0];for(let i=0;i<n;i++){const t=this.pos+i,x=src?.[i]||0;b[t%N]=x;let y=x;const mode=this.mode;if(mode==='chip'||mode==='deep'||mode==='alien'){const ratio=mode==='chip'?1.55:mode==='deep'?.68:1.22;const p=((t*(1-ratio)%W)+W)%W;const q=(p+W/2)%W;const read=d=>{const r=t-2-d,k=Math.floor(r),f=r-k;return b[(k%N+N)%N]*(1-f)+b[((k+1)%N+N)%N]*f;};const a=.5-.5*Math.cos(2*Math.PI*p/W);y=read(p)*a+read(q)*(1-a);if(mode==='alien')y*=.65+.35*Math.sin(2*Math.PI*37*t/sampleRate);}else if(mode==='robot'){y=x*(.2+.8*Math.sin(2*Math.PI*65*t/sampleRate));}output[c][i]=Math.max(-1,Math.min(1,y));}}this.pos+=n;return true;}
+}
+registerProcessor('rivyza-voice',RivyzaVoice);
