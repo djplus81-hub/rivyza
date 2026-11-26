@@ -1766,6 +1766,43 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   return <>
     {quickId && createPortal(<div className="rv-quick-backdrop" onClick={()=>{if(!quickBusy)setQuickId(null)}}><section className="rv-quick-sheet" role="dialog" aria-modal="true" aria-label={es?'Perfil rápido':'Quick profile'} onClick={e=>e.stopPropagation()}><div className="rv-quick-handle"/><button className="rv-quick-close" onClick={()=>setQuickId(null)} disabled={quickBusy} aria-label={es?'Cerrar':'Close'}>×</button>{quickData?<><div className="rv-quick-head"><button className="rv-chat-avatar rv-quick-avatar" disabled={quickBusy} aria-label={es?'Abrir perfil':'Open profile'} onClick={()=>{setQuickId(null);onViewProfile?.(quickId)}}>{chatAvatar(quickData,quickData.display_name)}</button><div className="rv-quick-name notranslate" translate="no"><strong>{quickData.display_name||quickData.username}</strong><small>@{quickData.username}</small></div>{quickId!==user.id&&<button className="rv-quick-more" onClick={()=>setQuickMenu(v=>!v)}>•••</button>}</div><div className="rv-quick-stats"><strong>{quickData.followers} {es?'Seguidores':'Followers'}</strong><strong>{quickData.following} {es?'Seguidos':'Following'}</strong></div><div className="notranslate" translate="no">{quickData.bio}</div>{quickMenu&&<div className="rv-quick-actions"><button disabled={quickBusy} onClick={()=>setQuickReport(v=>!v)}>{es?'Reportar usuario':'Report user'}</button><button disabled={quickBusy} onClick={()=>quickAction('block')}>{quickData.blocked?(es?'Desbloquear':'Unblock'):(es?'Bloquear':'Block')}</button></div>}{quickReport&&<div className="rv-quick-actions"><select value={quickReason} onChange={e=>setQuickReason(e.target.value)}>{[['harassment','Acoso','Harassment'],['threats','Amenazas','Threats'],['spam','Spam','Spam'],['hate','Odio','Hate'],['other','Otro','Other']].map(([v,s,n])=><option key={v} value={v}>{es?s:n}</option>)}</select><button disabled={quickBusy} onClick={()=>quickAction('report')}>{es?'Enviar reporte':'Send report'}</button></div>}{quickId!==user.id&&<div className="rv-quick-footer"><button onClick={()=>{setComment(v=>(v+' @'+quickData.username+' ').trimStart());setQuickId(null)}}>@</button><button className="rv-quick-follow" disabled={quickBusy||quickData.blocked} onClick={()=>quickAction('follow')}>{quickData.followed?(es?'Siguiendo':'Following'):(es?'+ Seguir':'+ Follow')}</button></div>}</>:!quickError?<p>{es?'Cargando…':'Loading…'}</p>:null}{quickError&&<p role="status">{quickError}</p>}</section></div>,document.body)}
     <style>{`.rivyza-live-stage .rivyza-live-tile video.rivyza-camera-mirrored { transform: scaleX(-1) !important; -webkit-transform: scaleX(-1) !important; }
+/* Four-camera mode: equal square tiles in two full-width rows. */
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-4:not(.rivyza-live-solo) {
+  display: grid !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(2, auto) !important;
+  grid-auto-flow: row !important;
+  align-content: start !important;
+  gap: 3px !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-4 > .rivyza-live-tile.rivyza-live-square:nth-child(n) {
+  position: relative !important;
+  width: 100% !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: 1 / 1 !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  justify-self: stretch !important;
+  align-self: start !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+.rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-4 > .rivyza-live-tile.rivyza-live-square video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
 /* v3.50: Override legacy square-camera layout ONLY for nine slots. */
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-9:not(.rivyza-live-solo) {
   display: grid !important;
