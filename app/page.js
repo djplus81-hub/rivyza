@@ -356,6 +356,53 @@ export default function HomePage(){
   const [phoneBusy,setPhoneBusy]=useState(false);
   const [phoneError,setPhoneError]=useState("");
   const [passwordEmail,setPasswordEmail]=useState("");
+  const [emailMode,setEmailMode]=useState("login");
+  const [authEmail,setAuthEmail]=useState("");
+  const [authPassword,setAuthPassword]=useState("");
+  const [authConfirm,setAuthConfirm]=useState("");
+  const [authShow,setAuthShow]=useState(false);
+  const [authBusy,setAuthBusy]=useState(false);
+  const [authMessage,setAuthMessage]=useState("");
+  const [recovering,setRecovering]=useState(false);
+  useEffect(()=>{
+    if(!supabase)return;
+    const {data}=supabase.auth.onAuthStateChange((event)=>{if(event==="PASSWORD_RECOVERY"){setRecovering(true);setAuthPassword("");setAuthConfirm("");setAuthMessage("");}});
+    return ()=>data.subscription.unsubscribe();
+  },[supabase]);
+  function changeEmailMode(mode){setEmailMode(mode);setAuthPassword("");setAuthConfirm("");setAuthMessage("");setAuthShow(false);}
+  async function submitEmailAuth(event){
+    event.preventDefault();if(!supabase||authBusy)return;
+    setAuthBusy(true);setAuthMessage("");
+    try{
+      const email=authEmail.trim();let result;
+      if(recovering){
+        if(authPassword.length<8||authPassword!==authConfirm)throw new Error("Usa al menos 8 caracteres y confirma la contraseña.");
+        result=await supabase.auth.updateUser({password:authPassword});
+      }else if(emailMode==="reset"){
+        result=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
+      }else if(emailMode==="signup"){
+        if(authPassword.length<8||authPassword!==authConfirm)throw new Error("Usa al menos 8 caracteres y confirma la contraseña.");
+        result=await supabase.auth.signUp({email,password:authPassword,options:{emailRedirectTo:window.location.origin}});
+      }else{result=await supabase.auth.signInWithPassword({email,password:authPassword});}
+      if(result.error)throw result.error;
+      setAuthPassword("");setAuthConfirm("");setAuthShow(false);
+      if(recovering){setRecovering(false);setAuthMessage("");}
+      else if(emailMode==="reset")setAuthMessage("Si el correo está registrado, recibirás un enlace de recuperación.");
+      else if(emailMode==="signup"&&!result.data?.session)setAuthMessage("Revisa tu correo para confirmar tu cuenta.");
+    }catch(e){setAuthMessage(e.message||"No se pudo completar la solicitud.");}finally{setAuthBusy(false);}
+  }
+  function renderEmailAuth(){
+    const confirm=recovering||emailMode==="signup", reset=!recovering&&emailMode==="reset";
+    return <form className="rivyza-phone-auth" onSubmit={submitEmailAuth} style={{display:"grid",gap:10}}>
+      <h3>{recovering?"Nueva contraseña":emailMode==="signup"?"Crear cuenta con correo":reset?"Recuperar contraseña":"Continuar con correo electrónico"}</h3>
+      {!recovering&&<input type="email" autoComplete="email" required placeholder="Correo electrónico" value={authEmail} onChange={e=>setAuthEmail(e.target.value)}/>}
+      {!reset&&<><input type={authShow?"text":"password"} autoComplete={confirm?"new-password":"current-password"} required placeholder="Contraseña" value={authPassword} onChange={e=>setAuthPassword(e.target.value)}/>{confirm&&<input type={authShow?"text":"password"} autoComplete="new-password" required placeholder="Confirmar contraseña" value={authConfirm} onChange={e=>setAuthConfirm(e.target.value)}/>}<button type="button" onClick={()=>setAuthShow(v=>!v)}>{authShow?"Ocultar contraseña":"Mostrar contraseña"}</button></>}
+      <button type="submit" disabled={authBusy}>{authBusy?"Procesando…":recovering?"Guardar contraseña":reset?"Enviar enlace":confirm?"Crear cuenta":"Iniciar sesión"}</button>
+      {authMessage&&<p role="status">{authMessage}</p>}
+      {!recovering&&<>{emailMode!=="login"&&<button type="button" disabled={authBusy} onClick={()=>changeEmailMode("login")}>Volver a iniciar sesión</button>}{emailMode==="login"&&<><button type="button" disabled={authBusy} onClick={()=>changeEmailMode("signup")}>Crear una cuenta</button><button type="button" disabled={authBusy} onClick={()=>changeEmailMode("reset")}>¿Olvidaste tu contraseña?</button></>}</>}
+    </form>;
+  }
+
   useEffect(()=>{try{const saved=localStorage.getItem("rivyza-appearance");setAppearance(["dark","light","auto"].includes(saved)?saved:"dark");}catch(e){}},[]);
   useEffect(()=>{if(typeof document!=="undefined")document.documentElement.dataset.rivyzaAppearance=appearance;},[appearance]);
   const changeAppearance=(next)=>{setAppearance(next);try{localStorage.setItem("rivyza-appearance",next);}catch(e){}};
@@ -4046,6 +4093,7 @@ async function applyPostCrop(){
   </nav>;}
   if(loading)return <div className="center">Cargando RIVYZA…</div>;
 
+  if(recovering)return <main className="auth-shell"><section className="auth-card"><h1>RIVYZA</h1>{renderEmailAuth()}</section></main>;
   if(!user){
     return <main className="auth-shell">
       <section className="auth-card">
@@ -4053,6 +4101,7 @@ async function applyPostCrop(){
         <h1>RIVYZA</h1>
         <p className="tagline">Vive. Conecta. Transmite.</p>
         <button className="google-btn" onClick={signInWithGoogle}>{t("Continuar con Google")}</button>
+        {renderEmailAuth()}
         <div className="rivyza-phone-auth"><h3>Continuar con teléfono</h3><select value={phoneCountry} onChange={e=>setPhoneCountry(e.target.value)}>{countryOptions.map(c=><option key={c.code} value={c.code}>{c.flag} {c.name} {dialingCodes[c.code]?"(+"+dialingCodes[c.code]+")":""}</option>)}</select>{phoneStage==="number"?<><input type="tel" inputMode="tel" placeholder="Número de teléfono" value={phoneNumber} onChange={e=>setPhoneNumber(e.target.value)}/><button disabled={phoneBusy} onClick={requestPhoneOtp}>Enviar código SMS</button></>:<><input inputMode="numeric" placeholder="Código de verificación" value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value)}/><button disabled={phoneBusy} onClick={verifyPhoneOtp}>Verificar y continuar</button><button onClick={()=>setPhoneStage("number")}>Cambiar número</button></>}{phoneError&&<p role="alert">{phoneError}</p>}<small>Disponible en países habilitados para SMS en Supabase/Twilio.</small></div>
       </section>
     </main>;
