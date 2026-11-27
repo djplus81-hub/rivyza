@@ -4926,10 +4926,13 @@ async function applyPostCrop(){
   if(view==="otherProfile" && viewedProfile){return renderExistingProfile();}
   if(view==="livePreview"){
     return <main className="live-preview-shell">
-      <header className="live-preview-header">
-        <button className="live-preview-back" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">‹</button>
-        <strong>LIVE</strong>
-        <button type="button" onClick={()=>setView("obsPilot")}>OBS · Prueba privada</button><button type="button" className="rivyza-start-live" onClick={()=>{setSelectedLiveRoom(null);setView("liveStudio");}}><Radio size={16}/>{appLanguage==="en"?"Go LIVE":"Iniciar LIVE"}</button>
+      <header className="live-preview-header" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto minmax(0,1fr)",alignItems:"center",gap:6,boxSizing:"border-box"}}>
+        <button className="live-preview-back" style={{position:"static",justifySelf:"start"}} onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">‹</button>
+        <strong style={{position:"static",transform:"none",justifySelf:"center"}}>LIVE</strong>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6,minWidth:0}}>
+          <button type="button" aria-label="OBS" onClick={()=>setView("obsPilot")} style={{position:"static",flexShrink:0,background:"#111827",color:"#8edcff",border:"1px solid #38bdf8",borderRadius:8,padding:"7px 8px",fontSize:12,fontWeight:700,lineHeight:1,whiteSpace:"nowrap"}}>OBS</button>
+          <button type="button" className="rivyza-start-live" aria-label={appLanguage==="en"?"Go LIVE":"Iniciar LIVE"} title={appLanguage==="en"?"Go LIVE":"Iniciar LIVE"} style={{position:"static",flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",width:36,height:32,minWidth:0,padding:0,borderRadius:9}} onClick={()=>{setSelectedLiveRoom(null);setView("liveStudio");}}><Radio size={19}/></button>
+        </div>
       </header>
 
       <div className="live-following-strip" aria-label="Amigos en vivo">
