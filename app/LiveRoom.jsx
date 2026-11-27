@@ -35,6 +35,7 @@ function liveCanvasSize(width,height){
   return [Math.max(2,Math.round(width*scale/2)*2),Math.max(2,Math.round(height*scale/2)*2)];
 }
 const LIVE_AUDIO_ROOM_OPTIONS = {
+  webAudioMix: true, // Enable playback gain above 100%.
   adaptiveStream:true,
   dynacast:true,
   videoCaptureDefaults:LIVE_VIDEO_CAPTURE,
@@ -2189,7 +2190,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>
     </div>}
     {mediaRequest && publish && <div role="dialog" aria-modal="true" style={{position:'fixed',inset:0,zIndex:9999,background:'#0009',display:'grid',placeItems:'center',padding:20}}><div style={{background:'#251a32',color:'white',padding:20,borderRadius:16,maxWidth:340,width:'100%',textAlign:'center'}}><strong>{mediaRequest.kind==='mic'?(lang==='es'?'Activa tu micrófono':'Enable your microphone'):(lang==='es'?'Activa tu cámara':'Enable your camera')}</strong><p>{mediaRequest.from} {lang==='es'?'te solicita que lo actives.':'asks you to enable it.'}</p><div style={{display:'flex',gap:12,justifyContent:'center'}}><button type="button" onClick={()=>respondMedia(false)}>{lang==='es'?'Ahora no':'Not now'}</button><button type="button" onClick={()=>respondMedia(true)}>{lang==='es'?'Activar':'Enable'}</button></div></div></div>}
-    <RoomAudioRenderer />
+    <RoomAudioRenderer volume={2} />
     {!soundReady && <button type="button" className="rivyza-live-enable-audio" onClick={activateAudio}>🔊 {tr.activateAudio}</button>}
   </>;
 }
