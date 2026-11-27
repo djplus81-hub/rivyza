@@ -6,6 +6,7 @@ import {useEffect,useMemo,useState,useCallback,useRef} from "react";
 import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import LiveRoom from "./LiveRoom";
+import ObsPilot from "./ObsPilot";
 import PushSetup from "./PushSetup";
 import {CallProvider,useCallBridge,CallButtons} from "./PrivateCalls";
 import RivyzaStories from "./RivyzaStories";
@@ -4910,6 +4911,7 @@ async function applyPostCrop(){
       {renderShareSheet()}
     </main>;;
 
+  if(view==="obsPilot") return <ObsPilot supabase={supabase} onExit={()=>setView("livePreview")}/>;
   if(view==="liveStudio" || (profileFromLive && (view==="otherProfile" || view==="publicProfile"))){
     const showingProfile=profileFromLive && (view==="publicProfile" || (view==="otherProfile" && viewedProfile));
     return <>
@@ -4927,7 +4929,7 @@ async function applyPostCrop(){
       <header className="live-preview-header">
         <button className="live-preview-back" onClick={()=>{setView("home");changeFeedTab("forYou");}} aria-label="Volver">‹</button>
         <strong>LIVE</strong>
-        <button type="button" className="rivyza-start-live" onClick={()=>{setSelectedLiveRoom(null);setView("liveStudio");}}><Radio size={16}/>{appLanguage==="en"?"Go LIVE":"Iniciar LIVE"}</button>
+        <button type="button" onClick={()=>setView("obsPilot")}>OBS · Prueba privada</button><button type="button" className="rivyza-start-live" onClick={()=>{setSelectedLiveRoom(null);setView("liveStudio");}}><Radio size={16}/>{appLanguage==="en"?"Go LIVE":"Iniciar LIVE"}</button>
       </header>
 
       <div className="live-following-strip" aria-label="Amigos en vivo">
