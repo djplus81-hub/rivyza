@@ -38,7 +38,13 @@ export async function POST(req){
     const {data:saved,error:se}=await db.from('rivyza_obs_test_sessions').update({ingress_id:created.ingressId,server_url:created.url,stream_key:created.streamKey}).eq('host_id',user.id).select().single();if(se)throw se;session=saved;
    }catch(e){if(created?.ingressId)await ingress.deleteIngress(created.ingressId).catch(()=>{});await rooms.deleteRoom(roomName).catch(()=>{});await db.from('rivyza_obs_test_sessions').delete().eq('host_id',user.id);throw e;}
   }
-  if(!['start','resume'].includes(input.action))return reply({error:'Acción inválida'},400);
+  if(input.action==='format'){
+   if(!session?.ingress_id)return reply({error:'Crea una conexión primero'},409);
+   if(!['vertical','horizontal'].includes(input.orientation))return reply({error:'Formato inválido'},400);
+   const {data:updated,error:ue}=await db.from('rivyza_obs_test_sessions').update({orientation:input.orientation}).eq('host_id',user.id).select().single();
+   if(ue)throw ue;session=updated;
+  }
+  if(!['start','resume','format'].includes(input.action))return reply({error:'Acción inválida'},400);
   if(!session)return reply({session:null});if(!session.ingress_id)return reply({error:'Conexión en preparación'},409);
   const token=new AccessToken(key,secret,{identity:`control-${user.id}-${crypto.randomUUID()}`,ttl:'15m'});
   token.addGrant({roomJoin:true,room:session.room_name,canPublish:false,canSubscribe:true,canPublishData:false});
