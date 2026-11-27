@@ -182,7 +182,16 @@ export async function GET(req) {
       .select('id,host_id,title,created_at').eq('status', 'live')
       .order('created_at', { ascending: false }).limit(50);
     if (error) throw error;
-    const ids = [...new Set((data || []).map(r => r.host_id))];
+    const {data:obs,error:oe}=await db.from('rivyza_obs_test_sessions').select('host_id,room_name,orientation').eq('enabled',true);
+    if(oe)console.warn('OBS discovery unavailable',oe.code);
+    const activeObs=(await Promise.all((obs||[]).map(async s=>{
+      const members=await roomService().listParticipants(s.room_name).catch(()=>[]);
+      return members.some(p=>p.identity===`obs-${s.host_id}`&&p.tracks?.length)?{id:`obs-${s.host_id}`,host_id:s.host_id,title:'RIVYZA Studio OBS',obs:true,orientation:s.orientation}:null;
+    }))).filter(Boolean);
+    const combined=[...(data||[]),...activeObs.filter(s=>!(data||[]).some(r=>r.host_id===s.host_id))];
+    const {data:blocked,error:be}=await db.from('rivyza_live_blocks').select('host_id').eq('user_id',auth.user.id);if(be)throw be;
+    const visible=combined.filter(r=>!(blocked||[]).some(b=>b.host_id===r.host_id));
+    const ids = [...new Set(visible.map(r => r.host_id))];
     let profiles = [];
     if (ids.length) {
       const { data: rows, error: profileError } = await db.from('profiles')
@@ -191,7 +200,7 @@ export async function GET(req) {
       profiles = rows || [];
     }
     const byId = new Map(profiles.map(p => [p.id, p]));
-    return json({ rooms: (data || []).map(r => ({
+    return json({ rooms: visible.map(r => ({
       ...r,
       host_name: byId.get(r.host_id)?.display_name || byId.get(r.host_id)?.username || 'Usuario RIVYZA',
       host_avatar: byId.get(r.host_id)?.avatar_url || null,
@@ -208,6 +217,7 @@ export async function POST(req) {
     const db = adminClient();
     const uid = auth.user.id;
     if (input.action === 'start') {
+      const {data:obs}=await db.from('rivyza_obs_test_sessions').select('enabled').eq('host_id',uid).maybeSingle();if(obs?.enabled)return json({error:'Termina OBS primero'},409);
       // Todos los usuarios autenticados pueden iniciar su propio LIVE.
       // Las sanciones LIVE deberán validarse aquí cuando se habilite el control disciplinario.
       // Rejoin an existing LIVE instead of violating the one-LIVE-per-host constraint.
