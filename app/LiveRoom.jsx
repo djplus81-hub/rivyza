@@ -20,11 +20,11 @@ function getLanguage() {
   const stored = window.localStorage.getItem('rivyza_language') || window.localStorage.getItem('language') || '';
   return /^(en|english)/i.test(stored) || (!stored && navigator.language?.startsWith('en')) ? 'en' : 'es';
 }
-// RIVYZA: unified LIVE audio with echo cancellation for every publisher.
+// RIVYZA: unified LIVE audio without echo cancellation for every publisher.
 const LIVE_AUDIO_CAPTURE = {
   sampleRate: 48000,
   channelCount: 2,
-  echoCancellation: true,
+  echoCancellation: false,
   noiseSuppression: false,
   autoGainControl: false,
 };
