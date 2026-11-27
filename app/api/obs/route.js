@@ -13,24 +13,39 @@ export async function POST(req){
   const {data:{user},error:authError}=await auth.auth.getUser(bearer.slice(7));
   if(authError||!user)return reply({error:'Inicia sesión'},401);
   const db=createClient(url,process.env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
-  const {data:allowed,error:ae}=await db.from('rivyza_obs_test_access').select('user_id').eq('user_id',user.id).maybeSingle();
-  if(ae)throw ae;if(!allowed)return reply({error:'OBS piloto: acceso no autorizado'},403);
   const input=await req.json();
+  const {data:allowed,error:ae}=await db.from('rivyza_obs_test_access').select('user_id').eq('user_id',user.id).maybeSingle();
+  if(ae)throw ae;if(!allowed && input.action!=='watch')return reply({error:'OBS piloto: acceso no autorizado'},403);
   const serverUrl=process.env.LIVEKIT_URL;
   const endpoint=serverUrl.replace(/^wss:/,'https:').replace(/^ws:/,'http:');
   const key=process.env.LIVEKIT_API_KEY,secret=process.env.LIVEKIT_API_SECRET;
   const ingress=new IngressClient(endpoint,key,secret),rooms=new RoomServiceClient(endpoint,key,secret);
+  if(input.action==='watch'){
+   const {data:target,error:te}=await db.from('rivyza_obs_test_sessions').select('host_id,room_name,orientation,enabled').eq('host_id',input.hostId).maybeSingle();if(te)throw te;
+   if(!target?.enabled)return reply({error:'El LIVE terminó'},404);
+   const {data:blocked,error:be}=await db.from('rivyza_live_blocks').select('user_id').eq('host_id',target.host_id).eq('user_id',user.id).maybeSingle();if(be)throw be;if(blocked)return reply({error:'No autorizado'},403);
+   const members=await rooms.listParticipants(target.room_name).catch(()=>[]);
+   if(!members.some(p=>p.identity===`obs-${target.host_id}`&&p.tracks?.length))return reply({error:'El LIVE terminó'},404);
+   const token=new AccessToken(key,secret,{identity:`preview-${user.id}-${crypto.randomUUID()}`,ttl:'15m'});
+   token.addGrant({roomJoin:true,room:target.room_name,canPublish:false,canSubscribe:true,canPublishData:false,hidden:true});
+   return reply({token:await token.toJwt(),serverUrl,orientation:target.orientation});
+  }
   const {data:existing,error:ee}=await db.from('rivyza_obs_test_sessions').select('*').eq('host_id',user.id).maybeSingle();if(ee)throw ee;
   if(input.action==='stop'){
-   if(existing){if(existing.ingress_id)await ingress.deleteIngress(existing.ingress_id);await rooms.deleteRoom(existing.room_name);const {error}=await db.from('rivyza_obs_test_sessions').delete().eq('host_id',user.id);if(error)throw error;}
+   if(existing){const {error}=await db.from('rivyza_obs_test_sessions').update({enabled:false}).eq('host_id',user.id);if(error)throw error;await rooms.deleteRoom(existing.room_name).catch(()=>{});}
    return reply({ok:true});
   }
+  if(['start','format'].includes(input.action)&&!['vertical','horizontal'].includes(input.orientation))return reply({error:'Formato inválido'},400);
   let session=existing;
+  if(input.action==='start'&&session){
+   const {data:normal,error:ne}=await db.from('rivyza_live_rooms').select('id').eq('host_id',user.id).eq('status','live').limit(1);if(ne)throw ne;if(normal?.length)return reply({error:'Termina el LIVE normal primero'},409);
+   const {data:updated,error:ue}=await db.from('rivyza_obs_test_sessions').update({enabled:true,orientation:input.orientation}).eq('host_id',user.id).select().single();if(ue)throw ue;session=updated;
+  }
   if(input.action==='start'&&!session){
    if(!['vertical','horizontal'].includes(input.orientation))return reply({error:'Formato inválido'},400);
    const {data:normal,error:ne}=await db.from('rivyza_live_rooms').select('id').eq('host_id',user.id).eq('status','live').limit(1);if(ne)throw ne;if(normal?.length)return reply({error:'Termina el LIVE normal primero'},409);
    const roomName=`rivyza-obs-test-${crypto.randomUUID()}`;
-   const {data:reserved,error:re}=await db.from('rivyza_obs_test_sessions').insert({host_id:user.id,room_name:roomName,orientation:input.orientation}).select().single();if(re)throw re;
+   const {data:reserved,error:re}=await db.from('rivyza_obs_test_sessions').insert({host_id:user.id,room_name:roomName,orientation:input.orientation,enabled:true}).select().single();if(re)throw re;
    let created;
    try{
     await rooms.createRoom({name:roomName,emptyTimeout:600});
@@ -45,7 +60,7 @@ export async function POST(req){
    if(ue)throw ue;session=updated;
   }
   if(!['start','resume','format'].includes(input.action))return reply({error:'Acción inválida'},400);
-  if(!session)return reply({session:null});if(!session.ingress_id)return reply({error:'Conexión en preparación'},409);
+  if(!session || !session.enabled)return reply({session:null});if(!session.ingress_id)return reply({error:'Conexión en preparación'},409);
   const token=new AccessToken(key,secret,{identity:`control-${user.id}-${crypto.randomUUID()}`,ttl:'15m'});
   token.addGrant({roomJoin:true,room:session.room_name,canPublish:false,canSubscribe:true,canPublishData:false});
   return reply({session:{orientation:session.orientation,url:session.server_url,streamKey:session.stream_key,token:await token.toJwt(),serverUrl}});
