@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { AccessToken, IngressClient, IngressInput, RoomServiceClient } from 'livekit-server-sdk';
+import { AccessToken, IngressClient, IngressInput, RoomServiceClient, IngressAudioOptions, IngressAudioEncodingOptions, AudioCodec, TrackSource } from 'livekit-server-sdk';
+// Separate OBS audio encoder; normal LIVE capture is not affected.
+const djAudio = () => new IngressAudioOptions({name:'RIVYZA DJ',source:TrackSource.MICROPHONE,encodingOptions:{case:'options',value:new IngressAudioEncodingOptions({audioCodec:AudioCodec.OPUS,bitrate:128000,channels:2,disableDtx:true})}});
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 const reply=(body,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'no-store'}});
@@ -37,6 +39,13 @@ export async function POST(req){
   }
   if(['start','format'].includes(input.action)&&!['vertical','horizontal'].includes(input.orientation))return reply({error:'Formato inválido'},400);
   let session=existing;
+  // Explicit migration of the existing reusable ingress, without rotating its key.
+  if(input.action==='dj_audio'){
+   if(!session?.ingress_id)return reply({error:'Crea una conexión OBS primero'},409);
+   try{await ingress.updateIngress(session.ingress_id,{name:session.room_name,audio:djAudio()});}
+   catch(e){console.warn('OBS audio update',e?.name);return reply({error:'No se pudo aplicar el audio DJ. Detén la señal en OBS y vuelve a intentar.'},409);}
+   return reply({ok:true});
+  }
   if(input.action==='start'&&session){
    const {data:normal,error:ne}=await db.from('rivyza_live_rooms').select('id').eq('host_id',user.id).eq('status','live').limit(1);if(ne)throw ne;if(normal?.length)return reply({error:'Termina el LIVE normal primero'},409);
    const {data:updated,error:ue}=await db.from('rivyza_obs_test_sessions').update({enabled:true,orientation:input.orientation}).eq('host_id',user.id).select().single();if(ue)throw ue;session=updated;
@@ -49,7 +58,7 @@ export async function POST(req){
    let created;
    try{
     await rooms.createRoom({name:roomName,emptyTimeout:600});
-    created=await ingress.createIngress(IngressInput.RTMP_INPUT,{name:roomName,roomName,participantIdentity:`obs-${user.id}`,participantName:'OBS',enableTranscoding:true});
+    created=await ingress.createIngress(IngressInput.RTMP_INPUT,{name:roomName,roomName,participantIdentity:`obs-${user.id}`,participantName:'OBS',enableTranscoding:true,audio:djAudio()});
     const {data:saved,error:se}=await db.from('rivyza_obs_test_sessions').update({ingress_id:created.ingressId,server_url:created.url,stream_key:created.streamKey}).eq('host_id',user.id).select().single();if(se)throw se;session=saved;
    }catch(e){if(created?.ingressId)await ingress.deleteIngress(created.ingressId).catch(()=>{});await rooms.deleteRoom(roomName).catch(()=>{});await db.from('rivyza_obs_test_sessions').delete().eq('host_id',user.id);throw e;}
   }
