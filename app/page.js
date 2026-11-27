@@ -297,6 +297,12 @@ function HomePageContent(){
   const [discoverLiveError,setDiscoverLiveError]=useState('');
   const [selectedLiveRoom,setSelectedLiveRoom]=useState(null);
   const [profileFromLive,setProfileFromLive]=useState(false);
+  function enterLiveById(id){
+    if(!id)return;
+    setProfileFromLive(false);
+    setSelectedLiveRoom(id);
+    setView(String(id).startsWith("obs-")?"obsViewer":"liveStudio");
+  }
   const [user,setUser]=useState(null);
   // RIVYZA: comprobar la sesión vigente en el servidor, sin renovar tokens a la fuerza.
   const [sessionNotice,setSessionNotice]=useState("");
@@ -346,8 +352,7 @@ function HomePageContent(){
     if (!user?.id || typeof window === 'undefined') return;
     const liveId = new URLSearchParams(window.location.search).get('live');
     if (!liveId || !/^[a-zA-Z0-9_-]{1,100}$/.test(liveId)) return;
-    setSelectedLiveRoom(liveId);
-    setView('liveStudio');
+    enterLiveById(liveId);
     const url = new URL(window.location.href);
     url.searchParams.delete('live');
     window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
@@ -523,8 +528,7 @@ function HomePageContent(){
       const payload=await response.json();
       const room=(payload.rooms||[]).find(r=>r.host_id===hostId);
       if(!room?.id){setLiveHostIds(ids=>ids.filter(id=>id!==hostId));setLiveHostRooms(rooms=>rooms.filter(r=>r.host_id!==hostId));alert("Este LIVE ya terminó.");return;}
-      setSelectedLiveRoom(room.id);
-      setView("liveStudio");
+      enterLiveById(room.id);
     }catch(e){alert(e.message||"No se pudo abrir el LIVE. Intenta de nuevo.");}
   }
   const socialPollBusy=useRef(false);
@@ -4306,7 +4310,7 @@ async function applyPostCrop(){
               <div style={{display:'flex',alignItems:'center',gap:9}}><span style={{display:'grid',placeItems:'center',width:36,height:36,borderRadius:11,background:'rgba(242,81,170,.17)',fontSize:21}}>📡</span><div style={{flex:1,minWidth:0}}><strong style={{display:'block',fontSize:13,letterSpacing:'.08em',color:'#f5c3ff'}}>RIVYZA LIVE</strong><small style={{color:'#d9c4e8'}}>Invitación especial</small></div><span style={{fontSize:10,color:'#ff9abf',background:'rgba(255,65,124,.14)',borderRadius:99,padding:'5px 8px',whiteSpace:'nowrap'}}>● EN VIVO</span></div>
               <div style={{borderTop:'1px solid rgba(255,255,255,.12)',paddingTop:12}}><small style={{display:'block',color:'#d9c4e8',marginBottom:4}}>Te invitan a entrar al LIVE de</small><strong style={{display:'block',fontSize:21,lineHeight:1.2,overflowWrap:'anywhere'}}>👑 {owner}</strong><small style={{color:'#cbb7dc'}}>Anfitrión de la transmisión</small></div>
               <div style={{background:'rgba(255,255,255,.07)',borderRadius:11,padding:'10px 12px',lineHeight:1.45,fontSize:13}}><strong style={{display:'block',marginBottom:4,overflowWrap:'anywhere'}}>{sender} te ha enviado una invitación</strong><span style={{color:'#dfd3e8'}}>Entra para disfrutar de la transmisión como espectador.</span></div>
-              <button type="button" className="rivyza-shared-post-open" style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8,width:'100%',padding:'13px 14px',borderRadius:11,background:'linear-gradient(100deg,#a23cce,#d341a0)',color:'#fff',fontWeight:700,cursor:'pointer',border:0}} onClick={()=>{const id=body.match(/[?&]live=([a-zA-Z0-9_-]{1,100})/)?.[1];if(id){setSelectedLiveRoom(id);setView('liveStudio');setSocialPeer(null);}}}><Radio size={17}/> Entrar al LIVE</button>
+              <button type="button" className="rivyza-shared-post-open" style={{display:'flex',justifyContent:'center',alignItems:'center',gap:8,width:'100%',padding:'13px 14px',borderRadius:11,background:'linear-gradient(100deg,#a23cce,#d341a0)',color:'#fff',fontWeight:700,cursor:'pointer',border:0}} onClick={()=>{const id=body.match(/[?&]live=([a-zA-Z0-9_-]{1,100})/)?.[1];if(id){enterLiveById(id);setSocialPeer(null);}}}><Radio size={17}/> Entrar al LIVE</button>
               <small style={{color:'#d3c5dd',textAlign:'center',lineHeight:1.4}}>Entrarás como espectador, sin activar tu cámara.</small>
             </div>;
           })() : <p translate="no" className="notranslate">{m.body}</p>}{m.shared_post_id&&<button type="button" className="rivyza-shared-post-open" onClick={()=>openSharedPostFromChat(m.shared_post_id)}><Share2 size={16}/> Ver publicación compartida</button>}<small>{formatPostDateTime(m.created_at)}</small></div>
@@ -4913,8 +4917,8 @@ async function applyPostCrop(){
     </main>;;
 
   if(view==="obsPilot") return <ObsPilot supabase={supabase} onExit={()=>setView("livePreview")}/>;
-  if(view==="liveStudio" && selectedLiveRoom?.startsWith('obs-'))return <ObsViewer hostId={selectedLiveRoom.slice(4)} supabase={supabase} onExit={()=>{setSelectedLiveRoom(null);setView('home');}}/>;
-  if(view==="liveStudio" || (profileFromLive && (view==="otherProfile" || view==="publicProfile"))){
+  if((view==="obsViewer" || view==="liveStudio" || profileFromLive) && selectedLiveRoom?.startsWith('obs-'))return <ObsViewer hostId={selectedLiveRoom.slice(4)} supabase={supabase} onExit={()=>{setProfileFromLive(false);setSelectedLiveRoom(null);setView('home');}}/>;
+  if(!selectedLiveRoom?.startsWith("obs-") && (view==="liveStudio" || (profileFromLive && (view==="otherProfile" || view==="publicProfile")))){
     const showingProfile=profileFromLive && (view==="publicProfile" || (view==="otherProfile" && viewedProfile));
     return <>
       <div style={showingProfile?{position:'fixed',inset:0,visibility:'hidden',pointerEvents:'none'}:undefined}>
@@ -4938,7 +4942,7 @@ async function applyPostCrop(){
       </header>
 
       <div className="live-following-strip" aria-label="Amigos en vivo">
-        {discoverLiveRooms.filter(room=>liveFriendIds.includes(room.host_id)).map(room=><button type="button" key={room.id} className="rivyza-live-friend" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
+        {discoverLiveRooms.filter(room=>liveFriendIds.includes(room.host_id)).map(room=><button type="button" key={room.id} className="rivyza-live-friend" onClick={()=>{enterLiveById(room.id);}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
           <span className="rivyza-live-friend-ring">{room.host_avatar?<img src={room.host_avatar} alt=""/>:<span>{(room.host_name||'U').slice(0,1).toUpperCase()}</span>}</span>
           <span className="rivyza-live-friend-name">{room.host_name||'Usuario'}</span>
         </button>)}
@@ -4953,11 +4957,11 @@ async function applyPostCrop(){
         {!discoverLiveError&&discoverLiveRooms.length===0&&<div className="live-preview-card live-preview-empty-card"><div className="live-preview-empty-copy"><span className="live-preview-badge">● LIVE</span><h2>No hay transmisiones ahora</h2><p>Cuando alguien comience un LIVE, podrás verlo aquí.</p></div></div>}
         {discoverLiveRooms.map((room,index)=><div key={room.id} className="live-preview-card">
           {index===activeLivePreview&&(room.obs?<ObsViewer key={room.id} hostId={room.host_id} supabase={supabase} inline/>:<LivePreviewPlayer key={room.id} roomId={room.id} supabase={supabase} hostId={room.host_id} hostAvatar={room.host_avatar} hostName={room.host_name}/>)}
-          <button type="button" className="rivyza-live-preview-enter" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
+          <button type="button" className="rivyza-live-preview-enter" onClick={()=>{enterLiveById(room.id);}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
             <span className="rivyza-live-preview-host">{room.host_avatar&&<img src={room.host_avatar} alt=""/>}<strong>{room.host_name||'Usuario RIVYZA'}</strong><em>● LIVE</em></span>
             <span className="rivyza-live-preview-entry">Toca para entrar al LIVE</span>
           </button>
-          {index===activeLivePreview&&livePreviewInvite&&<button type="button" className="rivyza-live-preview-invite" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}}>¿Quieres entrar al LIVE de {room.host_name||'este usuario'}? Entrar</button>}
+          {index===activeLivePreview&&livePreviewInvite&&<button type="button" className="rivyza-live-preview-invite" onClick={()=>{enterLiveById(room.id);}}>¿Quieres entrar al LIVE de {room.host_name||'este usuario'}? Entrar</button>}
         </div>)}
       </section>
       <nav className="bottom-nav live-preview-bottom-nav">
@@ -5287,7 +5291,7 @@ async function applyPostCrop(){
         <div className="feed-empty-state">{feedMessage||"Todavía no hay publicaciones."}</div>
       )}
 
-      {(()=>{const lives=feedTab==='forYou'?discoverLiveRooms:[];const items=[];feedPosts.forEach((post,i)=>{items.push({post});if((i+1)%3===0&&lives.length) {const room=lives[Math.floor(i/3)];if(room)items.push({room});}});items.push(...lives.slice(Math.floor(feedPosts.length/3)).map(room=>({room})));return items;})().map(({post,room})=>room?<FeedLiveCard key={room.id} room={room} supabase={supabase} onEnter={()=>{setSelectedLiveRoom(room.id);setView('liveStudio');}}/>:(
+      {(()=>{const lives=feedTab==='forYou'?discoverLiveRooms:[];const items=[];feedPosts.forEach((post,i)=>{items.push({post});if((i+1)%3===0&&lives.length) {const room=lives[Math.floor(i/3)];if(room)items.push({room});}});items.push(...lives.slice(Math.floor(feedPosts.length/3)).map(room=>({room})));return items;})().map(({post,room})=>room?<FeedLiveCard key={room.id} room={room} supabase={supabase} onEnter={()=>{enterLiveById(room.id);}}/>:(
         <article className="video-card feed-post-card" key={post.id}>
           <div className="feed-media-wrap" data-rv-frame={post.media_type==="photo"&&String(post.media_path).includes("-frame916.")?"916":undefined}>
               <style>{`[data-rv-frame="916"] img{object-fit:contain!important;object-position:center!important;} [data-rv-frame="916"]{background:#000!important;}`}</style>
