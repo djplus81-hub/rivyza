@@ -28,6 +28,9 @@ const LIVE_AUDIO_CAPTURE = {
   noiseSuppression: false,
   autoGainControl: false,
 };
+// Normal conversations use echo cancellation; DJ capture remains unchanged.
+const LIVE_NORMAL_AUDIO_CAPTURE = {...LIVE_AUDIO_CAPTURE, echoCancellation:true};
+
 const LIVE_VIDEO_CAPTURE = {resolution:{width:1280,height:720,frameRate:30}};
 const LIVE_CAMERA_CONSTRAINTS = {width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}};
 function liveCanvasSize(width,height){
@@ -35,7 +38,6 @@ function liveCanvasSize(width,height){
   return [Math.max(2,Math.round(width*scale/2)*2),Math.max(2,Math.round(height*scale/2)*2)];
 }
 const LIVE_AUDIO_ROOM_OPTIONS = {
-  webAudioMix: true, // Enable playback gain above 100%.
   adaptiveStream:true,
   dynacast:true,
   videoCaptureDefaults:LIVE_VIDEO_CAPTURE,
@@ -50,9 +52,11 @@ const LIVE_AUDIO_ROOM_OPTIONS = {
   },
 };
 
+const LIVE_NORMAL_ROOM_OPTIONS = {...LIVE_AUDIO_ROOM_OPTIONS, audioCaptureDefaults:LIVE_NORMAL_AUDIO_CAPTURE};
+
 const liveSlotMemory = new Map();
 
-function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage, welcomeVisit, privateVisitId, confirmStop, setConfirmStop }) {
+function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onModerate, onStop, onLeaveCamera, onLeaveLive, onError, onViewProfile, onBlocked, blockedUsers, onUnblock, onRequest, onRefreshBlocked, requests, requestsOpen, setRequestsOpen, onRequestDecision, requestNames, requestStatus, supabase, onCancelRequest, lang, user, liveRoomId, welcomeMessage, welcomeVisit, privateVisitId, confirmStop, setConfirmStop, djAudio, setDjAudio }) {
   const tr = translations[lang] || translations.es;
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: false }]);
   const participants = useParticipants();
@@ -678,7 +682,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     mediaSeen.current.add(request.id);setMediaRequest(null);
     try{
       await onModerate('media_request_resolve',{requestId:request.id,accept});
-      if(accept && publish){if(request.kind==='mic')await room.localParticipant.setMicrophoneEnabled(true);else if(!room.localParticipant.isCameraEnabled)await openCameraPreview();}
+      if(accept && publish){if(request.kind==='mic')await room.localParticipant.setMicrophoneEnabled(true,djAudio ? LIVE_AUDIO_CAPTURE : LIVE_NORMAL_AUDIO_CAPTURE);else if(!room.localParticipant.isCameraEnabled)await openCameraPreview();}
     }catch(e){onError?.(e.message);}
   }
   const [comment, setComment] = useState('');
@@ -1475,8 +1479,25 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     } finally {setEffectBusy(false);}
   }
   const { localParticipant, isMicrophoneEnabled: mic, isCameraEnabled: cam } = useLocalParticipant();
+  const [audioModeBusy,setAudioModeBusy]=useState(false);
+  async function changeAudioMode(nextDj) {
+    if(audioModeBusy || nextDj===djAudio)return;
+    setAudioModeBusy(true);
+    try {
+      const track=localParticipant.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
+      if(track && track.readyState==='live') {
+        if(typeof track.applyConstraints!=='function')throw new Error('Audio mode unavailable on this device');
+        await track.applyConstraints({...track.getConstraints?.(),echoCancellation:!nextDj});
+        const actual=track.getSettings?.().echoCancellation;
+        if(typeof actual==='boolean' && actual!==!nextDj)throw new Error('El dispositivo no aplicó el modo de audio.');
+      }
+      setDjAudio(nextDj);
+      setDrawer(false);
+    }catch(e){onError?.(e.message || 'No se pudo cambiar el modo de audio');}
+    finally{setAudioModeBusy(false);}
+  }
   async function toggleMic() {
-    try { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled); }
+    try { await localParticipant.setMicrophoneEnabled(!localParticipant.isMicrophoneEnabled,djAudio ? LIVE_AUDIO_CAPTURE : LIVE_NORMAL_AUDIO_CAPTURE); }
     catch (e) { onError(e?.message || 'No se pudo cambiar el micrófono'); }
   }
   async function toggleCam() {
@@ -2094,6 +2115,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     {drawer && <div className="rivyza-live-bottom-drawer rivyza-v32-popover">
       <div className="rivyza-live-drawer-handle" />
       <strong>{tr.options} LIVE</strong>
+      <button type="button" disabled={audioModeBusy} onClick={()=>changeAudioMode(!djAudio)}>🔊 {lang==='en' ? (djAudio?'DJ audio · switch to normal':'Normal audio · switch to DJ') : (djAudio?'Audio DJ · cambiar a normal':'Audio normal · cambiar a DJ')}</button>
       {canUseVoiceEffects && <button type="button" onClick={()=>{setDrawer(false);setVoiceEffectsOpen(true);}}>🎙️ {lang==='en'?'Audio effects':'Efectos de audio'}</button>}
       <button type="button" onClick={openInternalShare}>👥 Compartir en RIVYZA</button>
        <button type="button" onClick={shareLive}>🔗 Compartir externamente</button>
@@ -2190,7 +2212,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>
     </div>}
     {mediaRequest && publish && <div role="dialog" aria-modal="true" style={{position:'fixed',inset:0,zIndex:9999,background:'#0009',display:'grid',placeItems:'center',padding:20}}><div style={{background:'#251a32',color:'white',padding:20,borderRadius:16,maxWidth:340,width:'100%',textAlign:'center'}}><strong>{mediaRequest.kind==='mic'?(lang==='es'?'Activa tu micrófono':'Enable your microphone'):(lang==='es'?'Activa tu cámara':'Enable your camera')}</strong><p>{mediaRequest.from} {lang==='es'?'te solicita que lo actives.':'asks you to enable it.'}</p><div style={{display:'flex',gap:12,justifyContent:'center'}}><button type="button" onClick={()=>respondMedia(false)}>{lang==='es'?'Ahora no':'Not now'}</button><button type="button" onClick={()=>respondMedia(true)}>{lang==='es'?'Activar':'Enable'}</button></div></div></div>}
-    <RoomAudioRenderer volume={2} />
+    <RoomAudioRenderer />
     {!soundReady && <button type="button" className="rivyza-live-enable-audio" onClick={activateAudio}>🔊 {tr.activateAudio}</button>}
   </>;
 }
@@ -2206,6 +2228,13 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
   if (!privateVisitId.current) privateVisitId.current = crypto.randomUUID();
   useEffect(()=>{welcomeVisit.current=false; privateVisitId.current=crypto.randomUUID();},[roomId,user?.id]);
   const [session, setSession] = useState(null);
+  const [djAudio,setDjAudioState]=useState(()=>{
+    try{return typeof window!=='undefined' && localStorage.getItem(`rivyza-live-dj-audio:${user?.id}`)==='1';}catch{return false;}
+  });
+  const setDjAudio=next=>{
+    setDjAudioState(next);
+    try{localStorage.setItem(`rivyza-live-dj-audio:${user?.id}`,next?'1':'0');}catch{}
+  };
   const [confirmStop, setConfirmStop] = useState(false);
   useEffect(() => { setConfirmStop(false); }, [roomId]);
   const [requests, setRequests] = useState([]);
@@ -2553,8 +2582,8 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
             if (status.live === false) { exitToHome(); return; }
             await refreshSession(roomId); setConnectionKey(x=>x+1);
           } catch(e) { setError(e.message); setSession(null); }
-        }} connect={true} options={LIVE_AUDIO_ROOM_OPTIONS} audio={session.publish ? LIVE_AUDIO_CAPTURE : false} video={session.publish && session.host} onError={e => setError(e.message)}>
-        <CameraGrid confirmStop={confirmStop} setConfirmStop={setConfirmStop} publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={onViewProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeVisit={welcomeVisit} privateVisitId={privateVisitId} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
+        }} connect={true} options={djAudio ? LIVE_AUDIO_ROOM_OPTIONS : LIVE_NORMAL_ROOM_OPTIONS} audio={session.publish ? (djAudio ? LIVE_AUDIO_CAPTURE : LIVE_NORMAL_AUDIO_CAPTURE) : false} video={session.publish && session.host} onError={e => setError(e.message)}>
+        <CameraGrid djAudio={djAudio} setDjAudio={setDjAudio} confirmStop={confirmStop} setConfirmStop={setConfirmStop} publish={session.publish} isHost={session.host} hostId={session.hostId} isModerator={session.moderator} moderatorIds={session.moderatorIds} onModerate={action} onStop={stopLive} onLeaveCamera={leaveCamera} onLeaveLive={leave} onError={setError} onViewProfile={onViewProfile} blockedUsers={blockedUsers} onUnblock={unblock} onRefreshBlocked={refreshBlocked} onRequest={()=>action("request")} requests={requests} requestsOpen={requestsOpen} setRequestsOpen={setRequestsOpen} onRequestDecision={(kind, guestId) => action(kind, {guestId})} requestNames={requestNames} requestStatus={requestStatus} supabase={supabase} onCancelRequest={()=>action('cancel_request')} lang={lang} user={user} liveRoomId={roomId} welcomeVisit={welcomeVisit} privateVisitId={privateVisitId} welcomeMessage={session.host && welcomeEnabled ? welcomeMessage : ""} />
       </LiveKitRoom> : <p>Conectando cámaras…</p>}
 
     </section>}
