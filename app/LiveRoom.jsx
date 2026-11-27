@@ -24,7 +24,7 @@ function getLanguage() {
 const LIVE_AUDIO_CAPTURE = {
   sampleRate: 48000,
   channelCount: 2,
-  echoCancellation: true,
+  echoCancellation: false,
   noiseSuppression: false,
   autoGainControl: false,
 };
@@ -42,7 +42,7 @@ const LIVE_AUDIO_ROOM_OPTIONS = {
   publishDefaults: {
     simulcast:true,
     videoEncoding:{maxBitrate:1800000,maxFramerate:30},
-    audioPreset: { maxBitrate: 128000 },
+    audioPreset: { maxBitrate: 256000 },
     forceStereo: true,
     dtx: false,
     red: true,
@@ -67,7 +67,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         echoCancellation: settings.echoCancellation,
         noiseSuppression: settings.noiseSuppression,
         autoGainControl: settings.autoGainControl,
-        requestedMaxBitrate: 128000,
+        requestedMaxBitrate: 256000,
       });
     };
     const refresh = () => report(room.localParticipant.getTrackPublication(Track.Source.Microphone));
