@@ -7,6 +7,7 @@ import {createClient} from "@supabase/supabase-js";
 import Cropper from "react-easy-crop";
 import LiveRoom from "./LiveRoom";
 import ObsPilot from "./ObsPilot";
+import {ObsViewer,FeedLiveCard} from "./PublicLiveMedia";
 import PushSetup from "./PushSetup";
 import {CallProvider,useCallBridge,CallButtons} from "./PrivateCalls";
 import RivyzaStories from "./RivyzaStories";
@@ -4912,6 +4913,7 @@ async function applyPostCrop(){
     </main>;;
 
   if(view==="obsPilot") return <ObsPilot supabase={supabase} onExit={()=>setView("livePreview")}/>;
+  if(view==="liveStudio" && selectedLiveRoom?.startsWith('obs-'))return <ObsViewer hostId={selectedLiveRoom.slice(4)} supabase={supabase} onExit={()=>{setSelectedLiveRoom(null);setView('home');}}/>;
   if(view==="liveStudio" || (profileFromLive && (view==="otherProfile" || view==="publicProfile"))){
     const showingProfile=profileFromLive && (view==="publicProfile" || (view==="otherProfile" && viewedProfile));
     return <>
@@ -4950,7 +4952,7 @@ async function applyPostCrop(){
         {discoverLiveError&&<div className="live-preview-card live-preview-empty-card"><p role="alert">{discoverLiveError}</p></div>}
         {!discoverLiveError&&discoverLiveRooms.length===0&&<div className="live-preview-card live-preview-empty-card"><div className="live-preview-empty-copy"><span className="live-preview-badge">● LIVE</span><h2>No hay transmisiones ahora</h2><p>Cuando alguien comience un LIVE, podrás verlo aquí.</p></div></div>}
         {discoverLiveRooms.map((room,index)=><div key={room.id} className="live-preview-card">
-          {index===activeLivePreview&&<LivePreviewPlayer key={room.id} roomId={room.id} supabase={supabase} hostId={room.host_id} hostAvatar={room.host_avatar} hostName={room.host_name}/>}
+          {index===activeLivePreview&&(room.obs?<ObsViewer key={room.id} hostId={room.host_id} supabase={supabase} inline/>:<LivePreviewPlayer key={room.id} roomId={room.id} supabase={supabase} hostId={room.host_id} hostAvatar={room.host_avatar} hostName={room.host_name}/>)}
           <button type="button" className="rivyza-live-preview-enter" onClick={()=>{setSelectedLiveRoom(room.id);setView("liveStudio");}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
             <span className="rivyza-live-preview-host">{room.host_avatar&&<img src={room.host_avatar} alt=""/>}<strong>{room.host_name||'Usuario RIVYZA'}</strong><em>● LIVE</em></span>
             <span className="rivyza-live-preview-entry">Toca para entrar al LIVE</span>
@@ -5277,15 +5279,15 @@ async function applyPostCrop(){
 
     <section className="video-feed home-real-feed">
       {newFeedPostsAvailable && <button type="button" className="feed-new-posts-banner" onClick={()=>{loadHomeFeed(feedTab);document.querySelector(".feed-shell > .home-real-feed")?.scrollTo({top:0,behavior:"smooth"});}}>↑ Nuevas publicaciones</button>}
-      {feedLoading && !feedPosts.length && (
+      {feedLoading && !feedPosts.length && !discoverLiveRooms.length && (
         <div className="feed-empty-state">Cargando publicaciones…</div>
       )}
 
-      {!feedLoading && !feedPosts.length && (
+      {!feedLoading && !feedPosts.length && !discoverLiveRooms.length && (
         <div className="feed-empty-state">{feedMessage||"Todavía no hay publicaciones."}</div>
       )}
 
-      {feedPosts.map(post=>(
+      {(()=>{const lives=feedTab==='forYou'?discoverLiveRooms:[];const items=[];feedPosts.forEach((post,i)=>{items.push({post});if((i+1)%3===0&&lives.length) {const room=lives[Math.floor(i/3)];if(room)items.push({room});}});items.push(...lives.slice(Math.floor(feedPosts.length/3)).map(room=>({room})));return items;})().map(({post,room})=>room?<FeedLiveCard key={room.id} room={room} supabase={supabase} onEnter={()=>{setSelectedLiveRoom(room.id);setView('liveStudio');}}/>:(
         <article className="video-card feed-post-card" key={post.id}>
           <div className="feed-media-wrap" data-rv-frame={post.media_type==="photo"&&String(post.media_path).includes("-frame916.")?"916":undefined}>
               <style>{`[data-rv-frame="916"] img{object-fit:contain!important;object-position:center!important;} [data-rv-frame="916"]{background:#000!important;}`}</style>
