@@ -1,0 +1,2 @@
+self.addEventListener('push',event=>{event.waitUntil(self.registration.showNotification('RIVYZA',{body:'¡Tus notificaciones push funcionan!',icon:'/push-icon-192.png',tag:'rivyza-test'}));});
+self.addEventListener('notificationclick',event=>{event.notification.close();event.waitUntil((async()=>{const windows=await clients.matchAll({type:'window',includeUncontrolled:true});for(const w of windows){if(new URL(w.url).origin===self.location.origin){await w.focus();return;}}await clients.openWindow('/');})());});
