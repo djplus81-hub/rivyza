@@ -817,8 +817,11 @@ function HomePageContent(){
   const [uploadOpen,setUploadOpen]=useState(false);
   useEffect(()=>{
     if(!pendingStoryCreator||view!=="friends"||uploadOpen)return;
-    setFriendsStoryCreateSignal(v=>v+1);
-    setPendingStoryCreator(false);
+    const timer=setTimeout(()=>{
+      setFriendsStoryCreateSignal(v=>v+1);
+      setPendingStoryCreator(false);
+    },300);
+    return()=>clearTimeout(timer);
   },[pendingStoryCreator,view,uploadOpen]);
   // Detener audio/video del feed mientras la cámara/editor de publicaciones está abierto.
   // Los medios dentro de .camera-composer siguen funcionando (vista previa y música).
@@ -986,6 +989,8 @@ async function applyPostCrop(){
   const cameraPanelTouchStartY=useRef(null);
   const [cameraFacing,setCameraFacing]=useState("user");
   const [cameraStream,setCameraStream]=useState(null);
+  const cameraStreamRef=useRef(null);
+  const cameraRequestRef=useRef(0);
   const [cameraError,setCameraError]=useState("");
   // v3.62: ajustes reales de imagen para fotos y videos; no simula geometría facial.
   const [cameraEffectsOpen,setCameraEffectsOpen]=useState(false);
@@ -2537,6 +2542,7 @@ async function applyPostCrop(){
  }
 
  async function stopCamera(){
+   cameraRequestRef.current++;
    stopCameraProcessing();
    deepARRequestRef.current++;
    deepARBusyRef.current=false;setDeepARBusy(false);
@@ -2545,9 +2551,10 @@ async function applyPostCrop(){
    cameraZoomTrackRef.current=null;
    setCameraZoomRange(null);
    setCameraZoom(1);
-   if(cameraStream){
-     cameraStream.getTracks().forEach(t=>t.stop());
-   }
+   const activeStream=cameraStreamRef.current;
+   cameraStreamRef.current=null;
+   if(activeStream)activeStream.getTracks().forEach(t=>t.stop());
+   if(cameraVideoRef.current)cameraVideoRef.current.srcObject=null;
    setCameraStream(null);
    if(recordTimerRef.current){
      clearInterval(recordTimerRef.current);
@@ -2562,8 +2569,12 @@ async function applyPostCrop(){
 
  async function startCamera(facing=cameraFacing){
    setCameraError("");
+   let request;
    try{
-     await stopCamera();
+     const stopping=stopCamera();
+     request=++cameraRequestRef.current;
+     await stopping;
+     if(request!==cameraRequestRef.current)return;
      if(!navigator?.mediaDevices?.getUserMedia){
        setCameraError("La cámara no está disponible en este navegador.");
        return;
@@ -2576,6 +2587,8 @@ async function applyPostCrop(){
        audio:cameraMode==="video"
      });
 
+     if(request!==cameraRequestRef.current){stream.getTracks().forEach(t=>t.stop());return;}
+     cameraStreamRef.current=stream;
      const track=stream.getVideoTracks()[0];
      cameraZoomTrackRef.current=track || null;
      const caps=track?.getCapabilities?.();
@@ -2590,12 +2603,13 @@ async function applyPostCrop(){
      }
      setCameraStream(stream);
      setTimeout(()=>{
-       if(cameraVideoRef.current){
+       if(request===cameraRequestRef.current && cameraVideoRef.current){
          cameraVideoRef.current.srcObject=stream;
          cameraVideoRef.current.play().catch(()=>{});
        }
      },0);
    }catch(err){
+     if(request!==cameraRequestRef.current)return;
      console.error(err);
      setCameraError("No se pudo abrir la cámara. Revisa los permisos.");
    }
