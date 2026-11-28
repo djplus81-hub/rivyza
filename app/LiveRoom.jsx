@@ -681,6 +681,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     }catch(e){onError?.(e.message);}
   }
   const [comment, setComment] = useState('');
+  const commentSendingRef = useRef(false);
   const [chatPeople,setChatPeople]=useState({});
   const chatIds=[...new Set(chat.filter(m=>!m.system&&!m.privateWelcome&&m.authorId).map(m=>m.authorId))].sort().join(',');
   useEffect(()=>{let active=true; const ids=chatIds.split(',').filter(Boolean); (async()=>{for(let i=0;i<ids.length;i+=100){const {data}=await supabase.from('profiles').select('id,display_name,username,avatar_url').in('id',ids.slice(i,i+100));if(active&&data)setChatPeople(old=>({...old,...Object.fromEntries(data.map(p=>[p.id,p]))}));}})();return()=>{active=false};},[chatIds,supabase]);
@@ -941,16 +942,22 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     };
   }, [room, appendChat, isHost, liveRoomId, user?.id, welcomeMessage]);
   async function sendComment(e) {
-    e.preventDefault(); const text = comment.trim().slice(0,300); if (!text) return;
-    // Closing the iOS keyboard must not disconnect or resize the LIVE.
+    e.preventDefault();
+    const draft = comment;
+    const text = draft.trim().slice(0,300);
+    if (!text || commentSendingRef.current) return;
+    commentSendingRef.current = true;
     commentInputRef.current?.blur();
     setTyping(false);
-    const entry = {id:crypto.randomUUID(), authorId:user.id, name:room.localParticipant.name || 'Tú',text,at:Date.now()};
     try {
-      appendChat(entry); setComment('');
-      // Supabase is authoritative. A closed LiveKit data channel must not block chat.
+      const entry = {id:crypto.randomUUID(), authorId:user.id, name:room.localParticipant.name || 'Tú',text,at:Date.now()};
       const saved = await saveEntry(entry);
-      if (!saved) return;
+      if (!saved) {
+        setChatNotice('No se pudo enviar el comentario. Tu texto se conservó.');
+        return;
+      }
+      appendChat(entry);
+      setComment(current => current === draft ? '' : current);
       if (room.state === 'connected') {
         try {
           await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({id:entry.id,text,at:entry.at})), {reliable:true,topic:'rivyza-chat'});
@@ -959,6 +966,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         }
       }
     } catch(err) { onError?.('No se pudo guardar el mensaje. Revisa la conexión con Supabase.'); }
+    finally { commentSendingRef.current = false; }
   }
   async function flipCamera() {
     if (flipping || previewBusy || deepARBusy) return;
@@ -2059,7 +2067,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     </div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? (camerasFull ? fullMessage : (lang==='es'?'Solicitud enviada. Espera la aprobación.':'Request sent. Waiting for approval.')) : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
-      <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3 3 19 9-19 9 4-9-4-9Z" fill="currentColor"/><path d="M7 12h15" stroke="#9e176c"/></svg></button></form>
+      <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" onPointerDown={e=>e.preventDefault()} onMouseDown={e=>e.preventDefault()} aria-label="Enviar comentario"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3 3 19 9-19 9 4-9-4-9Z" fill="currentColor"/><path d="M7 12h15" stroke="#9e176c"/></svg></button></form>
       {!typing && <>
 
         {publish && <button type="button" className={`rivyza-v32-icon rivyza-neon-camera ${cam ? 'is-on' : 'is-off'}`} aria-pressed={cam} onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="5" width="14" height="14" rx="3"/><path d="m16 10 6-4v12l-6-4"/></svg> : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3l18 18M16 10l6-4v12l-3-2M9 5h4a3 3 0 0 1 3 3v2M16 16v1a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V8a3 3 0 0 1 1-2"/></svg>}</button>}
