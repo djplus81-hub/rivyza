@@ -217,6 +217,7 @@ export async function POST(req) {
     const db = adminClient();
     const uid = auth.user.id;
     if (input.action === 'start') {
+      await cleanupAbsentHosts(db);
       // OBS enabled is a reservation, not proof of an active RTMP signal.
       const {data:obs,error:obsError}=await db.from('rivyza_obs_test_sessions')
         .select('enabled,ingress_id,room_name').eq('host_id',uid).maybeSingle();
