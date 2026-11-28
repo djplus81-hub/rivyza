@@ -2544,7 +2544,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-stage .rivyza-v355-toast span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rivyza-live-stage .rivyza-v355-toast button { padding: 0 2px !important; font-size: 14px !important; }
 
-.rivyza-live-stage .rivyza-live-grid .rivyza-live-tile video.rivyza-ar-full-frame {object-fit:contain!important;background:#000;}
+.rivyza-live-stage .rivyza-live-grid .rivyza-live-tile video.rivyza-ar-full-frame {object-fit:cover!important;object-position:center!important;background:#000;}
 .rivyza-live-stage:not(:has(.rivyza-live-grid:not(.rivyza-v356-bg-neon))) {background:#05051b url("/rivyza-live-bg.webp") center / cover no-repeat!important;animation:none!important;transition:none!important;}
 /* Neon controls: paint only; preserve existing layout and hit targets. */
 .rivyza-live-stage .rivyza-v32-toolbar{background:linear-gradient(135deg,#17132bee,#0b0b1bee)!important;box-shadow:inset 0 0 0 1px #7562b8,0 0 10px #6a38df44!important;border-radius:32px!important}
