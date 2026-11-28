@@ -555,6 +555,8 @@ function HomePageContent(){
   const [appealDrafts,setAppealDrafts]=useState({});
   const [adminNotice,setAdminNotice]=useState([]);
   const [storyCreateSignal,setStoryCreateSignal]=useState(0);
+  const [friendsStoryCreateSignal,setFriendsStoryCreateSignal]=useState(0);
+  const [pendingStoryCreator,setPendingStoryCreator]=useState(false);
   const [welcomeNotice,setWelcomeNotice]=useState(null);
   useEffect(()=>{
     setWelcomeNotice(null);
@@ -813,6 +815,11 @@ function HomePageContent(){
   const [countryName,setCountryName]=useState("");
   const [showCountry,setShowCountry]=useState(true);
   const [uploadOpen,setUploadOpen]=useState(false);
+  useEffect(()=>{
+    if(!pendingStoryCreator||view!=="friends"||uploadOpen)return;
+    setFriendsStoryCreateSignal(v=>v+1);
+    setPendingStoryCreator(false);
+  },[pendingStoryCreator,view,uploadOpen]);
   // Detener audio/video del feed mientras la cámara/editor de publicaciones está abierto.
   // Los medios dentro de .camera-composer siguen funcionando (vista previa y música).
   useEffect(()=>{
@@ -2869,6 +2876,16 @@ async function applyPostCrop(){
    }finally{setCameraExporting(false);}
  }
 
+ async function openStoryCreator(){
+   if(recording||cameraSegmentSaving||cameraExporting)return;
+   await stopCamera();
+   resetUpload();
+   setUploadOpen(false);
+   setView("friends");
+   changeFeedTab("friends");
+   setPendingStoryCreator(true);
+ }
+
  async function openLiveCreator(fromCamera=false){
    if(profileFromLive){returnToLive();return;}
    if(fromCamera){
@@ -3435,7 +3452,7 @@ async function applyPostCrop(){
 
                <div className="camera-create-tabs">
                  <button className="active" type="button">POST</button>
-                 <button type="button" onClick={()=>setUploadMessage("Crear estará disponible próximamente.")}>CREAR</button>
+                 <button type="button" disabled={recording||cameraSegmentSaving||cameraExporting} onClick={openStoryCreator}>{appLanguage==="en"?"STORY":"HISTORIA"}</button>
                  <button type="button" disabled={recording||cameraSegmentSaving||cameraExporting} onClick={()=>openLiveCreator(true)} style={{color:"#ff397c",fontWeight:800}}>LIVE</button>
 
                </div>
@@ -5045,7 +5062,7 @@ async function applyPostCrop(){
           <h1>{t("Amigos")}</h1>
           <p>Solo personas que tú sigues y que también te siguen.</p>
         </header>
-        <RivyzaStories supabase={supabase} user={user} profile={profile} language={appLanguage}/>
+        <RivyzaStories supabase={supabase} user={user} profile={profile} language={appLanguage} createSignal={friendsStoryCreateSignal}/>
       </div>
 
       <section className="video-feed home-real-feed" onScroll={e=>{const y=e.currentTarget.scrollTop;setFriendsStoriesCompact(previous=>previous?(y>8):(y>24));}}>
