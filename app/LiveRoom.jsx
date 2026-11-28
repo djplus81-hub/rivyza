@@ -1565,7 +1565,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   }
   // v3.56: LIVE-only backgrounds. Never saved to user preferences.
   const backgroundOptions = [
-    ['neon','✦','RIVYZA Neon'], ['original','👑','RIVYZA original'], ['hearts','❤️','Corazones pequeños'],
+    ['neon','✦','RIVYZA original'], ['original','👑','RIVYZA clásico'], ['hearts','❤️','Corazones pequeños'],
     ['stars','⭐','Estrellas brillantes'], ['butterflies','🦋','Mariposas luminosas'],
     ['petals','🌸','Pétalos flotantes'], ['black','⚫','Negro dorado'],
     ['blue','🔵','Azul profundo'], ['purple','🟣','Rosa púrpura']
@@ -1579,13 +1579,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   useEffect(() => {
     const stage = document.querySelector('.rivyza-live-stage');
     if (!stage) return;
-    if (liveBackground === 'neon') {
-      stage.style.setProperty('background-image', 'url("/rivyza-live-bg.webp")', 'important');
-      stage.style.setProperty('background-size', 'cover', 'important');
-      stage.style.setProperty('background-position', 'center', 'important');
-      stage.style.setProperty('background-repeat', 'no-repeat', 'important');
-      return () => ['background-image','background-size','background-position','background-repeat'].forEach(p=>stage.style.removeProperty(p));
-    }
+    if (liveBackground === 'neon') return;
     const themes = {
       black: [
         'linear-gradient(145deg, transparent 39%, rgba(255,192,69,.76) 39.2%, transparent 39.5%)',
@@ -2551,6 +2545,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-stage .rivyza-v355-toast button { padding: 0 2px !important; font-size: 14px !important; }
 
 .rivyza-live-stage .rivyza-live-grid .rivyza-live-tile video.rivyza-ar-full-frame {object-fit:contain!important;background:#000;}
+.rivyza-live-stage:not(:has(.rivyza-live-grid:not(.rivyza-v356-bg-neon))) {background:#05051b url("/rivyza-live-bg.webp") center / cover no-repeat!important;animation:none!important;transition:none!important;}
 /* Neon controls: paint only; preserve existing layout and hit targets. */
 .rivyza-live-stage .rivyza-v32-toolbar{background:linear-gradient(135deg,#17132bee,#0b0b1bee)!important;box-shadow:inset 0 0 0 1px #7562b8,0 0 10px #6a38df44!important;border-radius:32px!important}
 .rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-icon{background:radial-gradient(ellipse at top,#48305e,#151126 75%)!important;color:#fff!important;border-radius:50%!important;box-shadow:inset 0 0 0 1px #a48af0,inset 0 0 8px #7951e766,0 0 5px #7951e744!important;display:inline-flex;align-items:center;justify-content:center}
