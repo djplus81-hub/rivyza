@@ -2359,6 +2359,7 @@ async function applyPostCrop(){
         <div className="rivyza-share-external">
           <button type="button" onClick={shareOutside}><span className="rivyza-share-round"><Share2/></span><small>Más aplicaciones</small></button>
           <button type="button" onClick={copyShareLink}><span className="rivyza-share-round"><LinkIcon/></span><small>Copiar enlace</small></button>
+          <button type="button" disabled={shareSending} onClick={()=>{const post=sharePost;setSharePost(null);openPost(post);}}><span className="rivyza-share-round"><MoreHorizontal/></span><small>{t("Más")}</small></button>
           {sharePost?.user_id===user?.id&&<button type="button" disabled={shareDownloading} onClick={downloadOwnSharedPost}><span className="rivyza-share-round"><Download/></span><small>{shareDownloading?(shareDownloadStage||"Preparando…"):(preparedMusicVideo?.postId===sharePost?.id?"Guardar video":"Descargar")}</small></button>}
         </div>
         <p className="rivyza-share-hint">Al tocar «Más aplicaciones», tu teléfono mostrará WhatsApp, Facebook, Mensajes y otras aplicaciones compatibles que tengas instaladas.</p>
@@ -2871,6 +2872,19 @@ async function applyPostCrop(){
      setCameraError("No se pudieron unir los segmentos en este dispositivo. La grabación sigue disponible; intenta terminar de nuevo. "+(err.message||""));
      setRecordPaused(true);
    }finally{setCameraExporting(false);}
+ }
+
+ async function openLiveCreator(fromCamera=false){
+   if(profileFromLive){returnToLive();return;}
+   if(fromCamera){
+     if(recording||cameraSegmentSaving||cameraExporting)return;
+     await stopCamera();
+     resetUpload();
+     setUploadOpen(false);
+   }
+   setSelectedLiveRoom(null);
+   setProfileFromLive(false);
+   setView("liveStudio");
  }
 
  function resetUpload(){
@@ -3427,6 +3441,7 @@ async function applyPostCrop(){
                <div className="camera-create-tabs">
                  <button className="active" type="button">POST</button>
                  <button type="button" onClick={()=>setUploadMessage("Crear estará disponible próximamente.")}>CREAR</button>
+                 <button type="button" disabled={recording||cameraSegmentSaving||cameraExporting} onClick={()=>openLiveCreator(true)} style={{color:"#ff397c",fontWeight:800}}>LIVE</button>
 
                </div>
              </div>
@@ -4673,6 +4688,7 @@ async function applyPostCrop(){
           <button onClick={()=>openSocialList(user.id,"following")}><strong>{ownFollowingCount}</strong><span>Following</span></button>
           <button onClick={()=>openSocialList(user.id,"followers")}><strong>{ownFollowersCount}</strong><span>Followers</span></button>
           <button><strong>{ownLikesCount}</strong><span>Likes</span></button>
+          {!profileFromLive&&<button type="button" onClick={()=>openLiveCreator()} aria-label={appLanguage==="en"?"Go LIVE":"Crear LIVE"} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,minWidth:0,padding:0,background:"transparent",border:0,color:"#ff397c"}}><span style={{display:"grid",placeItems:"center",width:32,height:30,borderRadius:9,background:"linear-gradient(135deg,#ff397c,#ed174c)",color:"white"}}><Radio size={19}/></span><span style={{fontSize:10,fontWeight:700,whiteSpace:"nowrap",color:"#ff397c"}}>{appLanguage==="en"?"Go LIVE":"Crear LIVE"}</span></button>}
         </div>
 
         {profile?.bio && <p className="public-bio">{profile.bio}</p>}
@@ -4937,7 +4953,7 @@ async function applyPostCrop(){
         <strong style={{position:"static",transform:"none",justifySelf:"center"}}>LIVE</strong>
         <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6,minWidth:0}}>
           <button type="button" aria-label="OBS" onClick={()=>setView("obsPilot")} style={{position:"static",flexShrink:0,background:"#111827",color:"#8edcff",border:"1px solid #38bdf8",borderRadius:8,padding:"7px 8px",fontSize:12,fontWeight:700,lineHeight:1,whiteSpace:"nowrap"}}>OBS</button>
-          <button type="button" className="rivyza-start-live" aria-label={appLanguage==="en"?"Go LIVE":"Iniciar LIVE"} title={appLanguage==="en"?"Go LIVE":"Iniciar LIVE"} style={{position:"static",flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",width:36,height:32,minWidth:0,padding:0,borderRadius:9}} onClick={()=>{setSelectedLiveRoom(null);setView("liveStudio");}}><Radio size={19}/></button>
+          <button type="button" className="rivyza-start-live" aria-label={appLanguage==="en"?"Go LIVE":"Iniciar LIVE"} title={appLanguage==="en"?"Go LIVE":"Iniciar LIVE"} style={{position:"static",flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",width:36,height:32,minWidth:0,padding:0,borderRadius:9}} onClick={()=>openLiveCreator()}><Radio size={19}/></button>
         </div>
       </header>
 
@@ -5318,7 +5334,7 @@ async function applyPostCrop(){
             <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
             <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
 
-            <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
+            <button type="button" onClick={()=>openLiveCreator()} aria-label={appLanguage==="en"?"Go LIVE":"Crear LIVE"}><span style={{display:"grid",placeItems:"center",width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#ff397c,#ed174c)",color:"white",boxShadow:"0 2px 8px #0005"}}><Radio size={23}/></span><span>LIVE</span></button>
           </div>
         </article>
       ))}
