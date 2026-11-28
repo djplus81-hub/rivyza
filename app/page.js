@@ -3433,9 +3433,6 @@ async function applyPostCrop(){
                  </button>}
                </div>
 
-               <div style={{display:"flex",justifyContent:"flex-end",padding:"4px 18px",flexShrink:0}}>
-                 <button type="button" onClick={()=>openLiveCreator(true)} disabled={recording||cameraSegmentSaving||cameraExporting} aria-label={appLanguage==="en"?"Go LIVE":"Crear LIVE"} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,minWidth:0,padding:0,background:"transparent",border:0,color:"#ff397c"}}><span style={{display:"grid",placeItems:"center",width:32,height:30,borderRadius:9,background:"linear-gradient(135deg,#ff397c,#ed174c)",color:"white"}}><Radio size={19}/></span><span style={{fontSize:10,fontWeight:700,whiteSpace:"nowrap",color:"#ff397c"}}>{appLanguage==="en"?"Go LIVE":"Crear LIVE"}</span></button>
-               </div>
              </div>
            </div>
          </>
