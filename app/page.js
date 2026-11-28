@@ -4175,6 +4175,65 @@ async function applyPostCrop(){
     });
     return ()=>{active=false;};
   },[supabase,user?.id]);
+  const [favoritesPrivacy,setFavoritesPrivacy]=useState({owner:null,value:"only_me",ready:false});
+  const [favoritesPrivacyBusy,setFavoritesPrivacyBusy]=useState(false);
+  const [favoritesPrivacyError,setFavoritesPrivacyError]=useState("");
+  const [visitorFavorites,setVisitorFavorites]=useState({owner:null,viewer:null,allowed:false,posts:[],loading:false});
+  const visitorFavoritesAllowed=view==="otherProfile"&&visitorFavorites.owner===viewedProfile?.id&&visitorFavorites.viewer===user?.id&&visitorFavorites.allowed;
+  useEffect(()=>{
+    let active=true;
+    const owner=user?.id;
+    setFavoritesPrivacy({owner,value:"only_me",ready:false});setFavoritesPrivacyError("");
+    if(!supabase||!owner)return;
+    supabase.from("rivyza_favorite_preferences").select("visibility").eq("user_id",owner).maybeSingle().then(({data,error})=>{
+      if(!active)return;
+      if(error){setFavoritesPrivacyError("No se pudo cargar la privacidad de favoritos.");return;}
+      setFavoritesPrivacy({owner,value:data?.visibility||"only_me",ready:true});
+    });
+    return()=>{active=false;};
+  },[supabase,user?.id]);
+  async function saveFavoritesPrivacy(value){
+    const owner=user?.id;
+    if(!supabase||!owner||favoritesPrivacyBusy||!favoritesPrivacy.ready||favoritesPrivacy.owner!==owner)return;
+    setFavoritesPrivacyBusy(true);setFavoritesPrivacyError("");
+    try{
+      const {error}=await supabase.from("rivyza_favorite_preferences").upsert({user_id:owner,visibility:value,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+      if(error)throw error;
+      if(favoriteOwner.current===owner)setFavoritesPrivacy({owner,value,ready:true});
+    }catch(e){if(favoriteOwner.current===owner)setFavoritesPrivacyError("No se pudo guardar la privacidad de favoritos.");}
+    finally{setFavoritesPrivacyBusy(false);}
+  }
+  useEffect(()=>{
+    const owner=viewedProfile?.id,viewer=user?.id;
+    if(view!=="otherProfile"||!owner||!viewer||!supabase)return;
+    let active=true;
+    setVisitorFavorites({owner,viewer,allowed:false,posts:[],loading:true});
+    async function refresh(){
+      try{
+        const {data:pref,error}=await supabase.from("rivyza_favorite_preferences").select("visibility").eq("user_id",owner).maybeSingle();
+        if(!active)return;
+        if(error||!["friends","everyone"].includes(pref?.visibility)){setVisitorFavorites({owner,viewer,allowed:false,posts:[],loading:false});setViewedProfileTab(t=>t==="favorites"?"posts":t);return;}
+        const ids=[];
+        for(let offset=0;;offset+=500){
+          const {data,error}=await supabase.from("rivyza_favorites").select("post_id").eq("user_id",owner).order("created_at",{ascending:false}).order("post_id").range(offset,offset+499);
+          if(error)throw error;
+          ids.push(...(data||[]).map(x=>x.post_id));
+          if(!data||data.length<500)break;
+        }
+        const posts=[];
+        for(let i=0;i<ids.length;i+=100){
+          const {data,error}=await supabase.from("posts").select("*").in("id",ids.slice(i,i+100)).eq("visibility","public");
+          if(error)throw error;
+          posts.push(...(data||[]));
+        }
+        const byId=new Map(posts.map(p=>[p.id,p]));
+        if(active)setVisitorFavorites({owner,viewer,allowed:true,posts:ids.map(id=>byId.get(id)).filter(Boolean),loading:false});
+      }catch(e){if(active){setVisitorFavorites({owner,viewer,allowed:false,posts:[],loading:false});setViewedProfileTab(t=>t==="favorites"?"posts":t);}}
+    }
+    refresh();
+    const timer=setInterval(refresh,15000);
+    return()=>{active=false;clearInterval(timer);};
+  },[view,viewedProfile?.id,user?.id,supabase]);
   async function saveLikesPrivacy(value){
     if(!supabase||!user?.id||likesPrivacyBusy)return;
     const previous=likesPrivacy;
@@ -4409,7 +4468,7 @@ async function applyPostCrop(){
         <div className="rivyza-settings-group">
           {[["Cuenta privada",Lock],["Cuentas bloqueadas",Ban]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
           <div className="rivyza-settings-toggle rivyza-online-row"><span><strong>{t("Estado en línea")}</strong><small>{t("Cuando esté desactivado, nadie verá tu punto verde.")}</small></span><input type="checkbox" aria-label={t("Estado en línea")} checked={onlinePreference} onChange={e=>saveOnlinePreference(e.target.checked)}/></div>
-          {[["Quién puede enviarme mensajes",MessageCircle],["Quién puede comentar",MessageSquare],["Quién puede mencionarme",AtSign],["Quién puede ver mis Me gusta",Heart],["Quién puede ver quién me sigue",Users],["Quién puede ver a quién sigo",Users]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
+          {[["Quién puede enviarme mensajes",MessageCircle],["Quién puede comentar",MessageSquare],["Quién puede mencionarme",AtSign],["Quién puede ver mis Me gusta",Heart],["Quién puede ver mis favoritos",Bookmark],["Quién puede ver quién me sigue",Users],["Quién puede ver a quién sigo",Users]].map(([label,Icon])=><button type="button" key={label} onClick={()=>setSettingsSheet(label)}><Icon size={21}/><span>{t(label)}</span><b>›</b></button>)}
         </div>
         <div className="rivyza-settings-section-title">{t("Preferencias")}</div>
         <div className="rivyza-settings-group">
@@ -4457,6 +4516,7 @@ async function applyPostCrop(){
           <div className="rivyza-sheet-heading"><strong>{settingsSheet==="language"?t("Idioma"):t(settingsSheet)}</strong><button type="button" onClick={()=>setSettingsSheet("")} aria-label={t("Cerrar")}>×</button></div>
           {settingsSheet==="language"?<div className="rivyza-sheet-options">{[["es","Español"],["en","English"]].map(([code,label])=><button type="button" key={code} onClick={()=>{changeAppLanguage(code);setSettingsSheet("");}}>{label}<span>{appLanguage===code?"✓":""}</span></button>)}</div>  :settingsSheet==="Quién puede enviarme mensajes"?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Elige quién puede enviarte mensajes privados.</p>{[["everyone","Todos","Cualquier usuario puede enviarte mensajes."],["friends","Amigos","Solo personas que se siguen mutuamente."],["nobody","Nadie","Nadie puede enviarte mensajes nuevos."]].map(([value,label,description])=><button type="button" key={value} className={"rivyza-privacy-choice"+(messagePrivacy===value?" selected":"")} disabled={messagePrivacyBusy} onClick={()=>saveMessagePrivacy(value)}><span><strong>{t(label)}</strong><small>{t(description)}</small></span><span aria-hidden="true">{messagePrivacy===value?"✓":""}</span></button>)}{messagePrivacyError&&<p role="alert" className="rivyza-privacy-error">{messagePrivacyError}</p>}</div>
           :settingsSheet==="Preferencias de notificaciones"?<PushSetup key={user?.id} db={supabase} userId={user?.id} lang={appLanguage}/>:settingsSheet==="Quién puede comentar"?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Elige quién puede comentar tus fotos y videos.</p>{[["everyone","Todos","Cualquiera puede comentar tus publicaciones."],["friends","Amigos","Solo tus amigos pueden comentar."],["nobody","Nadie","Nadie puede comentar tus publicaciones."]].map(([value,label,description])=><button type="button" key={value} className={"rivyza-privacy-choice"+(commentPrivacy===value?" selected":"")} disabled={commentPrivacyBusy} onClick={()=>saveCommentPrivacy(value)}><span><strong>{t(label)}</strong><small>{t(description)}</small></span><span aria-hidden="true">{commentPrivacy===value?"✓":""}</span></button>)}{commentPrivacyError&&<p role="alert" className="rivyza-privacy-error">{commentPrivacyError}</p>}</div>
+          :settingsSheet==="Quién puede ver mis favoritos"?<div className="rivyza-feature-settings rivyza-message-privacy"><p>{appLanguage==="en"?"Choose who can see your favorites.":"Elige quién puede ver tus publicaciones guardadas."}</p>{[["only_me","Solo yo","Only me"],["friends","Mis amigos","My friends"],["everyone","Todos","Everyone"]].map(([value,es,en])=><button type="button" key={value} className={"rivyza-privacy-choice"+(favoritesPrivacy.value===value?" selected":"")} disabled={favoritesPrivacyBusy||!favoritesPrivacy.ready||favoritesPrivacy.owner!==user?.id} onClick={()=>saveFavoritesPrivacy(value)}><span><strong>{appLanguage==="en"?en:es}</strong></span><span aria-hidden="true">{favoritesPrivacy.value===value?"✓":""}</span></button>)}{favoritesPrivacyError&&<p role="alert" className="rivyza-privacy-error">{favoritesPrivacyError}</p>}</div>
           :settingsSheet==="Quién puede ver mis Me gusta"?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Elige quién puede ver la pestaña del corazón de tu perfil.</p>{[["only_me","Solo yo","Nadie más puede ver las publicaciones que me gustan."],["everyone","Todos","Cualquier usuario puede ver las publicaciones que me gustan."],["friends","Amigos","Solo mis amigos pueden ver las publicaciones que me gustan."]].map(([value,label,description])=><button type="button" key={value} className={"rivyza-privacy-choice"+(likesPrivacy===value?" selected":"")} disabled={likesPrivacyBusy} onClick={()=>saveLikesPrivacy(value)}><span><strong>{t(label)}</strong><small>{t(description)}</small></span><span aria-hidden="true">{likesPrivacy===value?"✓":""}</span></button>)}{likesPrivacyError&&<p role="alert" className="rivyza-privacy-error">{likesPrivacyError}</p>}</div>
           :["Quién puede ver quién me sigue","Quién puede ver a quién sigo","Quién puede mencionarme"].includes(settingsSheet)?<div className="rivyza-feature-settings rivyza-message-privacy"><p>Configura quién puede acceder a esta información.</p>{[...(["Quién puede mencionarme"].includes(settingsSheet)?[["everyone","Todos"],["friends","Amigos"],["nobody","Nadie"]]:[["everyone","Todos"],["friends","Amigos"],["only_me","Solo yo"]])].map(([value,label])=>{const key=settingsSheet==="Quién puede mencionarme"?"mentions":settingsSheet==="Quién puede ver quién me sigue"?"followers":"following";return <button type="button" className={"rivyza-privacy-choice"+(communityPrivacy[key]===value?" selected":"")} key={value} onClick={()=>saveCommunityPrivacy(key,value)}><span><strong>{t(label)}</strong></span><span>{communityPrivacy[key]===value?"✓":""}</span></button>})}{communityPrivacyError&&<p role="alert">{communityPrivacyError}</p>}</div>
           :settingsSheet==="Centro de Ayuda"?<div className="rivyza-feature-settings rivyza-help"><input aria-label="Buscar ayuda" placeholder="Buscar en Ayuda..." value={helpQuery} onChange={e=>setHelpQuery(e.target.value)}/>{[
@@ -4597,8 +4657,9 @@ async function applyPostCrop(){
         <div className="profile-content-tabs visitor-tabs">
           <button className={viewedProfileTab==="posts"?"active":""} onClick={()=>setViewedProfileTab("posts")}><Grid3X3 size={20}/></button>
           {viewedLikesAllowed&&<button className={viewedProfileTab==="likes"?"active":""} onClick={()=>setViewedProfileTab("likes")} aria-label="Me gusta"><Heart size={20}/></button>}
+          {visitorFavoritesAllowed&&<button type="button" className={viewedProfileTab==="favorites"?"active":""} onClick={()=>setViewedProfileTab("favorites")} aria-label="Favoritos"><Bookmark size={20}/></button>}
         </div>
-        {viewedProfileTab==="likes"&&viewedLikesAllowed?<div className="posts-grid">{viewedLikesLoading?<p>Cargando Me gusta…</p>:viewedLikedPosts.length?viewedLikedPosts.map(post=><button type="button" className="profile-post-card" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||"Publicación"}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>):<p>No hay publicaciones que mostrar.</p>}</div>:<div className="posts-grid">
+        {viewedProfileTab==="favorites"&&visitorFavoritesAllowed?<div className="posts-grid">{visitorFavorites.posts.length?visitorFavorites.posts.map(post=><button type="button" className="profile-post-card" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||"Publicación"}/>:<video src={post.media_path+"#t=0.1"} muted playsInline preload="metadata"/>}</button>):<p>{appLanguage==="en"?"No saved posts to show.":"No hay favoritos para mostrar."}</p>}</div>:viewedProfileTab==="likes"&&viewedLikesAllowed?<div className="posts-grid">{viewedLikesLoading?<p>Cargando Me gusta…</p>:viewedLikedPosts.length?viewedLikedPosts.map(post=><button type="button" className="profile-post-card" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||"Publicación"}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>):<p>No hay publicaciones que mostrar.</p>}</div>:<div className="posts-grid">
           {viewedProfilePosts.length > 0 ? viewedProfilePosts.map(post=>(
             <div className="profile-post-card" style={{position:"relative"}} key={post.id} onClick={()=>openPost(post)}>
               {post.media_type==="photo"
@@ -4814,7 +4875,7 @@ async function applyPostCrop(){
             )}
           </div>
         ) : (
-          profileTab==="favorites" ? <section className="rivyza-liked-private"><div className="rivyza-liked-heading"><Bookmark size={19}/><strong>{appLanguage==="en"?"My favorites":"Mis favoritos"}</strong></div>{favoriteError?<p className="rivyza-liked-note">{favoriteError}</p>:favoriteLoading||!favoriteState.ready?<p className="rivyza-liked-note">{appLanguage==="en"?"Loading…":"Cargando…"}</p>:favoritePosts.length===0?<p className="rivyza-liked-note">{appLanguage==="en"?"No saved posts yet.":"Todavía no tienes publicaciones guardadas."}</p>:<div className="posts-grid">{favoritePosts.filter(post=>favoriteIds.includes(post.id)).map(post=><button type="button" className="profile-post-card rivyza-liked-post" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||t("Publicación")}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>)}</div>}</section> : <section className="rivyza-liked-private">
+          profileTab==="favorites" ? <section className="rivyza-liked-private"><div className="rivyza-liked-heading"><Bookmark size={19}/><strong>{appLanguage==="en"?"My favorites":"Mis favoritos"}</strong><span>{favoritesPrivacy.value==="everyone"?t("Todos"):favoritesPrivacy.value==="friends"?(appLanguage==="en"?"My friends":"Mis amigos"):"🔒 "+t("Solo yo")}</span></div>{favoriteError?<p className="rivyza-liked-note">{favoriteError}</p>:favoriteLoading||!favoriteState.ready?<p className="rivyza-liked-note">{appLanguage==="en"?"Loading…":"Cargando…"}</p>:favoritePosts.length===0?<p className="rivyza-liked-note">{appLanguage==="en"?"No saved posts yet.":"Todavía no tienes publicaciones guardadas."}</p>:<div className="posts-grid">{favoritePosts.filter(post=>favoriteIds.includes(post.id)).map(post=><button type="button" className="profile-post-card rivyza-liked-post" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||t("Publicación")}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>)}</div>}</section> : <section className="rivyza-liked-private">
             <div className="rivyza-liked-heading"><Heart size={19}/><strong>{t("Mis me gusta")}</strong><span>{likesPrivacy==="only_me"?"🔒 "+t("Solo yo"):likesPrivacy==="friends"?t("Amigos"):t("Todos")}</span></div>
             <p className="rivyza-liked-note">{likesPrivacy==="only_me"?t("Solo tú puedes ver las publicaciones a las que les has dado like."):likesPrivacy==="friends"?t("Solo mis amigos pueden ver las publicaciones que me gustan."):t("Cualquier usuario puede ver las publicaciones que me gustan.")}</p>
             {likedPostsLoading?<p className="rivyza-liked-note">{t("Cargando tus me gusta…")}</p>:likedPostsError?<p className="rivyza-liked-note">{t(likedPostsError)}</p>:likedPosts.length===0?<p className="rivyza-liked-note">{t("Aún no has dado me gusta a ninguna publicación.")}</p>:<div className="posts-grid">{likedPosts.map(post=><button type="button" className="profile-post-card rivyza-liked-post" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||t("Publicación")}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>)}</div>}
