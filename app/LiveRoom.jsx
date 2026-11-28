@@ -1650,7 +1650,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     backgroundRef.current=value;
     setLiveBackground(value);
     setBackgroundPickerOpen(false);
-    try {await sendBackground('state',value);} catch(e) {onError('No se pudo sincronizar el fondo: '+(e?.message||'Error'));}
+    try {await sendBackground('state',value);await onModerate('background',{background:value});} catch(e) {onError('No se pudo sincronizar el fondo: '+(e?.message||'Error'));}
   }
   const [drawer, setDrawer] = useState(false);
   const [voiceEffectsOpen,setVoiceEffectsOpen]=useState(false);
