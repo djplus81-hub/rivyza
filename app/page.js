@@ -297,9 +297,13 @@ function HomePageContent(){
   const [discoverLiveRooms,setDiscoverLiveRooms]=useState([]);
   const [discoverLiveError,setDiscoverLiveError]=useState('');
   const [selectedLiveRoom,setSelectedLiveRoom]=useState(null);
+  const liveReturnToProfileRef=useRef(false);
+  const liveExitHandledRef=useRef(false);
   const [profileFromLive,setProfileFromLive]=useState(false);
   function enterLiveById(id){
     if(!id)return;
+    liveReturnToProfileRef.current=false;
+    liveExitHandledRef.current=false;
     setProfileFromLive(false);
     setSelectedLiveRoom(id);
     setView(String(id).startsWith("obs-")?"obsViewer":"liveStudio");
@@ -2869,7 +2873,7 @@ async function applyPostCrop(){
    }finally{setCameraExporting(false);}
  }
 
- async function openLiveCreator(fromCamera=false){
+ async function openLiveCreator(fromCamera=false,fromProfile=false){
    if(profileFromLive){returnToLive();return;}
    if(fromCamera){
      if(recording||cameraSegmentSaving||cameraExporting)return;
@@ -2877,6 +2881,8 @@ async function applyPostCrop(){
      resetUpload();
      setUploadOpen(false);
    }
+   liveReturnToProfileRef.current=fromProfile;
+   liveExitHandledRef.current=false;
    setSelectedLiveRoom(null);
    setProfileFromLive(false);
    setView("liveStudio");
@@ -4679,7 +4685,7 @@ async function applyPostCrop(){
           <button onClick={()=>openSocialList(user.id,"followers")}><strong>{ownFollowersCount}</strong><span>Followers</span></button>
           <button><strong>{ownLikesCount}</strong><span>Likes</span></button>
         </div>
-          {!profileFromLive&&<button type="button" onClick={()=>openLiveCreator()} aria-label={appLanguage==="en"?"Go LIVE":"Crear LIVE"} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,gridColumn:2,justifySelf:"center",alignSelf:"end",minWidth:0,padding:0,background:"transparent",border:0,color:"#ff397c"}}><span style={{display:"grid",placeItems:"center",width:30,height:26,borderRadius:9,background:"linear-gradient(135deg,#ff397c,#ed174c)",color:"white"}}><Radio size={19}/></span><span style={{fontSize:"inherit",fontWeight:600,whiteSpace:"nowrap",color:"#ff397c"}}>{appLanguage==="en"?"Go LIVE":"Crear LIVE"}</span></button>}
+          {!profileFromLive&&<button type="button" onClick={()=>openLiveCreator(false,true)} aria-label={appLanguage==="en"?"Go LIVE":"Crear LIVE"} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,gridColumn:2,justifySelf:"center",alignSelf:"end",minWidth:0,padding:0,background:"transparent",border:0,color:"#ff397c"}}><span style={{display:"grid",placeItems:"center",width:30,height:26,borderRadius:9,background:"linear-gradient(135deg,#ff397c,#ed174c)",color:"white"}}><Radio size={19}/></span><span style={{fontSize:"inherit",fontWeight:600,whiteSpace:"nowrap",color:"#ff397c"}}>{appLanguage==="en"?"Go LIVE":"Crear LIVE"}</span></button>}
         </div>
 
         {profile?.bio && <p className="public-bio">{profile.bio}</p>}
@@ -4931,7 +4937,7 @@ async function applyPostCrop(){
       <div style={showingProfile?{position:'fixed',inset:0,visibility:'hidden',pointerEvents:'none'}:undefined}>
         <LiveRoom key={selectedLiveRoom || 'lobby'} initialRoomId={selectedLiveRoom} supabase={supabase} user={user}
           onViewProfile={openProfileFromLive}
-          onExit={()=>{setProfileFromLive(false);setSelectedLiveRoom(null);setView('home');changeFeedTab('forYou');}} />
+          onExit={()=>{if(liveExitHandledRef.current)return;liveExitHandledRef.current=true;const backToProfile=liveReturnToProfileRef.current;setProfileFromLive(false);setSelectedLiveRoom(null);if(backToProfile){setView('publicProfile');}else{setView('home');changeFeedTab('forYou');}}} />
       </div>
       {showingProfile && <div style={{position:'fixed',inset:0,zIndex:2147483001,overflowY:'auto',background:'#000'}}>{view==="publicProfile" ? renderOwnOriginalProfile() : renderExistingProfile()}</div>}
     </>;
