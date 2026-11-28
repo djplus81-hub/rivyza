@@ -19,7 +19,7 @@ import RIVYZAWatermark, { markPhoto } from "./RIVYZAWatermark";
 import "./RIVYZAWatermark.css";
 import {
   Home, Radio, Plus, Bell, User, Heart, MessageCircle, Share2, Search, UserRoundPlus, UserRoundMinus,
-  AtSign, Save, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send, Download, Crop, SlidersHorizontal
+  AtSign, Save, Bookmark, LogOut, Camera, X, Check, Music2, MoreHorizontal, ShieldCheck, Lock, Ban, MessageSquare, Users, Languages, Moon, RefreshCw, Link as LinkIcon, Youtube, Instagram, Facebook, Grid3X3, Mic, Square, Play, Pause, Trash2, Send, Download, Crop, SlidersHorizontal
 } from "lucide-react";
 
 // Catálogo de efectos alojados en Supabase. No inicializa la cámara ni modifica LIVE.
@@ -1373,6 +1373,75 @@ async function applyPostCrop(){
 
     const [counts,likes]=await Promise.all([getCommentCounts(sorted.map(p=>p.id)),getLikeStats(sorted.map(p=>p.id))]);
     setProfilePosts(sorted.map(p=>({...p,like_count:likes?.counts[p.id]??p.like_count,liked_by_me:likes?.mine.has(p.id)??p.liked_by_me,creator:{username:profile?.username,display_name:profile?.display_name},comment_count:counts===null?Number(p.comment_count||0):(counts[p.id]||0)})));
+  }
+
+  const [favoriteState,setFavoriteState]=useState({owner:null,ids:[],ready:false});
+  const [favoritePosts,setFavoritePosts]=useState([]);
+  const [favoriteLoading,setFavoriteLoading]=useState(false);
+  const [favoriteError,setFavoriteError]=useState("");
+  const favoriteBusy=useRef(new Set());
+  const favoriteOwner=useRef(user?.id);
+  favoriteOwner.current=user?.id;
+  const favoriteIds=favoriteState.owner===user?.id?favoriteState.ids:[];
+  useEffect(()=>{
+    let active=true;
+    const owner=user?.id;
+    setFavoriteState({owner,ids:[],ready:false});
+    setFavoritePosts([]);
+    if(!supabase||!owner)return;
+    (async()=>{
+      try{
+        const ids=[];
+        for(let offset=0;;offset+=500){
+          const {data,error}=await supabase.from("rivyza_favorites").select("post_id").eq("user_id",owner).order("created_at",{ascending:false}).order("post_id").range(offset,offset+499);
+          if(error)throw error;
+          ids.push(...(data||[]).map(x=>x.post_id));
+          if(!data||data.length<500)break;
+        }
+        if(active)setFavoriteState({owner,ids,ready:true});
+      }catch(e){if(active)setFavoriteError(appLanguage==="en"?"Could not load favorites.":"No se pudieron cargar tus favoritos.");}
+    })();
+    return()=>{active=false;};
+  },[supabase,user?.id]);
+  useEffect(()=>{
+    if(view!=="publicProfile"||profileTab!=="favorites"||!favoriteState.ready||favoriteState.owner!==user?.id)return;
+    let active=true;
+    setFavoriteLoading(true);setFavoriteError("");
+    (async()=>{
+      try{
+        const posts=[];
+        for(let i=0;i<favoriteIds.length;i+=100){
+          const {data,error}=await supabase.from("posts").select("*").in("id",favoriteIds.slice(i,i+100));
+          if(error)throw error;
+          posts.push(...(data||[]));
+        }
+        const byId=new Map(posts.map(p=>[p.id,p]));
+        if(active)setFavoritePosts(favoriteIds.map(id=>byId.get(id)).filter(Boolean));
+      }catch(e){if(active)setFavoriteError(appLanguage==="en"?"Could not load favorites.":"No se pudieron cargar tus favoritos.");}
+      finally{if(active)setFavoriteLoading(false);}
+    })();
+    return()=>{active=false;};
+  },[view,profileTab,favoriteState,user?.id,supabase]);
+  async function toggleFavorite(post){
+    const owner=user?.id;
+    if(!supabase||!owner||!post?.id||post.user_id===owner||!favoriteState.ready||favoriteState.owner!==owner)return;
+    const key=owner+":"+post.id;
+    if(favoriteBusy.current.has(key))return;
+    favoriteBusy.current.add(key);
+    const saved=favoriteIds.includes(post.id);
+    try{
+      const q=supabase.from("rivyza_favorites");
+      const {error}=saved?await q.delete().eq("user_id",owner).eq("post_id",post.id):await q.insert({user_id:owner,post_id:post.id});
+      if(error)throw error;
+      if(favoriteOwner.current===owner)setFavoriteState(s=>s.owner!==owner?s:{...s,ids:saved?s.ids.filter(id=>id!==post.id):[post.id,...s.ids.filter(id=>id!==post.id)]});
+    }catch(e){if(favoriteOwner.current===owner)alert(appLanguage==="en"?"Could not update favorites. Try again.":"No se pudo actualizar favoritos. Intenta nuevamente.");}
+    finally{favoriteBusy.current.delete(key);}
+  }
+  function favoriteButton(post,detail=false){
+    if(!user?.id||!post?.id||post.user_id===user.id)return null;
+    const saved=favoriteIds.includes(post.id);
+    const label=appLanguage==="en"?(saved?"Remove favorite":"Save favorite"):(saved?"Quitar favorito":"Guardar favorito");
+    return <button type="button" aria-label={label} title={label} aria-pressed={saved} disabled={!favoriteState.ready||favoriteState.owner!==user.id} onClick={e=>{e.stopPropagation();toggleFavorite(post);}}><Bookmark size={detail?23:undefined} fill={saved?"#FFD43B":"none"} color={saved?"#FFD43B":"currentColor"}/><span>{appLanguage==="en"?"Favorites":"Favoritos"}</span></button>;
   }
 
   async function loadMyLikedPosts(){
@@ -4611,6 +4680,7 @@ async function applyPostCrop(){
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{Number(postLikeCount||0).toLocaleString("en-US")}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
+              {favoriteButton(selectedPost,true)}
               <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={23}/><span>{t("Compartir")}</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
@@ -4705,13 +4775,14 @@ async function applyPostCrop(){
       </section>
 
       <section className="profile-content-section">
-        <div className="profile-content-tabs two-tabs">
+        <div className="profile-content-tabs two-tabs" style={{gridTemplateColumns:"repeat(3,minmax(0,1fr))"}}>
           <button className={profileTab==="posts"?"active":""} onClick={()=>setProfileTab("posts")}>
             <Grid3X3 size={20}/>
           </button>
           <button className={profileTab==="likes"?"active":""} onClick={()=>setProfileTab("likes")}>
             <Heart size={20}/>
           </button>
+          <button type="button" aria-label={appLanguage==="en"?"Favorites":"Favoritos"} className={profileTab==="favorites"?"active":""} onClick={()=>setProfileTab("favorites")}><Bookmark size={20}/></button>
         </div>
 
         {profileTab==="posts" ? (
@@ -4743,7 +4814,7 @@ async function applyPostCrop(){
             )}
           </div>
         ) : (
-          <section className="rivyza-liked-private">
+          profileTab==="favorites" ? <section className="rivyza-liked-private"><div className="rivyza-liked-heading"><Bookmark size={19}/><strong>{appLanguage==="en"?"My favorites":"Mis favoritos"}</strong></div>{favoriteError?<p className="rivyza-liked-note">{favoriteError}</p>:favoriteLoading||!favoriteState.ready?<p className="rivyza-liked-note">{appLanguage==="en"?"Loading…":"Cargando…"}</p>:favoritePosts.length===0?<p className="rivyza-liked-note">{appLanguage==="en"?"No saved posts yet.":"Todavía no tienes publicaciones guardadas."}</p>:<div className="posts-grid">{favoritePosts.filter(post=>favoriteIds.includes(post.id)).map(post=><button type="button" className="profile-post-card rivyza-liked-post" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||t("Publicación")}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>)}</div>}</section> : <section className="rivyza-liked-private">
             <div className="rivyza-liked-heading"><Heart size={19}/><strong>{t("Mis me gusta")}</strong><span>{likesPrivacy==="only_me"?"🔒 "+t("Solo yo"):likesPrivacy==="friends"?t("Amigos"):t("Todos")}</span></div>
             <p className="rivyza-liked-note">{likesPrivacy==="only_me"?t("Solo tú puedes ver las publicaciones a las que les has dado like."):likesPrivacy==="friends"?t("Solo mis amigos pueden ver las publicaciones que me gustan."):t("Cualquier usuario puede ver las publicaciones que me gustan.")}</p>
             {likedPostsLoading?<p className="rivyza-liked-note">{t("Cargando tus me gusta…")}</p>:likedPostsError?<p className="rivyza-liked-note">{t(likedPostsError)}</p>:likedPosts.length===0?<p className="rivyza-liked-note">{t("Aún no has dado me gusta a ninguna publicación.")}</p>:<div className="posts-grid">{likedPosts.map(post=><button type="button" className="profile-post-card rivyza-liked-post" key={post.id} onClick={()=>openPost(post)}>{post.media_type==="photo"?<img src={post.media_path} alt={post.caption||t("Publicación")}/>:<video src={`${post.media_path}#t=0.1`} muted playsInline preload="metadata"/>}</button>)}</div>}
@@ -4798,6 +4869,7 @@ async function applyPostCrop(){
               <button type="button" className={postLiked?"liked":""} onClick={togglePostLike}><Heart size={23} fill={postLiked?"currentColor":"none"}/><span>{Number(postLikeCount||0).toLocaleString("en-US")}</span></button>
               {selectedPost.user_id===user?.id && postLikeCount>0 && <button type="button" className="who-liked-btn" onClick={openPostLikers}>Ver quién dio like</button>}
               <button type="button" onClick={()=>openComments(selectedPost)}><MessageCircle size={23}/><span>{postCommentCount}</span></button>
+              {favoriteButton(selectedPost,true)}
               <button type="button" onClick={()=>openShare(selectedPost)}><Share2 size={23}/><span>{t("Compartir")}</span></button>
             </div>
             {postActionMessage && <div className="post-action-message">{postActionMessage}</div>}
@@ -5090,6 +5162,7 @@ async function applyPostCrop(){
                 <span>{Number(post.like_count||0).toLocaleString("en-US")}</span>
               </button>
               <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
+              {favoriteButton(post)}
               <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
 
               <button onClick={()=>openPost(post)}><MoreHorizontal/><span>{t("Más")}</span></button>
@@ -5333,7 +5406,8 @@ async function applyPostCrop(){
               <span>{Number(post.like_count||0).toLocaleString("en-US")}</span>
             </button>
             <button onClick={()=>openComments(post)}><MessageCircle/><span>{Number(post.comment_count||0)}</span></button>
-            <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
+            {favoriteButton(post)}
+              <button onClick={()=>openShare(post)}><Share2/><span>{t("Compartir")}</span></button>
 
             <button type="button" onClick={()=>openLiveCreator()} aria-label={appLanguage==="en"?"Go LIVE":"Crear LIVE"}><span style={{display:"grid",placeItems:"center",width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#ff397c,#ed174c)",color:"white",boxShadow:"0 2px 8px #0005"}}><Radio size={23}/></span><span>LIVE</span></button>
           </div>
