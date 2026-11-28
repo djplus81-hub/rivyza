@@ -4973,7 +4973,7 @@ async function applyPostCrop(){
         {discoverLiveError&&<div className="live-preview-card live-preview-empty-card"><p role="alert">{discoverLiveError}</p></div>}
         {!discoverLiveError&&discoverLiveRooms.length===0&&<div className="live-preview-card live-preview-empty-card"><div className="live-preview-empty-copy"><span className="live-preview-badge">● LIVE</span><h2>No hay transmisiones ahora</h2><p>Cuando alguien comience un LIVE, podrás verlo aquí.</p></div></div>}
         {discoverLiveRooms.map((room,index)=><div key={room.id} className="live-preview-card">
-          {index===activeLivePreview&&(room.obs?<ObsViewer key={room.id} hostId={room.host_id} supabase={supabase} inline/>:<LivePreviewPlayer key={room.id} roomId={room.id} supabase={supabase} hostId={room.host_id} hostAvatar={room.host_avatar} hostName={room.host_name}/>)}
+          {index===activeLivePreview&&(room.obs?<ObsViewer key={room.id} hostId={room.host_id} supabase={supabase} inline audible/>:<LivePreviewPlayer key={room.id} roomId={room.id} supabase={supabase} hostId={room.host_id} hostAvatar={room.host_avatar} hostName={room.host_name}/>)}
           <button type="button" className="rivyza-live-preview-enter" onClick={()=>{enterLiveById(room.id);}} aria-label={`Entrar al LIVE de ${room.host_name}`}>
             <span className="rivyza-live-preview-host">{room.host_avatar&&<img src={room.host_avatar} alt=""/>}<strong>{room.host_name||'Usuario RIVYZA'}</strong><em>● LIVE</em></span>
             <span className="rivyza-live-preview-entry">Toca para entrar al LIVE</span>
