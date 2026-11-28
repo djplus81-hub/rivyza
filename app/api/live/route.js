@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
+import { AccessToken, RoomServiceClient, IngressClient } from 'livekit-server-sdk';
 import { cleanupAbsentHosts } from './cleanup-hosts';
 
 export const runtime = 'nodejs';
@@ -217,7 +217,38 @@ export async function POST(req) {
     const db = adminClient();
     const uid = auth.user.id;
     if (input.action === 'start') {
-      const {data:obs}=await db.from('rivyza_obs_test_sessions').select('enabled').eq('host_id',uid).maybeSingle();if(obs?.enabled)return json({error:'Termina OBS primero'},409);
+      // OBS enabled is a reservation, not proof of an active RTMP signal.
+      const {data:obs,error:obsError}=await db.from('rivyza_obs_test_sessions')
+        .select('enabled,ingress_id,room_name').eq('host_id',uid).maybeSingle();
+      if(obsError) throw obsError;
+      if(obs?.enabled){
+        if(!obs.ingress_id) return json({error:'OBS está preparando la conexión. Intenta nuevamente.'},409);
+        try {
+          const endpoint=process.env.LIVEKIT_URL.replace(/^wss:/,'https:').replace(/^ws:/,'http:');
+          const ingress=new IngressClient(endpoint,process.env.LIVEKIT_API_KEY,process.env.LIVEKIT_API_SECRET);
+          const entries=await ingress.listIngress({ingressId:obs.ingress_id});
+          const entry=entries.find(item=>item.ingressId===obs.ingress_id);
+          const status=entry?.state?.status;
+          // Only confirmed inactive or completed ingress can release the reservation.
+          // Buffering, publishing and unknown states must not be treated as stopped.
+          if(entry && ![0,4,'ENDPOINT_INACTIVE','ENDPOINT_COMPLETE'].includes(status))
+            return json({error:'Termina OBS primero o espera a que se desconecte la señal.'},409);
+          const svc=roomService();
+          const rooms=await svc.listRooms([obs.room_name]);
+          if(rooms.some(r=>r.name===obs.room_name)){
+            const members=await svc.listParticipants(obs.room_name);
+            if(members.some(p=>p.identity===`obs-${uid}`)) return json({error:'Termina OBS primero o espera a que se desconecte la señal.'},409);
+          }
+        } catch(e) {
+          console.warn('OBS state verification failed',e?.name);
+          return json({error:'No se pudo verificar OBS. Intenta nuevamente.'},503);
+        }
+        const {data:released,error:releaseError}=await db.from('rivyza_obs_test_sessions')
+          .update({enabled:false}).eq('host_id',uid).eq('enabled',true)
+          .eq('ingress_id',obs.ingress_id).select('host_id').maybeSingle();
+        if(releaseError) throw releaseError;
+        if(!released) return json({error:'El estado de OBS cambió. Intenta nuevamente.'},409);
+      }
       // Todos los usuarios autenticados pueden iniciar su propio LIVE.
       // Las sanciones LIVE deberán validarse aquí cuando se habilite el control disciplinario.
       // Rejoin an existing LIVE instead of violating the one-LIVE-per-host constraint.
