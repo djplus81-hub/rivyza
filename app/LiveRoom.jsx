@@ -120,10 +120,10 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     if (!response.ok) throw new Error(result.error || 'Error al sincronizar likes');
     return result;
   }, [supabase, liveRoomId]);
-  const notifyLikes = useCallback(count => {
+  const notifyLikes = useCallback((count,amount) => {
     if (room.state !== 'connected') return;
     room.localParticipant.publishData(
-      new TextEncoder().encode(JSON.stringify({type:'count',roomId:liveRoomId,count})),
+      new TextEncoder().encode(JSON.stringify({type:'count',roomId:liveRoomId,count,amount})),
       {reliable:true,topic:'rivyza-live-likes-v364'}
     ).catch(() => {});
   }, [room,liveRoomId]);
@@ -141,7 +141,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         catch (error) { if (attempt === 2) throw error; await new Promise(resolve => setTimeout(resolve, 400 * (attempt + 1))); }
       }
       acceptLikes(result.count);
-      notifyLikes(result.count);
+      notifyLikes(result.count,amount);
     } catch (error) {
       console.warn('LIVE likes were not saved:',error);
       onError?.('No se pudieron guardar los likes. Revisa la conexión o instala el SQL v3.64.');
@@ -174,6 +174,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         const data = JSON.parse(new TextDecoder().decode(payload));
         if (data?.type === 'count' && data.roomId === liveRoomId) {
           acceptLikes(data.count);
+          if(sender.identity!==room.localParticipant.identity){const amount=Math.min(4,Math.max(0,Math.floor(Number(data.amount)||0)));if(amount)showFloatingLikes(amount);}
           refresh();
         }
       } catch {}
@@ -188,7 +189,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       room.off(RoomEvent.DataReceived, receive);
       room.off(RoomEvent.Reconnected, refresh);
     };
-  }, [room, liveRoomId, likeApi, acceptLikes]);
+  }, [room, liveRoomId, likeApi, acceptLikes, showFloatingLikes]);
   const giveLike = useCallback(() => {
     const now = Date.now();
     if (now - lastTapAt.current < 75) return;
