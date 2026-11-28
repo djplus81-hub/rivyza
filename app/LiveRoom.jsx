@@ -1122,13 +1122,14 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const deeparCategories=[['fun','Divertidos'],['beauty','Belleza'],['face','Rostro'],['accessories','Accesorios']];
   async function shutdownDeepAR(ref){const engine=ref.current;ref.current=null;if(engine){try{await engine.shutdown();}catch(_){}}}
    // v3.72: Preserve source proportions when copying a DeepAR WebGL frame.
-   // Cropping (cover) is permitted; horizontal/vertical stretching is not.
+   // Fit the entire AR frame without introducing a second crop.
    function drawARWithoutDistortion(ctx,source,width,height){
      const sw=source.videoWidth||source.width;
      const sh=source.videoHeight||source.height;
      if(!sw||!sh)return;
-     const scale=Math.max(width/sw,height/sh);
+     const scale=Math.min(width/sw,height/sh);
      const dw=sw*scale,dh=sh*scale;
+     ctx.fillStyle='#000';ctx.fillRect(0,0,width,height);
      ctx.drawImage(source,(width-dw)/2,(height-dh)/2,dw,dh);
    }
   async function makeDeepAREngine(holder,video){
@@ -1139,10 +1140,16 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
      // The old 240x320 target could squeeze a wider camera into 3:4.
      const sourceWidth=video.videoWidth||video.srcObject?.getVideoTracks?.()[0]?.getSettings?.().width||480;
      const sourceHeight=video.videoHeight||video.srcObject?.getVideoTracks?.()[0]?.getSettings?.().height||640;
-     if(holder===deepARHolderRef.current){
-       const width=Math.min(720,sourceWidth);
-       holder.style.width=`${width}px`;
-       holder.style.height=`${Math.max(1,Math.round(width*sourceHeight/sourceWidth))}px`;
+     const [width,height]=liveCanvasSize(sourceWidth,sourceHeight);
+     holder.style.width=`${width}px`;
+     holder.style.height=`${height}px`;
+     if(holder===previewARHolderRef.current){
+       holder.style.inset='auto';
+       holder.style.left='50%';
+       holder.style.top='50%';
+       const parent=holder.parentElement;
+       const scale=Math.max((parent?.clientWidth||width)/width,(parent?.clientHeight||height)/height);
+       holder.style.transform=`translate(-50%, -50%) scale(${scale})`;
      }
     const deepar=await import('deepar');
     const engine=await deepar.initialize({licenseKey:license,previewElement:holder,additionalOptions:{cameraConfig:{disableDefaultCamera:true}}});
