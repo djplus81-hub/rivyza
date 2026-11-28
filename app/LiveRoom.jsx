@@ -2127,25 +2127,26 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       </div>
     </div>}
     {drawer && <div className="rivyza-v329-drawer-backdrop" onClick={() => setDrawer(false)} aria-hidden="true" />}
-    {drawer && <div className="rivyza-live-bottom-drawer rivyza-v32-popover">
+    {drawer && <div className="rivyza-live-bottom-drawer rivyza-v32-popover rivyza-options-modern">
       <div className="rivyza-live-drawer-handle" />
-      <strong>{tr.options} LIVE</strong>
-      {canUseVoiceEffects && <button type="button" onClick={()=>{setDrawer(false);setVoiceEffectsOpen(true);}}>🎙️ {lang==='en'?'Audio effects':'Efectos de audio'}</button>}
-      <button type="button" onClick={openInternalShare}>👥 Compartir en RIVYZA</button>
-       <button type="button" onClick={shareLive}>🔗 Compartir externamente</button>
-      {isHost && <button type="button" onClick={()=>{setDrawer(false);setBackgroundPickerOpen(true);}}>🎨 Personalizar fondo</button>}
+      <div className="rivyza-options-heading"><strong>{tr.options} LIVE</strong><button type="button" aria-label={tr.close} onClick={()=>setDrawer(false)}>×</button></div><div className="rivyza-options-grid">
+      {canUseVoiceEffects && <button type="button" onClick={()=>{setDrawer(false);setVoiceEffectsOpen(true);}}><span className="rivyza-option-symbol">♬</span> {lang==='en'?'Audio effects':'Efectos de audio'}</button>}
+      <button type="button" onClick={openInternalShare}><span className="rivyza-option-symbol">♧</span> {lang==='en'?'Share on RIVYZA':'Compartir en RIVYZA'}</button>
+       <button type="button" onClick={shareLive}><span className="rivyza-option-symbol">↗</span> {lang==='en'?'Share externally':'Compartir externamente'}</button>
+      {isHost && <button type="button" onClick={()=>{setDrawer(false);setBackgroundPickerOpen(true);}}><span className="rivyza-option-symbol">◈</span> {lang==='en'?'Customize background':'Personalizar fondo'}</button>}
       {isHost && <label className="rivyza-live-slot-picker">{tr.slots}: <select value={slots === 14 ? 9 : slots === 13 ? 8 : slots} onChange={e => { const selectedCount = Number(e.target.value); const count = selectedCount === 9 ? 14 : selectedCount === 8 ? 13 : selectedCount; broadcastLayout(positions, count); }}>{[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}</select></label>}
       {(isHost || isModerator) && <button type="button" onClick={() => { setMoveMode(x => !x); setMoveTarget(null); setSelected(null); setDrawer(false); }}>
-        ↔️ {moveMode ? tr.finishMove : tr.rearrange}
+        <span className="rivyza-option-symbol">⇄</span> {moveMode ? tr.finishMove : tr.rearrange}
       </button>}
-      {(isHost || isModerator) && <button type="button" onClick={() => { setDrawer(false); setBlockedOpen(true); onRefreshBlocked?.(); }}>🚫 Usuarios bloqueados</button>}
+      {(isHost || isModerator) && <button type="button" onClick={() => { setDrawer(false); setBlockedOpen(true); onRefreshBlocked?.(); }}><span className="rivyza-option-symbol">⊘</span> {lang==='en'?'Blocked users':'Usuarios bloqueados'}</button>}
+      </div>
       {isHost && <button type="button" className="rivyza-live-power-row" onClick={() => setConfirmStop(true)}>
         <span className="rivyza-live-power-icon">⏻</span> {tr.end}
       </button>}
       {!isHost && publish && <button type="button" onClick={() => { setDrawer(false); onLeaveCamera(); }}>⬇️ {tr.leaveCamera}</button>}
       {!isHost && <button type="button" onClick={() => { setDrawer(false); onLeaveLive(); }}>🚪 {tr.leaveLive}</button>}
-      <button type="button" onClick={() => setDrawer(false)}>{tr.close}</button>
-    </div>}
+
+    <style>{` .rivyza-options-modern.rivyza-live-bottom-drawer{background:linear-gradient(145deg,#15162a,#201329)!important;border:1px solid #78539b!important;border-radius:22px!important;padding:12px!important;gap:10px!important;max-height:65dvh!important;overflow-y:auto!important;box-shadow:0 12px 40px #0008!important}.rivyza-options-heading{display:flex;align-items:center;justify-content:space-between}.rivyza-options-heading strong{font-size:17px}.rivyza-options-modern .rivyza-options-heading button{width:34px!important;height:34px!important;min-height:0!important;padding:0!important;border-radius:50%!important;font-size:25px!important;background:#ffffff10!important}.rivyza-options-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.rivyza-options-modern .rivyza-options-grid button{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important;min-height:64px!important;padding:6px!important;border-radius:13px!important;border:1px solid #75538b66!important;background:linear-gradient(135deg,#29223d,#24192e)!important;font-size:12px!important;line-height:1.2!important;text-align:center!important}.rivyza-option-symbol{font-size:23px;line-height:1;color:#e3a2ff}.rivyza-options-modern .rivyza-live-slot-picker{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border:1px solid #75538b66;border-radius:12px;background:#ffffff08}.rivyza-options-modern .rivyza-live-power-row{background:#48182b!important;border:1px solid #e64d6877!important;color:#ff9cae!important;min-height:42px!important;border-radius:13px!important} `}</style></div>}
     <LiveVoiceEffects room={room} enabled={canUseVoiceEffects} open={voiceEffectsOpen && canUseVoiceEffects} onClose={()=>setVoiceEffectsOpen(false)} lang={lang} />
     {backgroundPickerOpen && isHost && typeof document!=='undefined' && createPortal(
       <div className="rivyza-v356-picker-overlay" onClick={()=>setBackgroundPickerOpen(false)}>
