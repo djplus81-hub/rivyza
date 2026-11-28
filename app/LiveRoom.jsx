@@ -101,7 +101,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     }
   }, []);
   const showFloatingLikes = useCallback((amount = 1) => {
-    const entries = Array.from({length: Math.min(amount, 4)}, () => ({id: ++likeSerial.current, left: 12 + Math.random() * 65}));
+    const entries = Array.from({length: Math.min(amount, 4)}, () => ({id: ++likeSerial.current, left: 12 + ((likeSerial.current * 0.61803398875) % 1) * 65}));
     setFloatingLikes(previous => [...previous.slice(-15), ...entries]);
     entries.forEach(entry => setTimeout(() => setFloatingLikes(previous => previous.filter(item => item.id !== entry.id)), 1450));
   }, []);
@@ -115,7 +115,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if(!remoteHeartQueue.current)return;
       remoteHeartQueue.current--;
       showFloatingLikes(1);
-      remoteHeartTimer.current=setTimeout(next,95);
+      remoteHeartTimer.current=setTimeout(next,150);
     };
     next();
   },[showFloatingLikes]);
@@ -2560,7 +2560,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-v344-like-heart{font-size:14px;line-height:15px;display:block}
 .rivyza-v344-floating{position:fixed;right:8px;bottom:calc(235px + env(safe-area-inset-bottom));width:130px;height:180px;z-index:95;pointer-events:none;overflow:visible}
 .rivyza-v344-float-heart{position:absolute;bottom:0;width:24px;height:24px;animation:rivyza-v344-rise 1.4s ease-out forwards}
-@keyframes rivyza-v344-rise{0%{opacity:1;transform:translateY(0) scale(.75) rotate(-10deg)}65%{opacity:.9}100%{opacity:0;transform:translateY(-260px) scale(1.35) rotate(18deg)}}
+@keyframes rivyza-v344-rise{0%{opacity:1;transform:translateY(0) scale(.75) rotate(-10deg)}65%{opacity:.9}100%{opacity:0;transform:translateY(-160px) scale(1.35) rotate(18deg)}}
 .rivyza-v32-toolbar{position:fixed!important;left:12px!important;right:12px!important;z-index:70!important}
 .rivyza-v32-toolbar.rivyza-v32-typing{transform:none!important;transition:none!important;max-width:calc(100vw - 24px)!important}
 .rivyza-v314-comment-form{min-height:50px}
