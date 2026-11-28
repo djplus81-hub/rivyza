@@ -2558,6 +2558,32 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-stage .rivyza-v32-toolbar > .rivyza-v32-icon{border-radius:50%!important;line-height:1!important;align-self:center!important}
 .rivyza-live-stage .rivyza-v32-toolbar.rivyza-v32-typing > .rivyza-v314-comment-form{flex:1 1 100%!important;max-width:none!important}
 @media(max-width:350px){.rivyza-live-stage .rivyza-v32-toolbar:not(.rivyza-v32-typing){--rz-control:30px;--rz-gap:5px}}
+
+/* Neon 2.2: lock physical and logical dimensions against global button styles. */
+.rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar.rivyza-v32-toolbar.rivyza-v32-toolbar > button.rivyza-v32-icon,
+.rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar.rivyza-v32-toolbar.rivyza-v32-toolbar > form.rivyza-v314-comment-form > button[type="submit"] {
+  --rz-circle: var(--rz-control, 36px);
+  width:var(--rz-circle)!important;height:var(--rz-circle)!important;
+  min-width:var(--rz-circle)!important;max-width:var(--rz-circle)!important;
+  min-height:var(--rz-circle)!important;max-height:var(--rz-circle)!important;
+  inline-size:var(--rz-circle)!important;block-size:var(--rz-circle)!important;
+  min-inline-size:var(--rz-circle)!important;max-inline-size:var(--rz-circle)!important;
+  min-block-size:var(--rz-circle)!important;max-block-size:var(--rz-circle)!important;
+  flex:0 0 var(--rz-circle)!important;aspect-ratio:1 / 1!important;
+  box-sizing:border-box!important;padding:0!important;margin:0!important;
+  border-radius:50%!important;appearance:none!important;-webkit-appearance:none!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  line-height:1!important;align-self:center!important;
+}
+.rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar.rivyza-v32-toolbar.rivyza-v32-toolbar > button.rivyza-v32-icon {transform:none!important;}
+.rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar.rivyza-v32-toolbar.rivyza-v32-toolbar > form.rivyza-v314-comment-form > button[type="submit"] {
+  --rz-circle:calc(var(--rz-control, 36px) - 8px);
+  transform:translateY(-50%)!important;right:4px!important;top:50%!important;
+}
+.rivyza-live-stage .rivyza-live-bottom-bar.rivyza-v32-toolbar.rivyza-v32-toolbar.rivyza-v32-toolbar > form.rivyza-v314-comment-form > input.rivyza-v32-comment {
+  height:var(--rz-control,36px)!important;min-height:var(--rz-control,36px)!important;max-height:var(--rz-control,36px)!important;
+}
+
 .rivyza-live-stage .rivyza-v344-like-hint{background:radial-gradient(ellipse at top,#50204f,#171126 80%)!important;box-shadow:inset 0 0 0 1px #d58bf0,0 0 9px #b82dce55!important}
 .rivyza-live-stage .rivyza-v344-like-heart{color:#ff4baf;filter:drop-shadow(0 0 4px #ff249e)}
 `}</style>
