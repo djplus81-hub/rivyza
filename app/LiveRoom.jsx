@@ -2551,6 +2551,13 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-stage .rivyza-v314-comment-form button[type=submit]{position:absolute!important;right:4px!important;top:50%!important;transform:translateY(-50%)!important;width:calc(var(--rz-control) - 6px)!important;height:calc(var(--rz-control) - 6px)!important;min-width:0!important;min-height:0!important;padding:0!important;margin:0!important;box-sizing:border-box!important;aspect-ratio:1!important}
 .rivyza-live-stage .rivyza-v314-comment-form button[type=submit] svg{width:18px;height:18px}
 @media(max-width:350px){.rivyza-live-stage .rivyza-v32-toolbar{--rz-control:30px;--rz-gap:4px;padding:4px!important}}
+/* Neon 2.1: compact idle composer, evenly distributed controls. */
+.rivyza-live-stage .rivyza-v32-toolbar:not(.rivyza-v32-typing){--rz-control:clamp(32px,10vw,44px);--rz-gap:clamp(6px,2vw,12px);justify-content:space-between!important;gap:var(--rz-gap)!important}
+.rivyza-live-stage .rivyza-v32-toolbar:not(.rivyza-v32-typing) > .rivyza-v314-comment-form{flex:0 1 34%!important;max-width:34%!important;min-width:0!important}
+.rivyza-live-stage .rivyza-v32-toolbar:not(.rivyza-v32-typing) .rivyza-v32-comment{height:var(--rz-control)!important;min-height:var(--rz-control)!important;font-size:16px!important}
+.rivyza-live-stage .rivyza-v32-toolbar > .rivyza-v32-icon{border-radius:50%!important;line-height:1!important;align-self:center!important}
+.rivyza-live-stage .rivyza-v32-toolbar.rivyza-v32-typing > .rivyza-v314-comment-form{flex:1 1 100%!important;max-width:none!important}
+@media(max-width:350px){.rivyza-live-stage .rivyza-v32-toolbar:not(.rivyza-v32-typing){--rz-control:30px;--rz-gap:5px}}
 .rivyza-live-stage .rivyza-v344-like-hint{background:radial-gradient(ellipse at top,#50204f,#171126 80%)!important;box-shadow:inset 0 0 0 1px #d58bf0,0 0 9px #b82dce55!important}
 .rivyza-live-stage .rivyza-v344-like-heart{color:#ff4baf;filter:drop-shadow(0 0 4px #ff249e)}
 `}</style>
