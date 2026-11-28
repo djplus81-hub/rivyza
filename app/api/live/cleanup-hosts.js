@@ -12,7 +12,12 @@ export async function cleanupAbsentHosts(db) {
   const now = Date.now();
   for (const live of rooms || []) {
     try {
-      const participants = await roomService().listParticipants(`rivyza-${live.id}`);
+      const service = roomService();
+      const name = `rivyza-${live.id}`;
+      const rooms = await service.listRooms([name]);
+      // A room that no longer exists has no connected host. Do not let
+      // listParticipants throw NOT_FOUND and skip the expiration forever.
+      const participants = rooms.some(r=>r.name===name) ? await service.listParticipants(name) : [];
       const hostPresent = participants.some(p => p.identity === live.host_id);
       if (hostPresent) {
         if (live.host_absent_since) await db.from('rivyza_live_rooms')
