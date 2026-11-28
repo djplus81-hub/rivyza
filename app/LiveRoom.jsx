@@ -105,6 +105,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     setFloatingLikes(previous => [...previous.slice(-15), ...entries]);
     entries.forEach(entry => setTimeout(() => setFloatingLikes(previous => previous.filter(item => item.id !== entry.id)), 1450));
   }, []);
+  const remoteHeartCredits = useRef(0);
   const remoteHeartQueue = useRef(0);
   const remoteHeartTimer = useRef(null);
   const showRemoteHearts = useCallback(amount => {
@@ -115,11 +116,11 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if(!remoteHeartQueue.current)return;
       remoteHeartQueue.current--;
       showFloatingLikes(1);
-      remoteHeartTimer.current=setTimeout(next,150);
+      remoteHeartTimer.current=setTimeout(next,85);
     };
     next();
   },[showFloatingLikes]);
-  useEffect(()=>()=>{clearTimeout(remoteHeartTimer.current);remoteHeartTimer.current=null;remoteHeartQueue.current=0;},[liveRoomId]);
+  useEffect(()=>()=>{clearTimeout(remoteHeartTimer.current);remoteHeartTimer.current=null;remoteHeartQueue.current=0;remoteHeartCredits.current=0;},[liveRoomId]);
   const likeApi = useCallback(async (method, body) => {
     const {data:{session}} = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error('Inicia sesión para dar likes');
@@ -182,7 +183,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         const result = await likeApi('GET');
         if (active && !sendingLikes.current) {
           const delta=Math.max(0,Math.floor(Number(result.count)||0)-likesRef.current);
-          if(initialized && delta)showRemoteHearts(delta);
+          if(initialized && delta){const covered=Math.min(delta,remoteHeartCredits.current);remoteHeartCredits.current-=covered;showRemoteHearts(delta-covered);}
           acceptLikes(result.count);
           initialized=true;
         }
@@ -193,10 +194,11 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if (topic !== 'rivyza-live-likes-v364' || !sender?.identity) return;
       try {
         const data = JSON.parse(new TextDecoder().decode(payload));
+        if(data?.type==='heart' && data.roomId===liveRoomId && sender.identity!==room.localParticipant.identity){remoteHeartCredits.current=Math.min(120,remoteHeartCredits.current+1);showRemoteHearts(1);return;}
         if (data?.type === 'count' && data.roomId === liveRoomId) {
           const delta=Math.max(0,Math.floor(Number(data.count)||0)-likesRef.current);
           acceptLikes(data.count);
-          if(sender.identity!==room.localParticipant.identity && delta){const amount=Math.min(delta,Math.max(1,Math.floor(Number(data.amount)||0)));showRemoteHearts(amount);}
+          if(sender.identity!==room.localParticipant.identity && delta){const covered=Math.min(delta,remoteHeartCredits.current);remoteHeartCredits.current-=covered;showRemoteHearts(delta-covered);}
           refresh();
         }
       } catch {}
@@ -217,6 +219,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     if (now - lastTapAt.current < 75) return;
     lastTapAt.current = now;
     showFloatingLikes();
+    if(room.state==='connected')room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({type:'heart',roomId:liveRoomId})),{reliable:true,topic:'rivyza-live-likes-v364'}).catch(()=>{});
     pendingLikes.current += 1;
     if (!likeBatchTimer.current) {
       likeBatchTimer.current = setTimeout(() => {
@@ -224,7 +227,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         flushLikes();
       }, 250);
     }
-  }, [flushLikes, showFloatingLikes]);
+  }, [flushLikes, showFloatingLikes, room, liveRoomId]);
   // v3.65: public Top 8 for all LIVE participants.
   const [likesTopOpen, setLikesTopOpen] = useState(false);
   const [likesTop, setLikesTop] = useState([]);
