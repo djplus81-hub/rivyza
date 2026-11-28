@@ -233,6 +233,7 @@ function HomePageContent(){
   const [sharePost,setSharePost]=useState(null);
   const [sharePeople,setSharePeople]=useState([]);
   const [shareSearch,setShareSearch]=useState("");
+  const [shareSearchOpen,setShareSearchOpen]=useState(false);
   const [shareSelected,setShareSelected]=useState([]);
   const [shareLoading,setShareLoading]=useState(false);
   const [shareSending,setShareSending]=useState(false);
@@ -2179,7 +2180,7 @@ async function applyPostCrop(){
 
   async function openShare(post){
     if(!post?.id)return;
-    setSharePost(post);setShareSearch("");setShareSelected([]);setShareError("");setShareSuccess("");setSharePeople([]);
+    setSharePost(post);setShareSearchOpen(false);setShareSearch("");setShareSelected([]);setShareError("");setShareSuccess("");setSharePeople([]);
     setPostMenuOpen(false);
     if(!supabase || !user?.id)return;
     setShareLoading(true);
@@ -2193,9 +2194,9 @@ async function applyPostCrop(){
       const incoming=new Set((followers||[]).map(x=>x.follower_id));
       const friendIds=(following||[]).map(x=>x.following_id).filter(id=>incoming.has(id) && id!==user.id && !blockedUsers.includes(id));
       if(friendIds.length){
-        const {data,error}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",friendIds.slice(0,150));
-        if(error)throw error;
-        setSharePeople((data||[]).sort((a,b)=>(a.display_name||a.username||"").localeCompare(b.display_name||b.username||"")));
+        const all=[];
+        for(let i=0;i<friendIds.length;i+=100){const {data,error}=await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id",friendIds.slice(i,i+100));if(error)throw error;all.push(...(data||[]));}
+        setSharePeople(all.sort((a,b)=>(a.display_name||a.username||"").localeCompare(b.display_name||b.username||"")));
       }
     }catch(e){setShareError("No se pudo cargar la lista de amigos: "+(e.message||"Error"));}
     finally{setShareLoading(false);}
@@ -2347,27 +2348,21 @@ async function applyPostCrop(){
 
   function renderShareSheet(){
     if(!sharePost)return null;
-    const people=sharePeople.filter(p=>`${p.display_name||""} ${p.username||""}`.toLocaleLowerCase().includes(shareSearch.trim().toLocaleLowerCase()));
-    return createPortal(<div className="rivyza-share-backdrop" style={{position:"fixed",inset:0,zIndex:2147483647,pointerEvents:"auto"}} onClick={()=>{if(!shareSending)setSharePost(null);}}>
-      <section className="rivyza-share-sheet" role="dialog" aria-modal="true" aria-label="Compartir publicación" onClick={e=>e.stopPropagation()}>
-        <div className="rivyza-share-grip"/><header><strong>Compartir publicación</strong><button type="button" onClick={()=>setSharePost(null)} aria-label="Cerrar"><X size={22}/></button></header>
-        <div className="rivyza-share-search"><Search size={19}/><input placeholder="Buscar amigos de RIVYZA" value={shareSearch} onChange={e=>setShareSearch(e.target.value)}/></div>
-        <h4>ENVIAR A AMIGOS</h4>
-        {shareLoading?<p className="rivyza-share-hint">Buscando amigos…</p>:people.length?<div className="rivyza-share-friends">{people.map(person=><button key={person.id} type="button" className={shareSelected.includes(person.id)?"chosen":""} onClick={()=>toggleShareRecipient(person.id)}><span className="rivyza-share-avatar">{person.avatar_url?<img src={person.avatar_url} alt=""/>:(person.display_name||person.username||"R").slice(0,1).toUpperCase()}{shareSelected.includes(person.id)&&<span className="rivyza-share-check"><Check size={13}/></span>}</span><small>{person.display_name||person.username||"Usuario"}</small></button>)}</div>:<p className="rivyza-share-hint">{shareSearch?"No hay amigos con ese nombre.":"Tus amigos (seguimiento mutuo) aparecerán aquí."}</p>}
-        {shareSelected.length>0&&<button type="button" className="rivyza-share-send" disabled={shareSending} onClick={sendSharedPost}><Send size={18}/>{shareSending?"Enviando…":`Enviar a ${shareSelected.length} ${shareSelected.length===1?"amigo":"amigos"}`}</button>}
-        <h4>COMPARTIR EN OTRAS APLICACIONES</h4>
-        <div className="rivyza-share-external">
-          <button type="button" onClick={shareOutside}><span className="rivyza-share-round"><Share2/></span><small>Más aplicaciones</small></button>
-          <button type="button" onClick={copyShareLink}><span className="rivyza-share-round"><LinkIcon/></span><small>Copiar enlace</small></button>
-          <button type="button" disabled={shareSending} onClick={()=>{const post=sharePost;setSharePost(null);openPost(post);}}><span className="rivyza-share-round"><MoreHorizontal/></span><small>{t("Más")}</small></button>
-          {sharePost?.user_id===user?.id&&<button type="button" disabled={shareDownloading} onClick={downloadOwnSharedPost}><span className="rivyza-share-round"><Download/></span><small>{shareDownloading?(shareDownloadStage||"Preparando…"):(preparedMusicVideo?.postId===sharePost?.id?"Guardar video":"Descargar")}</small></button>}
-        </div>
-        <p className="rivyza-share-hint">Al tocar «Más aplicaciones», tu teléfono mostrará WhatsApp, Facebook, Mensajes y otras aplicaciones compatibles que tengas instaladas.</p>
-        {sharePrivate&&<p className="rivyza-share-warning">Esta publicación no es pública. Los enlaces externos están desactivados.</p>}
-        {shareError&&<p className="rivyza-share-warning" role="alert">{shareError}</p>}
-        {shareSuccess&&<p className="rivyza-share-success" role="status">{shareSuccess}</p>}
-      </section>
-    </div>,document.body);
+    const people=sharePeople.filter(p=>`${p.display_name||""} ${p.username||""}`.toLocaleLowerCase().includes(shareSearch.trim().replace(/^@/,"").toLocaleLowerCase()));
+    const url=()=>`${window.location.origin}/?post=${encodeURIComponent(sharePost.id)}`;
+    const external=(kind)=>{if(sharePrivate){setShareError("Esta publicación no es pública.");return;}const u=encodeURIComponent(url());if(kind==="wa")window.open(`https://wa.me/?text=${u}`,"_blank","noopener,noreferrer");else if(kind==="fb")window.open(`https://www.facebook.com/sharer/sharer.php?u=${u}`,"_blank","noopener,noreferrer");else shareOutside();};
+    const pending=(name)=>()=>setShareError(`${name}: función todavía no disponible.`);
+    const action=(name,Icon,color,fn,disabled=false)=> <button key={name} type="button" className="rv-share-action" onClick={fn} disabled={disabled}><span style={{background:color}}><Icon size={22}/></span><small>{name}</small></button>;
+    return createPortal(<div className="rv-share-overlay" onClick={()=>{if(!shareSending)setSharePost(null);}}>
+      <style>{` .rv-share-overlay{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:flex-end;background:transparent;color:white;font-family:inherit} .rv-share-panel{box-sizing:border-box;width:100%;max-height:50dvh;overflow-y:auto;background:#292c33;border-radius:20px 20px 0 0;padding:10px 8px max(10px,env(safe-area-inset-bottom));color:white;overscroll-behavior:contain} .rv-share-panel button{border:0;background:none;color:inherit;padding:0;cursor:pointer;font:inherit;min-width:0} .rv-share-head{display:flex;align-items:center;justify-content:space-between;padding:0 8px 8px} .rv-share-head button{width:32px;height:32px;display:grid;place-items:center} .rv-share-head input{min-width:0;flex:1;background:#41444c;color:white;border:0;border-radius:10px;padding:7px;font-size:16px} .rv-share-people{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 4px 8px;touch-action:pan-x} .rv-share-person{flex:0 0 58px;display:flex;flex-direction:column;align-items:center;gap:4px} .rv-share-avatar{width:46px;height:46px;border-radius:50%;background:#474b58;display:grid;place-items:center;position:relative} .rv-share-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%} .rv-share-person small{font-size:10px;line-height:12px;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .rv-share-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;padding:5px 0} .rv-share-action{display:flex;flex-direction:column;align-items:center;gap:4px} .rv-share-action span{width:clamp(30px,10vw,44px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center} .rv-share-action small{font-size:10px;line-height:12px;text-align:center;overflow-wrap:anywhere} .rv-share-action:disabled{opacity:.4} .rv-share-note{font-size:11px;margin:4px 8px} .rv-share-send{display:block;margin:2px auto 5px!important;padding:5px 14px!important;background:#e82b75!important;border-radius:16px} `}</style>
+      <section className="rv-share-panel" role="dialog" aria-modal="true" aria-label="Enviar a" onClick={e=>e.stopPropagation()}>
+        <header className="rv-share-head"><button type="button" aria-label="Buscar amigos" onClick={()=>{setShareSearchOpen(v=>!v);setShareSearch("");}}><Search size={22}/></button>{shareSearchOpen?<input autoFocus placeholder="Nombre o @usuario" value={shareSearch} onChange={e=>setShareSearch(e.target.value)}/>:<strong>Enviar a</strong>}<button type="button" aria-label="Cerrar" disabled={shareSending} onClick={()=>setSharePost(null)}><X size={22}/></button></header>
+        <div className="rv-share-people">{shareLoading?<small>Buscando amigos…</small>:people.length?people.map(person=><button key={person.id} type="button" className="rv-share-person" onClick={()=>toggleShareRecipient(person.id)}><span className="rv-share-avatar" style={{outline:shareSelected.includes(person.id)?"2px solid #f52b88":"none"}}>{person.avatar_url?<img src={person.avatar_url} alt=""/>:(person.display_name||person.username||"R").slice(0,1).toUpperCase()}{shareSelected.includes(person.id)&&<Check size={16} style={{position:"absolute",bottom:0,right:0,background:"#e82b75",borderRadius:"50%"}}/>}</span><small>{person.display_name||person.username||"Usuario"}</small></button>):<small>No hay amigos disponibles.</small>}</div>
+        {shareSelected.length>0&&<button type="button" className="rv-share-send" disabled={shareSending} onClick={sendSharedPost}>{shareSending?"Enviando…":`Enviar (${shareSelected.length})`}</button>}
+        <div className="rv-share-grid">{action("Repost",RefreshCw,"#d8b900",pending("Repost"))}{action("WhatsApp",MessageCircle,"#20ba60",()=>external("wa"))}{action("SMS",MessageSquare,"#23c86b",()=>external("sms"))}{action("Copiar enlace",LinkIcon,"#2166ef",copyShareLink)}{action("Facebook",Facebook,"#1877f2",()=>external("fb"))}{action("Estado",MessageCircle,"#20ba60",()=>external("status"))}</div>
+        <div className="rv-share-grid">{action("Reportar",ShieldCheck,"#484c55",()=>{const id=sharePost.id;openPost(sharePost);setSharePost(null);startReport("post",id);},sharePost.user_id===user?.id)}{action("No me interesa",Ban,"#484c55",()=>{setFeedPosts(rows=>rows.filter(p=>p.id!==sharePost.id));setShareSuccess("Publicación ocultada de esta vista.");})}{action(preparedMusicVideo?.postId===sharePost.id?"Guardar video":"Descargar",Download,"#484c55",downloadOwnSharedPost,shareDownloading||sharePost.user_id!==user?.id)}{action("Añadir a historia",Plus,"#484c55",pending("Añadir a historia"))}{action("Promocionar",Radio,"#484c55",pending("Promocionar"))}{action("Dueto",Users,"#484c55",pending("Dueto"))}</div>
+        {(shareError||shareSuccess||shareDownloadStage)&&<p className="rv-share-note" role="status">{shareError||shareDownloadStage||shareSuccess}</p>}
+      </section></div>,document.body);
   }
 
   async function copyPostLink(){
