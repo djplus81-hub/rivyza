@@ -121,7 +121,7 @@ const RIVYZA_EN={"Eliminar cuenta":"Delete account","¿Quieres eliminar tu cuent
 
 export default function HomePage(){
  const [splash,setSplash]=useState(true),[fading,setFading]=useState(false);
- useEffect(()=>{const fade=setTimeout(()=>setFading(true),3700);const done=setTimeout(()=>setSplash(false),4000);return()=>{clearTimeout(fade);clearTimeout(done);};},[]);
+ useEffect(()=>{const fade=setTimeout(()=>setFading(true),1700);const done=setTimeout(()=>setSplash(false),2000);return()=>{clearTimeout(fade);clearTimeout(done);};},[]);
  return <CallProvider><HomePageContent/>{splash&&<div role="status" aria-label="Cargando RIVYZA" style={{position:'fixed',inset:0,zIndex:2147483647,background:'#050509',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,opacity:fading?0:1,transition:'opacity 300ms ease',pointerEvents:'auto',isolation:'isolate'}}><img src="/rivyza-splash.png" alt="RIVYZA" fetchPriority="high" loading="eager" style={{width:'100%',height:'100%',objectFit:'contain',objectPosition:'center',display:'block'}}/></div>}</CallProvider>;
 }
 function HomePageContent(){
