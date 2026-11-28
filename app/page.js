@@ -2243,21 +2243,21 @@ async function applyPostCrop(){
     try{await navigator.clipboard.writeText(`${window.location.origin}/?post=${encodeURIComponent(sharePost.id)}`);setShareSuccess("Enlace copiado.");setShareError("");}
     catch{setShareError("No se pudo copiar el enlace.");}
   }
-  // Primera fase: descarga exclusivamente del autor. Los permisos para terceros
-  // requieren validación en servidor antes de habilitarse.
+  // Descargas: publicaciones públicas para todos; privadas solo para su autor.
   const [shareDownloading,setShareDownloading]=useState(false);
   const [shareDownloadStage,setShareDownloadStage]=useState("");
   const [preparedMusicVideo,setPreparedMusicVideo]=useState(null);
-  async function downloadOwnSharedPost(){
+  async function downloadSharedPost(){
     if(!sharePost?.id || !user?.id || shareDownloading)return;
     setShareError("");setShareSuccess("");
     setShareDownloading(true);
     try{
       // No confiar en la copia de la publicación recibida desde el feed.
       const {data:post,error}=await supabase.from("posts")
-        .select("id,user_id,media_path,media_type,music_path,music_title,music_start_seconds,music_clip_seconds,music_volume")
-        .eq("id",sharePost.id).eq("user_id",user.id).maybeSingle();
-      if(error || !post?.media_path)throw new Error("Solo el dueño puede descargar esta publicación.");
+        .select("id,user_id,visibility,media_path,media_type,music_path,music_title,music_start_seconds,music_clip_seconds,music_volume")
+        .eq("id",sharePost.id).maybeSingle();
+      if(error || !post?.media_path)throw new Error("No se pudo acceder a esta publicación.");
+      if(post.user_id!==user.id && post.visibility!=="public")throw new Error("Esta publicación es privada.");
       const {data:ownerProfile}=await supabase.from("profiles").select("username").eq("id",post.user_id).maybeSingle();
       if(!ownerProfile?.username && !sharePost?.creator?.username)
         throw new Error("No se pudo identificar al creador. Inténtalo de nuevo.");
@@ -2360,7 +2360,7 @@ async function applyPostCrop(){
         <div className="rv-share-people" onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()}>{shareLoading?<small>Buscando amigos…</small>:people.length?people.map(person=><button key={person.id} type="button" className="rv-share-person" onClick={()=>toggleShareRecipient(person.id)}><span className="rv-share-avatar" style={{outline:shareSelected.includes(person.id)?"2px solid #f52b88":"none"}}>{person.avatar_url?<img src={person.avatar_url} alt=""/>:(person.display_name||person.username||"R").slice(0,1).toUpperCase()}{shareSelected.includes(person.id)&&<Check size={16} style={{position:"absolute",bottom:0,right:0,background:"#e82b75",borderRadius:"50%"}}/>}</span><small>{person.display_name||person.username||"Usuario"}</small></button>):<small>No hay amigos disponibles.</small>}</div>
         {shareSelected.length>0&&<button type="button" className="rv-share-send" disabled={shareSending} onClick={sendSharedPost}>{shareSending?"Enviando…":`Enviar (${shareSelected.length})`}</button>}
         <div className="rv-share-grid">{action("Repost",RefreshCw,"#d8b900",pending("Repost"))}{action("WhatsApp",MessageCircle,"#20ba60",()=>external("wa"))}{action("SMS",MessageSquare,"#23c86b",()=>external("sms"))}{action("Copiar enlace",LinkIcon,"#2166ef",copyShareLink)}{action("Facebook",Facebook,"#1877f2",()=>external("fb"))}{action("Estado",MessageCircle,"#20ba60",()=>external("status"))}</div>
-        <div className="rv-share-grid">{action("Reportar",ShieldCheck,"#484c55",()=>{const id=sharePost.id;openPost(sharePost);setSharePost(null);startReport("post",id);},sharePost.user_id===user?.id)}{action("No me interesa",Ban,"#484c55",()=>{setFeedPosts(rows=>rows.filter(p=>p.id!==sharePost.id));setShareSuccess("Publicación ocultada de esta vista.");})}{action(preparedMusicVideo?.postId===sharePost.id?"Guardar video":"Descargar",Download,"#484c55",downloadOwnSharedPost,shareDownloading||sharePost.user_id!==user?.id)}{action("Añadir a historia",Plus,"#484c55",pending("Añadir a historia"))}{action("Promocionar",Radio,"#484c55",pending("Promocionar"))}{action("Dueto",Users,"#484c55",pending("Dueto"))}</div>
+        <div className="rv-share-grid">{action("Reportar",ShieldCheck,"#484c55",()=>{const id=sharePost.id;openPost(sharePost);setSharePost(null);startReport("post",id);},sharePost.user_id===user?.id)}{action("No me interesa",Ban,"#484c55",()=>{setFeedPosts(rows=>rows.filter(p=>p.id!==sharePost.id));setShareSuccess("Publicación ocultada de esta vista.");})}{action(preparedMusicVideo?.postId===sharePost.id?"Guardar video":"Descargar",Download,"#484c55",downloadSharedPost,shareDownloading||!user?.id||(sharePost.user_id!==user.id&&sharePost.visibility!=="public"))}{action("Añadir a historia",Plus,"#484c55",pending("Añadir a historia"))}{action("Promocionar",Radio,"#484c55",pending("Promocionar"))}{action("Dueto",Users,"#484c55",pending("Dueto"))}</div>
         {(shareError||shareSuccess||shareDownloadStage)&&<p className="rv-share-note" role="status">{shareError||shareDownloadStage||shareSuccess}</p>}
       </section></div>,document.body);
   }
