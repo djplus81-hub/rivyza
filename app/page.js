@@ -127,7 +127,7 @@ function RivyzaLevelBadge({level=0,size=76}){
  const color=level===0?"#8993a8":level<10?"#cd8c50":level<20?"#c5d3ff":level<30?"#ffcb59":level<40?"#52dff5":level<50?"#bc82ff":"#ffcf66";
  return <svg viewBox="0 0 240 170" width={size} height={size*170/240} aria-label={"Level "+level}><path d="M72 48L5 20L25 84L74 124H166L215 84L235 20L168 48Z" fill={color} stroke="#fff" strokeOpacity=".6" strokeWidth="2"/><path d="M120 8L180 43L171 115L120 160L69 115L60 43Z" fill={color} stroke="#fff" strokeWidth="3"/><path d="M120 22L165 49L158 108L120 141L82 108L75 49Z" fill="#24174e" stroke={color} strokeWidth="2"/><path d="M10 27L72 55M230 27L168 55" stroke="#fff" strokeOpacity=".7" strokeWidth="4"/>{level===50&&<path d="M90 15L83 0L106 9L120 0L134 9L157 0L150 15Z" fill="#ffdf80"/>}<text x="120" y="59" fill={color} fontSize="14" fontWeight="bold" textAnchor="middle">LEVEL</text><text x="120" y="112" fill="white" fontSize="61" fontWeight="900" textAnchor="middle">{level}</text></svg>;
 }
-function RivyzaProfileAchievements({lang,own=false,userId}){
+function RivyzaProfileAchievements({lang,own=false,userId,supabase}){
  const [open,setOpen]=useState(false);
  const [xp,setXp]=useState(0);
  useEffect(()=>{let active=true;setXp(0);if(!userId)return;async function refresh(){const {data,error}=await supabase.from('rivyza_level_progress').select('xp').eq('user_id',userId).maybeSingle();if(active&&!error)setXp(Number(data?.xp||0));}refresh();const t=setInterval(refresh,10000);return()=>{active=false;clearInterval(t)}},[userId]);
@@ -4666,7 +4666,7 @@ async function applyPostCrop(){
           {viewedProfile.youtube_url && <a href={viewedProfile.youtube_url} target="_blank" rel="noreferrer"><Youtube size={16}/><span>YouTube</span></a>}
           {viewedProfile.instagram_url && <a href={viewedProfile.instagram_url} target="_blank" rel="noreferrer"><Instagram size={16}/><span>Instagram</span></a>}
           {viewedProfile.facebook_url && <a href={viewedProfile.facebook_url} target="_blank" rel="noreferrer"><Facebook size={16}/><span>Facebook</span></a>}
-        </div></div><RivyzaProfileAchievements lang={appLanguage} own={false} userId={viewedProfile.id}/></div>
+        </div></div><RivyzaProfileAchievements lang={appLanguage} own={false} userId={viewedProfile.id} supabase={supabase}/></div>
       </section>
 
       <section className="profile-content-section">
@@ -4846,7 +4846,7 @@ async function applyPostCrop(){
           {profile?.youtube_url && <a href={profile.youtube_url} target="_blank" rel="noreferrer"><Youtube size={16}/><span>YouTube</span></a>}
           {profile?.instagram_url && <a href={profile.instagram_url} target="_blank" rel="noreferrer"><Instagram size={16}/><span>Instagram</span></a>}
           {profile?.facebook_url && <a href={profile.facebook_url} target="_blank" rel="noreferrer"><Facebook size={16}/><span>Facebook</span></a>}
-        </div></div><RivyzaProfileAchievements lang={appLanguage} own={true} userId={user.id}/></div>
+        </div></div><RivyzaProfileAchievements lang={appLanguage} own={true} userId={user.id} supabase={supabase}/></div>
 
         <button className="edit-profile-main-btn" onClick={()=>setView("profile")}>{t("Editar perfil")}</button>
       </section>
