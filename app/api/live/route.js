@@ -297,6 +297,14 @@ export async function POST(req) {
       if (error) throw error;
       return json({count:Number(data || 0)});
     }
+    if (input.action === 'background') {
+      if (!isHost) return json({error:'No autorizado'},403);
+      if (!['neon','original','hearts','stars','butterflies','petals','black','blue','purple'].includes(input.background)) return json({error:'Fondo inválido'},400);
+      const svc=roomService();const [info]=await svc.listRooms([`rivyza-${room.id}`]);
+      let metadata={};try{metadata=JSON.parse(info?.metadata||'{}')}catch{}
+      const layout={...(metadata.rivyzaLayout||{slots:10,positions:{}}),background:input.background};
+      await svc.updateRoomMetadata(`rivyza-${room.id}`,JSON.stringify({...metadata,rivyzaLayout:layout}));return json({ok:true,layout});
+    }
     if (input.action === 'layout') {
       if (!canModerate) return json({error:'No autorizado'},403);
       const svc = roomService();
@@ -313,7 +321,7 @@ export async function POST(req) {
       const clean = Object.fromEntries(Object.entries(positions).filter(([id])=>ids.has(id)||Object.hasOwn(previous.positions||{},id)));
       if (Object.values(clean).some(n=>!Number.isInteger(n)||n<0||n>=slots) || new Set(Object.values(clean)).size !== Object.values(clean).length) return json({error:'Posiciones inválidas'},400);
       if (!isHost && (slots !== previous.slots || (clean[room.host_id] ?? 0) !== (previous.positions[room.host_id] ?? 0))) return json({error:'Solo el dueño puede mover su cámara o cambiar la cantidad'},403);
-      const layout={slots,positions:clean};
+      const layout={...previous,slots,positions:clean};
       await svc.updateRoomMetadata(`rivyza-${room.id}`, JSON.stringify({...metadata,rivyzaLayout:layout}));
       return json({ok:true,layout});
     }
