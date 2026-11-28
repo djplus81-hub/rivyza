@@ -373,8 +373,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       if (activityPending.current.get(id) !== visit) return '';
       activityPending.current.delete(id);
       if (!name || previewIdsRef.current.has(id)) return '';
-      publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} entró al LIVE`,system:true,at:visit.at});
-      if (visit.leftAt) publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} salió del LIVE`,system:true,at:visit.leftAt});
+      publishActivity({id:crypto.randomUUID(),name:'LIVE',activityId:id,text:`${name} entró al LIVE`,system:true,at:visit.at});
+      if (visit.leftAt) publishActivity({id:crypto.randomUUID(),name:'LIVE',activityId:id,text:`${name} salió del LIVE`,system:true,at:visit.leftAt});
       else recentEntries.current.set(id,name);
       return name;
     })();
@@ -386,7 +386,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     const name = recentEntries.current.get(id);
     if (!name) return;
     recentEntries.current.delete(id);
-    publishActivity({id:crypto.randomUUID(),name:'LIVE',text:`${name} salió del LIVE`,system:true,at:Date.now()});
+    publishActivity({id:crypto.randomUUID(),name:'LIVE',activityId:id,text:`${name} salió del LIVE`,system:true,at:Date.now()});
   }
   useEffect(() => () => {
     activityPending.current.clear();
@@ -466,7 +466,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     const d = new Date(at || Date.now());
     return Number.isFinite(d.getTime()) ? d.toLocaleTimeString(lang === 'es' ? 'es-US' : 'en-US', {hour:'numeric',minute:'2-digit',hour12:true}) : '';
   };
-  const mapSaved = row => ({id:row.client_id, name:row.author_name, authorId:row.author_id,
+  const mapSaved = row => ({id:row.client_id, name:row.kind==='event'?'LIVE':row.author_name, authorId:row.author_id, activityId:row.kind==='event'&&String(row.author_name||'').startsWith('LIVE:')?row.author_name.slice(5):undefined,
     text:row.body, system:row.kind === 'event', at:new Date(row.created_at).getTime()});
   const mergeSaved = rows => setChat(items => {
     const byId = new Map(items.map(m => [m.id, m]));
@@ -477,7 +477,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     if (!user?.id || !liveRoomId) return false;
     const {error} = await supabase.from('rivyza_live_chat').insert({
       room_id:liveRoomId, client_id:entry.id, author_id:user.id,
-      author_name:(entry.name || room.localParticipant.name || 'Usuario').slice(0,100),
+      author_name:(kind==='event'&&entry.activityId?'LIVE:'+entry.activityId:(entry.name || room.localParticipant.name || 'Usuario')).slice(0,100),
       body:entry.text.slice(0,300),kind
     });
     if (error) { setChatNotice('El mensaje se ve localmente, pero no se guardó en Supabase. Comprueba el SQL v3.23.'); return false; }
@@ -683,7 +683,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   const [comment, setComment] = useState('');
   const commentSendingRef = useRef(false);
   const [chatPeople,setChatPeople]=useState({});
-  const chatIds=[...new Set(chat.filter(m=>!m.system&&!m.privateWelcome&&m.authorId).map(m=>m.authorId))].sort().join(',');
+  const chatIds=[...new Set(chat.filter(m=>!m.privateWelcome&&(m.system?m.activityId:m.authorId)).map(m=>m.system?m.activityId:m.authorId))].sort().join(',');
   useEffect(()=>{let active=true; const ids=chatIds.split(',').filter(Boolean); (async()=>{for(let i=0;i<ids.length;i+=100){const {data}=await supabase.from('profiles').select('id,display_name,username,avatar_url').in('id',ids.slice(i,i+100));if(active&&data)setChatPeople(old=>({...old,...Object.fromEntries(data.map(p=>[p.id,p]))}));}})();return()=>{active=false};},[chatIds,supabase]);
   const [quickId,setQuickId]=useState(null);
   const [quickData,setQuickData]=useState(null);
@@ -876,7 +876,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     // LiveKit delivers the event immediately; Supabase persists it for reconnects.
     try {
       room.localParticipant.publishData(
-        new TextEncoder().encode(JSON.stringify({id:entry.id,text:entry.text,at:entry.at,system:true})),
+        new TextEncoder().encode(JSON.stringify({id:entry.id,text:entry.text,at:entry.at,system:true,activityId:entry.activityId})),
         {reliable:true,topic:'rivyza-chat'}
       ).catch(e => console.warn('LIVE activity broadcast',e));
     } catch(e) { console.warn('LIVE activity broadcast',e); }
@@ -907,7 +907,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       try {
         const m = JSON.parse(new TextDecoder().decode(bytes));
         if (typeof m.text === 'string' && m.text.trim())
-          appendChat({id:m.id || crypto.randomUUID(), authorId:sender.identity, name:m.system ? 'LIVE' : (sender.name || 'Usuario'), text:m.text.slice(0,300), system:m.system === true, at:m.at || Date.now()});
+          appendChat({id:m.id || crypto.randomUUID(), authorId:sender.identity, activityId:m.system&&sender.identity===hostId?m.activityId:undefined, name:m.system ? 'LIVE' : (sender.name || 'Usuario'), text:m.text.slice(0,300), system:m.system === true, at:m.at || Date.now()});
       } catch {}
     };
     const departed = p => {
@@ -2048,7 +2048,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         </div>
       </div>
     </div>}
-    <div className="rivyza-v314-chat" style={slots===14 && chatBoundary!==null ? {clipPath:`inset(${Math.ceil(chatBoundary)}px 0 0 0)`} : undefined} ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><span aria-hidden="true" className="rivyza-v328-symbol">{activity.entering ? '↳' : '↰'}</span><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : m.system || m.privateWelcome ? <>{m.name && <strong>{m.name}: </strong>}{m.text}</> : <div className="rv-chat-person"><button type="button" className="rv-chat-avatar" disabled={!m.authorId} aria-label={es?'Abrir perfil rápido':'Open quick profile'} onClick={()=>setQuickId(m.authorId)}>{chatAvatar(chatPeople[m.authorId]||profiles[m.authorId],m.name)}</button><div className="rv-chat-copy"><div className="rv-chat-name notranslate" translate="no">{chatPeople[m.authorId]?.display_name||m.name}{m.authorId===hostId?' 👑':moderatorIds?.includes(m.authorId)?' 🛡️':''}</div><div translate="no" className="notranslate">{m.text}</div></div></div>}</div>})}</div>{chatReadingOld && <button type="button" onClick={goToLatest} aria-label="Ir al mensaje más reciente" style={{position:'fixed',bottom:'calc(242px + env(safe-area-inset-bottom))',left:14,zIndex:49,border:'1px solid #ffffff66',borderRadius:20,padding:'7px 12px',background:'rgba(32,19,44,.94)',color:'white',fontSize:12}}>↓ Ir al más reciente</button>}{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
+    <div className="rivyza-v314-chat" style={slots===14 && chatBoundary!==null ? {clipPath:`inset(${Math.ceil(chatBoundary)}px 0 0 0)`} : undefined} ref={chatRef} onScroll={onChatScroll} role="log" aria-label={lang === 'es' ? 'Historial del chat del LIVE' : 'LIVE chat history'} aria-live="off">{hasOlder && chat.length > 0 && <button type="button" className="rivyza-v323-earlier" disabled={loadingOlder} onClick={loadOlder}>{loadingOlder ? "Cargando…" : "↑ Ver mensajes anteriores"}</button>}{chat.map(m=>{const activity=eventDetails(m);return <div key={m.id} className={activity ? `rivyza-v328-activity ${activity.entering ? 'rivyza-v328-enter' : 'rivyza-v328-exit'}` : (m.privateWelcome ? 'rivyza-private-welcome' : (m.system ? 'rivyza-v322-event' : ''))}>{activity ? <><button type="button" className="rv-chat-avatar rv-activity-avatar" disabled={!m.activityId} aria-label={es?'Abrir perfil rápido':'Open quick profile'} onClick={()=>setQuickId(m.activityId)}>{chatAvatar(chatPeople[m.activityId]||profiles[m.activityId],activity.person)}</button><span className="rivyza-v328-activity-text"><strong>{activity.person}</strong> {activity.action}</span><time dateTime={new Date(m.at || Date.now()).toISOString()} className="rivyza-v328-time">{eventTime(m.at)}</time></> : m.system || m.privateWelcome ? <>{m.name && <strong>{m.name}: </strong>}{m.text}</> : <div className="rv-chat-person"><button type="button" className="rv-chat-avatar" disabled={!m.authorId} aria-label={es?'Abrir perfil rápido':'Open quick profile'} onClick={()=>setQuickId(m.authorId)}>{chatAvatar(chatPeople[m.authorId]||profiles[m.authorId],m.name)}</button><div className="rv-chat-copy"><div className="rv-chat-name notranslate" translate="no">{chatPeople[m.authorId]?.display_name||m.name}{m.authorId===hostId?' 👑':moderatorIds?.includes(m.authorId)?' 🛡️':''}</div><div translate="no" className="notranslate">{m.text}</div></div></div>}</div>})}</div>{chatReadingOld && <button type="button" onClick={goToLatest} aria-label="Ir al mensaje más reciente" style={{position:'fixed',bottom:'calc(242px + env(safe-area-inset-bottom))',left:14,zIndex:49,border:'1px solid #ffffff66',borderRadius:20,padding:'7px 12px',background:'rgba(32,19,44,.94)',color:'white',fontSize:12}}>↓ Ir al más reciente</button>}{chatNotice && <div className="rivyza-v323-chat-notice" role="status">{chatNotice}</div>}
     {publish && (cameraPreviewOpen || previewStream) && <div role="dialog" aria-modal={cameraPreviewOpen} aria-label="Preparar cámara" style={{position:'fixed',inset:0,zIndex:cameraPreviewOpen?2147483001:-1,opacity:cameraPreviewOpen?1:0,pointerEvents:cameraPreviewOpen?'auto':'none',background:'rgba(0,0,0,.94)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:14,color:'#fff'}}>
       <div style={{width:'100%',maxWidth:400,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}><strong>Prepara tu cámara</strong><button type="button" onClick={closePreview} style={{background:'transparent',border:0,color:'#fff',fontSize:25}}>✕</button></div>
       <div style={{width:'100%',maxWidth:400,height:'min(49vh,460px)',background:'#15151d',borderRadius:14,overflow:'hidden',position:'relative'}}>
@@ -2502,7 +2502,7 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-v314-chat .rivyza-v328-activity{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:7px;font-size:13px;line-height:1.3;font-weight:500;font-style:normal;text-shadow:0 1px 2px #0009;background:rgba(19,19,25,.43);}
 .rivyza-v328-enter{color:#89f0b7;}
 .rivyza-v328-exit{color:#c5becb;}
-.rivyza-v328-symbol{font-size:16px;font-weight:800;flex:none;line-height:1;}
+.rivyza-v314-chat .rv-activity-avatar{width:28px!important;height:28px!important;min-width:28px!important;flex:0 0 28px!important;border-radius:50%!important;overflow:hidden!important;padding:0!important;pointer-events:auto!important}.rivyza-v328-symbol{font-size:16px;font-weight:800;flex:none;line-height:1;}
 .rivyza-v328-activity-text{flex:1;min-width:0;overflow-wrap:anywhere;}
 .rivyza-v328-time{flex:none;color:#c7bed0;font-size:11px;font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums;}
 .rivyza-v323-earlier{display:block;margin:4px auto;padding:4px 8px;border:1px solid #705579;background:#241731;color:white;border-radius:12px;font-size:12px}
