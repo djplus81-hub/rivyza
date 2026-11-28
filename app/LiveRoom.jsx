@@ -159,12 +159,18 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   useEffect(() => {
     let active = true;
     let busy = false;
+    let initialized = false;
     const refresh = async () => {
-      if (busy) return;
+      if (busy || sendingLikes.current) return;
       busy = true;
       try {
         const result = await likeApi('GET');
-        if (active) acceptLikes(result.count);
+        if (active && !sendingLikes.current) {
+          const delta=Math.max(0,Math.floor(Number(result.count)||0)-likesRef.current);
+          if(initialized && delta)showFloatingLikes(Math.min(4,delta));
+          acceptLikes(result.count);
+          initialized=true;
+        }
       } catch (error) { console.warn('LIVE likes refresh:', error); }
       finally { busy = false; }
     };
@@ -173,8 +179,9 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
       try {
         const data = JSON.parse(new TextDecoder().decode(payload));
         if (data?.type === 'count' && data.roomId === liveRoomId) {
+          const delta=Math.max(0,Math.floor(Number(data.count)||0)-likesRef.current);
           acceptLikes(data.count);
-          if(sender.identity!==room.localParticipant.identity){const amount=Math.min(4,Math.max(0,Math.floor(Number(data.amount)||0)));if(amount)showFloatingLikes(amount);}
+          if(sender.identity!==room.localParticipant.identity && delta){const amount=Math.min(4,delta,Math.max(1,Math.floor(Number(data.amount)||0)));showFloatingLikes(amount);}
           refresh();
         }
       } catch {}
@@ -182,7 +189,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     room.on(RoomEvent.DataReceived, receive);
     room.on(RoomEvent.Reconnected, refresh);
     refresh();
-    const timer = setInterval(refresh, 1800);
+    const timer = setInterval(refresh, 1000);
     return () => {
       active = false;
       clearInterval(timer);
