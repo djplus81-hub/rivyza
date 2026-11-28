@@ -2543,6 +2543,14 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 .rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-requests.has-pending{box-shadow:inset 0 0 0 1px #ff426c,0 0 8px #ff235b88!important}
 .rivyza-live-stage .rivyza-v314-comment-form .rivyza-v32-comment{background:linear-gradient(135deg,#25213c,#15132a)!important;box-shadow:inset 0 0 0 1px #8d70c4!important;color:#fff!important}
 .rivyza-live-stage .rivyza-v314-comment-form button[type=submit]{color:#fff!important;background:radial-gradient(circle at 30% 20%,#ff50c5,#9b096c)!important;border-radius:50%!important;box-shadow:inset 0 0 0 1px #f578d7!important;display:grid;place-items:center}
+/* Neon spacing: one row, circular controls, integrated send button. */
+.rivyza-live-stage .rivyza-v32-toolbar{--rz-control:clamp(32px,10vw,44px);--rz-gap:clamp(5px,1.8vw,9px);display:flex!important;flex-wrap:nowrap!important;align-items:center!important;gap:var(--rz-gap)!important;padding:5px 7px!important;box-sizing:border-box!important;width:auto!important}
+.rivyza-live-stage .rivyza-v32-toolbar > .rivyza-v32-icon{flex:0 0 var(--rz-control)!important;width:var(--rz-control)!important;height:var(--rz-control)!important;min-width:var(--rz-control)!important;min-height:var(--rz-control)!important;max-width:var(--rz-control)!important;max-height:var(--rz-control)!important;aspect-ratio:1!important;padding:0!important;margin:0!important;box-sizing:border-box!important}
+.rivyza-live-stage .rivyza-v32-toolbar > .rivyza-v314-comment-form{position:relative!important;flex:1 1 0!important;min-width:0!important;min-height:0!important;gap:0!important;margin:0!important;padding:0!important}
+.rivyza-live-stage .rivyza-v314-comment-form .rivyza-v32-comment{box-sizing:border-box!important;width:100%!important;min-width:0!important;padding:8px calc(var(--rz-control) + 3px) 8px 9px!important;font-size:16px!important;margin:0!important;text-overflow:ellipsis}
+.rivyza-live-stage .rivyza-v314-comment-form button[type=submit]{position:absolute!important;right:4px!important;top:50%!important;transform:translateY(-50%)!important;width:calc(var(--rz-control) - 6px)!important;height:calc(var(--rz-control) - 6px)!important;min-width:0!important;min-height:0!important;padding:0!important;margin:0!important;box-sizing:border-box!important;aspect-ratio:1!important}
+.rivyza-live-stage .rivyza-v314-comment-form button[type=submit] svg{width:18px;height:18px}
+@media(max-width:350px){.rivyza-live-stage .rivyza-v32-toolbar{--rz-control:30px;--rz-gap:4px;padding:4px!important}}
 .rivyza-live-stage .rivyza-v344-like-hint{background:radial-gradient(ellipse at top,#50204f,#171126 80%)!important;box-shadow:inset 0 0 0 1px #d58bf0,0 0 9px #b82dce55!important}
 .rivyza-live-stage .rivyza-v344-like-heart{color:#ff4baf;filter:drop-shadow(0 0 4px #ff249e)}
 `}</style>
