@@ -5304,7 +5304,7 @@ async function applyPostCrop(){
         <div className="feed-empty-state">{feedMessage||"Todavía no hay publicaciones."}</div>
       )}
 
-      {(()=>{const lives=[]; /* Temporarily disable LIVE cards in Para ti for startup flicker test. */const items=[];feedPosts.forEach((post,i)=>{items.push({post});if((i+1)%3===0&&lives.length) {const room=lives[Math.floor(i/3)];if(room)items.push({room});}});items.push(...lives.slice(Math.floor(feedPosts.length/3)).map(room=>({room})));return items;})().map(({post,room})=>room?<FeedLiveCard key={room.id} room={room} supabase={supabase} onEnter={()=>{enterLiveById(room.id);}}/>:(
+      {(()=>{const lives=feedTab==='forYou'?discoverLiveRooms.filter(room=>room.host_id!==user?.id):[];const items=[];feedPosts.forEach((post,i)=>{items.push({post});if((i+1)%3===0&&lives.length) {const room=lives[Math.floor(i/3)];if(room)items.push({room});}});items.push(...lives.slice(Math.floor(feedPosts.length/3)).map(room=>({room})));return items;})().map(({post,room})=>room?<FeedLiveCard key={room.id} room={room} supabase={supabase} onEnter={()=>{enterLiveById(room.id);}}/>:(
         <article className="video-card feed-post-card" key={post.id}>
           <div className="feed-media-wrap" data-rv-frame={post.media_type==="photo"&&String(post.media_path).includes("-frame916.")?"916":undefined}>
               <style>{`[data-rv-frame="916"] img{object-fit:contain!important;object-position:center!important;} [data-rv-frame="916"]{background:#000!important;}`}</style>
