@@ -4639,7 +4639,8 @@ async function applyPostCrop(){
       </header>
 
       <section className="profile-hero compact-profile">
-        <div className="profile-heading-row">
+        <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto",columnGap:12,rowGap:10,alignItems:"center"}}>
+        <div className="profile-heading-row" style={{display:"contents"}}> 
           <div className="profile-heading-copy">
             <h1>{profile?.display_name||"DJ Plus"}</h1>
             <div className="public-handle">@{profile?.username||"DJPLUS"}</div>
@@ -4673,11 +4674,12 @@ async function applyPostCrop(){
           </div>
         </div>
 
-        <div className="profile-stats compact-stats">
+        <div className="profile-stats compact-stats" style={{gridColumn:1,margin:0,alignSelf:"end",minWidth:0}}> 
           <button onClick={()=>openSocialList(user.id,"following")}><strong>{ownFollowingCount}</strong><span>Following</span></button>
           <button onClick={()=>openSocialList(user.id,"followers")}><strong>{ownFollowersCount}</strong><span>Followers</span></button>
           <button><strong>{ownLikesCount}</strong><span>Likes</span></button>
-          {!profileFromLive&&<button type="button" onClick={()=>openLiveCreator()} aria-label={appLanguage==="en"?"Go LIVE":"Crear LIVE"} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,minWidth:0,padding:0,background:"transparent",border:0,color:"#ff397c"}}><span style={{display:"grid",placeItems:"center",width:32,height:30,borderRadius:9,background:"linear-gradient(135deg,#ff397c,#ed174c)",color:"white"}}><Radio size={19}/></span><span style={{fontSize:10,fontWeight:700,whiteSpace:"nowrap",color:"#ff397c"}}>{appLanguage==="en"?"Go LIVE":"Crear LIVE"}</span></button>}
+        </div>
+          {!profileFromLive&&<button type="button" onClick={()=>openLiveCreator()} aria-label={appLanguage==="en"?"Go LIVE":"Crear LIVE"} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,gridColumn:2,justifySelf:"center",alignSelf:"end",minWidth:0,padding:0,background:"transparent",border:0,color:"#ff397c"}}><span style={{display:"grid",placeItems:"center",width:30,height:26,borderRadius:9,background:"linear-gradient(135deg,#ff397c,#ed174c)",color:"white"}}><Radio size={19}/></span><span style={{fontSize:"inherit",fontWeight:600,whiteSpace:"nowrap",color:"#ff397c"}}>{appLanguage==="en"?"Go LIVE":"Crear LIVE"}</span></button>}
         </div>
 
         {profile?.bio && <p className="public-bio">{profile.bio}</p>}
