@@ -23,8 +23,8 @@ function getLanguage() {
 // RIVYZA: unified LIVE audio with echo cancellation for every publisher.
 const LIVE_AUDIO_CAPTURE = {
   sampleRate: 48000,
-  channelCount: 2,
-  echoCancellation: true,
+  channelCount: 1,
+  echoCancellation: false,
   noiseSuppression: false,
   autoGainControl: false,
 };
@@ -42,7 +42,8 @@ const LIVE_AUDIO_ROOM_OPTIONS = {
   publishDefaults: {
     simulcast:true,
     videoEncoding:{maxBitrate:1800000,maxFramerate:30},
-    audioPreset: { maxBitrate: 128000 },
+    audioPreset: { maxBitrate: 256000 },
+    forceStereo: false,
     dtx: false,
     red: true,
   },
@@ -66,7 +67,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         echoCancellation: settings.echoCancellation,
         noiseSuppression: settings.noiseSuppression,
         autoGainControl: settings.autoGainControl,
-        requestedMaxBitrate: 128000,
+        requestedMaxBitrate: 256000,
       });
     };
     const refresh = () => report(room.localParticipant.getTrackPublication(Track.Source.Microphone));
@@ -1549,13 +1550,13 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   }
   // v3.56: LIVE-only backgrounds. Never saved to user preferences.
   const backgroundOptions = [
-    ['original','👑','RIVYZA original'], ['hearts','❤️','Corazones pequeños'],
+    ['neon','✦','RIVYZA Neon'], ['original','👑','RIVYZA original'], ['hearts','❤️','Corazones pequeños'],
     ['stars','⭐','Estrellas brillantes'], ['butterflies','🦋','Mariposas luminosas'],
     ['petals','🌸','Pétalos flotantes'], ['black','⚫','Negro dorado'],
     ['blue','🔵','Azul profundo'], ['purple','🟣','Rosa púrpura']
   ];
   const allowedBackgrounds = new Set(backgroundOptions.map(option => option[0]));
-  const [liveBackground,setLiveBackground] = useState('original');
+  const [liveBackground,setLiveBackground] = useState('neon');
   const [backgroundPickerOpen,setBackgroundPickerOpen] = useState(false);
 
   // v3.61: apply static backgrounds directly to the LIVE stage.
@@ -1563,6 +1564,13 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   useEffect(() => {
     const stage = document.querySelector('.rivyza-live-stage');
     if (!stage) return;
+    if (liveBackground === 'neon') {
+      stage.style.setProperty('background-image', 'url("/rivyza-live-bg.webp")', 'important');
+      stage.style.setProperty('background-size', 'cover', 'important');
+      stage.style.setProperty('background-position', 'center', 'important');
+      stage.style.setProperty('background-repeat', 'no-repeat', 'important');
+      return () => ['background-image','background-size','background-position','background-repeat'].forEach(p=>stage.style.removeProperty(p));
+    }
     const themes = {
       black: [
         'linear-gradient(145deg, transparent 39%, rgba(255,192,69,.76) 39.2%, transparent 39.5%)',
@@ -1595,7 +1603,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     };
   }, [liveBackground]);
 
-  const backgroundRef = useRef('original');
+  const backgroundRef = useRef('neon');
   const sendBackground = useCallback(async (type, value, destination) => {
     const payload = new TextEncoder().encode(JSON.stringify({type,roomId:liveRoomId,background:value}));
     await room.localParticipant.publishData(payload,{
@@ -1604,8 +1612,8 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     });
   },[room,liveRoomId]);
   useEffect(() => {
-    backgroundRef.current='original';
-    setLiveBackground('original');
+    backgroundRef.current='neon';
+    setLiveBackground('neon');
   },[liveRoomId]);
   useEffect(() => {
     const receive = (payload,sender,_kind,topic) => {
@@ -1766,7 +1774,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     catch(e) { onError(e.message); }
   }
   return <>
-    {quickId && createPortal(<div className="rv-quick-backdrop" onClick={()=>{if(!quickBusy)setQuickId(null)}}><section className="rv-quick-sheet" role="dialog" aria-modal="true" aria-label={es?'Perfil rápido':'Quick profile'} onClick={e=>e.stopPropagation()}><div className="rv-quick-handle"/><button className="rv-quick-close" onClick={()=>setQuickId(null)} disabled={quickBusy} aria-label={es?'Cerrar':'Close'}>×</button>{quickData?<><div className="rv-quick-head"><button className="rv-chat-avatar rv-quick-avatar" disabled={quickBusy} aria-label={es?'Abrir perfil':'Open profile'} onClick={()=>{setQuickId(null);onViewProfile?.(quickId)}}>{chatAvatar(quickData,quickData.display_name)}</button><div className="rv-quick-name notranslate" translate="no"><strong>{quickData.display_name||quickData.username}</strong><small>@{quickData.username}</small></div>{quickId!==user.id&&<button className="rv-quick-more" onClick={()=>setQuickMenu(v=>!v)}>•••</button>}</div><div className="rv-quick-stats"><strong>{quickData.followers} {es?'Seguidores':'Followers'}</strong><strong>{quickData.following} {es?'Seguidos':'Following'}</strong></div><div className="notranslate" translate="no">{quickData.bio}</div>{quickMenu&&<div className="rv-quick-actions"><button disabled={quickBusy} onClick={()=>setQuickReport(v=>!v)}>{es?'Reportar usuario':'Report user'}</button><button disabled={quickBusy} onClick={()=>quickAction('block')}>{quickData.blocked?(es?'Desbloquear':'Unblock'):(es?'Bloquear':'Block')}</button></div>}{quickReport&&<div className="rv-quick-actions"><select value={quickReason} onChange={e=>setQuickReason(e.target.value)}>{[['harassment','Acoso','Harassment'],['threats','Amenazas','Threats'],['spam','Spam','Spam'],['hate','Odio','Hate'],['other','Otro','Other']].map(([v,s,n])=><option key={v} value={v}>{es?s:n}</option>)}</select><button disabled={quickBusy} onClick={()=>quickAction('report')}>{es?'Enviar reporte':'Send report'}</button></div>}{quickId!==user.id&&<div className="rv-quick-footer"><button onClick={()=>{setComment(v=>(v+' @'+quickData.username+' ').trimStart());setQuickId(null)}}>@</button><button className="rv-quick-follow" disabled={quickBusy||quickData.blocked} onClick={()=>quickAction('follow')}>{quickData.followed?(es?'Siguiendo':'Following'):(es?'+ Seguir':'+ Follow')}</button></div>}</>:!quickError?<p>{es?'Cargando…':'Loading…'}</p>:null}{quickError&&<p role="status">{quickError}</p>}</section></div>,document.body)}
+    {quickId && createPortal(<div className="rv-quick-backdrop" onClick={()=>{if(!quickBusy)setQuickId(null)}}><section className="rv-quick-sheet" role="dialog" aria-modal="true" aria-label={es?'Perfil rápido':'Quick profile'} onClick={e=>e.stopPropagation()}><div className="rv-quick-handle"/><button className="rv-quick-close" onClick={()=>setQuickId(null)} disabled={quickBusy} aria-label={es?'Cerrar':'Close'}>×</button>{quickData?<><div className="rv-quick-head"><button className="rv-chat-avatar rv-quick-avatar" disabled={quickBusy} aria-label={es?'Abrir perfil':'Open profile'} onClick={()=>{setQuickId(null);onViewProfile?.(quickId)}}>{chatAvatar(quickData,quickData.display_name)}</button><div className="rv-quick-name notranslate" translate="no"><strong>{quickData.display_name||quickData.username}</strong><small>@{quickData.username}</small></div>{quickId!==user.id&&<button className="rv-quick-more" onClick={()=>setQuickMenu(v=>!v)}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg></button>}</div><div className="rv-quick-stats"><strong>{quickData.followers} {es?'Seguidores':'Followers'}</strong><strong>{quickData.following} {es?'Seguidos':'Following'}</strong></div><div className="notranslate" translate="no">{quickData.bio}</div>{quickMenu&&<div className="rv-quick-actions"><button disabled={quickBusy} onClick={()=>setQuickReport(v=>!v)}>{es?'Reportar usuario':'Report user'}</button><button disabled={quickBusy} onClick={()=>quickAction('block')}>{quickData.blocked?(es?'Desbloquear':'Unblock'):(es?'Bloquear':'Block')}</button></div>}{quickReport&&<div className="rv-quick-actions"><select value={quickReason} onChange={e=>setQuickReason(e.target.value)}>{[['harassment','Acoso','Harassment'],['threats','Amenazas','Threats'],['spam','Spam','Spam'],['hate','Odio','Hate'],['other','Otro','Other']].map(([v,s,n])=><option key={v} value={v}>{es?s:n}</option>)}</select><button disabled={quickBusy} onClick={()=>quickAction('report')}>{es?'Enviar reporte':'Send report'}</button></div>}{quickId!==user.id&&<div className="rv-quick-footer"><button onClick={()=>{setComment(v=>(v+' @'+quickData.username+' ').trimStart());setQuickId(null)}}>@</button><button className="rv-quick-follow" disabled={quickBusy||quickData.blocked} onClick={()=>quickAction('follow')}>{quickData.followed?(es?'Siguiendo':'Following'):(es?'+ Seguir':'+ Follow')}</button></div>}</>:!quickError?<p>{es?'Cargando…':'Loading…'}</p>:null}{quickError&&<p role="status">{quickError}</p>}</section></div>,document.body)}
     <style>{`.rivyza-live-stage .rivyza-live-tile video.rivyza-camera-mirrored { transform: scaleX(-1) !important; -webkit-transform: scaleX(-1) !important; }
 /* Four-camera mode: equal square tiles in two full-width rows. */
 .rivyza-live-stage .rivyza-live-grid.rivyza-live-grid-square.rivyza-live-layout-4:not(.rivyza-live-solo) {
@@ -1927,7 +1935,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
   object-fit: cover !important;
 }
 `}</style>
-    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-stage') && liveBackground !== 'original' && createPortal(
+    {typeof document !== 'undefined' && document.querySelector('.rivyza-live-stage') && liveBackground !== 'original' && liveBackground !== 'neon' && createPortal(
       <div className={`rivyza-v358-art rivyza-v358-art-${liveBackground}`} aria-hidden="true">
         {['hearts','stars','butterflies','petals'].includes(liveBackground) && Array.from({length:liveBackground==='stars'?95:liveBackground==='hearts'?39:liveBackground==='butterflies'?22:37},(_,i)=>{
           // Stable, non-grid low-discrepancy placement, with per-particle offsets.
@@ -1950,7 +1958,7 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
         {t ? <>{t.isCameraEnabled && trackById.has(t.identity) ? <VideoTrack trackRef={trackById.get(t.identity)} className={`rivyza-v318-video ${mirrorStates[t.identity] === true ? "rivyza-camera-mirrored" : ""}`} style={{transform: mirrorStates[t.identity] === true ? "scaleX(-1)" : "scaleX(1)", WebkitTransform: mirrorStates[t.identity] === true ? "scaleX(-1)" : "scaleX(1)"}} /> : <div className="rivyza-live-avatar-fallback">{avatarFor(t) ? <><img src={avatarFor(t)} alt={t.name || 'Perfil'} onError={e=>{e.currentTarget.style.display='none';const next=e.currentTarget.nextElementSibling;if(next)next.style.display='flex';}} style={{width:'min(80px, 76%)',height:'auto',aspectRatio:'1 / 1',maxHeight:'76%',flexShrink:0,borderRadius:'50%',objectFit:'cover'}}/><span style={{display:'none'}}>{(t.name || 'U').slice(0,1).toUpperCase()}</span></> : <span>{(t.name || 'U').slice(0,1).toUpperCase()}</span>}</div>}{!t.isMicrophoneEnabled && <span className="rivyza-v317-mic-off" role="img" aria-label="Micrófono silenciado"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M15 9V5a3 3 0 0 0-5.8-1"/><path d="M5 10v2a7 7 0 0 0 12 4.9"/><path d="M19 10v2c0 .7-.1 1.4-.3 2"/><path d="M12 19v3"/><path d="M8 22h8"/><path d="M3 3l18 18"/></svg></span>}<span className="rivyza-live-camera-name">{t.identity === hostId ? '👑 ' : moderatorIds?.includes(t.identity) ? '🛡️ ' : ''}{t.name || tr.guest}</span></> : <>{(isHost||isModerator)&&!reserved.has(i)&&<span aria-hidden="true" style={{position:"absolute",inset:0,display:"grid",placeItems:"center",fontSize:32,color:"white",pointerEvents:"none"}}>+</span>}<span className="rivyza-live-camera-name">+ {tr.camera} {i + 1}</span></>}
       </div>)}
     </div>
-    {!typing && !target && !viewersOpen && <div className="rivyza-v344-like-zone" role="button" tabIndex={0} aria-label="Dar Likes al LIVE" onPointerDown={e => {e.preventDefault(); giveLike();}} onKeyDown={e => {if(e.key === 'Enter' || e.key === ' ') {e.preventDefault();giveLike();}}}><span className="rivyza-v344-like-hint"><span className="rivyza-v344-like-heart" aria-hidden="true">💗</span><span>Likes</span></span></div>}
+    {!typing && !target && !viewersOpen && <div className="rivyza-v344-like-zone" role="button" tabIndex={0} aria-label="Dar Likes al LIVE" onPointerDown={e => {e.preventDefault(); giveLike();}} onKeyDown={e => {if(e.key === 'Enter' || e.key === ' ') {e.preventDefault();giveLike();}}}><span className="rivyza-v344-like-hint"><span className="rivyza-v344-like-heart" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" fill="currentColor"/></svg></span><span>Likes</span></span></div>}
     <div className="rivyza-v344-floating" aria-hidden="true">{floatingLikes.map(item => <svg key={item.id} className="rivyza-v344-float-heart" style={{left:`${item.left}%`}} viewBox="0 0 24 24"><defs><linearGradient id={`rivyza-like-${item.id}`} x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#ff4da9"/><stop offset="100%" stopColor="#963cff"/></linearGradient></defs><path d="M12 21s-9-5.7-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.3-9 12-9 12Z" fill={`url(#rivyza-like-${item.id})`}/></svg>)}</div>
     {typeof document !== 'undefined' && document.querySelector('.rivyza-live-top') && createPortal(<div className="rivyza-v368-counters" aria-label="Likes y espectadores del LIVE"><button type="button" className="rivyza-v368-like-trigger" aria-label="Ver Top 8 de likes" aria-expanded={likesTopOpen} onClick={e => {e.preventDefault();e.stopPropagation();setLikesTopOpen(open => !open);}} style={{cursor:"pointer",touchAction:"manipulation",pointerEvents:"auto",position:"relative",zIndex:1000,background:"transparent",border:0,padding:"4px 6px",minHeight:32,margin:0,opacity:1,WebkitAppearance:"none"}}><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><defs><linearGradient id="rivyza-like-counter-gradient" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#ff4da9"/><stop offset="100%" stopColor="#963cff"/></linearGradient></defs><path d="M12 21s-9-5.7-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.3-9 12-9 12Z" fill="url(#rivyza-like-counter-gradient)"/></svg><span>{likesFormat(liveLikes)}</span></button><button type="button" onClick={() => setViewersOpen(true)} className="rivyza-v368-viewers" style={{position:"static",top:"auto",right:"auto",zIndex:"auto",display:"inline-flex",alignItems:"center",gap:"5px",marginLeft:"0px",verticalAlign:"middle",padding:"3px 5px",fontSize:"11px",lineHeight:"18px",whiteSpace:"nowrap",background:"rgba(57,43,73,.9)",borderRadius:"999px"}} aria-label="Ver personas conectadas al LIVE" aria-expanded={viewersOpen}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>{visibleViewers.length}</span></button></div>, document.querySelector('.rivyza-live-top'))}
     {likesTopOpen && typeof document !== 'undefined' && createPortal(
@@ -2051,19 +2059,19 @@ function CameraGrid({ publish, isHost, hostId, isModerator, moderatorIds, onMode
     </div>}
     {!publish && requestStatus && <div className="rivyza-v314-request-status" role="status">{requestStatus === 'pending' ? (camerasFull ? fullMessage : (lang==='es'?'Solicitud enviada. Espera la aprobación.':'Request sent. Waiting for approval.')) : requestStatus === 'approved' ? 'Solicitud aceptada. Conectando…' : 'Solicitud finalizada. Puedes solicitar subir de nuevo.'}{requestStatus === 'pending' && <button onClick={onCancelRequest}>Cancelar solicitud</button>}</div>}
     <div className={`rivyza-live-bottom-bar rivyza-v32-toolbar ${typing ? 'rivyza-v32-typing' : ''}`} style={target ? {visibility:'hidden',pointerEvents:'none'} : typing ? {bottom:`calc(${keyboardLift}px + 6px)`} : undefined}>
-      <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario">➤</button></form>
+      <form onSubmit={sendComment} className="rivyza-v314-comment-form"><input ref={commentInputRef} value={comment} onChange={e=>setComment(e.target.value)} maxLength={300} className="rivyza-v32-comment" type="text" placeholder={lang === 'es' ? 'Escribe un comentario…' : 'Write a comment…'} aria-label="Comentario" onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} /><button type="submit" aria-label="Enviar comentario"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3 3 19 9-19 9 4-9-4-9Z" fill="currentColor"/><path d="M7 12h15" stroke="#9e176c"/></svg></button></form>
       {!typing && <>
 
-        {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? '📹' : '📷'}</button>}
+        {publish && <button type="button" className={`rivyza-v32-icon rivyza-neon-camera ${cam ? 'is-on' : 'is-off'}`} aria-pressed={cam} onClick={toggleCam} aria-label={cam ? 'Apagar cámara' : 'Encender cámara'} title={cam ? 'Apagar cámara' : 'Encender cámara'}>{cam ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="5" width="14" height="14" rx="3"/><path d="m16 10 6-4v12l-6-4"/></svg> : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 3l18 18M16 10l6-4v12l-3-2M9 5h4a3 3 0 0 1 3 3v2M16 16v1a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V8a3 3 0 0 1 1-2"/></svg>}</button>}
         {publish && <button type="button" className="rivyza-v32-icon" onClick={toggleMic} aria-label={mic ? 'Silenciar micrófono' : 'Activar micrófono'} title={mic ? 'Silenciar micrófono' : 'Activar micrófono'}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mic ? "#FFFFFF" : "#FF3B45"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:"block",width:"22px",height:"22px",flexShrink:0,margin:"auto"}}>
           <rect x="9" y="2" width="6" height="12" rx="3" />
           <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" />
           {!mic && <><circle cx="12" cy="12" r="10" stroke="#FF3B45" strokeWidth="1.6" /><path d="M5 5l14 14" stroke="#FF3B45" strokeWidth="2.3" /></>}
         </svg></button>}
-        {!publish && !isModerator && <button type="button" className="rivyza-v32-icon rivyza-v32-join-request" disabled={requestStatus === 'pending'} onClick={() => onRequest?.()} aria-label={tr.request} title={tr.request}>✋</button>}
-        {(isHost || isModerator) && <button type="button" className={`rivyza-v32-icon rivyza-v32-requests ${requests.some(r => r.status === 'pending') ? 'has-pending' : ''}`} onClick={() => { setDrawer(false); setRequestsOpen(x => !x); }} aria-label={`Solicitudes para subir: ${requests.filter(r => r.status === 'pending').length}`} aria-expanded={requestsOpen}>✋{requests.filter(r => r.status === 'pending').length > 0 && <span className="rivyza-v32-count">{requests.filter(r => r.status === 'pending').length}</span>}</button>}
-        <button type="button" className="rivyza-v32-icon" disabled title="Regalos: próximamente" aria-label="Regalos próximamente">🎁</button>
-        <button type="button" className="rivyza-v32-icon" onClick={() => { setRequestsOpen(false); setDrawer(x => !x); }} aria-label={tr.options} aria-expanded={drawer}>•••</button>
+        {!publish && !isModerator && <button type="button" className="rivyza-v32-icon rivyza-v32-join-request" disabled={requestStatus === 'pending'} onClick={() => onRequest?.()} aria-label={tr.request} title={tr.request}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 13V5a2 2 0 0 1 4 0v6-8a2 2 0 0 1 4 0v8-5a2 2 0 0 1 4 0v9a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3l-4-6a2 2 0 0 1 3-2l3 3"/></svg></button>}
+        {(isHost || isModerator) && <button type="button" className={`rivyza-v32-icon rivyza-v32-requests ${requests.some(r => r.status === 'pending') ? 'has-pending' : ''}`} onClick={() => { setDrawer(false); setRequestsOpen(x => !x); }} aria-label={`Solicitudes para subir: ${requests.filter(r => r.status === 'pending').length}`} aria-expanded={requestsOpen}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 13V5a2 2 0 0 1 4 0v6-8a2 2 0 0 1 4 0v8-5a2 2 0 0 1 4 0v9a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3l-4-6a2 2 0 0 1 3-2l3 3"/></svg>{requests.filter(r => r.status === 'pending').length > 0 && <span className="rivyza-v32-count">{requests.filter(r => r.status === 'pending').length}</span>}</button>}
+        <button type="button" className="rivyza-v32-icon" disabled title="Regalos: próximamente" aria-label="Regalos próximamente"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v9h14v-9M12 8v13M12 8H8a3 3 0 1 1 3-3l1 3Zm0 0h4a3 3 0 1 0-3-3l-1 3Z"/></svg></button>
+        <button type="button" className="rivyza-v32-icon" onClick={() => { setRequestsOpen(false); setDrawer(x => !x); }} aria-label={tr.options} aria-expanded={drawer}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg></button>
       </>}
     </div>
     {(isHost || isModerator) && requestsOpen && <div className="rivyza-v32-popover rivyza-v32-request-panel" role="dialog" aria-label="Solicitudes para subir">
@@ -2526,6 +2534,17 @@ export default function LiveRoom({ supabase, user, onExit, onViewProfile, initia
 }
 .rivyza-live-stage .rivyza-v355-toast span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rivyza-live-stage .rivyza-v355-toast button { padding: 0 2px !important; font-size: 14px !important; }
+
+/* Neon controls: paint only; preserve existing layout and hit targets. */
+.rivyza-live-stage .rivyza-v32-toolbar{background:linear-gradient(135deg,#17132bee,#0b0b1bee)!important;box-shadow:inset 0 0 0 1px #7562b8,0 0 10px #6a38df44!important;border-radius:32px!important}
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-icon{background:radial-gradient(ellipse at top,#48305e,#151126 75%)!important;color:#fff!important;border-radius:50%!important;box-shadow:inset 0 0 0 1px #a48af0,inset 0 0 8px #7951e766,0 0 5px #7951e744!important;display:inline-flex;align-items:center;justify-content:center}
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-icon svg{width:22px;height:22px;flex-shrink:0}
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-neon-camera.is-on{color:#ff385c!important;background:radial-gradient(ellipse at top,#652037,#180b19 75%)!important;box-shadow:inset 0 0 0 1px #ff426c,0 0 9px #ff235b88!important}
+.rivyza-live-stage .rivyza-v32-toolbar .rivyza-v32-requests.has-pending{box-shadow:inset 0 0 0 1px #ff426c,0 0 8px #ff235b88!important}
+.rivyza-live-stage .rivyza-v314-comment-form .rivyza-v32-comment{background:linear-gradient(135deg,#25213c,#15132a)!important;box-shadow:inset 0 0 0 1px #8d70c4!important;color:#fff!important}
+.rivyza-live-stage .rivyza-v314-comment-form button[type=submit]{color:#fff!important;background:radial-gradient(circle at 30% 20%,#ff50c5,#9b096c)!important;border-radius:50%!important;box-shadow:inset 0 0 0 1px #f578d7!important;display:grid;place-items:center}
+.rivyza-live-stage .rivyza-v344-like-hint{background:radial-gradient(ellipse at top,#50204f,#171126 80%)!important;box-shadow:inset 0 0 0 1px #d58bf0,0 0 9px #b82dce55!important}
+.rivyza-live-stage .rivyza-v344-like-heart{color:#ff4baf;filter:drop-shadow(0 0 4px #ff249e)}
 `}</style>
     <header className="rivyza-live-top rivyza-v32-header"><button type="button" onClick={roomId && session?.host ? () => setConfirmStop(true) : roomId ? leave : onExit} style={roomId && session?.host ? {color:'#ff7474',fontSize:11,fontWeight:700,padding:'4px 3px',whiteSpace:'nowrap'} : undefined}>{roomId && session?.host ? `⏻ ${translations[lang].end}` : roomId ? translations[lang].leaveLive : (lang === 'es' ? '← Volver' : '← Back')}</button><strong className="rivyza-live-header-center">RIVYZA <span>LIVE</span></strong></header>
     {error && <div className="rivyza-v32-toast rivyza-v355-toast" role="status" title={error}><span>{/^load failed$/i.test(error.trim()) ? "No se pudo cargar" : error}</span><button type="button" onClick={() => setError('')} aria-label="Cerrar aviso">✕</button></div>}
