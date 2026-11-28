@@ -3,7 +3,7 @@ import {useEffect,useRef,useState,useCallback} from 'react';
 import useScreenWakeLock from './useScreenWakeLock';
 import {createPortal} from 'react-dom';
 import MediaStickers,{bakeStickers} from './MediaStickers';
-import {Heart,X,Plus,Eye,Send,Download,Trash2,ChevronUp} from 'lucide-react';
+import {Heart,X,Plus,Eye,Send,Download,Trash2,ChevronUp,Camera,SwitchCamera,Images} from 'lucide-react';
 
 const MAX_STORIES=10;
 const STORY_FILTERS={original:'none',warm:'sepia(.25) saturate(1.25)',cool:'saturate(.9) hue-rotate(18deg)',vivid:'saturate(1.55) contrast(1.08)',bw:'grayscale(1)'};
@@ -277,6 +277,41 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
   const interval=window.setInterval(pauseBackground,350);
   return()=>{document.removeEventListener('play',preventBackgroundPlay,true);window.clearInterval(interval)};
  },[upload,viewer]);
+ const storyCamera=useRef(null),storyStream=useRef(null),storyRequest=useRef(0);
+ const [cameraReady,setCameraReady]=useState(false),[cameraBusy,setCameraBusy]=useState(false),[cameraError,setCameraError]=useState('');
+ const [cameraRetry,setCameraRetry]=useState(0);
+ const [facing,setFacing]=useState('user');
+ const stopStoryCamera=useCallback(()=>{
+   storyRequest.current++;storyStream.current?.getTracks().forEach(t=>t.stop());storyStream.current=null;
+   if(storyCamera.current)storyCamera.current.srcObject=null;
+ },[]);
+ useEffect(()=>{
+   if(!upload||file)return;
+   const request=++storyRequest.current;
+   setCameraReady(false);setCameraBusy(true);setCameraError('');
+   (async()=>{
+     try{
+       if(!navigator.mediaDevices?.getUserMedia)throw Error(tx('Cámara no disponible en este navegador','Camera unavailable in this browser'));
+       const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}}});
+       if(request!==storyRequest.current||!storyCamera.current){stream.getTracks().forEach(t=>t.stop());return;}
+       storyStream.current=stream;const el=storyCamera.current;el.srcObject=stream;await el.play();
+       if(request===storyRequest.current)setCameraReady(true);
+     }catch(e){if(request===storyRequest.current){stopStoryCamera();setCameraReady(false);setCameraBusy(false);setCameraError(tx('No se pudo abrir la cámara. Revisa los permisos e intenta nuevamente.','Could not open camera. Check permissions and retry.'));}}
+     finally{if(request===storyRequest.current)setCameraBusy(false);}
+   })();
+   return stopStoryCamera;
+ },[upload,file,facing,cameraRetry,stopStoryCamera]);
+ async function captureStoryPhoto(){
+   const el=storyCamera.current,request=storyRequest.current;
+   if(!cameraReady||!el?.videoWidth||!el.videoHeight)return;
+   const canvas=document.createElement('canvas');canvas.width=el.videoWidth;canvas.height=el.videoHeight;
+   const ctx=canvas.getContext('2d');if(!ctx)return;
+   if(facing==='user'){ctx.translate(canvas.width,0);ctx.scale(-1,1);}
+   ctx.drawImage(el,0,0);
+   const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.94));
+   if(!blob||request!==storyRequest.current)return;
+   stopStoryCamera();setCameraReady(false);resetEditor();setError('');setFile(new File([blob],'historia.jpg',{type:'image/jpeg'}));
+ }
  const lastCreateSignal=useRef(createSignal);
  useEffect(()=>{
    if(lastCreateSignal.current===createSignal)return;
@@ -293,8 +328,8 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
  </div>{error&&<p style={{color:'#ff9a9a',padding:'4px 12px',fontSize:12}}>{error}</p>}
   {upload&&createPortal(<div className="rz-story-upload" onClick={e=>{if(e.target===e.currentTarget)closeUpload()}}><div className="rz-story-upload-inner">
     <div className="rz-story-upload-head"><div><h3>{tx('Nueva historia','New story')}</h3><p>{tx('Comparte un momento con tus amigos','Share a moment with your friends')}</p></div><button className="rz-story-close" onClick={closeUpload} aria-label={tx('Cerrar','Close')}><X size={22}/></button></div>
-    <div className="rz-story-preview" ref={previewBox} onClick={e=>{if(!file&&!busy)fileInput.current?.click();else if(e.target===e.currentTarget){setSelectedText(null);setSelectedSticker(null);setEditorTab('');setStickerCloseSignal(v=>v+1)}}}  role="group">
-      {filePreview?(file?.type.startsWith('video/')?<video key={filePreview} src={filePreview} controls playsInline onClick={e=>e.stopPropagation()}/>:<img src={filePreview} style={{filter:STORY_FILTERS[editorFilter]}} alt={tx('Vista previa de tu historia','Your story preview')}/>):<div className="rz-story-placeholder"><span className="rz-story-placeholder-icon"><Plus size={32}/></span><strong>{tx('Seleccionar foto o video','Choose photo or video')}</strong><small>{tx('Toca aquí para abrir tus archivos','Tap here to open your files')}</small></div>}
+    <div className="rz-story-preview" ref={previewBox} onClick={e=>{if(!file)return;else if(e.target===e.currentTarget){setSelectedText(null);setSelectedSticker(null);setEditorTab('');setStickerCloseSignal(v=>v+1)}}}  role="group">
+      {filePreview?(file?.type.startsWith('video/')?<video key={filePreview} src={filePreview} controls playsInline onClick={e=>e.stopPropagation()}/>:<img src={filePreview} style={{filter:STORY_FILTERS[editorFilter]}} alt={tx('Vista previa de tu historia','Your story preview')}/>):<video ref={storyCamera} autoPlay muted playsInline style={{transform:facing==='user'?'scaleX(-1)':'none'}}/>}
       {file?.type.startsWith('image/')&&<MediaStickers supabase={supabase} items={stickers} onChange={setStickers} selectedId={selectedSticker} onSelect={id=>{setSelectedSticker(id);if(id)setSelectedText(null)}} onDragState={setDraggingSticker} onTrashHover={setStickerOverTrash} lang={language} hideLauncher openSignal={stickerOpenSignal} closeSignal={stickerCloseSignal}/>}
       {file?.type.startsWith('image/')&&editorOverlays.map(o=><span key={o.id} className="rz-editor-overlay" style={{left:`${o.x}%`,top:`${o.y}%`,color:o.color,fontSize:o.kind==='emoji'?32:23,transform:`translate(-50%,-50%) rotate(${o.rotation||0}deg) scale(${o.scale||1})`,outline:selectedText===o.id?"1px dashed #ffffff99":"none"}} onPointerDown={e=>textPointerDown(e,o)} onPointerMove={textPointerMove} onPointerUp={textPointerUp} onPointerCancel={textPointerUp}>{o.text}</span>)}
     </div>
@@ -309,8 +344,16 @@ const timer=useRef(null),lastTick=useRef(0),touch=useRef(null),video=useRef(null
       <small className="rz-editor-hint">{tx('Arrastra el texto o los stickers para moverlos','Drag text or stickers to move them')}</small>
     </div>}
     <input ref={fileInput} className="rz-story-file-input" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" onChange={e=>{setFile(e.target.files?.[0]||null);resetEditor();setError('');e.target.value=''}}/>
+    {!file&&<div style={{position:'absolute',bottom:'calc(85px + env(safe-area-inset-bottom,0px))',left:0,right:0,zIndex:14,display:'flex',alignItems:'center',justifyContent:'center',gap:24}}>
+      <button type="button" aria-label={tx('Galería','Gallery')} onClick={()=>fileInput.current?.click()} style={{background:'#222b'}}><Images size={24}/></button>
+      <button type="button" aria-label={tx('Tomar foto','Take photo')} disabled={!cameraReady} onClick={captureStoryPhoto} style={{border:'4px solid white',borderRadius:'50%',width:70,height:70,background:'#ff327e',display:'grid',placeItems:'center'}}><Camera size={28}/></button>
+      <button type="button" aria-label={tx('Cambiar cámara','Switch camera')} disabled={cameraBusy} onClick={()=>setFacing(v=>v==='user'?'environment':'user')} style={{background:'#222b'}}><SwitchCamera size={24}/></button>
+    </div>}
+    {!file&&cameraError&&<div style={{position:'absolute',top:'40%',left:16,right:16,zIndex:14,textAlign:'center',background:'#111d',padding:12,borderRadius:12}}><p>{cameraError}</p><button onClick={()=>setCameraRetry(v=>v+1)}>{tx('Activar cámara','Enable camera')}</button></div>}
+    {!file&&cameraBusy&&<div style={{position:'absolute',top:'45%',left:0,right:0,textAlign:'center',pointerEvents:'none'}}>{tx('Abriendo cámara…','Opening camera…')}</div>}
     <div className="rz-story-upload-details"><span>{tx('Historias activas','Active stories')}: {own?.stories.length||0}/10</span><span>{tx('Duración: 24 horas','Lasts 24 hours')}</span></div>
     {file?.type.startsWith('video/')&&<small className="rz-editor-hint">{tx('El editor de video y la compresión llegarán en otra actualización. Máximo 50 MB por ahora.','Video editing and compression will come in another update. 50 MB maximum for now.')}</small>}
+    {file&&<button type="button" onClick={()=>{setFile(null);resetEditor();setError('')}} style={{position:'absolute',right:14,bottom:'calc(94px + env(safe-area-inset-bottom,0px))',zIndex:14,background:'#222b'}}><Camera size={20}/></button>}
     {file&&<button className="rz-story-change" onClick={()=>fileInput.current?.click()}>{tx('Cambiar foto o video','Change photo or video')} · {(file.size/1048576).toFixed(1)} MB</button>}
     {error&&<p className="rz-story-upload-error">{error}</p>}
     <button className="rz-story-publish" disabled={!file||busy||(own?.stories.length||0)>=MAX_STORIES} onClick={publish}>{busy?tx('Publicando…','Publishing…'):tx('Publicar historia','Post story')}</button>
