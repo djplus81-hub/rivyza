@@ -555,8 +555,6 @@ function HomePageContent(){
   const [appealDrafts,setAppealDrafts]=useState({});
   const [adminNotice,setAdminNotice]=useState([]);
   const [storyCreateSignal,setStoryCreateSignal]=useState(0);
-  const [friendsStoryCreateSignal,setFriendsStoryCreateSignal]=useState(0);
-  const [pendingStoryCreator,setPendingStoryCreator]=useState(false);
   const [welcomeNotice,setWelcomeNotice]=useState(null);
   useEffect(()=>{
     setWelcomeNotice(null);
@@ -815,14 +813,6 @@ function HomePageContent(){
   const [countryName,setCountryName]=useState("");
   const [showCountry,setShowCountry]=useState(true);
   const [uploadOpen,setUploadOpen]=useState(false);
-  useEffect(()=>{
-    if(!pendingStoryCreator||view!=="friends"||uploadOpen)return;
-    const timer=setTimeout(()=>{
-      setFriendsStoryCreateSignal(v=>v+1);
-      setPendingStoryCreator(false);
-    },300);
-    return()=>clearTimeout(timer);
-  },[pendingStoryCreator,view,uploadOpen]);
   // Detener audio/video del feed mientras la cámara/editor de publicaciones está abierto.
   // Los medios dentro de .camera-composer siguen funcionando (vista previa y música).
   useEffect(()=>{
@@ -989,8 +979,6 @@ async function applyPostCrop(){
   const cameraPanelTouchStartY=useRef(null);
   const [cameraFacing,setCameraFacing]=useState("user");
   const [cameraStream,setCameraStream]=useState(null);
-  const cameraStreamRef=useRef(null);
-  const cameraRequestRef=useRef(0);
   const [cameraError,setCameraError]=useState("");
   // v3.62: ajustes reales de imagen para fotos y videos; no simula geometría facial.
   const [cameraEffectsOpen,setCameraEffectsOpen]=useState(false);
@@ -2542,7 +2530,6 @@ async function applyPostCrop(){
  }
 
  async function stopCamera(){
-   cameraRequestRef.current++;
    stopCameraProcessing();
    deepARRequestRef.current++;
    deepARBusyRef.current=false;setDeepARBusy(false);
@@ -2551,10 +2538,9 @@ async function applyPostCrop(){
    cameraZoomTrackRef.current=null;
    setCameraZoomRange(null);
    setCameraZoom(1);
-   const activeStream=cameraStreamRef.current;
-   cameraStreamRef.current=null;
-   if(activeStream)activeStream.getTracks().forEach(t=>t.stop());
-   if(cameraVideoRef.current)cameraVideoRef.current.srcObject=null;
+   if(cameraStream){
+     cameraStream.getTracks().forEach(t=>t.stop());
+   }
    setCameraStream(null);
    if(recordTimerRef.current){
      clearInterval(recordTimerRef.current);
@@ -2569,12 +2555,8 @@ async function applyPostCrop(){
 
  async function startCamera(facing=cameraFacing){
    setCameraError("");
-   let request;
    try{
-     const stopping=stopCamera();
-     request=++cameraRequestRef.current;
-     await stopping;
-     if(request!==cameraRequestRef.current)return;
+     await stopCamera();
      if(!navigator?.mediaDevices?.getUserMedia){
        setCameraError("La cámara no está disponible en este navegador.");
        return;
@@ -2587,8 +2569,6 @@ async function applyPostCrop(){
        audio:cameraMode==="video"
      });
 
-     if(request!==cameraRequestRef.current){stream.getTracks().forEach(t=>t.stop());return;}
-     cameraStreamRef.current=stream;
      const track=stream.getVideoTracks()[0];
      cameraZoomTrackRef.current=track || null;
      const caps=track?.getCapabilities?.();
@@ -2603,13 +2583,12 @@ async function applyPostCrop(){
      }
      setCameraStream(stream);
      setTimeout(()=>{
-       if(request===cameraRequestRef.current && cameraVideoRef.current){
+       if(cameraVideoRef.current){
          cameraVideoRef.current.srcObject=stream;
          cameraVideoRef.current.play().catch(()=>{});
        }
      },0);
    }catch(err){
-     if(request!==cameraRequestRef.current)return;
      console.error(err);
      setCameraError("No se pudo abrir la cámara. Revisa los permisos.");
    }
@@ -2888,16 +2867,6 @@ async function applyPostCrop(){
      setCameraError("No se pudieron unir los segmentos en este dispositivo. La grabación sigue disponible; intenta terminar de nuevo. "+(err.message||""));
      setRecordPaused(true);
    }finally{setCameraExporting(false);}
- }
-
- async function openStoryCreator(){
-   if(recording||cameraSegmentSaving||cameraExporting)return;
-   await stopCamera();
-   resetUpload();
-   setUploadOpen(false);
-   setView("friends");
-   changeFeedTab("friends");
-   setPendingStoryCreator(true);
  }
 
  async function openLiveCreator(fromCamera=false){
@@ -3464,11 +3433,8 @@ async function applyPostCrop(){
                  </button>}
                </div>
 
-               <div className="camera-create-tabs">
-                 <button className="active" type="button">POST</button>
-                 <button type="button" disabled={recording||cameraSegmentSaving||cameraExporting} onClick={openStoryCreator}>{appLanguage==="en"?"STORY":"HISTORIA"}</button>
-                 <button type="button" disabled={recording||cameraSegmentSaving||cameraExporting} onClick={()=>openLiveCreator(true)} style={{color:"#ff397c",fontWeight:800}}>LIVE</button>
-
+               <div style={{display:"flex",justifyContent:"flex-end",padding:"4px 18px",flexShrink:0}}>
+                 <button type="button" onClick={()=>openLiveCreator(true)} disabled={recording||cameraSegmentSaving||cameraExporting} aria-label={appLanguage==="en"?"Go LIVE":"Crear LIVE"} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,minWidth:0,padding:0,background:"transparent",border:0,color:"#ff397c"}}><span style={{display:"grid",placeItems:"center",width:32,height:30,borderRadius:9,background:"linear-gradient(135deg,#ff397c,#ed174c)",color:"white"}}><Radio size={19}/></span><span style={{fontSize:10,fontWeight:700,whiteSpace:"nowrap",color:"#ff397c"}}>{appLanguage==="en"?"Go LIVE":"Crear LIVE"}</span></button>
                </div>
              </div>
            </div>
@@ -5076,7 +5042,7 @@ async function applyPostCrop(){
           <h1>{t("Amigos")}</h1>
           <p>Solo personas que tú sigues y que también te siguen.</p>
         </header>
-        <RivyzaStories supabase={supabase} user={user} profile={profile} language={appLanguage} createSignal={friendsStoryCreateSignal}/>
+        <RivyzaStories supabase={supabase} user={user} profile={profile} language={appLanguage}/>
       </div>
 
       <section className="video-feed home-real-feed" onScroll={e=>{const y=e.currentTarget.scrollTop;setFriendsStoriesCompact(previous=>previous?(y>8):(y>24));}}>
